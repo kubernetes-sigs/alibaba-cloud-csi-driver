@@ -16,7 +16,7 @@ FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update
 
 ARG TARGETPLATFORM
 ARG OSSFS_VERSION=v1.91.7.ack.1
-ARG OSSFS2_VERSION=2.0.1beta
+ARG OSSFS2_VERSION=v2.0.2beta.ack.2
 ARG ALINAS_UTILS_VERSION=1.6-1.20241101165952.ce0ef4
 ARG EFC_VERSION=1.6-20241028201622.a31063
 RUN set -ex; \
@@ -30,7 +30,7 @@ RUN set -ex; \
     if [ "${ARCH}" = "x86_64" ]; then \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.al7.noarch.rpm; \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.release.${ARCH}.rpm; \
-        yum install -y https://gosspublic.alicdn.com/ossfs/ossfs2_${OSSFS2_VERSION}_linux_${ARCH}.rpm; \
+        yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${ARCH}.rpm; \
     fi; \
     yum clean all
 

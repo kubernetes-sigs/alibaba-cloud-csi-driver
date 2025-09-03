@@ -43,9 +43,10 @@ func Test_parseOptions(t *testing.T) {
 	// CreateVolume
 	testCVReq := csi.CreateVolumeRequest{
 		Parameters: map[string]string{
-			"bucket":   "test-bucket",
-			"url":      "oss-cn-hangzhou.aliyuncs.com",
-			"volumeAs": "subpath",
+			"bucket":     "test-bucket",
+			"url":        "oss-cn-hangzhou.aliyuncs.com",
+			"volumeAs":   "subpath",
+			"metricsTop": "20",
 		},
 		Secrets: map[string]string{
 			AkID:     "test-akid",
@@ -67,7 +68,7 @@ func Test_parseOptions(t *testing.T) {
 		FuseType:      "ossfs",
 		Path:          "/volume-id",
 		UseSharedPath: true,
-		MetricsTop:    defaultMetricsTop,
+		MetricsTop:    "20",
 	}
 	gotOptions = parseOptions(testCVReq.GetParameters(),
 		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "volume-id", false, m)
@@ -101,7 +102,6 @@ func Test_parseOptions(t *testing.T) {
 		AkSecret:      "test-aksecret",
 		UseSharedPath: true,
 		FuseType:      "ossfs",
-		MetricsTop:    defaultMetricsTop,
 		Path:          "/test",
 		ReadOnly:      true,
 	}
@@ -138,7 +138,6 @@ func Test_parseOptions(t *testing.T) {
 		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
 		AuthType:      "rrsa",
 		FuseType:      "ossfs2",
-		MetricsTop:    defaultMetricsTop,
 		Path:          "/",
 		ReadOnly:      true,
 		UseSharedPath: false,
@@ -161,7 +160,6 @@ func Test_parseOptions(t *testing.T) {
 		FuseType:      "ossfs",
 		Path:          "/",
 		UseSharedPath: true,
-		MetricsTop:    defaultMetricsTop,
 		ReadOnly:      true,
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 	}
@@ -178,7 +176,6 @@ func Test_parseOptions(t *testing.T) {
 		FuseType:      "ossfs",
 		Path:          "/",
 		UseSharedPath: true,
-		MetricsTop:    defaultMetricsTop,
 		ReadOnly:      true,
 		RoleName:      "test-rolename",
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
@@ -196,7 +193,6 @@ func Test_parseOptions(t *testing.T) {
 		FuseType:      "ossfs",
 		Path:          "/",
 		UseSharedPath: true,
-		MetricsTop:    defaultMetricsTop,
 		ReadOnly:      true,
 		RoleName:      "worker-role",
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
@@ -702,7 +698,6 @@ func TestMakeMountOptions(t *testing.T) {
 		"ro",
 		"url=1.1.1.1",
 		"use_sse=kmsid",
-		"use_metrics",
 		"sigv4",
 		"region=cn-beijing",
 	}

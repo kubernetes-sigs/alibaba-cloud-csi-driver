@@ -327,7 +327,6 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			},
 			expected: []string{
 				"url=oss://bucket",
-				"use_metrics",
 			},
 		},
 		{
@@ -339,7 +338,6 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			expected: []string{
 				"url=oss://bucket",
 				"ro",
-				"use_metrics",
 			},
 		},
 		{
@@ -351,7 +349,6 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			expected: []string{
 				"url=oss://bucket",
 				"use_sse",
-				"use_metrics",
 			},
 		},
 		{
@@ -364,7 +361,6 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			expected: []string{
 				"url=oss://bucket",
 				"use_sse=kmsid:1234",
-				"use_metrics",
 			},
 		},
 		{
@@ -393,7 +389,6 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			region: "us-east-1",
 			expected: []string{
 				"url=oss://bucket",
-				"use_metrics",
 				"sigv4",
 				"region=us-east-1",
 			},
@@ -416,7 +411,6 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			expected: []string{
 				"url=oss://bucket",
 				"secret_store_dir=/etc/ossfs/secrets-store",
-				"use_metrics",
 			},
 		},
 		{
@@ -429,7 +423,6 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			expected: []string{
 				"url=oss://bucket",
 				"ram_role=role-name",
-				"use_metrics",
 			},
 		},
 		{
@@ -443,7 +436,6 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 				"url=oss://bucket",
 				"passwd_file=/etc/ossfs/passwd-ossfs",
 				"use_session_token",
-				"use_metrics",
 			},
 		},
 	}
@@ -561,46 +553,46 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 		{
 			name:    "empty option, empty config",
 			options: []string{"others"},
-			want:    []string{"others", "dbglevel=warn", "allow_other", "listobjectsv2"},
+			want:    []string{"others", "dbglevel=warn", "allow_other", "use_metrics", "listobjectsv2"},
 		},
 		{
 			name:    "set option",
 			options: []string{"others", "dbglevel=debug", "others"},
-			want:    []string{"others", "dbglevel=debug", "others", "allow_other", "listobjectsv2"},
+			want:    []string{"others", "dbglevel=debug", "others", "allow_other", "use_metrics", "listobjectsv2"},
 		},
 		{
 			name:     "set option, set config",
 			cfglevel: "info",
 			options:  []string{"others", "dbglevel=debug", "others"},
-			want:     []string{"others", "dbglevel=debug", "others", "allow_other", "listobjectsv2"},
+			want:     []string{"others", "dbglevel=debug", "others", "allow_other", "use_metrics", "listobjectsv2"},
 		},
 		{
 			name:     "empty option, set config",
 			cfglevel: "debug",
 			options:  []string{"others"},
-			want:     []string{"others", "dbglevel=debug", "allow_other", "listobjectsv2"},
+			want:     []string{"others", "dbglevel=debug", "allow_other", "use_metrics", "listobjectsv2"},
 		},
 		{
 			name:     "empty option, invalid config",
 			cfglevel: "invalid",
 			options:  []string{"others"},
-			want:     []string{"others", "dbglevel=warn", "allow_other", "listobjectsv2"},
+			want:     []string{"others", "dbglevel=warn", "allow_other", "use_metrics", "listobjectsv2"},
 		},
 		{
 			name:        "mime-support=true",
 			enabledMime: true,
 			options:     []string{"others"},
-			want:        []string{"others", "dbglevel=warn", "allow_other", "mime=" + OssfsCsiMimeTypesFilePath, "listobjectsv2"},
+			want:        []string{"others", "dbglevel=warn", "allow_other", "use_metrics", "mime=" + OssfsCsiMimeTypesFilePath, "listobjectsv2"},
 		},
 		{
 			name:    "listobjectsv2 has set",
 			options: []string{"others", "listobjectsv2"},
-			want:    []string{"others", "listobjectsv2", "dbglevel=warn", "allow_other"},
+			want:    []string{"others", "listobjectsv2", "dbglevel=warn", "allow_other", "use_metrics"},
 		},
 		{
 			name:    "allow other",
 			options: []string{"others", "allow_other"},
-			want:    []string{"others", "allow_other", "dbglevel=warn", "listobjectsv2"},
+			want:    []string{"others", "allow_other", "dbglevel=warn", "use_metrics", "listobjectsv2"},
 		},
 	}
 	for _, tt := range tests {

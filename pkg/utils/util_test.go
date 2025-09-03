@@ -136,3 +136,29 @@ func TestIsDirTmpfsFalse(t *testing.T) {
 	assert.Nil(t, err)
 	assert.False(t, isTmpfs)
 }
+
+func TestGetFuseMetricsMountDir(t *testing.T) {
+	metrcisPrefix := "/test/metrics"
+	tests := []struct {
+		name     string
+		volumeId string
+		want     string
+	}{
+		{
+			"empty id",
+			"",
+			"/test/metrics/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		},
+		{
+			"normal volumeid",
+			"pv-oss",
+			"/test/metrics/8f3e75e1af90a7dcc66882ec1544cb5c7c32c82c2b56b25a821ac77cea60a928",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := GetFuseMetricsMountDir(metrcisPrefix, tt.volumeId)
+			assert.Equal(t, tt.want, actual)
+		})
+	}
+}
