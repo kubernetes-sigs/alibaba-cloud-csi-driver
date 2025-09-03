@@ -54,7 +54,7 @@ func RunCSIServer(driverType, endpoint string, servers Servers) {
 	}
 
 	opts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(logGRPC, instrumentGRPC(driverType)),
+		grpc.ChainUnaryInterceptor(logGRPC, instrumentGRPC(driverType), earlyTimeout),
 	}
 	server := grpc.NewServer(opts...)
 
