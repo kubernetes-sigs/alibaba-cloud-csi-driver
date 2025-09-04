@@ -332,12 +332,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 			klog.Errorf("ControllerPublishVolume: attach multi-attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 			return nil, err
 		}
-		klog.Infof("ControllerPublishVolume: successfully attached multi-attach disk: %s to node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerPublishVolumeResponse{}, nil
-	}
-
-	if !GlobalConfigVar.ADControllerEnable {
-		klog.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerPublishVolume: Successful attach shared disk: %s to node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
@@ -348,7 +343,11 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
 	}
-	klog.Infof("ControllerPublishVolume: successfully attached disk: %s (serial %s) to node: %s", req.VolumeId, serial, req.NodeId)
+	if serial == "" {
+		klog.Infof("ControllerPublishVolume: disk %s has no serial number, defer attach to node", req.VolumeId)
+	} else {
+		klog.Infof("ControllerPublishVolume: successfully attached disk: %s (serial %s) to node: %s", req.VolumeId, serial, req.NodeId)
+	}
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: map[string]string{
 			PUBLISH_CONTEXT_SERIAL: serial,
@@ -365,11 +364,6 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, err
 	} else if isMultiAttach {
 		klog.Infof("ControllerUnpublishVolume: Successful detach multiAttach disk: %s from node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerUnpublishVolumeResponse{}, nil
-	}
-
-	if !GlobalConfigVar.ADControllerEnable {
-		klog.Infof("ControllerUnpublishVolume: ADController Disable to detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
