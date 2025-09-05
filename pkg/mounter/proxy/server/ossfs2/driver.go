@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -48,18 +47,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	options := req.Options
 
 	// prepare passwd file
-	var passwdFile string
-	if passwd := req.Secrets[utils.GetPasswdFileName("ossfs2")]; passwd != "" {
-		tmpDir, err := os.MkdirTemp("", "ossfs2-")
-		if err != nil {
-			return err
-		}
-		passwdFile = filepath.Join(tmpDir, "passwd")
-		err = os.WriteFile(passwdFile, []byte(passwd), 0o600)
-		if err != nil {
-			return err
-		}
-		klog.V(4).InfoS("created ossfs2 configuration file", "path", passwdFile)
+	passwdFile, err := utils.SaveOssSecretsToFile(req.Secrets, req.Fstype)
+	if err != nil {
+		return err
 	}
 
 	args := []string{"mount", req.Target}
@@ -77,7 +67,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return fmt.Errorf("start ossfs2 failed: %w", err)
 	}

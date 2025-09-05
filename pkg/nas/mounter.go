@@ -36,7 +36,7 @@ func newNasMounter() mountutils.Interface {
 	inner := mountutils.NewWithoutSystemd("")
 	return &NasMounter{
 		Interface:     inner,
-		alinasMounter: mounter.NewConnectorMounter(inner, ""),
+		alinasMounter: inner,
 	}
 }
 

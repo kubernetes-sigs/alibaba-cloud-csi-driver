@@ -30,13 +30,13 @@ func WaitFdReadable(fd int, timeout time.Duration) error {
 	return nil
 }
 
-func SaveOssSecretsToFile(secrets map[string]string) (filePath string, err error) {
-	passwd := secrets["passwd-ossfs"]
+func SaveOssSecretsToFile(secrets map[string]string, fuseType string) (filePath string, err error) {
+	passwd := secrets[GetPasswdFileName(fuseType)]
 	if passwd == "" {
 		return
 	}
 
-	tmpDir, err := os.MkdirTemp("", "ossfs-")
+	tmpDir, err := os.MkdirTemp("", fuseType+"-")
 	if err != nil {
 		return "", err
 	}
@@ -44,6 +44,6 @@ func SaveOssSecretsToFile(secrets map[string]string) (filePath string, err error
 	if err = os.WriteFile(filePath, []byte(passwd), 0o600); err != nil {
 		return "", err
 	}
-	klog.V(4).InfoS("created ossfs passwd file", "path", filePath)
+	klog.V(4).InfoS(fmt.Sprintf("created %s passwd file", fuseType), "path", filePath)
 	return
 }

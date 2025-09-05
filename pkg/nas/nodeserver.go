@@ -138,6 +138,7 @@ const (
 	cnfsAlwaysFallbackEventTmpl                 = "CNFS automatically switched from %s to %s."
 	cnfsIfConnectFailedFallbackEventTmpl        = "Due to network issues, CNFS automatically switched from %s to %s."
 	cnfsIfMountTargetUnhealthyFallbackEventTmpl = "Due to mount target inactive, CNFS automatically switched from %s to %s."
+	cpfsServerSuffix                            = "cpfs.aliyuncs.com"
 )
 
 func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
@@ -206,6 +207,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	var cnfsName string
 	for key, value := range req.VolumeContext {
 		switch strings.ToLower(key) {
+		case "useclient": // only VK will fetch this parameter from CNFS and add it to VolumeContext
+			opt.ClientType = strings.ToLower(value)
+			if opt.ClientType == EFCClient {
+				opt.MountProtocol = MountProtocolEFC
+			}
+			if strings.HasSuffix(req.VolumeContext["server"], cpfsServerSuffix) {
+				opt.FSType = "cpfs"
+			} else {
+				opt.FSType = "standard"
+			}
 		case "server":
 			opt.Server = value
 		case "accesspoint":
