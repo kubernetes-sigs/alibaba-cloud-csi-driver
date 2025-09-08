@@ -24,6 +24,7 @@ func NewCSIAgent() *CSIAgent {
 	if err != nil {
 		klog.Fatalf("Failed to initialize pod cgroup: %v", err)
 	}
+	GlobalConfigVar.MetricEnable = true
 
 	return &CSIAgent{
 		ns: &nodeServer{
@@ -39,8 +40,20 @@ func (a *CSIAgent) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapa
 	return a.ns.NodeGetCapabilities(ctx, req)
 }
 
+func (a *CSIAgent) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	return a.ns.NodeGetVolumeStats(ctx, req)
+}
+
 func (a *CSIAgent) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	return localExpandVolume(ctx, req)
+}
+
+func (a *CSIAgent) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	return &csi.NodeStageVolumeResponse{}, nil
+}
+
+func (a *CSIAgent) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
 func (a *CSIAgent) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {

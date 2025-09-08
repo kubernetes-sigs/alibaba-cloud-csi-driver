@@ -47,7 +47,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	options := req.Options
 
 	// prepare passwd file
-	passwdFile, err := utils.SaveOssSecretsToFile(req.Secrets)
+	passwdFile, err := utils.SaveOssSecretsToFile(req.Secrets, req.Fstype)
 	if err != nil {
 		return err
 	}

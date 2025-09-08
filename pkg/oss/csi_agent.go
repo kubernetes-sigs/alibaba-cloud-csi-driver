@@ -10,6 +10,11 @@ import (
 	mountutils "k8s.io/mount-utils"
 )
 
+const (
+	ossfsExecPath  = "/usr/local/bin/ossfs"
+	ossfs2ExecPath = "/usr/local/bin/ossfs2"
+)
+
 type CSIAgent struct {
 	csi.UnimplementedNodeServer
 	// mount-proxy socket path
@@ -31,6 +36,10 @@ func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
 		rawMounter:      mountutils.NewWithoutSystemd(""),
 		skipAttach:      true,
 		fusePodManagers: fusePodManagers,
+		ossfsPaths: map[string]string{
+			OssFsType:  ossfsExecPath,
+			OssFs2Type: ossfs2ExecPath,
+		},
 	}
 	return &CSIAgent{
 		ns:         ns,
