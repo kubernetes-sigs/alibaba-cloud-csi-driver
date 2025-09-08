@@ -784,7 +784,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			klog.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
-		ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
+		ecsClient := GlobalConfigVar.EcsClient
 		err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID, true)
 		if err != nil {
 			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
@@ -813,7 +813,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		return node, err
 	}
 
-	c := updateEcsClient(GlobalConfigVar.EcsClient)
+	c := GlobalConfigVar.EcsClient
 	if maxVolumesNum == 0 {
 		maxVolumesNum, err = getVolumeCountFromOpenAPI(getNode, c, ns.metadata, utilsio.RealDevTmpFS{})
 	} else {
@@ -851,18 +851,20 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		klog.Info("NodeGetInfo: no need to update node")
 	}
 
+	segments := map[string]string{
+		common.ECSInstanceIDTopologyKey: metadata.MustGet(ns.metadata, metadata.InstanceID),
+		// TopologyZoneKey key is always defined for existing persistent volumes
+		TopologyZoneKey:         metadata.MustGet(ns.metadata, metadata.ZoneID),
+		RegionalDiskTopologyKey: metadata.MustGet(ns.metadata, metadata.RegionID),
+	}
+	if !GlobalConfigVar.PrivateTopologyKey {
+		segments[v1.LabelTopologyZone] = metadata.MustGet(ns.metadata, metadata.ZoneID)
+	}
+
 	return &csi.NodeGetInfoResponse{
-		NodeId:            ns.NodeID,
-		MaxVolumesPerNode: int64(maxVolumesNum),
-		// make sure that the driver works on this particular zone only
-		AccessibleTopology: &csi.Topology{
-			Segments: map[string]string{
-				common.ECSInstanceIDTopologyKey: metadata.MustGet(ns.metadata, metadata.InstanceID),
-				TopologyZoneKey:                 metadata.MustGet(ns.metadata, metadata.ZoneID),
-				common.TopologyKeyZone:          metadata.MustGet(ns.metadata, metadata.ZoneID),
-				common.TopologyKeyRegion:        metadata.MustGet(ns.metadata, metadata.RegionID),
-			},
-		},
+		NodeId:             ns.NodeID,
+		MaxVolumesPerNode:  int64(maxVolumesNum),
+		AccessibleTopology: &csi.Topology{Segments: segments},
 	}, nil
 }
 

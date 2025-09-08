@@ -27,6 +27,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/throttle"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
@@ -34,6 +35,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -47,6 +49,13 @@ const (
 	TopologyKey       = "topology." + driverName
 	TopologyRegionKey = TopologyKey + "/region"
 	TopologyZoneKey   = TopologyKey + "/zone"
+)
+
+var (
+	// Depends on PrivateTopologyKey config
+	RegionalDiskTopologyKey = v1.LabelTopologyRegion
+	// TODO: currently always set to private topology key to be compactable with old csi-plugin and vk
+	ZonalDiskTopologyKey = TopologyZoneKey
 )
 
 // DISK the DISK object
@@ -79,6 +88,8 @@ type GlobalConfig struct {
 	SnapshotBeforeDelete bool
 	OmitFilesystemCheck  bool
 	DiskAllowAllType     bool
+	// Use topology.diskplugin.csi.alibabacloud.com prefix instead of topology.kubernetes.io as CSI topology key
+	PrivateTopologyKey bool
 }
 
 // define global variable
@@ -108,20 +119,18 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	}
 
 	// Init ECS Client
-	accessControl := utils.GetAccessControl()
-	client := newEcsClient(metadata.MustGet(m, metadata.RegionID), accessControl)
-	if accessControl.UseMode == utils.ManagedToken {
-		klog.Infof("Starting csi-plugin with sts.")
-	} else {
-		klog.Infof("Starting csi-plugin without sts.")
+	cred, err := credentials.NewProvider()
+	if err != nil {
+		klog.Fatalf("Error building credential: %s", err.Error())
 	}
+	client := newEcsClient(metadata.MustGet(m, metadata.RegionID), credentials.V1ProviderAdaptor(cred))
 	GlobalConfigVar.EcsClient = client
 
 	// Create GRPC servers
 	var servers common.Servers
 	servers.IdentityServer = NewIdentityServer()
 	if serviceType&utils.Controller != 0 {
-		servers.ControllerServer = NewControllerServer(csiCfg, m)
+		servers.ControllerServer = NewControllerServer(csiCfg, client, m)
 	}
 	if serviceType&utils.Node != 0 {
 		servers.NodeServer = NewNodeServer(m)
@@ -205,6 +214,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 		RequestBaseInfo:     map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
 		OmitFilesystemCheck: csiCfg.GetBool("disable-fs-check", "DISABLE_FS_CHECK", false),
 		DiskAllowAllType:    csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
+		PrivateTopologyKey:  csiCfg.GetBool("private-topology-key", "PRIVATE_TOPOLOGY_KEY", false),
 	}
 	if csiCfg.GetBool("disk-multi-tenant-enable", "DISK_MULTI_TENANT_ENABLE", false) {
 		panic("Disk multi tenant support has been removed. Please remove the related config")
@@ -213,6 +223,11 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 		klog.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
 	} else {
 		klog.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
+	}
+	if GlobalConfigVar.PrivateTopologyKey {
+		RegionalDiskTopologyKey = TopologyRegionKey
+	} else {
+		RegionalDiskTopologyKey = v1.LabelTopologyRegion
 	}
 	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
 	klog.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
@@ -235,13 +250,9 @@ func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batch
 		interval = 2 * time.Second // We have many nodes, use longer interval to avoid throttling
 	}
 	waiter := waitstatus.NewBatched(client, clock.RealClock{}, interval, 3*time.Second)
-	waiter.PollHook = func() desc.Client[ecs.Disk] {
-		return desc.Disk{Client: updateEcsClient(GlobalConfigVar.EcsClient)}
-	}
 	go waiter.Run(ctx)
 
 	b := batcher.NewLowLatency(client, clock.RealClock{}, 1*time.Second, 8)
-	b.PollHook = waiter.PollHook
 	go b.Run(ctx)
 
 	return waiter, b

@@ -6,6 +6,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/modern-go/reflect2"
 	"io"
+	"io/ioutil"
 	"math"
 	"reflect"
 	"strconv"
@@ -332,9 +333,28 @@ func (decoder *nullableFuzzyFloat64Decoder) Decode(ptr unsafe.Pointer, iter *jso
 	}
 }
 
-func Stringify(m interface{}) string {
-	byt, _ := json.Marshal(m)
-	return string(byt)
+func Stringify(a interface{}) string {
+	switch v := a.(type) {
+	case *string:
+		return StringValue(v)
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	case io.Reader:
+		byt, err := ioutil.ReadAll(v)
+		if err != nil {
+			return ""
+		}
+		return string(byt)
+	}
+	byt := bytes.NewBuffer([]byte{})
+	jsonEncoder := json.NewEncoder(byt)
+	jsonEncoder.SetEscapeHTML(false)
+	if err := jsonEncoder.Encode(a); err != nil {
+		return ""
+	}
+	return string(bytes.TrimSpace(byt.Bytes()))
 }
 
 func ParseJSON(a string) interface{} {

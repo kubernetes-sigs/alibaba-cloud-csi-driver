@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-FROM --platform=$BUILDPLATFORM golang:1.23.9 as build
+FROM --platform=$BUILDPLATFORM golang:1.24.6 as build
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 COPY . .
 RUN --mount=type=ssh \
@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update as base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
-LABEL defaultOssfsImageTag="v1.91.7.ack.1-570be5f-aliyun" defaultOssfs2ImageTag="v2.0.2.ack.1-a76655f-aliyun"
+LABEL defaultOssfsImageTag="v1.91.7.ack.1-570be5f-aliyun" defaultOssfs2ImageTag="v2.0.2.ack.2-17bc12e-aliyun"
 
 RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace util-linux nc telnet tar cpio lsof && \
     yum clean all

@@ -90,3 +90,18 @@ func TestOidcUnsupported(t *testing.T) {
 	_, err := NewCredential()
 	assert.Error(t, err)
 }
+
+func TestV1(t *testing.T) {
+	t.Setenv("ALIBABA_CLOUD_ACCESS_KEY_ID", "test-accessKeyId")
+	t.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "test-accessKeySecret")
+
+	provider, err := NewProvider()
+	assert.NoError(t, err)
+
+	v1 := V1ProviderAdaptor(provider)
+	m, err := v1.GetCredentials()
+	assert.NoError(t, err)
+
+	assert.Equal(t, "test-accessKeyId", m.AccessKeyId)
+	assert.Equal(t, "test-accessKeySecret", m.AccessKeySecret)
+}

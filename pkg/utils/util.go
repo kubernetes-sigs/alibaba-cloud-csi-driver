@@ -604,8 +604,12 @@ func IsPathAvailable(path string) error {
 	return nil
 }
 
+func GetFuseMetricsMountDir(metricsPathPrefix, volumeId string) string {
+	return filepath.Join(metricsPathPrefix, fmt.Sprintf("%x", sha256.Sum256([]byte(volumeId))))
+}
+
 func WriteSharedMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeRequest, clientName string, storageBackendName string, fsName string, sharedPath string) {
-	mountPointPath := filepath.Join(metricsPathPrefix, fmt.Sprintf("%x", sha256.Sum256([]byte(req.GetVolumeId()))))
+	mountPointPath := GetFuseMetricsMountDir(metricsPathPrefix, req.GetVolumeId())
 	mountPointName := "mount_point_info"
 	if !IsFileExisting(mountPointPath) {
 		_ = os.MkdirAll(mountPointPath, os.FileMode(0755))

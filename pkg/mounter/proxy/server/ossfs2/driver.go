@@ -1,18 +1,20 @@
 package ossfs2
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+	serverutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -48,18 +50,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	options := req.Options
 
 	// prepare passwd file
-	var passwdFile string
-	if passwd := req.Secrets[utils.GetPasswdFileName("ossfs2")]; passwd != "" {
-		tmpDir, err := os.MkdirTemp("", "ossfs2-")
-		if err != nil {
-			return err
-		}
-		passwdFile = filepath.Join(tmpDir, "passwd")
-		err = os.WriteFile(passwdFile, []byte(passwd), 0o600)
-		if err != nil {
-			return err
-		}
-		klog.V(4).InfoS("created ossfs2 configuration file", "path", passwdFile)
+	passwdFile, err := utils.SaveOssSecretsToFile(req.Secrets, req.Fstype)
+	if err != nil {
+		return err
 	}
 
 	args := []string{"mount", req.Target}
@@ -73,11 +66,17 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	}
 	args = append(args, "-f")
 
+	var stderrBuf bytes.Buffer
+	multiWriter := io.MultiWriter(os.Stderr, &stderrBuf)
+	sw := serverutils.NewSwitchableWriter(multiWriter)
 	cmd := exec.Command("ossfs2", args...)
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = sw
+	defer func() {
+		sw.SwitchTarget(os.Stderr)
+	}()
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return fmt.Errorf("start ossfs2 failed: %w", err)
 	}
@@ -95,7 +94,13 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 
 		err := cmd.Wait()
 		if err != nil {
-			klog.ErrorS(err, "ossfs2 exited with error", "mountpoint", target, "pid", pid)
+			stderrContent := stderrBuf.String()
+			if stderrContent != "" {
+				err = fmt.Errorf("%w, with stderr: %s", err, stderrContent)
+			}
+			klog.ErrorS(err, "ossfs2 exited with error",
+				"mountpoint", target,
+				"pid", pid)
 		} else {
 			klog.InfoS("ossfs2 exited", "mountpoint", target, "pid", pid)
 		}
@@ -109,7 +114,6 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	err = wait.PollUntilContextCancel(ctx, time.Second, true, func(ctx context.Context) (done bool, err error) {
 		select {
 		case err := <-ossfsExited:
-			// TODO: collect ossfs outputs to return in error message
 			if err != nil {
 				return false, fmt.Errorf("ossfs2 exited: %w", err)
 			}

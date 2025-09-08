@@ -117,6 +117,8 @@ type iGlobalParameters interface {
 	GetDisableHttp2() *bool 
 	SetRetryOptions(v *dara.RetryOptions) *Config
 	GetRetryOptions() *dara.RetryOptions 
+	GetTlsMinVersion() *string
+	SetTlsMinVersion(v string) *Config
   }
   
   // Description:
@@ -290,6 +292,7 @@ type iGlobalParameters interface {
 	RetryOptions *dara.RetryOptions `json:"retryOptions,omitempty" xml:"retryOptions,omitempty"`
 	// http client
 	HttpClient  dara.HttpClient `json:"httpClient,omitempty" xml:"httpClient,omitempty"`
+	TlsMinVersion  *string `json:"tlsMinVersion,omitempty" xml:"tlsMinVersion,omitempty"`
   }
   
   func (s Config) String() string {

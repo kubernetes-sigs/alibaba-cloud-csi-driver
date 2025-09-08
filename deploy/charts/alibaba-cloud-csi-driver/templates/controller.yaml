@@ -22,6 +22,12 @@ spec:
       labels:
         app: csi-provisioner
     spec:
+      {{- if $.Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range $.Values.imagePullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
       affinity:
         nodeAffinity:
         {{- if .Values.controller.nodeAffinity }}

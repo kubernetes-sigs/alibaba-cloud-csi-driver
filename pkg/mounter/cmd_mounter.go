@@ -31,14 +31,13 @@ func (m *OssCmdMounter) MountWithSecrets(source, target, fstype string, options 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
 	defer cancel()
 
-	passwd, err := utils.SaveOssSecretsToFile(secrets)
+	passwd, err := utils.SaveOssSecretsToFile(secrets, fstype)
 	if err != nil {
 		return err
 	}
-	options = append(options, "passwd_file="+passwd)
 
-	args := mount.MakeMountArgs(source, target, "", options)
-	cmd := exec.CommandContext(ctx, "ossfs", args...)
+	args := getArgs(source, target, fstype, passwd, options)
+	cmd := exec.CommandContext(ctx, m.execPath, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -46,4 +45,22 @@ func (m *OssCmdMounter) MountWithSecrets(source, target, fstype string, options 
 		return fmt.Errorf("failed to execute ossfs: %w", err)
 	}
 	return nil
+}
+
+func getArgs(source, target, fstype, passwdFile string, options []string) []string {
+	if fstype == "ossfs" {
+		if passwdFile != "" {
+			options = append(options, "passwd_file="+passwdFile)
+		}
+		return mount.MakeMountArgs(source, target, "", options)
+	}
+	// ossfs2
+	args := []string{"mount", target}
+	if passwdFile != "" {
+		args = append(args, []string{"-c", passwdFile}...)
+	}
+	for _, o := range options {
+		args = append(args, fmt.Sprintf("--%s", o))
+	}
+	return args
 }

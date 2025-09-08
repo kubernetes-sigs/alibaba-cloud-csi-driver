@@ -122,7 +122,7 @@ images:
     tag: "v4.9.0-aliyun"
   externalProvisioner:
     repo: acs/csi-provisioner
-    tag: "v5.3.0-aliyun"
+    tag: "v5.3.2-aliyun"
   externalResizer:
     repo: acs/csi-resizer
     tag: "v1.14.0-aliyun"
@@ -140,4 +140,7 @@ images:
     tag: "v1.91.7.ack.1-570be5f-aliyun"
   ossfs2:
     repo: acs/csi-ossfs2
-    tag: "v2.0.2.ack.1-a76655f-aliyun"
+    tag: "v2.0.2.ack.2-17bc12e-aliyun"
+
+# List of image pull secrets to use for pulling images.
+imagePullSecrets: [ ]
