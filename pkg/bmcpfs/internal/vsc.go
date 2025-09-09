@@ -325,10 +325,7 @@ func IsAttachNotSupportedError(err error) bool {
 		return true
 	}
 	sdkErr := &tea.SDKError{}
-	if errors.As(err, &sdkErr) && tea.StringValue(sdkErr.Code) == VscAttachNotSupported {
-		return true
-	}
-	return false
+	return errors.As(err, &sdkErr) && tea.StringValue(sdkErr.Code) == VscAttachNotSupported
 }
 
 type CPFSVscAttachInfo = nasclient.DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo
