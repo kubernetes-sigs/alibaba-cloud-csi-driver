@@ -8,9 +8,9 @@ DEPS=(
     /etc/netconfig
     /etc/mke2fs.conf /sbin/{fsck,mkfs,mount,umount}.{ext{2,3,4},xfs,nfs}
     /usr/bin/{mount,umount,lspci,lsof,chmod,grep,tail,partx}
-    /usr/sbin/{fsck,mkfs,sfdisk,losetup,blockdev}
-    /sbin/dumpe2fs /sbin/resize2fs
-    /usr/sbin/xfs_io /usr/sbin/xfs_growfs
+    /usr/sbin/{fsck,mkfs,sfdisk,losetup}
+    /sbin/resize2fs
+    /usr/sbin/xfs_growfs
 )
 
 declare -A FILE_PACKAGES
