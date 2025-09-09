@@ -109,6 +109,21 @@ func (mr *MockNasV2InterfaceMockRecorder) DescribeAccessPoint(request interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAccessPoint", reflect.TypeOf((*MockNasV2Interface)(nil).DescribeAccessPoint), request)
 }
 
+// DescribeFileSystems mocks base method.
+func (m *MockNasV2Interface) DescribeFileSystems(request *client.DescribeFileSystemsRequest) (*client.DescribeFileSystemsResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeFileSystems", request)
+	ret0, _ := ret[0].(*client.DescribeFileSystemsResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeFileSystems indicates an expected call of DescribeFileSystems.
+func (mr *MockNasV2InterfaceMockRecorder) DescribeFileSystems(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeFileSystems", reflect.TypeOf((*MockNasV2Interface)(nil).DescribeFileSystems), request)
+}
+
 // GetRecycleBinAttribute mocks base method.
 func (m *MockNasV2Interface) GetRecycleBinAttribute(request *client.GetRecycleBinAttributeRequest) (*client.GetRecycleBinAttributeResponse, error) {
 	m.ctrl.T.Helper()

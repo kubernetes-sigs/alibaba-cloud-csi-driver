@@ -156,6 +156,13 @@ func (c *NasClientV2) DescribeAccesspoint(filesystemId, accessPointId string) (*
 	})
 }
 
+func (c *NasClientV2) DescribeFileSystems(filesystemID string) (*sdk.DescribeFileSystemsResponse, error) {
+	c.limiter.Take()
+	return c.client.DescribeFileSystems(&sdk.DescribeFileSystemsRequest{
+		FileSystemId: &filesystemID,
+	})
+}
+
 func IsAccessPointNotFoundError(err error) bool {
 	if err == nil {
 		return false

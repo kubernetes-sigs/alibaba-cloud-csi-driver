@@ -138,7 +138,6 @@ const (
 	cnfsAlwaysFallbackEventTmpl                 = "CNFS automatically switched from %s to %s."
 	cnfsIfConnectFailedFallbackEventTmpl        = "Due to network issues, CNFS automatically switched from %s to %s."
 	cnfsIfMountTargetUnhealthyFallbackEventTmpl = "Due to mount target inactive, CNFS automatically switched from %s to %s."
-	cpfsServerSuffix                            = "cpfs.aliyuncs.com"
 )
 
 func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
@@ -207,12 +206,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	var cnfsName string
 	for key, value := range req.VolumeContext {
 		switch strings.ToLower(key) {
+		case "filesystemtype":
+			opt.FSType = value
 		case "useclient": // only VK will fetch this parameter from CNFS and add it to VolumeContext
 			opt.ClientType = strings.ToLower(value)
 			if opt.ClientType == EFCClient {
 				opt.MountProtocol = MountProtocolEFC
 			}
-			if strings.HasSuffix(req.VolumeContext["server"], cpfsServerSuffix) {
+			if isCPFS(req.VolumeContext[filesystemTypeKey], req.VolumeContext["server"]) {
 				opt.FSType = "cpfs"
 			} else {
 				opt.FSType = "standard"
@@ -334,7 +335,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		opt.Vers = "4.0"
 	}
 
-	if strings.Contains(opt.Server, "extreme.nas.aliyuncs.com") {
+	if isExtrameNAS(opt.FSType, opt.Server) {
 		if opt.Vers != "3" {
 			return nil, errors.New("Extreme nas only support nfs v3 " + opt.Server)
 		}
@@ -432,12 +433,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if opt.MountProtocol == "efc" {
 		if strings.Contains(opt.Server, ".nas.aliyuncs.com") {
-			fsID := GetFsIDByNasServer(opt.Server)
+			fsID := getNASIDFromMapOrServer(req.VolumeContext, opt.Server)
 			if len(fsID) != 0 {
 				utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "efc", "nas", fsID)
 			}
 		} else {
-			fsID := GetFsIDByCpfsServer(opt.Server)
+			fsID := getCPFSIDFromMapOrServer(req.VolumeContext, opt.Server)
 			if len(fsID) != 0 {
 				utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "efc", "cpfs", fsID)
 			}

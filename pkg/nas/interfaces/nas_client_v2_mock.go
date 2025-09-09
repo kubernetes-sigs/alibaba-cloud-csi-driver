@@ -52,3 +52,9 @@ func (n *MockNasClientV2Interface) DescribeAccesspoint(filesystemId, accessPoint
 		FileSystemId:  &filesystemId,
 	})
 }
+
+func (n *MockNasClientV2Interface) DescribeFileSystems(filesystemID string) (*sdk.DescribeFileSystemsResponse, error) {
+	return n.client.DescribeFileSystems(&sdk.DescribeFileSystemsRequest{
+		FileSystemId: &filesystemID,
+	})
+}

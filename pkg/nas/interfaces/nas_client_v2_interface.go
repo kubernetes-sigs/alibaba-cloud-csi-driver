@@ -10,4 +10,5 @@ type NasClientV2Interface interface {
 	CreateAccesspoint(req *sdk.CreateAccessPointRequest) (*sdk.CreateAccessPointResponse, error)
 	DeleteAccesspoint(filesystemId, accessPointId string) error
 	DescribeAccesspoint(filesystemId, accessPointId string) (*sdk.DescribeAccessPointResponse, error)
+	DescribeFileSystems(filesystemID string) (*sdk.DescribeFileSystemsResponse, error)
 }

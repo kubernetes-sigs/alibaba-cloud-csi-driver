@@ -104,11 +104,11 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 	} else {
 		var server string
 		server, path = muxServerSelector.SelectNfsServer(parameters["server"])
-		filesystemId, _, _ = strings.Cut(server, "-")
+		filesystemId = getNASIDFromMapOrServer(parameters, server)
 		if server == "" || filesystemId == "" {
 			return nil, status.Error(codes.InvalidArgument, "invalid nas server")
 		}
-		filesystemType = cloud.GetFilesystemTypeByMountTargetDomain(server)
+		filesystemType = getFilesystemTypeFromAPIOrServer(filesystemId, server, cs.nasClient)
 		// set volumeContext
 		if protocol := parameters["mountProtocol"]; protocol != "" {
 			volumeContext["mountProtocol"] = protocol
@@ -118,6 +118,8 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 	// fill volumeContext
 	path = filepath.Join(path, req.Name)
 	volumeContext["path"] = path
+	volumeContext[filesystemIDKey] = filesystemId
+	volumeContext[filesystemTypeKey] = filesystemType
 	if mountType := parameters["mountType"]; mountType != "" {
 		if mountType == "losetup" {
 			volumeContext["loopImageSize"] = strconv.FormatInt(capacity, 10)
@@ -191,8 +193,8 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 		recycleBinEnabled, _ = strconv.ParseBool(cnfs.Status.FsAttributes.EnableTrashCan)
 	} else {
 		server := attributes["server"]
-		filesystemId, _, _ = strings.Cut(server, "-")
-		filesystemType := cloud.GetFilesystemTypeByMountTargetDomain(server)
+		filesystemId = getNASIDFromMapOrServer(attributes, server)
+		filesystemType := getFilesystemTypeFromAPIOrServer(filesystemId, server, cs.nasClient)
 		if filesystemType == cloud.FilesystemTypeStandard {
 			var err error
 			recycleBinEnabled, err = cs.isRecycleBinEnabled(filesystemId)
@@ -274,7 +276,7 @@ func (cs *subpathController) ControllerExpandVolume(ctx context.Context, req *cs
 		filesystemId = cnfs.Status.FsAttributes.FilesystemID
 	} else {
 		server := attributes["server"]
-		filesystemId, _, _ = strings.Cut(server, "-")
+		filesystemId = getNASIDFromMapOrServer(pv.Spec.CSI.VolumeAttributes, server)
 	}
 	if filesystemId == "" {
 		return nil, status.Error(codes.InvalidArgument, "empty filesystemId")
