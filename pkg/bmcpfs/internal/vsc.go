@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -283,12 +284,49 @@ const (
 	CPFSVscStatusDetaching = "Detaching"
 	CPFSVscStatusDetached  = "Detached"
 	CPFSVscStatusFailed    = "Failed"
+
+	VscAttachNotSupported = "AttachVscTarget.VscAttachNotSupported"
 )
 
 const (
 	defaultPollInterval  = time.Second * 2
 	defaultADWaitTimeout = time.Second * 10
 )
+
+func newAttachNotSupportedError(err error, volumeId, nodeId string) *AttachNotSupportedError {
+	return &AttachNotSupportedError{
+		message:  err.Error(),
+		volumeId: volumeId,
+		vscId:    nodeId,
+	}
+}
+
+// NewAttachNotSupportedError creates a new AttachNotSupportedError
+func NewAttachNotSupportedError(err error, volumeId, nodeId string) *AttachNotSupportedError {
+	return newAttachNotSupportedError(err, volumeId, nodeId)
+}
+
+type AttachNotSupportedError struct {
+	message  string
+	volumeId string
+	vscId    string
+}
+
+func (e *AttachNotSupportedError) Error() string {
+	return "volumeID: " + e.volumeId + "vscId: " + e.vscId + e.message
+}
+
+func IsAttachNotSupportedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var attachErr *AttachNotSupportedError
+	if errors.As(err, &attachErr) {
+		return true
+	}
+	sdkErr := &tea.SDKError{}
+	return errors.As(err, &sdkErr) && tea.StringValue(sdkErr.Code) == VscAttachNotSupported
+}
 
 type CPFSVscAttachInfo = nasclient.DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo
 
@@ -331,6 +369,9 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 		}
 	} else {
 		if err := ad.attach(fsId, vscId); err != nil {
+			if strings.Contains(err.Error(), VscAttachNotSupported) {
+				return newAttachNotSupportedError(err, fsId, vscId)
+			}
 			return err
 		}
 	}

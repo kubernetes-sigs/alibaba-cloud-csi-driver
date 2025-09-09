@@ -33,6 +33,7 @@ const (
 	_vscId          = "vscId"
 	_networkType    = "networkType"
 	_path           = "path"
+	_mpAutoSwitch   = "mountpointAutoSwitch"
 
 	// prefix of node id
 	CommonNodeIDPrefix  = "common:"
