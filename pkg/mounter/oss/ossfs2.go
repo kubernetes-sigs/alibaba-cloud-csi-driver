@@ -246,6 +246,10 @@ func (f *fuseOssfs2) buildPodSpec(c *mounterutils.FusePodContext, target string)
 
 	container.Args = []string{"--socket=" + socketPath, "-v=4"}
 
+	if strings.ToLower(f.config.Extra["set-dumpable"]) == "true" {
+		container.Env = append(container.Env, corev1.EnvVar{Name: "SET_DUMPABLE", Value: "true"})
+	}
+
 	spec.Containers = []corev1.Container{container}
 	spec.NodeName = c.NodeName
 	spec.HostNetwork = true

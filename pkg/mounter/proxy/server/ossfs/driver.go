@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	serverutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
@@ -78,6 +80,13 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	target := req.Target
 	pid := cmd.Process.Pid
 	klog.InfoS("Started ossfs", "pid", pid, "args", args)
+
+	if dumpable := os.Getenv("SET_DUMPABLE"); dumpable == "true" {
+		err = unix.Prctl(unix.PR_SET_DUMPABLE, 1, 0, 0, 0)
+		if err != nil {
+			klog.ErrorS(err, "Failed to set process as dumpable")
+		}
+	}
 
 	ossfsExited := make(chan error, 1)
 	h.wg.Add(1)

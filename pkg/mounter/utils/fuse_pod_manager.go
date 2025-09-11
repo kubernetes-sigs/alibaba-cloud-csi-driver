@@ -174,6 +174,9 @@ func ExtractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 				invalid = true
 			}
 		default:
+			// Initialize Extra map if nil. Currently supported keys in Extra:
+			// - "set-dumpable": enables dumpable flag for process of ossfs 1.0 / ossfs 2.0
+			// - "mime-support": enables MIME type support for ossfs 1.0
 			if config.Extra == nil {
 				config.Extra = make(map[string]string)
 			}
