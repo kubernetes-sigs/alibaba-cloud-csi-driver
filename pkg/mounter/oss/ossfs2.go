@@ -18,7 +18,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-var defaultOssfs2ImageTag = "v2.0.2.ack.2-17bc12e-aliyun"
+var defaultOssfs2ImageTag = "v2.0.2.ack.3-f759bcd"
 var defaultOssfs2Dbglevel = mounterutils.DebugLevelInfo
 
 type fuseOssfs2 struct {

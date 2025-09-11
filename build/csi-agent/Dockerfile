@@ -15,6 +15,7 @@ RUN --mount=type=bind,target=. \
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update
 
 ARG TARGETPLATFORM
+# The versions specified here are for RPM packages, which may not necessarily align with the image version
 ARG OSSFS_VERSION=v1.91.8.ack.2
 ARG OSSFS2_VERSION=v2.0.2beta.ack.2
 ARG ALINAS_UTILS_VERSION=1.6-1.20241101165952.ce0ef4
