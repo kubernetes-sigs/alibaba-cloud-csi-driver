@@ -87,9 +87,11 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	pid := cmd.Process.Pid
 	klog.InfoS("Started ossfs2", "pid", pid, "args", args)
 
-	err = unix.Prctl(unix.PR_SET_DUMPABLE, 1, 0, 0, 0)
-	if err != nil {
-		klog.ErrorS(err, "Failed to set process as dumpable")
+	if dumpable := os.Getenv("SET_DUMPABLE"); dumpable == "true" {
+		err = unix.Prctl(unix.PR_SET_DUMPABLE, 1, 0, 0, 0)
+		if err != nil {
+			klog.ErrorS(err, "Failed to set process as dumpable")
+		}
 	}
 
 	ossfsExited := make(chan error, 1)
