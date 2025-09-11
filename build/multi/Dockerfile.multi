@@ -66,8 +66,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDA
 apt-get update && apt-get install -y gcc-${HOST//_/-}
 EOF
 
-ADD --link --checksum=sha256:59e676aa53ccb44b6c39f0ffe01a8fa274891c91bef1474752fad92461def24f \
-    https://www.kernel.org/pub/linux/utils/util-linux/v2.40/util-linux-2.40.1.tar.xz /src.tar.xz
+ADD --link --checksum=sha256:6062a1d89b571a61932e6fc0211f36060c4183568b81ee866cf363bce9f6583e \
+    https://www.kernel.org/pub/linux/utils/util-linux/v2.41/util-linux-2.41.2.tar.xz /src.tar.xz
 RUN mkdir -p /src && tar -C /src --strip-components=1 -xf /src.tar.xz
 
 RUN <<EOF
@@ -87,26 +87,26 @@ COPY <<"EOT" /out/usr/local/share/sbom/blkid.spdx.json
 {
     "spdxVersion": "SPDX-2.3",
     "SPDXID": "SPDXRef-DOCUMENT",
-    "name": "util-linux-2.40.1",
+    "name": "util-linux-2.41.2",
     "packages": [
         {
             "name": "util-linux",
             "SPDXID": "SPDXRef-Package-source-util-linux",
-            "versionInfo": "2.40.1",
+            "versionInfo": "2.41.2",
             "filesAnalyzed": false,
             "primaryPackagePurpose" : "SOURCE",
-            "packageFileName" : "util-linux-2.40.1.tar.xz",
-            "downloadLocation" : "https://www.kernel.org/pub/linux/utils/util-linux/v2.40/util-linux-2.40.1.tar.xz",
+            "packageFileName" : "util-linux-2.41.2.tar.xz",
+            "downloadLocation" : "https://www.kernel.org/pub/linux/utils/util-linux/v2.41/util-linux-2.41.2.tar.xz",
             "checksums" : [{
                 "algorithm" : "SHA256",
-                "checksumValue" : "59e676aa53ccb44b6c39f0ffe01a8fa274891c91bef1474752fad92461def24f"
+                "checksumValue" : "6062a1d89b571a61932e6fc0211f36060c4183568b81ee866cf363bce9f6583e"
             }],
-            "releaseDate": "2024-05-06T08:42:01Z",
+            "releaseDate": "2024-09-22T11:32:01Z",
             "externalRefs": [
                 {
                     "referenceCategory": "SECURITY",
                     "referenceType": "cpe23Type",
-                    "referenceLocator": "cpe:2.3:a:util-linux:util-linux:2.40.1:*:*:*:*:*:*:*"
+                    "referenceLocator": "cpe:2.3:a:util-linux:util-linux:2.41.2:*:*:*:*:*:*:*"
                 }
             ]
         }
