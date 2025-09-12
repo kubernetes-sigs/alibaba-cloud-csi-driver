@@ -19,7 +19,6 @@ type CSIAgent struct {
 	csi.UnimplementedNodeServer
 	// mount-proxy socket path
 	socketPath string
-	cs         *controllerServer
 	ns         *nodeServer
 }
 
