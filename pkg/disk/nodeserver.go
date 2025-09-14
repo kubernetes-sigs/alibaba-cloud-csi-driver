@@ -1463,7 +1463,7 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) boo
 	device, err := GetVolumeDeviceName(volumeId)
 	if err != nil {
 		// In VFIO mode, an empty device is an expected condition, so the resulting error should be ignored.
-		klog.Warning("NodeStageVolume: GetVolumeDeviceName failed: %s", err.Error())
+		klog.Warningf("NodeStageVolume: GetVolumeDeviceName failed: %s", err.Error())
 	}
 
 	d, err := NewDeviceDriver(volumeId, device, "", ns.kataBMIOType, nil)

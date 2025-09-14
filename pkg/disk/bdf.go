@@ -577,10 +577,10 @@ func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineTy
 			if len(infos) != 2 {
 				return nil, fmt.Errorf("Dfbus type file format error")
 			}
-			if infos[0] != "block" {
+			if strings.TrimSpace(infos[0]) != "block" {
 				continue
 			}
-			if infos[1] == strings.TrimPrefix(volumeId, "d-") {
+			if strings.TrimSpace(infos[1]) == strings.TrimPrefix(volumeId, "d-") {
 				DFNumber := filepath.Base(filepath.Dir(path))
 				d.deviceNumber = DFNumber
 				return d, nil
