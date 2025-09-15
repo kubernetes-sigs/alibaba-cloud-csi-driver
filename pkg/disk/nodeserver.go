@@ -1357,7 +1357,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 			}
 			err = unix.Setxattr(deviceName, DiskXattrVirtioBlkName, []byte("1"), 0)
 			if err != nil {
-				klog.Errorf("NodePublishVolume(rund3.0): Setxattr device: %s, err: %v",deviceName, err)
+				klog.Errorf("NodePublishVolume(rund3.0): Setxattr device: %s, err: %v", deviceName, err)
 				return true, err
 			}
 			return true, nil

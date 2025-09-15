@@ -120,7 +120,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if path := req.VolumeContext[_path]; path != "" {
 		source = fmt.Sprintf("%s:%s", source, path)
 	}
-	klog.InfoS("Mounting vpc mount target", "targetPath", req.TargetPath, "source", source)
+	klog.InfoS("Mounting mount target", "targetPath", req.TargetPath, "source", source)
 
 	mountOptions = append(mountOptions, "efc,protocol=efc,fstype=cpfs")
 	err = ns.mounter.Mount(source, req.TargetPath, "alinas", mountOptions)
