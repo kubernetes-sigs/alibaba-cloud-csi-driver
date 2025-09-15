@@ -133,8 +133,8 @@ var (
 	// but setting trusted xaattr requires CAP_SYS_ADMIN capability, we may use user namespace instead in unit tests.
 	DiskXattrName = "trusted.csi-managed-disk"
 
-	// DiskXattrPVMName xattr is applied on the block device file to indicate that it is managed by the CSI driver in PVM ways.
-	DiskXattrPVMName = "trusted.pvm"
+	// DiskXattrVirtioBlkName xattr is applied on the block device file to indicate that it is managed by the CSI driver in PVM ways.
+	DiskXattrVirtioBlkName = "trusted.virtio-blk"
 
 	// BDFTypeDevice defines the regexp of bdf number
 	BDFTypeDevice = regexp.MustCompile(`^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}`)
@@ -1136,7 +1136,7 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 	if isRunD3 {
 		removeRunD3File := func() error {
 			klog.Infof("NodeUnPublishVolume:: start delete mount info for KataVolume: %s", volumePath)
-			err := directvolume.RemovePVMXattr(volumePath, DiskXattrPVMName)
+			err := directvolume.RemovePVMXattr(volumePath, DiskXattrVirtioBlkName)
 			if err != nil {
 				klog.Warningf("NodeUnPublishVolume:: Remove xattr failed %v", err)
 			}
@@ -1351,13 +1351,13 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 				klog.Errorf("NodePublishVolume(rund3.0): Adding runD mount information to DirectVolume within pvm failed: %v", err)
 				return true, err
 			}
-			actualDevice, err := filepath.EvalSymlinks(deviceName)
+			_, err := os.Stat(deviceName)
 			if err != nil {
 				return true, err
 			}
-			err = unix.Setxattr(actualDevice, DiskXattrPVMName, []byte("1"), 0)
+			err = unix.Setxattr(deviceName, DiskXattrVirtioBlkName, []byte("1"), 0)
 			if err != nil {
-				klog.Errorf("NodePublishVolume(rund3.0): Setxattr device: %s, err: %v", actualDevice, err)
+				klog.Errorf("NodePublishVolume(rund3.0): Setxattr device: %s, err: %v",deviceName, err)
 				return true, err
 			}
 			return true, nil
@@ -1480,7 +1480,7 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) boo
 		return true
 	}
 
-	pvmMounted := directvolume.CheckDevicePVMMounted(device, DiskXattrPVMName)
+	pvmMounted := directvolume.CheckDevicePVMMounted(device, DiskXattrVirtioBlkName)
 	klog.InfoS("checkMountedOfRunvAndRund: check pvmMounted", "device", device, "pvmMounted", pvmMounted, "driver", cDriver)
 	if pvmMounted && defaultDrivers.Has(cDriver) {
 		return true

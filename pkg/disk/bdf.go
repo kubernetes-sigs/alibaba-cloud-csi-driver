@@ -35,6 +35,7 @@ const (
 	// BlkIDSz value
 	BlkIDSz = 20
 
+	// Note: /sys is automatically mounted read-write for privileged pod. So we don't need to manually mount it under /host/sys
 	iohubSriovAction = "/sys/bus/pci/drivers/iohub_sriov/"
 	virtioPciAction  = "/sys/bus/pci/drivers/virtio-pci/"
 

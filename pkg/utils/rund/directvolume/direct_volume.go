@@ -84,11 +84,11 @@ func RemovePVMXattr(volumePath, diskAttrPVMName string) error {
 	if err != nil {
 		return err
 	}
-	device, err := filepath.EvalSymlinks(mountInfo.Source)
+	_, err = os.Stat(mountInfo.Source)
 	if err != nil {
 		return err
 	}
-	return unix.Removexattr(device, diskAttrPVMName)
+	return unix.Removexattr(mountInfo.Source, diskAttrPVMName)
 }
 
 func CheckDevicePVMMounted(device, diskAttrPVMName string) bool {
