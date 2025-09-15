@@ -133,6 +133,9 @@ var (
 	// but setting trusted xaattr requires CAP_SYS_ADMIN capability, we may use user namespace instead in unit tests.
 	DiskXattrName = "trusted.csi-managed-disk"
 
+	// DiskXattrVirtioBlkName xattr is applied on the block device file to indicate that it is managed by the CSI driver in PVM ways.
+	DiskXattrVirtioBlkName = "trusted.virtio-blk"
+
 	// BDFTypeDevice defines the regexp of bdf number
 	BDFTypeDevice = regexp.MustCompile(`^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}`)
 	// DFBusTypeDevice defines the regexp of dfnumber
@@ -313,6 +316,19 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	klog.Infof("NodePublishVolume: Starting Mount Volume %s, source %s > target %s", req.VolumeId, sourcePath, targetPath)
 
 	mkfsOptions := req.VolumeContext[MkfsOptions]
+	// Logics will be merged into runD when vfio of pvm is ready
+	if req.PublishContext["csi.alibabacloud.com/runtimeClassName"] == utils.PVMRunTimeTag {
+		klog.Infof("NodePublishVolume: start mount in pvm mode %s", req.TargetPath)
+		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
+		pvName := utils.GetPvNameFormPodMnt(targetPath)
+		returned, err := ns.mountRunDVolumes(req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, true, mountFlags)
+		if err != nil {
+			return nil, err
+		}
+		if returned {
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+	}
 	runtime := utils.GetPodRunTime(ctx, req, ns.clientSet)
 	// check pod runtime
 	switch runtime {
@@ -326,7 +342,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		klog.Infof("NodePublishVolume: TargetPath: %s is umounted, start mount in kata mode", req.TargetPath)
 		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
 		pvName := utils.GetPvNameFormPodMnt(targetPath)
-		returned, err := ns.mountRunDVolumes(req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, mountFlags)
+		returned, err := ns.mountRunDVolumes(req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, false, mountFlags)
 		if err != nil {
 			return nil, err
 		}
@@ -1120,7 +1136,11 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 	if isRunD3 {
 		removeRunD3File := func() error {
 			klog.Infof("NodeUnPublishVolume:: start delete mount info for KataVolume: %s", volumePath)
-			err := directvolume.Remove(volumePath)
+			err := directvolume.RemovePVMXattr(volumePath, DiskXattrVirtioBlkName)
+			if err != nil {
+				klog.Warningf("NodeUnPublishVolume:: Remove xattr failed %v", err)
+			}
+			err = directvolume.Remove(volumePath)
 			if err != nil {
 				klog.Errorf("NodeUnPublishVolume:: Failed to remove volumeDevice DirectVolume mount info, potentially disrupting kubelet's next operation: %v", err)
 			}
@@ -1251,7 +1271,7 @@ func (ns *nodeServer) mountRunvVolumes(volumeId, sourcePath, targetPath, fsType,
 	return nil
 }
 
-func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock bool, mountFlags []string) (bool, error) {
+func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock, pvmMode bool, mountFlags []string) (bool, error) {
 	klog.Infof("NodePublishVolume:: Disk Volume %s Mounted in RunD csi 3.0/2.0 protocol", volumeId)
 	deviceName, err := DefaultDeviceManager.GetDeviceByVolumeID(volumeId)
 	if err != nil {
@@ -1280,7 +1300,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 		if err != nil {
 			return true, status.Errorf(codes.Internal, "NodePublishVolume(rund3.0): can't get current volume driver: %+v", err)
 		}
-		if deviceNumber == driver.GetDeviceNumber() && vfioDrivers.Has(cDriver) {
+		if deviceNumber == driver.GetDeviceNumber() && !pvmMode && vfioDrivers.Has(cDriver) {
 			klog.InfoS("NodePublishVolume(rund3.0): volume are already mounted, return normally", "volumeId", volumeId, "deviceNumber", deviceNumber)
 			return true, nil
 		}
@@ -1321,6 +1341,26 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 			MountOpts:  mountOptions,
 			Extra:      extras,
 			FSType:     fsType,
+		}
+
+		if pvmMode {
+			mountInfo.DeviceType = directvolume.DeviceTypeVirtioBlk
+			mountInfo.Source = deviceName
+			err = directvolume.AddMountInfo(directvolume.EnsureVolumeAttributesFileDir(targetPath, isRawBlock), mountInfo)
+			if err != nil {
+				klog.Errorf("NodePublishVolume(rund3.0): Adding runD mount information to DirectVolume within pvm failed: %v", err)
+				return true, err
+			}
+			_, err := os.Stat(deviceName)
+			if err != nil {
+				return true, err
+			}
+			err = unix.Setxattr(deviceName, DiskXattrVirtioBlkName, []byte("1"), 0)
+			if err != nil {
+				klog.Errorf("NodePublishVolume(rund3.0): Setxattr device: %s, err: %v", deviceName, err)
+				return true, err
+			}
+			return true, nil
 		}
 
 		if defaultDrivers.Has(cDriver) {
@@ -1419,7 +1459,14 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) boo
 			return true
 		}
 	}
-	d, err := NewDeviceDriver(volumeId, "", "", ns.kataBMIOType, nil)
+
+	device, err := GetVolumeDeviceName(volumeId)
+	if err != nil {
+		// In VFIO mode, an empty device is an expected condition, so the resulting error should be ignored.
+		klog.Warningf("NodeStageVolume: GetVolumeDeviceName failed: %s", err.Error())
+	}
+
+	d, err := NewDeviceDriver(volumeId, device, "", ns.kataBMIOType, nil)
 	if err != nil {
 		klog.ErrorS(err, "NodeStageVolume:  Failed to get bdf number", "volumeId", volumeId)
 		return false
@@ -1432,5 +1479,12 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) boo
 	if vfioDrivers.Has(cDriver) {
 		return true
 	}
+
+	pvmMounted := directvolume.CheckDevicePVMMounted(device, DiskXattrVirtioBlkName)
+	klog.InfoS("checkMountedOfRunvAndRund: check pvmMounted", "device", device, "pvmMounted", pvmMounted, "driver", cDriver)
+	if pvmMounted && defaultDrivers.Has(cDriver) {
+		return true
+	}
+
 	return false
 }

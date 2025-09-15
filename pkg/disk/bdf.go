@@ -35,9 +35,9 @@ const (
 	// BlkIDSz value
 	BlkIDSz = 20
 
-	sysPrefix        = "/host"
-	iohubSriovAction = sysPrefix + "/sys/bus/pci/drivers/iohub_sriov/"
-	virtioPciAction  = sysPrefix + "/sys/bus/pci/drivers/virtio-pci/"
+	// Note: /sys is automatically mounted read-write for privileged pod. So we don't need to manually mount it under /host/sys
+	iohubSriovAction = "/sys/bus/pci/drivers/iohub_sriov/"
+	virtioPciAction  = "/sys/bus/pci/drivers/virtio-pci/"
 
 	iohubSrviovDriver = "iohub_sriov"
 	virtioPciDriver   = "virtio-pci"
@@ -245,7 +245,7 @@ func bindBdfDisk(diskID string) (bdf string, err error) {
 	}
 	klog.Infof("bindBdfDisk: Disk %s bdf is %s", diskID, bdf)
 
-	data, err := os.Readlink(sysPrefix + "/sys/bus/pci/devices/" + bdf + "/driver")
+	data, err := os.Readlink("/sys/bus/pci/devices/" + bdf + "/driver")
 	if err != nil {
 		klog.Errorf("bindBdfDisk: Disk %s bdf %s Readlink with error: %v", diskID, bdf, err)
 		return bdf, errors.Wrapf(err, "read disk driver, diskId=%s, bdf=%s", diskID, bdf)
@@ -578,10 +578,10 @@ func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineTy
 			if len(infos) != 2 {
 				return nil, fmt.Errorf("Dfbus type file format error")
 			}
-			if infos[0] != "block" {
+			if strings.TrimSpace(infos[0]) != "block" {
 				continue
 			}
-			if infos[1] == strings.TrimPrefix(volumeId, "d-") {
+			if strings.TrimSpace(infos[1]) == strings.TrimPrefix(volumeId, "d-") {
 				DFNumber := filepath.Base(filepath.Dir(path))
 				d.deviceNumber = DFNumber
 				return d, nil
@@ -619,7 +619,7 @@ func (d *driver) GetDeviceNumber() string {
 }
 
 func (d *driver) CurrentDriver() (string, error) {
-	data, err := os.Readlink(filepath.Join(sysPrefix, "sys/bus/", d.machineType.BusName(), "devices", d.deviceNumber, "driver"))
+	data, err := os.Readlink(filepath.Join("/sys/bus/", d.machineType.BusName(), "devices", d.deviceNumber, "driver"))
 	if err != nil {
 		klog.Errorf("CurrentDriver: read symlink err: %v", err)
 		return "", err
@@ -631,22 +631,22 @@ func (d *driver) CurrentDriver() (string, error) {
 
 func (d *driver) UnbindDriver() error {
 	// Modify file under drivers would be fine either. just clarify different ways
-	return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver/unbind"), []byte(d.deviceNumber))
+	return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join("/sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver/unbind"), []byte(d.deviceNumber))
 }
 
 func (d *driver) BindDriver(targetDriver string) error {
 	if d.machineType == DFBus {
-		return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers", targetDriver, "bind"), []byte(d.deviceNumber))
+		return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join("/sys/bus", d.machineType.BusName(), "drivers", targetDriver, "bind"), []byte(d.deviceNumber))
 	}
-	err := utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver_override"), []byte(targetDriver))
+	err := utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join("/sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver_override"), []byte(targetDriver))
 	if err != nil {
 		return err
 	}
-	return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers_probe"), []byte(d.deviceNumber))
+	return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join("/sys/bus", d.machineType.BusName(), "drivers_probe"), []byte(d.deviceNumber))
 }
 
 func (d *driver) GetPCIDeviceDriverType() string {
-	p := filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "device")
+	p := filepath.Join("/sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "device")
 	data, _ := os.ReadFile(p)
 	output := strings.TrimSpace(string(data))
 	klog.InfoS("GetDeviceDriverType: get driver type output", "deviceNumber", d.deviceNumber, "output", output)
@@ -660,7 +660,7 @@ func (d *driver) GetPCIDeviceDriverType() string {
 }
 
 func (d *driver) CheckVFIOUsage() error {
-	actualPath, err := filepath.EvalSymlinks(filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "iommu_group"))
+	actualPath, err := filepath.EvalSymlinks(filepath.Join("/sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "iommu_group"))
 	if err != nil {
 		return err
 	}

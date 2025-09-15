@@ -2,10 +2,12 @@ package directvolume
 
 import (
 	"encoding/json"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -14,6 +16,7 @@ const (
 	DeviceTypeCPFS      = "cpfs-nfs"
 	DeviceTypePCI       = "pci"
 	DeviceTypeDFBusPort = "dfbus"
+	DeviceTypeVirtioBlk = "virtio-blk"
 
 	RunD2MountInfoFileName = "vol_data.json"
 	RunD3MountInfoFileName = "vol_attr.json"
@@ -74,4 +77,30 @@ func VolumeMountInfo(volumePath string) (*MountInfo, error) {
 		return nil, err
 	}
 	return &mountInfo, nil
+}
+
+func RemovePVMXattr(volumePath, diskAttrPVMName string) error {
+	mountInfo, err := VolumeMountInfo(volumePath)
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(mountInfo.Source)
+	if err != nil {
+		return err
+	}
+	return unix.Removexattr(mountInfo.Source, diskAttrPVMName)
+}
+
+func CheckDevicePVMMounted(device, diskAttrPVMName string) bool {
+	var usePvm [8]byte
+	sz, err := unix.Getxattr(device, diskAttrPVMName, usePvm[:])
+	if err == nil {
+		// this disk has xattr, it is managed by us
+		if string(usePvm[:sz]) == "1" {
+			return true
+		}
+	} else if !utilsio.IsXattrNotFound(err) {
+		return false
+	}
+	return false
 }

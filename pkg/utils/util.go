@@ -69,6 +69,8 @@ const (
 	RunvRunTimeTag = "runv"
 	// RunvRunTimeTag tag
 	RundRunTimeTag = "rund"
+	// PVMRunTimeTag tag
+	PVMRunTimeTag = "sandbox-pvm"
 	// ServiceType tag
 	ServiceTypeEnv = "SERVICE_TYPE"
 	// PluginService represents the csi-plugin type.
