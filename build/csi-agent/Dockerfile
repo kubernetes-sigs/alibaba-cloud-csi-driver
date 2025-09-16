@@ -20,6 +20,8 @@ ARG OSSFS_VERSION=v1.91.8.ack.2
 ARG OSSFS2_VERSION=v2.0.2beta.ack.2
 ARG ALINAS_UTILS_VERSION=1.6-1.20241101165952.ce0ef4
 ARG EFC_VERSION=1.6-20241028201622.a31063
+ARG ALINAS_UTILS_AARCH_VERSION=2.1-0.20250911190709.ea7647
+ARG EFC_AARCH_VERSION=2.1-20250910201826.53da93
 RUN set -ex; \
     case "${TARGETPLATFORM}" in \
         linux/amd64) ARCH="x86_64" ;; \
@@ -32,6 +34,10 @@ RUN set -ex; \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.al7.noarch.rpm; \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.release.${ARCH}.rpm; \
         yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${ARCH}.rpm; \
+    fi; \
+    if [ "${ARCH}" = "aarch_64" ]; then \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_AARCH_VERSION}.generic.aarch64.rpm; \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_AARCH_VERSION}.release.aarch64.rpm; \
     fi; \
     yum clean all
 

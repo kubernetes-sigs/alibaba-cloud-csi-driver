@@ -98,16 +98,25 @@ FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as alinas
 ARG TARGETPLATFORM
 ARG ALINAS_UTILS_VERSION=1.8-0.20250410201011.30aa55.al7
 ARG EFC_VERSION=1.8-20250226151552.7151bf.release
+ARG ALINAS_UTILS_AARCH_VERSION=2.1-0.20250911190709.ea7647
+ARG EFC_AARCH_VERSION=2.1-20250910201826.53da93
 RUN set -ex; \
     case "${TARGETPLATFORM}" in \
         linux/amd64) ARCH="x86_64" ;; \
-        # linux/arm64) ARCH="aarch_64" ;; \
+        linux/arm64) ARCH="aarch_64" ;; \
         *) echo "unsupported platform"; exit 1 ;; \
     esac; \
     yum install -y util-linux procps tini; \
-    yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
-    yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
+    if [ "${ARCH}" = "x86_64" ]; then \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
+    fi; \
+    if [ "${ARCH}" = "aarch_64" ]; then \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_AARCH_VERSION}.generic.aarch64.rpm; \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_AARCH_VERSION}.release.aarch64.rpm; \
+    fi; \
     yum clean all
+
 # alinas-utils generates some dynamic configuration files (such as TLS keys, etc.) under /etc/aliyun/{alinas,cpfs}.
 # So we will mount a hostPath to prevent the loss of these files when the container restarts.
 # On the first launch, /etc/aliyun-defaults will be used to initialize the configurations under /etc/aliyun/{alinas,cpfs}.
