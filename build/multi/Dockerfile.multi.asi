@@ -2,14 +2,6 @@
 FROM --platform=$BUILDPLATFORM golang:1.24.6 as build
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 COPY . .
-RUN --mount=type=ssh \
-    git config --global url."git@gitlab.alibaba-inc.com:".insteadOf "https://gitlab.alibaba-inc.com/" && \
-    ssh-keyscan gitlab.alibaba-inc.com >> /etc/ssh/ssh_known_hosts && \
-    export GOPROXY=https://goproxy.cn/,http://gomodule-repository.aone.alibaba-inc.com,https://mirrors.aliyun.com/goproxy/,direct && \
-    export GOPRIVATE="gitlab.alibaba-inc.com" && \
-    go get gitlab.alibaba-inc.com/idaas/go-cloud-token-isolate-consumer@v0.0.6-nok8s-nokeepalive && \
-    go mod tidy && \
-    go mod vendor
 ARG TARGETARCH
 ARG TARGETOS
 ARG CSI_VERSION=unknown
