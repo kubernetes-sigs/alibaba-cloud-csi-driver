@@ -16,7 +16,7 @@ const (
 	DiskADController featuregate.Feature = "DiskADController"
 
 	// Attach multiple disks to the same node in parallel.
-	// ECS don't allow parallel attach/detach to a node by default.
+	// ECS don't allow parallel attach to a node by default.
 	// Enable this if you need faster attach, and only if your UID is whitelisted (by open a ticket),
 	// or you have the supportConcurrencyAttach=true tag on your ECS instance.
 	//
@@ -24,7 +24,9 @@ const (
 	DiskParallelAttach featuregate.Feature = "DiskParallelAttach"
 
 	// Detach multiple disks from the same node in parallel.
-	// ECS does not allow parallel detach from a node currently. This feature gate is reserved for future use.
+	// ECS does not allow parallel detach from a node by default.
+	// Enable this if you need faster detach, and only if your UID is whitelisted (by open a ticket),
+	// or you have the supportConcurrencyDetach=true tag on your ECS instance.
 	//
 	// Only effective when DiskADController is also enabled.
 	DiskParallelDetach featuregate.Feature = "DiskParallelDetach"

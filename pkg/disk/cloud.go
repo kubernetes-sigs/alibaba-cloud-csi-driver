@@ -158,7 +158,7 @@ func (ad *DiskAttachDetach) findDevice(ctx context.Context, diskID, serial strin
 // Returns device path if fromNode, disk serial number otherwise.
 func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID string, fromNode bool) (string, error) {
 	logger := klog.FromContext(ctx)
-	logger.V(2).Info("Starting Do AttachDisk", "instanceID", nodeID, "region", GlobalConfigVar.Region)
+	logger.V(2).Info("Starting Do AttachDisk")
 
 	ecsClient := GlobalConfigVar.EcsClient
 	// Step 1: check disk status

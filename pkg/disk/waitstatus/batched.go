@@ -117,7 +117,7 @@ func (w *Batched[T]) Run(ctx context.Context) {
 		case r := <-w.feedback:
 			next := w.processFeedback(r)
 			w.idQueue = append(w.idQueue, next...)
-			logger.V(4).Info("poll response processed", "queueDepth", len(w.idQueue), "requeue", len(next))
+			logger.V(2).Info("poll response processed", "queueDepth", len(w.idQueue), "requeue", len(next))
 		case t := <-pollChan:
 			logger.V(4).Info("starting poll", "queueDepth", len(w.idQueue))
 			w.idQueue = w.poll(t, w.idQueue)
