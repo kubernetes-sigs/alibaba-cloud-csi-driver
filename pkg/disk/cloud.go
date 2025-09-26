@@ -379,43 +379,6 @@ func (ad *DiskAttachDetach) attachMultiAttachDisk(ctx context.Context, diskID, n
 	return "", nil
 }
 
-func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskID, nodeID string) (isMultiAttach bool, err error) {
-	disk, err := ad.findDiskByID(ctx, diskID)
-	if err != nil {
-		klog.Errorf("DetachMultiAttachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
-		return false, status.Error(codes.Aborted, err.Error())
-	}
-	if disk == nil {
-		klog.Infof("DetachMultiAttachDisk: Detach Disk %s from node %s describe and find disk not exist", diskID, nodeID)
-		return false, nil
-	}
-	if disk.MultiAttach == "Disabled" {
-		return false, nil
-	}
-
-	if waitstatus.IsInstanceAttached(disk, nodeID) {
-		klog.Infof("DetachMultiAttachDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
-		detachDiskRequest := ecs.CreateDetachDiskRequest()
-		detachDiskRequest.DiskId = disk.DiskId
-		detachDiskRequest.InstanceId = nodeID
-		response, err := ecsClient.DetachDisk(detachDiskRequest)
-		if err != nil {
-			return true, status.Errorf(codes.Aborted, "DetachMultiAttachDisk: Fail to detach %s: from Instance: %s with error: %v", disk.DiskId, disk.InstanceId, err)
-		}
-
-		// check disk detach
-		err = ad.waitForDiskDetached(ctx, diskID, nodeID)
-		if err != nil {
-			return true, status.Errorf(codes.Aborted, "DetachMultiAttachDisk: Detaching Disk %s failed: %v", diskID, err)
-		}
-		klog.Infof("DetachMultiAttachDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", diskID, disk.DiskId, disk.InstanceId, response.RequestId)
-	} else {
-		klog.Infof("DetachMultiAttachDisk: Skip Detach, disk %s have not detachable instance", diskID)
-	}
-
-	return true, nil
-}
-
 func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskID, nodeID string, fromNode bool) (err error) {
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
