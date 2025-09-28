@@ -30,6 +30,7 @@ import (
 	"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/sfdisk"
@@ -171,7 +172,7 @@ func parseVolumeCountEnv() (int, error) {
 }
 
 // NewNodeServer creates node server
-func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
+func NewNodeServer(ecs cloud.ECSInterface, m metadata.MetadataProvider) csi.NodeServer {
 	// Create Directory
 	err := os.MkdirAll(VolumeDir, os.FileMode(0755))
 	if err != nil {
@@ -224,6 +225,7 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 		podCGroup:    podCgroup,
 		clientSet:    GlobalConfigVar.ClientSet,
 		ad: DiskAttachDetach{
+			ecs:     ecs,
 			waiter:  waiter,
 			batcher: batcher,
 			// if ADController is not enabled, we need serial attach to recognize old disk
