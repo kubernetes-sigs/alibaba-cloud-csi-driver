@@ -67,6 +67,7 @@ const (
 
 type DiskAttachDetach struct {
 	slots   AttachDetachSlots
+	ecs     cloud.ECSInterface
 	waiter  waitstatus.StatusWaiter[ecs.Disk]
 	batcher batcher.Batcher[ecs.Disk]
 
@@ -194,7 +195,6 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Starting Do AttachDisk")
 
-	ecsClient := GlobalConfigVar.EcsClient
 	// Step 1: check disk status
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
@@ -219,7 +219,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 	// tag disk as k8s.aliyun.com=true
 	if GlobalConfigVar.DiskTagEnable {
-		tagDiskAsK8sAttached(diskID, ecsClient)
+		tagDiskAsK8sAttached(diskID, GlobalConfigVar.EcsClient)
 	}
 
 	cate, ok := AllCategories[Category(disk.Category)]
@@ -259,7 +259,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		}
 
 		if GlobalConfigVar.DiskBdfEnable {
-			if allowed, err := forceDetachAllowed(ecsClient, disk); err != nil {
+			if allowed, err := forceDetachAllowed(GlobalConfigVar.EcsClient, disk); err != nil {
 				return "", status.Errorf(codes.Aborted, "forceDetachAllowed failed: %v", err)
 			} else if !allowed {
 				return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
@@ -279,7 +279,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 			for key, value := range GlobalConfigVar.RequestBaseInfo {
 				detachRequest.AppendUserAgent(key, value)
 			}
-			_, err = ecsClient.DetachDisk(detachRequest)
+			_, err = ad.ecs.DetachDisk(detachRequest)
 			if err != nil {
 				klog.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
 				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
@@ -319,7 +319,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	for key, value := range GlobalConfigVar.RequestBaseInfo {
 		attachRequest.AppendUserAgent(key, value)
 	}
-	response, err := throttle.Throttled(ad.attachThrottler, ecsClient.AttachDisk)(ctx, attachRequest)
+	response, err := throttle.Throttled(ad.attachThrottler, ad.ecs.AttachDisk)(ctx, attachRequest)
 	if err != nil {
 		var aliErr *alicloudErr.ServerError
 		if errors.As(err, &aliErr) {
@@ -360,7 +360,6 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 func (ad *DiskAttachDetach) attachMultiAttachDisk(ctx context.Context, diskID, nodeID string) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachMultiAttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
-	ecsClient := GlobalConfigVar.EcsClient
 	// Step 1: check disk status
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
@@ -382,7 +381,7 @@ func (ad *DiskAttachDetach) attachMultiAttachDisk(ctx context.Context, diskID, n
 	attachRequest := ecs.CreateAttachDiskRequest()
 	attachRequest.InstanceId = nodeID
 	attachRequest.DiskId = diskID
-	response, err := ecsClient.AttachDisk(attachRequest)
+	response, err := ad.ecs.AttachDisk(attachRequest)
 	if err != nil {
 		if strings.Contains(err.Error(), DiskLimitExceeded) {
 			return "", status.Error(codes.Internal, err.Error()+", Node("+nodeID+")exceed the limit attachments of disk")
