@@ -189,6 +189,51 @@ func (ad *DiskAttachDetach) findDevice(ctx context.Context, diskID, serial strin
 	return device, nil
 }
 
+type attachAction int
+
+const (
+	giveUp attachAction = iota
+	alreadyAttached
+	detachFirst
+	forceAttach
+	attachNormally
+)
+
+func chooseAttachAction(disk *ecs.Disk, instanceID string) (attachAction, error) {
+	if disk.MultiAttach == "Disabled" {
+		switch disk.Status {
+		case DiskStatusInuse:
+			if disk.InstanceId == instanceID {
+				return alreadyAttached, nil
+			}
+			return detachFirst, nil
+		case DiskStatusAttaching:
+			return giveUp, status.Errorf(codes.Aborted, "AttachDisk: Disk %s is attaching to %s", disk.DiskId, disk.InstanceId)
+		case DiskStatusDetaching:
+			if disk.InstanceId == instanceID {
+				return giveUp, status.Errorf(codes.Aborted, "AttachDisk: Disk %s is detaching from %s", disk.DiskId, instanceID)
+			}
+			// disk is detaching from another instance
+			return forceAttach, nil
+		}
+	} else {
+		switch disk.Status {
+		case DiskStatusInuse:
+			if waitstatus.IsInstanceAttached(disk, instanceID) {
+				return alreadyAttached, nil
+			}
+		case DiskStatusDetaching:
+			a := disk.Attachments.Attachment
+			if len(a) == 1 && a[0].InstanceId == instanceID {
+				return giveUp, status.Errorf(codes.Aborted, "AttachDisk: Disk %s is detaching from %s", disk.DiskId, instanceID)
+			}
+		}
+		// Not sure for status == "Attaching", maybe attaching to another node, but detaching from the requested node?
+	}
+	// Most likely status == "Available". But let AttachDisk OpenAPI to decide.
+	return attachNormally, nil
+}
+
 // Attach Alibaba Cloud disk.
 // Returns device path if fromNode, disk serial number otherwise.
 func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID string, fromNode bool) (string, error) {
@@ -234,30 +279,11 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		}
 	}
 
-	tryForceAttach := false
-
-	// disk is attached, means disk_ad_controller env is true, disk must be created after 2020.06
-	switch disk.Status {
-	case DiskStatusInuse:
-		if disk.InstanceId == nodeID {
-			if !fromNode {
-				klog.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
-				return disk.SerialNumber, nil
-			}
-			if disk.SerialNumber != "" {
-				return ad.dev.WaitRootBlock(ctx, disk.SerialNumber)
-			} else {
-				device, err := ad.devMap.Get(logger, diskID)
-				if err != nil {
-					return "", err
-				}
-				if device != "" {
-					return device, nil
-				}
-				klog.Warningf("AttachDisk: Disk (no serial) %s is already attached to instance %s, but device unknown, will be detached and try again", diskID, disk.InstanceId)
-			}
-		}
-
+	action, err := chooseAttachAction(disk, nodeID)
+	if err != nil {
+		return "", err
+	}
+	if action == detachFirst || action == forceAttach {
 		if GlobalConfigVar.DiskBdfEnable {
 			if allowed, err := forceDetachAllowed(GlobalConfigVar.EcsClient, disk); err != nil {
 				return "", status.Errorf(codes.Aborted, "forceDetachAllowed failed: %v", err)
@@ -269,31 +295,48 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		if !GlobalConfigVar.DetachBeforeAttach {
 			return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
 		}
-		if canForceAttach {
-			tryForceAttach = true
-		} else {
-			klog.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
-			detachRequest := ecs.CreateDetachDiskRequest()
-			detachRequest.InstanceId = disk.InstanceId
-			detachRequest.DiskId = disk.DiskId
-			for key, value := range GlobalConfigVar.RequestBaseInfo {
-				detachRequest.AppendUserAgent(key, value)
-			}
-			_, err = ad.ecs.DetachDisk(detachRequest)
-			if err != nil {
-				klog.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
-				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
-			}
-			klog.Infof("AttachDisk: Wait for disk %s to be detached", diskID)
-			if err := ad.waitForDiskDetached(ctx, diskID, nodeID); err != nil {
-				return "", err
-			}
+	}
+	if canForceAttach && action == detachFirst {
+		action = forceAttach
+	}
+	if action == forceAttach && !canForceAttach {
+		action = attachNormally // should fail, but try it anyway
+	}
+
+	switch action {
+	case alreadyAttached:
+		if !fromNode {
+			klog.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
+			return disk.SerialNumber, nil
 		}
-	case DiskStatusAttaching:
-		return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is attaching %v", diskID, disk)
-	case DiskStatusDetaching:
-		if canForceAttach {
-			tryForceAttach = true
+		if disk.SerialNumber != "" {
+			return ad.dev.WaitRootBlock(ctx, disk.SerialNumber)
+		}
+		device, err := ad.devMap.Get(logger, diskID)
+		if err != nil {
+			return "", err
+		}
+		if device != "" {
+			return device, nil
+		}
+		klog.Warningf("AttachDisk: Disk (no serial) %s is already attached to instance %s, but device unknown, will be detached and try again", diskID, disk.InstanceId)
+		fallthrough
+	case detachFirst:
+		klog.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
+		detachRequest := ecs.CreateDetachDiskRequest()
+		detachRequest.InstanceId = disk.InstanceId
+		detachRequest.DiskId = disk.DiskId
+		for key, value := range GlobalConfigVar.RequestBaseInfo {
+			detachRequest.AppendUserAgent(key, value)
+		}
+		_, err = ad.ecs.DetachDisk(detachRequest)
+		if err != nil {
+			klog.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
+			return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
+		}
+		klog.Infof("AttachDisk: Wait for disk %s to be detached", diskID)
+		if err := ad.waitForDiskDetached(ctx, diskID, nodeID); err != nil {
+			return "", err
 		}
 	}
 
@@ -309,7 +352,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	attachRequest := ecs.CreateAttachDiskRequest()
 	attachRequest.InstanceId = nodeID
 	attachRequest.DiskId = diskID
-	if tryForceAttach {
+	if action == forceAttach {
 		attachRequest.Force = requests.NewBoolean(true)
 		logger.V(1).Info("try force attach", "from", disk.InstanceId, "to", nodeID)
 	}

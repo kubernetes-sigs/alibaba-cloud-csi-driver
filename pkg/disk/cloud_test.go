@@ -687,9 +687,10 @@ func TestAttachDisk(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			name:   "detaching from self",
-			before: disk("Detaching", "i-testinstanceid"),
-			after:  disk("In_use", "i-testinstanceid"), // FIXME
+			name:      "detaching from self",
+			before:    disk("Detaching", "i-testinstanceid"),
+			noAttach:  true,
+			expectErr: true,
 		},
 		{
 			// This not supported by ECS, but desired by us to speed up failover. Hopes they will support it someday.
