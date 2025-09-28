@@ -211,13 +211,12 @@ func chooseAttachAction(disk *ecs.Disk, instanceID string) (attachAction, error)
 // Returns device path if fromNode, disk serial number otherwise.
 func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID string, fromNode bool) (string, error) {
 	logger := klog.FromContext(ctx)
-	logger.V(2).Info("Starting Do AttachDisk", "instanceID", nodeID, "region", GlobalConfigVar.Region)
+	logger.V(2).Info("Starting Do AttachDisk")
 
 	// Step 1: check disk status
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
-		klog.Errorf("AttachDisk: find disk: %s with error: %s", diskID, err.Error())
-		return "", status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %s", diskID, err.Error())
+		return "", status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %v", diskID, err)
 	}
 	if disk == nil {
 		return "", status.Errorf(codes.NotFound, "AttachDisk: csi can't find disk: %s in region: %s, Please check if the cloud disk exists, if the region is correct, or if the csi permissions are correct", diskID, GlobalConfigVar.Region)
@@ -279,29 +278,29 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	switch action {
 	case alreadyAttached:
 		if !fromNode {
-			klog.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
+			logger.V(2).Info("already attached, skipping")
 			return disk.SerialNumber, nil
 		}
 		deviceName, err := GetVolumeDeviceName(diskID)
 		if err == nil && deviceName != "" && IsFileExisting(deviceName) {
-			klog.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
+			logger.V(2).Info("already attached", "device", deviceName)
 			return deviceName, nil
 		} else if disk.SerialNumber != "" {
 			// wait for pci attach ready
 			time.Sleep(5 * time.Second)
-			klog.Infof("AttachDisk: find disk dev after 5 seconds")
+			logger.V(2).Info("find disk dev after 5 seconds")
 			deviceName, err := GetVolumeDeviceName(diskID)
 			if err == nil && deviceName != "" && IsFileExisting(deviceName) {
-				klog.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
+				logger.V(2).Info("already attached (after 5s)", "device", deviceName)
 				return deviceName, nil
 			}
 			err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, deviceName: %s, err: %+v", diskID, deviceName, err)
 			return "", err
 		}
-		klog.Warningf("AttachDisk: Disk (no serial) %s is already attached to instance %s, but device unknown, will be detached and try again", diskID, disk.InstanceId)
+		logger.V(1).Info("disk has no serial, but device unknown, will be detached and try again")
 		fallthrough
 	case detachFirst:
-		klog.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
+		logger.V(1).Info("already attached to another instance, will be detached", "from", disk.InstanceId)
 		detachRequest := ecs.CreateDetachDiskRequest()
 		detachRequest.InstanceId = disk.InstanceId
 		detachRequest.DiskId = disk.DiskId
@@ -310,10 +309,9 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		}
 		_, err = ad.ecs.DetachDisk(detachRequest)
 		if err != nil {
-			klog.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
 			return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
 		}
-		klog.Infof("AttachDisk: Wait for disk %s to be detached", diskID)
+		logger.V(2).Info("Waiting for disk to be detached")
 		if err := ad.waitForDiskDetached(ctx, diskID, nodeID); err != nil {
 			return "", err
 		}
@@ -333,7 +331,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	attachRequest.DiskId = diskID
 	if action == forceAttach {
 		attachRequest.Force = requests.NewBoolean(true)
-		logger.V(1).Info("try force attach", "from", disk.InstanceId, "to", nodeID)
+		logger.V(1).Info("try force attach", "from", disk.InstanceId)
 	}
 	if cate.SingleInstance {
 		attachRequest.DeleteWithInstance = requests.NewBoolean(true)
@@ -360,7 +358,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	}
 
 	// Step 4: wait for disk attached
-	klog.Infof("AttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
+	logger.V(2).Info("waiting for disk to attach", "requestID", response.RequestId)
 	if err := ad.waitForDiskAttached(ctx, diskID, nodeID); err != nil {
 		return "", err
 	}
@@ -374,7 +372,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		return device, nil
 	}
 
-	klog.Infof("AttachDisk: Successful attach disk %s to node %s", diskID, nodeID)
+	logger.V(2).Info("Successfully attached disk")
 	return disk.SerialNumber, nil
 }
 
