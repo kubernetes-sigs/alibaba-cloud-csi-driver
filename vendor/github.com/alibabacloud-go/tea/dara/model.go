@@ -28,6 +28,314 @@ func Validate(params interface{}) error {
 	return err
 }
 
+// ValidateRequired checks if a value is set (non-nil)
+func ValidateRequired(value interface{}, fieldName string) error {
+	if value == nil {
+		return errors.New(fieldName + " should be setted")
+	}
+
+	// Check for typed nil pointers
+	switch v := value.(type) {
+	case *string:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *int:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *int8:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *int16:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *int32:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *int64:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *uint:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *uint8:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *uint16:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *uint32:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *uint64:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *float32:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	case *float64:
+		if v == nil {
+			return errors.New(fieldName + " should be setted")
+		}
+	}
+
+	return nil
+}
+
+// ValidateMaxLength validates maximum length using type assertions
+func ValidateMaxLength(value interface{}, maxLength int, fieldName string) error {
+	length := getValueLength(value)
+	if length > maxLength {
+		return fmt.Errorf("The length of %s is %d which is more than %d", fieldName, length, maxLength)
+	}
+	return nil
+}
+
+// ValidateMinLength validates minimum length using type assertions
+func ValidateMinLength(value interface{}, minLength int, fieldName string) error {
+	length := getValueLength(value)
+	if length < minLength {
+		return fmt.Errorf("The length of %s is %d which is less than %d", fieldName, length, minLength)
+	}
+	return nil
+}
+
+// ValidatePattern validates string against regex pattern
+func ValidatePattern(value interface{}, pattern string, fieldName string) error {
+	strValue := getStringValue(value)
+	if strValue == "" {
+		return nil // Empty strings are valid unless required
+	}
+
+	r, err := regexp.Compile("^" + pattern + "$")
+	if err != nil {
+		return err
+	}
+
+	if !r.MatchString(strValue) {
+		return errors.New(strValue + " is not matched " + pattern)
+	}
+	return nil
+}
+
+// ValidateMaximum validates maximum value for numeric types
+func ValidateMaximum(value interface{}, maximum float64, fieldName string) error {
+	numValue, ok := getNumericValue(value)
+	if !ok {
+		return nil // Skip validation for non-numeric types
+	}
+
+	if numValue > maximum {
+		return fmt.Errorf("The size of %s is %f which is greater than %f", fieldName, numValue, maximum)
+	}
+	return nil
+}
+
+// ValidateMinimum validates minimum value for numeric types
+func ValidateMinimum(value interface{}, minimum float64, fieldName string) error {
+	numValue, ok := getNumericValue(value)
+	if !ok {
+		return nil // Skip validation for non-numeric types
+	}
+
+	if numValue < minimum {
+		return fmt.Errorf("The size of %s is %f which is less than %f", fieldName, numValue, minimum)
+	}
+	return nil
+}
+
+// ValidateArray validates array/slice elements recursively
+func ValidateArray(arr interface{}, validator func(interface{}) error) error {
+	switch v := arr.(type) {
+	case []interface{}:
+		for _, item := range v {
+			if err := validator(item); err != nil {
+				return err
+			}
+		}
+	case []*string:
+		for _, item := range v {
+			if err := validator(item); err != nil {
+				return err
+			}
+		}
+	case []*int:
+		for _, item := range v {
+			if err := validator(item); err != nil {
+				return err
+			}
+		}
+		// Add more specific types as needed
+	}
+	return nil
+}
+
+// ValidateMap validates map values recursively
+func ValidateMap(m interface{}, validator func(interface{}) error) error {
+	switch v := m.(type) {
+	case map[string]interface{}:
+		for _, value := range v {
+			if err := validator(value); err != nil {
+				return err
+			}
+		}
+	case map[string]*string:
+		for _, value := range v {
+			if err := validator(value); err != nil {
+				return err
+			}
+		}
+		// Add more specific types as needed
+	}
+	return nil
+}
+
+// Helper functions using pure type assertions (no reflection)
+
+// getStringValue extracts string value using type assertions
+func getStringValue(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case *string:
+		if v != nil {
+			return *v
+		}
+		return ""
+	default:
+		return ""
+	}
+}
+
+// getNumericValue extracts numeric value as float64 using type assertions
+func getNumericValue(value interface{}) (float64, bool) {
+	switch v := value.(type) {
+	// Direct numeric types
+	case int:
+		return float64(v), true
+	case int8:
+		return float64(v), true
+	case int16:
+		return float64(v), true
+	case int32:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case uint:
+		return float64(v), true
+	case uint8:
+		return float64(v), true
+	case uint16:
+		return float64(v), true
+	case uint32:
+		return float64(v), true
+	case uint64:
+		return float64(v), true
+	case float32:
+		return float64(v), true
+	case float64:
+		return v, true
+
+	// Pointer types
+	case *int:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *int8:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *int16:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *int32:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *int64:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *uint:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *uint8:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *uint16:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *uint32:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *uint64:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *float32:
+		if v != nil {
+			return float64(*v), true
+		}
+	case *float64:
+		if v != nil {
+			return *v, true
+		}
+	default:
+		return 0, false
+	}
+	return 0, false
+}
+
+// getValueLength returns length of string, array, slice, or map using type assertions
+func getValueLength(value interface{}) int {
+	switch v := value.(type) {
+	case string:
+		// Use the same method as original implementation for consistency
+		return len([]rune(v))
+	case *string:
+		if v != nil {
+			return len([]rune(*v))
+		}
+		return 0
+	case []interface{}:
+		return len(v)
+	case []string:
+		return len(v)
+	case []*string:
+		return len(v)
+	case []int:
+		return len(v)
+	case []*int:
+		return len(v)
+	case map[string]interface{}:
+		return len(v)
+	case map[string]string:
+		return len(v)
+	case map[string]*string:
+		return len(v)
+	// Add more specific types as needed
+	default:
+		return 0
+	}
+}
+
+// Deprecated: use new validation methods instead
 // Verify whether the parameters meet the requirements
 func validate(dataValue reflect.Value) error {
 	if strings.HasPrefix(dataValue.Type().String(), "*") { // Determines whether the input is a structure object or a pointer object

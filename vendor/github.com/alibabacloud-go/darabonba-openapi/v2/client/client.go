@@ -1446,19 +1446,6 @@ func (client *Client) CallSSEApi(params *openapiutil.Params, request *openapiuti
 		}
 
 		callSSEApi_opResponse(_yield, _yieldErr, response_)
-		_err = <-_yieldErr
-		if _err != nil {
-			retriesAttempted++
-			retryPolicyContext = &dara.RetryPolicyContext{
-				RetriesAttempted: retriesAttempted,
-				HttpRequest:      request_,
-				HttpResponse:     response_,
-				Exception:        _err,
-			}
-			_resultErr = _err
-			continue
-		}
-
 		return
 	}
 	_yieldErr <- _resultErr

@@ -3,7 +3,7 @@ package cloud
 import (
 	"testing"
 
-	nas "github.com/alibabacloud-go/nas-20170626/v3/client"
+	nas "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"

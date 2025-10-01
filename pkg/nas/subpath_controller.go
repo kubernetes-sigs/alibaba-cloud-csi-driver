@@ -25,7 +25,7 @@ import (
 	"strings"
 	"sync"
 
-	sdk "github.com/alibabacloud-go/nas-20170626/v3/client"
+	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"

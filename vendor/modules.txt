@@ -4,7 +4,7 @@ github.com/alibabacloud-go/alibabacloud-gateway-spi/client
 # github.com/alibabacloud-go/darabonba-openapi v0.1.16
 ## explicit; go 1.14
 github.com/alibabacloud-go/darabonba-openapi/client
-# github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.11
+# github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.12
 ## explicit; go 1.14
 github.com/alibabacloud-go/darabonba-openapi/v2/client
 github.com/alibabacloud-go/darabonba-openapi/v2/models
@@ -21,13 +21,13 @@ github.com/alibabacloud-go/endpoint-util/service
 # github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
 ## explicit; go 1.15
 github.com/alibabacloud-go/ens-20171110/v3/client
-# github.com/alibabacloud-go/nas-20170626/v3 v3.2.0 => ./staging/src/github.com/alibabacloud-go/nas-20170626
+# github.com/alibabacloud-go/nas-20170626/v4 v4.1.2
 ## explicit; go 1.14
-github.com/alibabacloud-go/nas-20170626/v3/client
+github.com/alibabacloud-go/nas-20170626/v4/client
 # github.com/alibabacloud-go/openapi-util v0.1.1
 ## explicit; go 1.14
 github.com/alibabacloud-go/openapi-util/service
-# github.com/alibabacloud-go/tea v1.3.11
+# github.com/alibabacloud-go/tea v1.3.12
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea/dara
 github.com/alibabacloud-go/tea/tea
@@ -836,4 +836,3 @@ sigs.k8s.io/structured-merge-diff/v4/value
 ## explicit; go 1.12
 sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v2
-# github.com/alibabacloud-go/nas-20170626/v3 => ./staging/src/github.com/alibabacloud-go/nas-20170626

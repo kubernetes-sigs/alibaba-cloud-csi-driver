@@ -1,7 +1,7 @@
 package interfaces
 
 import (
-	sdk "github.com/alibabacloud-go/nas-20170626/v3/client"
+	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/golang/mock/gomock"
 )
 
