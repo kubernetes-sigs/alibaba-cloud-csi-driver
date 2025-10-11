@@ -228,6 +228,7 @@ func (f *fuseOssfs) buildPodSpec(c *mounterutils.FusePodContext, target string) 
 	spec.Containers = []corev1.Container{container}
 	spec.NodeName = c.NodeName
 	spec.HostNetwork = true
+	spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 	spec.PriorityClassName = "system-node-critical"
 	spec.Tolerations = []corev1.Toleration{{Operator: corev1.TolerationOpExists}}
 	return
