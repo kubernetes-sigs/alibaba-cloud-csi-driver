@@ -25,8 +25,10 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
+	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 )
 
 var m = metadata.FakeProvider{
@@ -727,4 +729,14 @@ func TestMakeMountOptions(t *testing.T) {
 	got2, err := makeMountOptions(opt2, ossfs2Fpm, fakeMeta, cap)
 	assert.NoError(t, err)
 	assert.Equal(t, want2, got2)
+}
+
+func TestMakePodTemplateConfig(t *testing.T) {
+	assert.Equal(t, &mounter.PodTemplateConfig{
+		DnsPolicy: corev1.DNSClusterFirstWithHostNet,
+	}, makePodTemplateConfig(&oss.Options{
+		DnsPolicy: corev1.DNSClusterFirstWithHostNet,
+	}))
+
+	assert.Equal(t, &mounter.PodTemplateConfig{}, makePodTemplateConfig(&oss.Options{}))
 }
