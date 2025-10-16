@@ -86,6 +86,7 @@ type NodeConfig struct {
 
 	// path of mount proxy socket
 	MountProxySocket string
+	AgentMode        bool
 
 	// clients for kubernetes
 	KubeClient kubernetes.Interface
