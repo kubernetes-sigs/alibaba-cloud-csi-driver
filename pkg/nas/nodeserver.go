@@ -70,7 +70,7 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 		},
 	}
 	if config.MountProxySocket == "" {
-		ns.mounter = newNasMounter()
+		ns.mounter = newNasMounter(ns.config.AgentMode)
 	} else {
 		ns.recorder = utils.NewEventRecorder()
 		ns.mounter = newNasMounterWithProxy(config.MountProxySocket)

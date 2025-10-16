@@ -16,6 +16,7 @@ type CSIAgent struct {
 
 func NewCSIAgent(socketPath string) *CSIAgent {
 	config := &internal.NodeConfig{
+		AgentMode:        true,
 		EnablePortCheck:  true,
 		MountProxySocket: socketPath,
 		CNFSGetter:       unsupportedCNFSGetter{},

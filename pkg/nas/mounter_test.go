@@ -25,7 +25,7 @@ func (m *errorMockMounter) Mount(source string, target string, fstype string, op
 }
 
 func TestNewNasMounter(t *testing.T) {
-	actual := newNasMounter()
+	actual := newNasMounter(true)
 	assert.NotNil(t, actual)
 }
 
