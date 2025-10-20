@@ -314,6 +314,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
+	if !isValidServer(opt.Server) {
+		return nil, errors.New("invalid server address: mount path must be specified in the 'path' field")
+	}
+
 	if opt.Path == "" {
 		opt.Path = "/"
 	}
@@ -486,6 +490,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	klog.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func isValidServer(server string) bool {
+	if !strings.Contains(server, ":") {
+		return true
+	}
+	return strings.HasPrefix(server, "[") && strings.HasSuffix(server, "]")
 }
 
 func (ns *nodeServer) getCNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, name string) (*v1beta1.ContainerNetworkFileSystem, error) {
