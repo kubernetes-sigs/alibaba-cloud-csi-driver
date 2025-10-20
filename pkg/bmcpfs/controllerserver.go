@@ -43,12 +43,18 @@ type controllerServer struct {
 	vscManager     *internal.PrimaryVscManagerWithCache
 	attachDetacher internal.CPFSAttachDetacher
 	nasClient      *nasclient.Client
+	skipDetach     bool
 }
 
 func newControllerServer(region string) (*controllerServer, error) {
 	efloClient, err := newEfloClient(region)
 	if err != nil {
 		return nil, err
+	}
+
+	skipDetach := false
+	if skipDetachVal, _ := strconv.ParseBool(os.Getenv("SKIP_BMCPFS_DETACH")); skipDetachVal {
+		skipDetach = skipDetachVal
 	}
 
 	nasClient, err := cloud.NewNasClientV2(region)
@@ -59,6 +65,7 @@ func newControllerServer(region string) (*controllerServer, error) {
 		vscManager:     internal.NewPrimaryVscManagerWithCache(efloClient),
 		attachDetacher: internal.NewCPFSAttachDetacher(nasClient),
 		nasClient:      nasClient,
+		skipDetach:     skipDetach,
 	}, nil
 }
 
@@ -85,11 +92,12 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}, nil
 	}
 
+	cpfsID, _ := parseVolumeHandle(req.VolumeId)
 	// Get VscMountTarget of filesystem
 	mt := req.VolumeContext[_vscMountTarget]
 	if mt == "" {
 		var err error
-		mt, err = getMountTarget(cs.nasClient, req.VolumeId, networkTypeVSC)
+		mt, err = getMountTarget(cs.nasClient, cpfsID, networkTypeVSC)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get VscMountTarget: %v", err)
 		}
@@ -107,7 +115,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	klog.Info("Use VSC MountTarget for lingjun node", "nodeId", req.NodeId, "vscId", vscId)
 
 	// Attach CPFS to VSC
-	err = cs.attachDetacher.Attach(ctx, req.VolumeId, vscId)
+	err = cs.attachDetacher.Attach(ctx, cpfsID, vscId)
 	if err != nil {
 		if autoSwitch, _ := strconv.ParseBool(req.VolumeContext[_mpAutoSwitch]); autoSwitch && internal.IsAttachNotSupportedError(err) {
 			if req.VolumeContext[_vpcMountTarget] == "" {
@@ -138,10 +146,9 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (
 	*csi.ControllerUnpublishVolumeResponse, error,
 ) {
-	if !strings.HasPrefix(req.NodeId, LingjunNodeIDPrefix) {
+	if !strings.HasPrefix(req.NodeId, LingjunNodeIDPrefix) || cs.skipDetach {
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
-
 	// Create Primary vsc for Lingjun node
 	lingjunInstanceId := strings.TrimPrefix(req.NodeId, LingjunNodeIDPrefix)
 	if LingjunNodeIDPrefix == "" {
@@ -155,6 +162,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		klog.InfoS("ControllerUnpublishVolume: skip detaching cpfs from vsc as vsc not found", "node", req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
+	// If `req.VolumeId` is a combination of `cpfsID` and `fsetID`, Detach will trigger an error.
 	err = cs.attachDetacher.Detach(ctx, req.VolumeId, vsc.VscID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -207,6 +215,14 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 	config = config.SetProtocol(scheme)
 	// init client
 	return efloclient.NewClient(config)
+}
+
+func parseVolumeHandle(volumeHandle string) (string, string) {
+	parts := strings.Split(volumeHandle, volumeHandleDelimiter)
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return parts[0], ""
 }
 
 func getMountTarget(client *nasclient.Client, fsId, networkType string) (string, error) {
