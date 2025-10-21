@@ -42,6 +42,8 @@ const (
 	// network types of CPFS mount targets
 	networkTypeVPC = "vpc"
 	networkTypeVSC = "vsc"
+
+	volumeHandleDelimiter = "+"
 )
 
 type Driver struct {
