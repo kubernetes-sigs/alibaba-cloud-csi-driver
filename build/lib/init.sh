@@ -225,18 +225,26 @@ apt_install() {
     host_cmd apt-get install -y --allow-downgrades "$@"
 }
 
-if host_cmd dnf --version; then
-    echo "dnf is available"
-    PKG_MGR=dnf
-    SUPPORT_RPM=true
-elif host_cmd yum --version; then
-    echo "yum is available"
-    PKG_MGR=yum
-    SUPPORT_RPM=true
-elif host_cmd apt-get --version; then
-    echo "apt-get is available"
-    PKG_MGR=apt
-fi
+PKG_MGR=NOT_INITIALIZED
+
+detect_package_manager() { 
+    if [ "$PKG_MGR" != "NOT_INITIALIZED" ]; then
+        return 0
+    fi
+    PKG_MGR=""
+    if host_cmd dnf --version; then
+        echo "dnf is available"
+        PKG_MGR=dnf
+        SUPPORT_RPM=true
+    elif host_cmd yum --version; then
+        echo "yum is available"
+        PKG_MGR=yum
+        SUPPORT_RPM=true
+    elif host_cmd apt-get --version; then
+        echo "apt-get is available"
+        PKG_MGR=apt
+    fi
+}
 
 # idempotent package installation
 # downgrade if the already installed version is newer than the one we want to install
@@ -273,6 +281,7 @@ if [ "$ARCH" = "x86_64" ] && [ "$run_nas" = "true" ]; then
 
     if [ $install_utils = "true" ]; then
         # cpfs-nas nas-rich-client common rpm
+        detect_package_manager
         echo "installing aliyun-alinas-utils"
         if [ "$SUPPORT_RPM" = "true" ]; then
             PKG=aliyun-alinas-utils-1.1-8.20240527201444.2012cc.al7.noarch.rpm
