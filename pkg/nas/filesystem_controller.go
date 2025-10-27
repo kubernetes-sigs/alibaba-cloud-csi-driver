@@ -43,7 +43,6 @@ import (
 
 const (
 	ProtocolType    = "protocolType"
-	FileSystemType  = "fileSystemType"
 	EncryptType     = "encryptType"
 	SnapshotID      = "snapshotID"
 	StorageType     = "storageType"
@@ -164,7 +163,8 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "init nas client: %v", err)
 	}
-	fileSystemID := ""
+	var fileSystemID string
+	fileSystemType := nasVol.FileSystemType
 	// if the pvc mapped fileSystem is already create, skip creating a filesystem
 	if value, ok := cs.pvcFileSystemIDMap.Load(pvName); ok && value != "" {
 		klog.Warningf("CreateVolume: Nfs Volume(%s)'s filesystem %s has Created Already, try to create mountTarget", pvName, value)
@@ -193,6 +193,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 			return nil, status.Error(codes.Internal, errMsg)
 		}
 		fileSystemID = createFileSystemsResponse.FileSystemId
+		fileSystemType = createFileSystemsRequest.FileSystemType
 		cs.pvcFileSystemIDMap.Store(pvName, fileSystemID)
 		klog.Infof("CreateVolume: Volume: %s, Successful Create Nas filesystem with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
 
@@ -295,7 +296,8 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 		time.Sleep(time.Duration(2) * time.Second)
 	}
 
-	volumeContext["fileSystemId"] = fileSystemID
+	volumeContext[filesystemIDKey] = fileSystemID
+	volumeContext[filesystemTypeKey] = fileSystemType
 	volumeContext["server"] = mountTargetDomain
 	volumeContext["path"] = filepath.Join("/")
 	if nasVol.FileSystemType == "extreme" {
@@ -322,7 +324,7 @@ func (cs *filesystemController) getNasVolumeOptions(req *csi.CreateVolumeRequest
 	nasVolArgs := &nasVolumeArgs{}
 	volOptions := req.GetParameters()
 
-	if nasVolArgs.FileSystemType, ok = volOptions[FileSystemType]; !ok {
+	if nasVolArgs.FileSystemType, ok = volOptions[filesystemTypeKey]; !ok {
 		nasVolArgs.ProtocolType = "standard"
 	} else if nasVolArgs.FileSystemType != "standard" && nasVolArgs.FileSystemType != "extreme" {
 		return nil, fmt.Errorf("Required parameter [parameter.fileSystemType] must be [standard, extreme]")

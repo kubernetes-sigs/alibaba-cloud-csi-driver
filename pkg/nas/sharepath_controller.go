@@ -18,10 +18,13 @@ package nas
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -29,10 +32,22 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type sharepathController struct{}
+type sharepathController struct {
+	nasClient interfaces.NasClientV2Interface
+}
 
-func newSharepathController(_ *internal.ControllerConfig) (internal.Controller, error) {
-	return &sharepathController{}, nil
+func newSharepathController(config *internal.ControllerConfig) (internal.Controller, error) {
+	region, err := config.Metadata.Get(metadata.RegionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get region ID: %w", err)
+	}
+	nasClient, err := config.NasClientFactory.V2(region)
+	if err != nil {
+		return nil, err
+	}
+	return &sharepathController{
+		nasClient: nasClient,
+	}, nil
 }
 
 func (cs *sharepathController) VolumeAs() string {
@@ -40,6 +55,7 @@ func (cs *sharepathController) VolumeAs() string {
 }
 
 func (cs *sharepathController) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	var server, path string
 	parameters := req.Parameters
 	reclaimPolicy, ok := parameters[common.CsiAlibabaCloudPrefix+"/"+"reclaimPolicy"]
 	if ok && reclaimPolicy != string(corev1.PersistentVolumeReclaimRetain) {
@@ -48,7 +64,7 @@ func (cs *sharepathController) CreateVolume(ctx context.Context, req *csi.Create
 	volumeContext := map[string]string{}
 	// using cnfs or not
 	if cnfsName := parameters["containerNetworkFileSystem"]; cnfsName != "" {
-		path := parameters["path"]
+		path = parameters["path"]
 		if path == "" {
 			path = "/"
 		} else {
@@ -57,7 +73,7 @@ func (cs *sharepathController) CreateVolume(ctx context.Context, req *csi.Create
 		volumeContext["containerNetworkFileSystem"] = cnfsName
 		volumeContext["path"] = path
 	} else {
-		server, path := muxServerSelector.SelectNfsServer(parameters["server"])
+		server, path = muxServerSelector.SelectNfsServer(parameters["server"])
 		if server == "" {
 			return nil, status.Error(codes.InvalidArgument, "invalid nas server")
 		}
@@ -67,6 +83,9 @@ func (cs *sharepathController) CreateVolume(ctx context.Context, req *csi.Create
 		volumeContext["server"] = server
 		volumeContext["path"] = path
 	}
+
+	volumeContext[filesystemIDKey] = getNASIDFromMapOrServer(parameters, server)
+	volumeContext[filesystemTypeKey] = getFilesystemTypeFromAPIOrServer(volumeContext[filesystemIDKey], server, cs.nasClient)
 
 	// fill volumeContext
 	if mountType := parameters["mountType"]; mountType != "" {

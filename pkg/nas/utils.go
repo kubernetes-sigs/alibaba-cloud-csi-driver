@@ -25,8 +25,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
@@ -48,6 +51,9 @@ const (
 	// see https://help.aliyun.com/zh/nas/modify-the-maximum-number-of-concurrent-nfs-requests
 	TcpSlotTableEntries      = "/proc/sys/sunrpc/tcp_slot_table_entries"
 	TcpSlotTableEntriesValue = "128\n"
+
+	filesystemIDKey   = "fileSystemId"
+	filesystemTypeKey = "fileSystemType"
 )
 
 // RoleAuth define STS Token Response
@@ -110,7 +116,7 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 			combinedOptions = addTLSMountOptions(combinedOptions)
 		}
 		// Enable compatibility for BMCPFS VPC mount points using the NAS Driver, to support the same usage in ECI.
-		if strings.HasSuffix(opt.Server, "cpfs.aliyuncs.com") && opt.MountProtocol == "efc" {
+		if isCPFS(opt.FSType, opt.Server) && opt.MountProtocol == "efc" {
 			mountFstype = "alinas"
 			combinedOptions = append(combinedOptions, "efc,protocol=efc,net=tcp,fstype=cpfs")
 		}
@@ -130,7 +136,7 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 	}
 
 	rootPath := "/"
-	if opt.FSType == "cpfs" || mountFstype == MountProtocolCPFSNFS || strings.Contains(opt.Server, "extreme.nas.aliyuncs.com") {
+	if opt.FSType == "cpfs" || mountFstype == MountProtocolCPFSNFS || isExtrameNAS(opt.FSType, opt.Server) {
 		rootPath = "/share"
 	}
 	relPath, relErr := filepath.Rel(rootPath, opt.Path)
@@ -259,24 +265,6 @@ func isLosetupMount(volumeID string) (bool, error) {
 	return false, nil
 }
 
-// GetFsIDByNasServer func is get fsID from serverName
-func GetFsIDByNasServer(server string) string {
-	if len(server) == 0 {
-		return ""
-	}
-	serverArray := strings.Split(server, "-")
-	return serverArray[0]
-}
-
-// GetFsIDByCpfsServer func is get fsID from serverName
-func GetFsIDByCpfsServer(server string) string {
-	if len(server) == 0 {
-		return ""
-	}
-	serverArray := strings.Split(server, "-")
-	return serverArray[0] + "-" + serverArray[1]
-}
-
 // rund-csi 2.0
 func saveVolumeData(opt *Options, mountPath string) error {
 	// save volume data to json file
@@ -306,4 +294,55 @@ func cleanupMountpoint(mounter mountutils.Interface, mountPath string) (err erro
 		err = mountutils.CleanupMountPoint(mountPath, mounter, false)
 	}
 	return
+}
+
+func getNASIDFromMapOrServer(params map[string]string, server string) string {
+	if id := params[filesystemIDKey]; id != "" {
+		return id
+	}
+	id, _, _ := strings.Cut(server, "-")
+	return id
+}
+
+func getCPFSIDFromMapOrServer(params map[string]string, server string) string {
+	if id := params[filesystemIDKey]; id != "" {
+		return id
+	}
+	elems := strings.Split(server, "-")
+	switch len(elems) {
+	case 0:
+		return ""
+	case 1:
+		return elems[0]
+	default:
+		return elems[0] + "-" + elems[1]
+	}
+}
+
+func getFilesystemTypeFromAPIOrServer(filesystemID, server string, client interfaces.NasClientV2Interface) string {
+	fs, err := client.DescribeFileSystems(filesystemID)
+	if err != nil {
+		klog.ErrorS(err, "DescribeFileSystems failed")
+	}
+	if fs != nil && fs.Body != nil && fs.Body.FileSystems != nil && len(fs.Body.FileSystems.FileSystem) > 0 {
+		fs := fs.Body.FileSystems.FileSystem[0]
+		if fs != nil && fs.FileSystemType != nil {
+			return tea.StringValue(fs.FileSystemType)
+		}
+	}
+	return cloud.GetFilesystemTypeByMountTargetDomain(server)
+}
+
+func isExtrameNAS(filesystemType, server string) bool {
+	if filesystemType != "" {
+		return filesystemType == "extreme"
+	}
+	return strings.Contains(server, "extreme.nas.aliyuncs.com")
+}
+
+func isCPFS(filesystemType, server string) bool {
+	if filesystemType != "" {
+		return filesystemType == "cpfs"
+	}
+	return strings.HasSuffix(server, "cpfs.aliyuncs.com")
 }
