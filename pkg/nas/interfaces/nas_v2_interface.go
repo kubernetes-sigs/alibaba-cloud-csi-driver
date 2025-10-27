@@ -1,6 +1,6 @@
 package interfaces
 
-import nas "github.com/alibabacloud-go/nas-20170626/v3/client"
+import nas "github.com/alibabacloud-go/nas-20170626/v4/client"
 
 type NasV2Interface interface {
 	CancelDirQuota(request *nas.CancelDirQuotaRequest) (*nas.CancelDirQuotaResponse, error)

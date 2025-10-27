@@ -1320,21 +1320,7 @@ func (client *Client) CallSSEApiWithCtx(ctx context.Context, params *openapiutil
 			_resultErr = _err
 			continue
 		}
-
-		callSSEApiWithCtx_opResponse(_yield, _yieldErr, response_)
-		_err = <-_yieldErr
-		if _err != nil {
-			retriesAttempted++
-			retryPolicyContext = &dara.RetryPolicyContext{
-				RetriesAttempted: retriesAttempted,
-				HttpRequest:      request_,
-				HttpResponse:     response_,
-				Exception:        _err,
-			}
-			_resultErr = _err
-			continue
-		}
-
+		callSSEApiWithCtx_opResponse(ctx, _yield, _yieldErr, response_)
 		return
 	}
 	_yieldErr <- _resultErr
@@ -1899,7 +1885,7 @@ func doRequestWithCtx_opResponse(response_ *dara.Response, client *Client, param
 
 }
 
-func callSSEApiWithCtx_opResponse(_yield chan *SSEResponse, _yieldErr chan error, response_ *dara.Response) {
+func callSSEApiWithCtx_opResponse(ctx context.Context, _yield chan *SSEResponse, _yieldErr chan error, response_ *dara.Response) {
 	if (dara.IntValue(response_.StatusCode) >= 400) && (dara.IntValue(response_.StatusCode) < 600) {
 		err := map[string]interface{}{}
 		if !dara.IsNil(response_.Headers["content-type"]) && dara.StringValue(response_.Headers["content-type"]) == "text/xml;charset=utf-8" {
@@ -1934,7 +1920,7 @@ func callSSEApiWithCtx_opResponse(_yield chan *SSEResponse, _yieldErr chan error
 	}
 
 	events := make(chan *dara.SSEEvent, 1)
-	dara.ReadAsSSE(response_.Body, events, _yieldErr)
+	dara.ReadAsSSEWithContext(ctx, response_.Body, events, _yieldErr)
 	for event := range events {
 		_yield <- &SSEResponse{
 			StatusCode: response_.StatusCode,

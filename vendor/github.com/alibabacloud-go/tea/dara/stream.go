@@ -3,6 +3,7 @@ package dara
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"strings"
 )
 
-// 定义 Event 结构体
 type SSEEvent struct {
 	Id    *string
 	Event *string
@@ -18,7 +18,6 @@ type SSEEvent struct {
 	Retry *int
 }
 
-// 解析单个事件
 func parseEvent(lines []string) *SSEEvent {
 	event := &SSEEvent{}
 	for _, line := range lines {
@@ -144,6 +143,67 @@ func ReadAsSSE(body io.ReadCloser, eventChannel chan *SSEEvent, errorChannel cha
 				if len(eventLines) > 0 {
 					event := parseEvent(eventLines)
 					eventChannel <- event
+					eventLines = []string{} // Reset for the next event
+				}
+				continue
+			}
+
+			eventLines = append(eventLines, line)
+		}
+	}()
+}
+
+func ReadAsSSEWithContext(ctx context.Context, body io.ReadCloser, eventChannel chan *SSEEvent, errorChannel chan error) {
+
+	go func() {
+		defer func() {
+			body.Close()
+			close(eventChannel)
+		}()
+
+		reader := bufio.NewReader(body)
+		var eventLines []string
+
+		for {
+			select {
+			case <-ctx.Done():
+				errorChannel <- ctx.Err()
+				return
+			default:
+			}
+
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					// Handle the end of the stream and possibly pending event
+					if len(eventLines) > 0 {
+						event := parseEvent(eventLines)
+						select {
+						case eventChannel <- event:
+						case <-ctx.Done():
+							errorChannel <- ctx.Err()
+							return
+						}
+					}
+					errorChannel <- nil
+					return
+				}
+				errorChannel <- err
+				return
+			}
+
+			line = strings.TrimRight(line, "\n")
+
+			if line == "" {
+				// End of an SSE event
+				if len(eventLines) > 0 {
+					event := parseEvent(eventLines)
+					select {
+					case eventChannel <- event:
+					case <-ctx.Done():
+						errorChannel <- ctx.Err()
+						return
+					}
 					eventLines = []string{} // Reset for the next event
 				}
 				continue

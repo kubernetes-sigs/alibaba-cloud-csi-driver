@@ -7,7 +7,7 @@ package interfaces
 import (
 	reflect "reflect"
 
-	client "github.com/alibabacloud-go/nas-20170626/v3/client"
+	client "github.com/alibabacloud-go/nas-20170626/v4/client"
 	gomock "github.com/golang/mock/gomock"
 )
 

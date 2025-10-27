@@ -25,7 +25,7 @@ import (
 	"time"
 
 	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v2/client"
-	nasclient "github.com/alibabacloud-go/nas-20170626/v3/client"
+	nasclient "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"golang.org/x/time/rate"
 	"k8s.io/client-go/util/workqueue"

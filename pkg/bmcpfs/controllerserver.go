@@ -25,7 +25,7 @@ import (
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v2/client"
-	nasclient "github.com/alibabacloud-go/nas-20170626/v3/client"
+	nasclient "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs/internal"
