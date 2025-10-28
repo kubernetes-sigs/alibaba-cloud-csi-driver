@@ -19,6 +19,7 @@ var (
 	counterTypeArray        = []string{"capacity_counter", "inodes_counter", "throughput_counter", "iops_counter", "latency_counter", "posix_counter", "oss_object_counter"}
 	backendCounterTypeArray = []string{"backend_throughput_counter", "backend_iops_counter", "backend_latency_counter", "backend_meta_qps_ounter"}
 	hotSpotArray            = []string{"hot_spot_read_file_top", "hot_spot_write_file_top", "hot_spot_head_file_top"}
+	mountPointStatusArray   = []string{"mount_retry_count", "mount_point_status", "mount_point_failover_count", "last_fuse_client_exit_reason"}
 )
 
 var (
@@ -299,6 +300,26 @@ var (
 		".",
 		usFsStatLabelNames, nil,
 	)
+	mountRetryTotalCounterDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "mount_retry_total_counter"),
+		".",
+		usFsStatLabelNames, nil,
+	)
+	mountPointStatusDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "mount_point_status"),
+		".",
+		usFsStatLabelNames, nil,
+	)
+	mountPointFailoverTotalCountDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "mount_point_failover_total_counter"),
+		".",
+		usFsStatLabelNames, nil,
+	)
+	lastFuseClientExitReasonDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "last_fuse_client_exit_reason"),
+		".",
+		usFsStatLabelNames, nil,
+	)
 )
 
 type fuseInfo struct {
@@ -327,6 +348,10 @@ type usFsStatCollector struct {
 	backendIOPSCompletedCounterDesc       backendIOPSCompletedCounterDesc
 	backendLatencyMillisecondsCounterDesc backendLatencyMillisecondsCounterDesc
 	backendPosixCounterDesc               backendPosixCounterDesc
+	mountRetryTotalCounter                *typedFactorDesc
+	mountPointStatus                      *typedFactorDesc
+	mountPointFailoverTotalCounter        *typedFactorDesc
+	lastFuseClientExitReason              *typedFactorDesc
 }
 
 type capacityBytesCounterDesc struct {
@@ -474,6 +499,10 @@ func NewFuseStatCollector() (Collector, error) {
 				{desc: backendPosixReaddirTotalCounterDesc, valueType: prometheus.CounterValue},
 			},
 		},
+		mountRetryTotalCounter:         &typedFactorDesc{desc: mountRetryTotalCounterDesc, valueType: prometheus.CounterValue},
+		mountPointStatus:               &typedFactorDesc{desc: mountPointStatusDesc, valueType: prometheus.GaugeValue},
+		mountPointFailoverTotalCounter: &typedFactorDesc{desc: mountPointFailoverTotalCountDesc, valueType: prometheus.CounterValue},
+		lastFuseClientExitReason:       &typedFactorDesc{desc: lastFuseClientExitReasonDesc, valueType: prometheus.GaugeValue},
 	}, nil
 }
 
@@ -609,6 +638,31 @@ func (p *usFsStatCollector) postBackendCounterMetrics(counterType string, fsClie
 	}
 }
 
+func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsClientInfo *fuseInfo, metricsArray []string, ch chan<- prometheus.Metric) {
+	var err error
+	for _, value := range metricsArray {
+		if statusType == "last_fuse_client_exit_reason" {
+			ch <- p.lastFuseClientExitReason.mustNewConstMetric(1, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, value)
+			continue
+		}
+
+		var valueFloat64 float64
+		valueFloat64, err = strconv.ParseFloat(value, 64)
+		if err != nil {
+			klog.Errorf("Convert value %s to float64 is failed, err:%s, counterType:%s, metricsArray:%+v", value, err, statusType, metricsArray)
+			continue
+		}
+		switch statusType {
+		case "mount_retry_count":
+			ch <- p.mountRetryTotalCounter.mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+		case "mount_point_status":
+			ch <- p.mountPointStatus.mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+		case "mount_point_failover_count":
+			ch <- p.mountPointFailoverTotalCounter.mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+		}
+	}
+}
+
 func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	fsClientInfo := new(fuseInfo)
 	// foreach fuse client type
@@ -660,7 +714,7 @@ func (p *usFsStatCollector) updateExclusiveMetrics(fsClientType, podUid string, 
 }
 
 func (p *usFsStatCollector) updateSharedMetrics(fsClientType, subDir string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
-
+	// /var/run/fsType/sha256(pvname)
 	volPath := filepath.Join(fsClientPathPrefix, fsClientType, subDir)
 	p.postVolMetrics(volPath, fsClientInfo, ch)
 }
@@ -702,5 +756,13 @@ func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInf
 			continue
 		}
 		p.postBackendCounterMetrics(backendCounterType, fsClientInfo, metricsArray, ch)
+	}
+	// foreach mountpoint status related metrics
+	for _, mountPointStatus := range mountPointStatusArray {
+		metricsArray, err := readFirstLines(filepath.Join(volPath, mountPointStatus))
+		if err != nil {
+			continue
+		}
+		p.postMountPointStatusMetrics(mountPointStatus, fsClientInfo, metricsArray, ch)
 	}
 }

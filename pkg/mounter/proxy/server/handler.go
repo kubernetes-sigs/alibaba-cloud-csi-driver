@@ -100,6 +100,7 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 			}
 		}
 		err = handleMountRequest(ctx, &mountReq)
+		updateMountPointMetrics(mountReq.MetricsPath, err)
 		if err != nil {
 			return proxy.Response{
 				Error: err.Error(),
