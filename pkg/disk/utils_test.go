@@ -773,11 +773,67 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 			"diskTags/a": "b",
 		},
 	}
-	opts, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{})
+	opts, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{}, "")
 	assert.NoError(t, err)
 	assert.Equal(t, "cn-beijing-i", opts.ZoneID)
 	assert.Equal(t, map[string]string{"a": "b"}, opts.DiskTags)
 	assert.Equal(t, int64(20), opts.RequestGB)
+}
+
+func TestGetDiskVolumeOptionsWithSnapshotID(t *testing.T) {
+	tests := []struct {
+		name      string
+		fstype    string
+		snapshot  string
+		wantError bool
+	}{
+		{
+			name:      "snapshot with xfs",
+			fstype:    "xfs",
+			snapshot:  "snapshot",
+			wantError: false,
+		},
+		{
+			name:      "snapshot without fstype",
+			fstype:    "",
+			snapshot:  "snapshot",
+			wantError: false,
+		},
+		{
+			name:      "snapshot with erofs",
+			fstype:    "erofs",
+			snapshot:  "snapshot",
+			wantError: false,
+		},
+		{
+			name:      "empty snapshot with erofs",
+			fstype:    "erofs",
+			snapshot:  "",
+			wantError: true,
+		},
+	}
+	req := &csi.CreateVolumeRequest{
+		Name: "test-disk",
+		CapacityRange: &csi.CapacityRange{
+			RequiredBytes: 20*GBSIZE - 100,
+		},
+		Parameters: map[string]string{
+			"diskTags/a": "b",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req.VolumeCapabilities = []*csi.VolumeCapability{
+				{AccessType: &csi.VolumeCapability_Mount{
+					Mount: &csi.VolumeCapability_MountVolume{
+						FsType: tt.fstype,
+					},
+				}},
+			}
+			_, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{}, tt.snapshot)
+			assert.Equal(t, tt.wantError, err != nil)
+		})
+	}
 }
 
 func TestGetDiskVolumeOptionsWithoutZoneID(t *testing.T) {
@@ -791,7 +847,7 @@ func TestGetDiskVolumeOptionsWithoutZoneID(t *testing.T) {
 			}},
 		},
 	}
-	_, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{})
+	_, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{}, "")
 	assert.Error(t, err)
 }
 
@@ -810,7 +866,7 @@ func TestGetRegionalDiskVolumeOptionsWithoutZoneID(t *testing.T) {
 			}},
 		},
 	}
-	_, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{})
+	_, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{}, "")
 	assert.NoError(t, err)
 }
 
@@ -919,7 +975,7 @@ func TestGetZone(t *testing.T) {
 				RequiredBytes: 20 * 1024 * 1024 * 1024,
 			}
 			recorder := record.NewFakeRecorder(10)
-			args, err := getDiskVolumeOptions(tc.req, testMetadata, recorder)
+			args, err := getDiskVolumeOptions(tc.req, testMetadata, recorder, "")
 			if tc.err != "" {
 				assert.ErrorContains(t, err, tc.err)
 			} else {

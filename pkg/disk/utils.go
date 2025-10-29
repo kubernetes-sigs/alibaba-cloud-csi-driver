@@ -477,7 +477,12 @@ func getZone(req *csi.CreateVolumeRequest, recorder record.EventRecorder) (strin
 }
 
 // getDiskVolumeOptions
-func getDiskVolumeOptions(req *csi.CreateVolumeRequest, m metadata.MetadataProvider, recorder record.EventRecorder) (*diskVolumeArgs, error) {
+func getDiskVolumeOptions(
+	req *csi.CreateVolumeRequest,
+	m metadata.MetadataProvider,
+	recorder record.EventRecorder,
+	snapshotId string,
+) (*diskVolumeArgs, error) {
 	var ok bool
 	diskVolArgs := &diskVolumeArgs{
 		DiskTags: map[string]string{},
@@ -493,7 +498,14 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest, m metadata.MetadataProvi
 
 	for _, cap := range req.GetVolumeCapabilities() {
 		mnt := cap.GetMount()
-		if mnt != nil && mnt.FsType != "" && !SupportedFilesystemTypes.Has(mnt.FsType) {
+		if mnt != nil && mnt.FsType != "" {
+			if SupportedFilesystemTypes.Has(mnt.FsType) {
+				continue
+			}
+			// CreateDisk from a snapshot allows to use erofs
+			if mnt.FsType == EROFS_FSTYPE && snapshotId != "" {
+				continue
+			}
 			return nil, fmt.Errorf("fsType %s is not supported, please use %v", mnt.FsType, SupportedFilesystemTypes.UnsortedList())
 		}
 	}
@@ -697,6 +709,9 @@ func validateDiskPerformanceLevel(opts map[string]string) ([]PerformanceLevel, e
 func validateCapabilities(capabilities []*csi.VolumeCapability) (bool, error) {
 	multiAttachRequired := false
 	for _, cap := range capabilities {
+		if cap.GetAccessMode() == nil {
+			continue
+		}
 		switch cap.AccessMode.Mode {
 		case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 			csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
