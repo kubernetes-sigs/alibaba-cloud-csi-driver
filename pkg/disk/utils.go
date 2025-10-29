@@ -499,11 +499,11 @@ func getDiskVolumeOptions(
 	for _, cap := range req.GetVolumeCapabilities() {
 		mnt := cap.GetMount()
 		if mnt != nil && mnt.FsType != "" {
-			if SupportedFilesystemTypes.Has(mnt.FsType) {
+			// Note: skip filesystem type validation when CreateDisk from a snapshot.
+			if snapshotId != "" {
 				continue
 			}
-			// CreateDisk from a snapshot allows to use erofs
-			if mnt.FsType == EROFS_FSTYPE && snapshotId != "" {
+			if SupportedFilesystemTypes.Has(mnt.FsType) {
 				continue
 			}
 			return nil, fmt.Errorf("fsType %s is not supported, please use %v", mnt.FsType, SupportedFilesystemTypes.UnsortedList())

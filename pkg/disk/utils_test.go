@@ -789,7 +789,7 @@ func TestGetDiskVolumeOptionsWithSnapshotID(t *testing.T) {
 	}{
 		{
 			name:      "snapshot with xfs",
-			fstype:    "xfs",
+			fstype:    XFS_FSTYPE,
 			snapshot:  "snapshot",
 			wantError: false,
 		},
@@ -801,13 +801,13 @@ func TestGetDiskVolumeOptionsWithSnapshotID(t *testing.T) {
 		},
 		{
 			name:      "snapshot with erofs",
-			fstype:    "erofs",
+			fstype:    EROFS_FSTYPE,
 			snapshot:  "snapshot",
 			wantError: false,
 		},
 		{
 			name:      "empty snapshot with erofs",
-			fstype:    "erofs",
+			fstype:    EROFS_FSTYPE,
 			snapshot:  "",
 			wantError: true,
 		},
