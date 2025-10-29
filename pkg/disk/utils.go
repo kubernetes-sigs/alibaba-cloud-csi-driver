@@ -118,8 +118,8 @@ var ecsEndpointOnce sync.Once
 
 func newEcsClient(regionID string, cred credentials.CredentialsProvider) (ecsClient *ecs.Client) {
 	scheme := "HTTPS"
-	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
-		scheme = "HTTP"
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		scheme = e
 	}
 	config := sdk.NewConfig().WithScheme(scheme).WithUserAgent(KubernetesAlicloudIdentity)
 

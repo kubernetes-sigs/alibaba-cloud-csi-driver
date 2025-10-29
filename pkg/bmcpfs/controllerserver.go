@@ -204,13 +204,13 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 		config = config.SetEndpoint(fmt.Sprintf("eflo-controller-vpc.%s.aliyuncs.com", region))
 	}
 	// set protocol
-	scheme := strings.ToUpper(os.Getenv("ALICLOUD_CLIENT_SCHEME"))
+	scheme := "HTTPS"
 	if strings.Contains(region, "test") {
 		// must use HTTP in lingjun test regions
 		scheme = "HTTP"
 	}
-	if scheme != "HTTP" {
-		scheme = "HTTPS"
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		scheme = e
 	}
 	config = config.SetProtocol(scheme)
 	// init client
