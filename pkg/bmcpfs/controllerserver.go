@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -33,9 +34,17 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	informerv1 "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
 
@@ -43,8 +52,52 @@ type controllerServer struct {
 	common.GenericControllerServer
 	vscManager     *internal.PrimaryVscManagerWithCache
 	attachDetacher internal.CPFSAttachDetacher
+	filsetManager  internal.CPFSFileSetManager
+	kubeClient     kubernetes.Interface
 	nasClient      *nasclient.Client
+	nodeInformer   cache.SharedIndexInformer
 	skipDetach     bool
+	bmcpfsLocks    *utils.VolumeLocks // 重新加回锁表
+}
+
+type BMCPFSNodeVolume struct {
+	metav1.TypeMeta
+	metav1.ObjectMeta
+	LingjunID       string
+	volumesAttached []string
+	volumesInUse    []string
+}
+
+func (cs *BMCPFSNodeVolume) HasPrefixInUse(prefix string) bool {
+	for _, v := range cs.volumesInUse {
+		if strings.HasPrefix(v, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func (cs *BMCPFSNodeVolume) HasVolumeAttachment(prefix string) bool {
+	for _, v := range cs.volumesAttached {
+		if strings.HasPrefix(v, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func (cs *BMCPFSNodeVolume) HasVolumeAttachmentExceptVolumeHandle(cpfsID, volumeHandle string) bool {
+	for _, v := range cs.volumesAttached {
+		if strings.HasPrefix(v, cpfsID) && v != volumeHandle {
+			return true
+		}
+	}
+	return false
+}
+
+func mustGetKubeClient() kubernetes.Interface {
+	cfg := options.MustGetRestConfig()
+	return kubernetes.NewForConfigOrDie(cfg)
 }
 
 func newControllerServer(region string) (*controllerServer, error) {
@@ -62,18 +115,154 @@ func newControllerServer(region string) (*controllerServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	kubeclient := mustGetKubeClient()
+	nodeInformer := informerv1.NewFilteredNodeInformer(kubeclient, 0, cache.Indexers{NODEID_INDEX: nodeIndexFunc}, func(options *metav1.ListOptions) {
+		options.FieldSelector = fields.OneTermEqualSelector("alibabacloud.com/lingjun-worker", "true").String()
+	})
+	nodeInformer.SetTransform(nodeTransformFunc)
 	return &controllerServer{
 		vscManager:     internal.NewPrimaryVscManagerWithCache(efloClient),
 		attachDetacher: internal.NewCPFSAttachDetacher(nasClient),
+		filsetManager:  internal.NewCPFSFileSetManager(nasClient),
 		nasClient:      nasClient,
+		kubeClient:     kubeclient,
+		nodeInformer:   nodeInformer,
 		skipDetach:     skipDetach,
+		bmcpfsLocks:    utils.NewVolumeLocks(), // 重新初始化锁表
 	}, nil
+}
+
+// CreateVolume ...
+func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	logger := klog.FromContext(ctx)
+	logger.V(2).Info("starting")
+
+	// Handle static volume creation (existing fileset)
+	csiVolume, err := staticFileSetCreate(req, cs.filsetManager)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "create static volume failed: %v", err)
+	}
+	if csiVolume != nil {
+		klog.Infof("CreateVolume: static volume create successful, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, csiVolume.VolumeId, csiVolume.VolumeContext)
+		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
+	}
+
+	// Validate parameters
+	if err := validateFileSetParameters(req); err != nil {
+		klog.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
+	}
+
+	// Extract parameters
+	params := req.GetParameters()
+	bmcpfsID := params["bmcpfsId"]
+	fullPath := req.Name
+	if rootPath, ok := params["path"]; ok && rootPath != "" {
+		fullPath = filepath.Join(rootPath, req.Name)
+	}
+	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+
+	// Create fileset
+	fileSetID, err := cs.filsetManager.CreateFileSet(ctx, bmcpfsID, req.Name, fullPath, 1000000, volSizeBytes, false)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	// Prepare volume context
+	volumeContext := req.GetParameters()
+	if volumeContext == nil {
+		volumeContext = make(map[string]string)
+	}
+	volumeContext = updateVolumeContext(volumeContext)
+
+	klog.Infof("CreateVolume: Successfully created FileSet %s: id[%s], filesystem[%s], path[%s]", req.GetName(), fileSetID, bmcpfsID, fullPath)
+
+	tmpVol := createVolumeResponse(fileSetID, bmcpfsID, volSizeBytes, volumeContext)
+
+	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
+}
+
+func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	logger := klog.FromContext(ctx)
+	logger.V(2).Info("starting")
+
+	// Parse volume ID to extract filesystem ID and fileset ID
+	fsID, fileSetID, err := parseVolumeID(req.VolumeId)
+	if err != nil {
+		klog.Errorf("DeleteVolume: failed to parse volume ID %s: %v", req.VolumeId, err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	klog.Infof("DeleteVolume: deleting fileset %s from filesystem %s", fileSetID, fsID)
+
+	// Check if fileset exists before attempting to delete
+	_, err = cs.filsetManager.DescribeFileset(ctx, fsID, fileSetID)
+	if err != nil {
+		// If fileset doesn't exist, consider it already deleted
+		klog.V(2).Infof("DeleteVolume: fileset %s not found in filesystem %s, considering it already deleted", fileSetID, fsID)
+		return &csi.DeleteVolumeResponse{}, nil
+	}
+
+	// Delete the fileset
+	err = cs.filsetManager.DeleteFileSet(ctx, fsID, fileSetID)
+	if err != nil {
+		klog.Errorf("DeleteVolume: failed to delete fileset %s from filesystem %s: %v", fileSetID, fsID, err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	klog.Infof("DeleteVolume: successfully deleted fileset %s from filesystem %s", fileSetID, fsID)
+	return &csi.DeleteVolumeResponse{}, nil
+}
+
+func nodeIndexFunc(obj interface{}) ([]string, error) {
+	node := obj.(*BMCPFSNodeVolume)
+	return []string{node.LingjunID}, nil
+}
+
+func nodeTransformFunc(obj interface{}) (interface{}, error) {
+	if _, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		return obj, nil
+	}
+	if _, ok := obj.(*BMCPFSNodeVolume); ok {
+		return obj, nil // this may happen when resync
+	}
+	node := obj.(*v1.Node)
+	filteredBMCPFSAttachedVolumes := []string{}
+	filteredBMCPFSInUsedVolumes := []string{}
+	for _, attachedvolume := range node.Status.VolumesAttached {
+		attachedVolumePath := string(attachedvolume.Name)
+		volumeHandle, found := strings.CutPrefix(attachedVolumePath, uniqVolumePrefix)
+		if !found {
+			continue
+		}
+		filteredBMCPFSAttachedVolumes = append(filteredBMCPFSAttachedVolumes, volumeHandle)
+	}
+	for _, uv := range node.Status.VolumesInUse {
+		attachedVolumePath := string(uv)
+		volumeHandle, found := strings.CutPrefix(attachedVolumePath, uniqVolumePrefix)
+		if !found {
+			continue
+		}
+		filteredBMCPFSInUsedVolumes = append(filteredBMCPFSInUsedVolumes, volumeHandle)
+	}
+	nodeVolume := &BMCPFSNodeVolume{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Node",
+			APIVersion: "v1",
+		},
+		ObjectMeta:      node.ObjectMeta,
+		LingjunID:       node.Spec.ProviderID,
+		volumesAttached: filteredBMCPFSAttachedVolumes,
+		volumesInUse:    filteredBMCPFSInUsedVolumes,
+	}
+	return nodeVolume, nil
 }
 
 func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: common.ControllerRPCCapabilities(
 			csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		),
 	}, nil
 }
@@ -94,6 +283,12 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 
 	cpfsID, _ := parseVolumeHandle(req.VolumeId)
+	lockKey := fmt.Sprintf("%s:%s", cpfsID, req.NodeId)
+	if !cs.bmcpfsLocks.TryAcquire(lockKey) {
+		return nil, status.Errorf(codes.Aborted, "Another bmcpfs mount/unmount is running for this bmcpfsid on node")
+	}
+	defer cs.bmcpfsLocks.Release(lockKey)
+	// TODO: 定期 reconcile: 可以在独立 goroutine 通过 nodeInformer List linqjun 节点，遍历 inuse/attached 关系，修正异常态
 	// Get VscMountTarget of filesystem
 	mt := req.VolumeContext[_vscMountTarget]
 	if mt == "" {
@@ -105,18 +300,18 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 
 	// Get Primary vsc of Lingjun node
-	lingjunInstanceId := strings.TrimPrefix(req.NodeId, LingjunNodeIDPrefix)
+	lingjunInstanceID := strings.TrimPrefix(req.NodeId, LingjunNodeIDPrefix)
 	if LingjunNodeIDPrefix == "" {
 		return nil, status.Error(codes.InvalidArgument, "invalid node id")
 	}
-	vscId, err := cs.vscManager.EnsurePrimaryVsc(ctx, lingjunInstanceId, false)
+	vscID, err := cs.vscManager.EnsurePrimaryVsc(ctx, lingjunInstanceID, false)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	klog.Info("Use VSC MountTarget for lingjun node", "nodeId", req.NodeId, "vscId", vscId)
+	klog.Info("Use VSC MountTarget for lingjun node", "nodeId", req.NodeId, "vscId", vscID)
 
 	// Attach CPFS to VSC
-	err = cs.attachDetacher.Attach(ctx, cpfsID, vscId)
+	err = cs.attachDetacher.Attach(ctx, cpfsID, vscID)
 	if err != nil {
 		if autoSwitch, _ := strconv.ParseBool(req.VolumeContext[_mpAutoSwitch]); autoSwitch && internal.IsAttachNotSupportedError(err) {
 			if req.VolumeContext[_vpcMountTarget] == "" {
@@ -135,44 +330,89 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 	// TODO: if the cached vscid is already deleted, try to recreate a new primary vsc for lingjun node
 
-	klog.InfoS("ControllerPublishVolume: attached cpfs to vsc", "vscMountTarget", mt, "vscId", vscId, "node", req.NodeId)
+	klog.InfoS("ControllerPublishVolume: attached cpfs to vsc", "vscMountTarget", mt, "vscId", vscID, "node", req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: map[string]string{
 			_networkType:    networkTypeVSC,
-			_vscId:          vscId,
+			_vscID:          vscID,
 			_vscMountTarget: mt,
 		},
 	}, nil
 }
 
-func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (
-	*csi.ControllerUnpublishVolumeResponse, error,
-) {
+func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	if !strings.HasPrefix(req.NodeId, LingjunNodeIDPrefix) || cs.skipDetach {
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 	// Create Primary vsc for Lingjun node
-	lingjunInstanceId := strings.TrimPrefix(req.NodeId, LingjunNodeIDPrefix)
+	lingjunInstanceID := strings.TrimPrefix(req.NodeId, LingjunNodeIDPrefix)
 	if LingjunNodeIDPrefix == "" {
 		return nil, status.Error(codes.InvalidArgument, "invalid node id")
 	}
-	vsc, err := cs.vscManager.GetPrimaryVscOf(lingjunInstanceId)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+	cpfsID, _ := parseVolumeHandle(req.VolumeId)
+	lockKey := fmt.Sprintf("%s:%s", cpfsID, lingjunInstanceID)
+	if !cs.bmcpfsLocks.TryAcquire(lockKey) {
+		return nil, status.Errorf(codes.Aborted, "Another bmcpfs mount/unmount is running for this bmcpfsid on node")
 	}
-	if vsc == nil {
-		klog.InfoS("ControllerUnpublishVolume: skip detaching cpfs from vsc as vsc not found", "node", req.NodeId)
+	defer cs.bmcpfsLocks.Release(lockKey)
+	nodeStatus, err := cs.getNodeVolume(lingjunInstanceID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get node status error: %v", err)
+	}
+	vsc, err := cs.vscManager.GetPrimaryVscOf(lingjunInstanceID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get vsc error: %v", err)
+	}
+	if !nodeStatus.HasPrefixInUse(cpfsID) {
+		err := cs.attachDetacher.Detach(ctx, cpfsID, vsc.VscID)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
-	// If `req.VolumeId` is a combination of `cpfsID` and `fsetID`, Detach will trigger an error.
-	err = cs.attachDetacher.Detach(ctx, req.VolumeId, vsc.VscID)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+	// 分支2：inuse & attach 同时存在，跳过卸载，返回成功
+	if nodeStatus.HasPrefixInUse(cpfsID) && nodeStatus.HasVolumeAttachment(cpfsID) {
+		klog.Infof("volume is in use and attached, skip detach for cpfsID: %s at node: %s", cpfsID, lingjunInstanceID)
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
-	klog.InfoS("ControllerUnpublishVolume: detached cpfs from vsc", "node", req.NodeId, "filesystem", req.VolumeId)
+	// 分支3：inuse 存在，除了当前的 cpfs+fileset 之外的 attach 不存在，双重检查后卸载
+	if nodeStatus.HasPrefixInUse(cpfsID) && !nodeStatus.HasVolumeAttachment(cpfsID) {
+		currentStatus, err := cs.getActualStateOfNodeVolumeAttached(nodeStatus.Name) // TODO: checkRemoteNodeStatusByNodeName
+		if err == nil && !currentStatus.HasVolumeAttachmentExceptVolumeHandle(cpfsID, req.VolumeId) {
+			err := cs.attachDetacher.Detach(ctx, cpfsID, vsc.VscID)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			// TODO: patch event 到 node
+			return &csi.ControllerUnpublishVolumeResponse{}, nil
+		}
+	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
+func (cs *controllerServer) getActualStateOfNodeVolumeAttached(nodeName string) (*BMCPFSNodeVolume, error) {
+	node, err := cs.kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	bmcpfsNodeVolume, err := nodeTransformFunc(node)
+	if err != nil {
+		return nil, err
+	}
+	return bmcpfsNodeVolume.(*BMCPFSNodeVolume), nil
+}
+
+func (cs *controllerServer) getNodeVolume(nodeID string) (nodeVolume *BMCPFSNodeVolume, err error) {
+	n, exists, err := cs.nodeInformer.GetStore().GetByKey(nodeID)
+	if err == nil && exists {
+		nodeVolume = n.(*BMCPFSNodeVolume)
+		return nodeVolume, nil
+	}
+	return nil, err
+}
+
+// KubernetesAlicloudIdentity is the user agent string for Eflo client
 var KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Bmcpfs-%s", version.VERSION)
 
 const efloConnTimeout = 10
@@ -227,9 +467,9 @@ func parseVolumeHandle(volumeHandle string) (string, string) {
 	return parts[0], ""
 }
 
-func getMountTarget(client *nasclient.Client, fsId, networkType string) (string, error) {
+func getMountTarget(client *nasclient.Client, fsID, networkType string) (string, error) {
 	resp, err := client.DescribeFileSystems(&nasclient.DescribeFileSystemsRequest{
-		FileSystemId: &fsId,
+		FileSystemId: &fsID,
 	})
 	if err != nil {
 		return "", fmt.Errorf("nas:DescribeFileSystems failed: %w", err)
@@ -252,7 +492,7 @@ func getMountTarget(client *nasclient.Client, fsId, networkType string) (string,
 		if t == networkType {
 			mountTarget := tea.StringValue(mt.MountTargetDomain)
 			status := tea.StringValue(mt.Status)
-			klog.V(2).InfoS("Found cpfs mount target", "filesystem", fsId, "networkType", networkType, "mountTarget", mountTarget, "status", status)
+			klog.V(2).InfoS("Found cpfs mount target", "filesystem", fsID, "networkType", networkType, "mountTarget", mountTarget, "status", status)
 			if status == "Active" {
 				return mountTarget, nil
 			}
