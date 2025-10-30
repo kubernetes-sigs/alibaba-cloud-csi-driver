@@ -39,15 +39,12 @@ type MountMonitor struct {
 	Target        string
 	Pid           int
 	MetricsPath   string
-	Process       *exec.Cmd
 	State         MonitorState
 	mu            sync.RWMutex
 	stopCh        chan struct{}
 	monitorCtx    context.Context
 	monitorCancel context.CancelFunc
 	raw           mount.Interface
-	// Event channels for immediate response
-	processExitCh chan error
 	// Mount retry count (persistent across mount attempts)
 	retryCount    int
 	failoverCount int
@@ -72,7 +69,7 @@ func (manager *MountMonitorManager) GetMountMonitor(target, metricsPath string, 
 	if existingMonitor, exists := manager.monitors.Load(target); exists {
 		monitor := existingMonitor.(*MountMonitor)
 		// Not allow to update info like metrics path currently
-		klog.InfoS("Using existing monitor", "target", target)
+		klog.V(4).InfoS("Using existing monitor", "target", target)
 		return monitor
 	}
 	if !createIfNotExist {
@@ -89,7 +86,6 @@ func (manager *MountMonitorManager) GetMountMonitor(target, metricsPath string, 
 		monitorCtx:    monitorCtx,
 		monitorCancel: monitorCancel,
 		raw:           raw,
-		processExitCh: make(chan error, 1),
 		retryCount:    0,
 		failoverCount: 0,
 	}
@@ -127,22 +123,7 @@ func (m *MountMonitor) HandleMountResult(process *exec.Cmd, err error) {
 		m.updateMountPointMetrics(nil, nil, ptr.To(false), nil)
 
 		m.State = MonitorStateMonitoring
-		m.Process = process
 		m.Pid = process.Process.Pid
-
-		// Process exit monitoring will be handled in StartMonitoring
-
-		klog.V(2).InfoS("Mount successful, started monitoring", "target", m.Target, "pid", m.Pid)
-	}
-}
-
-// StartProcessExitInformer starts monitoring process exit for a mount point
-func (m *MountMonitor) startProcessExitInformer(process *exec.Cmd) {
-	err := process.Wait()
-	select {
-	case m.processExitCh <- err:
-	case <-m.stopCh:
-		// Monitor stopped, don't send to channel
 	}
 }
 
@@ -182,18 +163,6 @@ func (m *MountMonitor) checkMountPointStatus(target string) (err error) {
 	return nil
 }
 
-// handleProcessExit handles process exit event
-func (m *MountMonitor) handleProcessExit(exitErr error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	// Update metrics using existing updateMountPointMetrics logic
-	err := m.checkMountPointStatus(m.Target)
-	m.updateMountPointMetrics(nil, nil, ptr.To(err != nil), exitErr)
-
-	klog.InfoS("Mount status changed due to process exit", "target", m.Target, "exit error", exitErr)
-}
-
 // checkAndUpdateMountStatus checks mount status and updates metrics
 func (m *MountMonitor) checkAndUpdateMountStatus() {
 	m.mu.Lock()
@@ -204,13 +173,20 @@ func (m *MountMonitor) checkAndUpdateMountStatus() {
 		return
 	}
 	old := m.readMetricsFiles(MetricsMountPointStatus)
-	oldHealthy := old == "1"
+	// metrics file stores notHealthy as "1", healthy as "0"
+	oldUnhealthy := old == "1"
 	// Check mount point status
 	err := m.checkMountPointStatus(m.Target)
-	if (err != nil) != oldHealthy {
+	if err != nil {
+		klog.ErrorS(err, "Check mount point status with error", "target", m.Target)
+	} else {
+		klog.V(2).InfoS("Check mount point status successfully", "target", m.Target)
+	}
+	newUnhealthy := err != nil
+	if newUnhealthy != oldUnhealthy {
 		klog.Warningf("Mount point status changed. but the detailed reason was missing")
 		// Update status
-		m.updateMountPointMetrics(nil, nil, ptr.To(err != nil), err)
+		m.updateMountPointMetrics(nil, nil, ptr.To(newUnhealthy), err)
 	}
 }
 
@@ -278,14 +254,18 @@ func (m *MountMonitor) readMetricsFiles(metrics string) string {
 }
 
 // StartMonitoring starts the monitoring goroutine for this monitor
-func (manager *MountMonitorManager) StartMonitoring(target string, process *exec.Cmd) {
+func (manager *MountMonitorManager) StartMonitoring(target string) {
 	manager.wg.Add(1)
 	monitor := manager.GetMountMonitor(target, "", nil, false)
+	if monitor == nil {
+		// No monitor found; nothing to start
+		manager.wg.Done()
+		klog.Errorf("StartMonitoring called but monitor not found: target=%s", target)
+		return
+	}
+	klog.InfoS("Mount successful, started monitoring", "target", monitor.Target, "pid", monitor.Pid)
 	go func() {
 		defer manager.wg.Done()
-
-		// Start process exit monitoring in a separate goroutine
-		go monitor.startProcessExitInformer(process)
 
 		ticker := time.NewTicker(5 * time.Second) // Check every 5 seconds
 		defer ticker.Stop()
@@ -298,9 +278,6 @@ func (manager *MountMonitorManager) StartMonitoring(target string, process *exec
 			case <-monitor.monitorCtx.Done():
 				klog.InfoS("Mount monitoring context cancelled", "target", monitor.Target)
 				return
-			case err := <-monitor.processExitCh:
-				// Process exited, update status immediately
-				monitor.handleProcessExit(err)
 			case <-ticker.C:
 				monitor.checkAndUpdateMountStatus()
 			}

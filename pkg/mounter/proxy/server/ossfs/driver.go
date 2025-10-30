@@ -118,6 +118,11 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		} else {
 			klog.InfoS("ossfs exited", "mountpoint", target, "pid", pid)
 		}
+		// Immediate process-exit handling during mount attempt
+		// Assume the process exits with no error upon receiving SIGTERM,
+		// and exits with an error in case of unexpected failures.
+		monitor.HandleMountResult(cmd, err)
+		// Notify poll loop after metrics are updated
 		ossfsExited <- err
 		if err := os.Remove(passwdFile); err != nil {
 			klog.ErrorS(err, "Remove passwd file", "mountpoint", target, "path", passwdFile)
@@ -149,8 +154,8 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	if err == nil {
 		// Handle mount result
 		monitor.HandleMountResult(cmd, err)
-		// Start monitoring goroutine (includes process exit monitoring)
-		h.monitorManager.StartMonitoring(target, cmd)
+		// Start monitoring goroutine (ticker based only)
+		h.monitorManager.StartMonitoring(target)
 		return nil
 	}
 
@@ -169,8 +174,8 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 			}
 		}
 	}
-	// Handle mount result
-	monitor.HandleMountResult(cmd, err)
+	// Process exit handling (including metrics) is done in the Wait goroutine.
+	// Just return the error to caller to avoid double counting.
 	return err
 }
 
