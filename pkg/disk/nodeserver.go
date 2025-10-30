@@ -678,16 +678,9 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 	logger.V(2).Info("mount successful", "target", targetPath, "device", device, "mkfsOptions", mkfsOptions, "options", mountOptions)
 
 	r := k8smount.NewResizeFs(diskMounter.Exec)
-	needResize, err := r.NeedResize(device, targetPath)
-	if err != nil {
-		logger.Error(err, "could not determine if volume need to be resized")
-		return nil
-	}
-	if needResize {
-		klog.V(3).Info("resizing volume")
-		if _, err := r.Resize(device, targetPath); err != nil {
-			return fmt.Errorf("could not resize volume %s: %w", volumeId, err)
-		}
+	logger.V(3).Info("resizing volume")
+	if _, err := r.Resize(device, targetPath); err != nil {
+		return fmt.Errorf("could not resize volume %s: %w", volumeId, err)
 	}
 	return nil
 }
