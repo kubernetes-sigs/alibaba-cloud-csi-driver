@@ -93,8 +93,8 @@ func ValidatePath(path string) (bool, error) {
 func getManagedAddonToken() AccessControl {
 	tokens := getManagedToken()
 	scheme := "https"
-	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
-		scheme = "http"
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		scheme = e
 	}
 	config := sdk.NewConfig().WithScheme(scheme)
 	credent := &cre.StsTokenCredential{
@@ -146,8 +146,8 @@ func GetEnvAK() AccessControl {
 	accessSecret = os.Getenv("ACCESS_KEY_SECRET")
 
 	scheme := "https"
-	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
-		scheme = "http"
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		scheme = e
 	}
 	config := sdk.NewConfig().WithScheme(scheme)
 
@@ -161,8 +161,8 @@ func GetEnvAK() AccessControl {
 // GetStsToken get STS token and token from ecs meta server
 func getStsToken() AccessControl {
 	scheme := "https"
-	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
-		scheme = "http"
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		scheme = e
 	}
 	config := sdk.NewConfig().WithScheme(scheme)
 	return AccessControl{UseMode: Credential, Config: config, Credential: cre.NewEcsRamRoleCredential("")}
@@ -202,8 +202,8 @@ func getCredentialAK() AccessControl {
 		}
 	}
 	scheme := "https"
-	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
-		scheme = "http"
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		scheme = e
 	}
 	config := sdk.NewConfig().WithScheme(scheme)
 	return AccessControl{Config: config, Credential: credential, UseMode: Credential}

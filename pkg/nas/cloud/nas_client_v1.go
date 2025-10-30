@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
@@ -34,9 +33,9 @@ func newNasClientV1(region string) (interfaces.NasV1Interface, error) {
 	if config == nil {
 		config = sdk.NewConfig()
 	}
-	scheme := strings.ToUpper(os.Getenv("ALICLOUD_CLIENT_SCHEME"))
-	if scheme != "HTTP" {
-		scheme = "HTTPS"
+	scheme := "HTTPS"
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		scheme = e
 	}
 	config = config.WithScheme(scheme).WithUserAgent(KubernetesAlicloudIdentity)
 	headers := utilshttp.MustParseHeaderEnv("NAS_HEADERS")

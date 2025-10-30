@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
@@ -49,9 +48,9 @@ func NewNasClientV2(region string) (*sdk.Client, error) {
 	}
 	config = config.SetEndpoint(ep)
 	// set protocol
-	scheme := strings.ToUpper(os.Getenv("ALICLOUD_CLIENT_SCHEME"))
-	if scheme != "HTTP" {
-		scheme = "HTTPS"
+	scheme := "HTTPS"
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		scheme = e
 	}
 	config = config.SetProtocol(scheme)
 	// init client
