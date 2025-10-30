@@ -23,7 +23,16 @@ var (
 )
 
 var (
-	usFsStatLabelNames = []string{"client_name", "backend_storage", "bucket_name", "namespace", "pod", "pv", "mount_point", "file_name"}
+	usFsStatLabelNames = []string{
+		"client_name",
+		"backend_storage",
+		"bucket_name",
+		"namespace",
+		"pod",
+		"pv",
+		"mount_point",
+		"file_name",
+		"exit_reason"}
 )
 
 var (
@@ -333,6 +342,21 @@ type fuseInfo struct {
 	MountPoint     string
 }
 
+// getCommonLabels returns the common label values for metrics
+func (p *usFsStatCollector) getCommonLabels(fsClientInfo *fuseInfo, fileName, exitResaon string) []string {
+	return []string{
+		fsClientInfo.ClientName,
+		fsClientInfo.BackendStorage,
+		fsClientInfo.BucketName,
+		fsClientInfo.Namespace,
+		fsClientInfo.PodName,
+		fsClientInfo.PvName,
+		fsClientInfo.MountPoint,
+		fileName,
+		exitResaon,
+	}
+}
+
 type usFsStatCollector struct {
 	hotSpotReadFileTop                    *prometheus.Desc
 	hotSpotWriteFileTop                   *prometheus.Desc
@@ -526,13 +550,14 @@ func (p *usFsStatCollector) postHotTopFileMetrics(hotSpotType string, fsClientIn
 		if err != nil {
 			continue
 		}
+		labels := p.getCommonLabels(fsClientInfo, fileName, "")
 		switch hotSpotType {
 		case "hot_spot_read_file_top":
-			ch <- prometheus.MustNewConstMetric(p.hotSpotReadFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
+			ch <- prometheus.MustNewConstMetric(p.hotSpotReadFileTop, prometheus.GaugeValue, valueFloat64, labels...)
 		case "hot_spot_write_file_top":
-			ch <- prometheus.MustNewConstMetric(p.hotSpotWriteFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
+			ch <- prometheus.MustNewConstMetric(p.hotSpotWriteFileTop, prometheus.GaugeValue, valueFloat64, labels...)
 		case "hot_spot_head_file_top":
-			ch <- prometheus.MustNewConstMetric(p.hotSpotHeadFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
+			ch <- prometheus.MustNewConstMetric(p.hotSpotHeadFileTop, prometheus.GaugeValue, valueFloat64, labels...)
 		default:
 			klog.Errorf("Unknow hotSpotType:%s", hotSpotType)
 		}
@@ -554,42 +579,43 @@ func (p *usFsStatCollector) postCounterMetrics(counterType string, fsClientInfo 
 			continue
 		}
 
+		labels := p.getCommonLabels(fsClientInfo, "", "")
 		switch counterType {
 		case "capacity_counter":
 			if i >= len(p.capacityBytesCounterDesc.descs) {
 				return
 			}
-			ch <- p.capacityBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.capacityBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		case "inodes_counter":
 			if i >= len(p.inodeBytesCounterDesc.descs) {
 				return
 			}
-			ch <- p.inodeBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.inodeBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		case "throughput_counter":
 			if i >= len(p.throughputBytesCounterDesc.descs) {
 				return
 			}
-			ch <- p.throughputBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.throughputBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		case "iops_counter":
 			if i >= len(p.iopsCompletedCounterDesc.descs) {
 				return
 			}
-			ch <- p.iopsCompletedCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.iopsCompletedCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		case "latency_counter":
 			if i >= len(p.latencyMillisecondsCounterDesc.descs) {
 				return
 			}
-			ch <- p.latencyMillisecondsCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.latencyMillisecondsCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		case "posix_counter":
 			if i >= len(p.posixCounterDesc.descs) {
 				return
 			}
-			ch <- p.posixCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.posixCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		case "oss_object_counter":
 			if i >= len(p.ossObjectCounterDesc.descs) {
 				return
 			}
-			ch <- p.ossObjectCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.ossObjectCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		default:
 			klog.Errorf("Unknow counterType:%s", counterType)
 		}
@@ -611,27 +637,28 @@ func (p *usFsStatCollector) postBackendCounterMetrics(counterType string, fsClie
 			continue
 		}
 
+		labels := p.getCommonLabels(fsClientInfo, "", "")
 		switch counterType {
 		case "backend_iops_counter":
 			if i >= len(p.backendIOPSCompletedCounterDesc.descs) {
 				return
 			}
-			ch <- p.backendIOPSCompletedCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.backendIOPSCompletedCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		case "backend_latency_counter":
 			if i >= len(p.backendLatencyMillisecondsCounterDesc.descs) {
 				return
 			}
-			ch <- p.backendLatencyMillisecondsCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.backendLatencyMillisecondsCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		case "backend_meta_qps_ounter":
 			if i >= len(p.backendPosixCounterDesc.descs) {
 				return
 			}
-			ch <- p.backendPosixCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.backendPosixCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		case "backend_throughput_counter":
 			if i >= len(p.backendThroughputBytesCounterDesc.descs) {
 				return
 			}
-			ch <- p.backendThroughputBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.backendThroughputBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		default:
 			klog.Errorf("Unknow counterType:%s", counterType)
 		}
@@ -642,7 +669,8 @@ func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsCli
 	var err error
 	for _, value := range metricsArray {
 		if statusType == "last_fuse_client_exit_reason" {
-			ch <- p.lastFuseClientExitReason.mustNewConstMetric(1, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, value)
+			labels := p.getCommonLabels(fsClientInfo, "", value)
+			ch <- p.lastFuseClientExitReason.mustNewConstMetric(1, labels...)
 			continue
 		}
 
@@ -652,13 +680,15 @@ func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsCli
 			klog.Errorf("Convert value %s to float64 is failed, err:%s, counterType:%s, metricsArray:%+v", value, err, statusType, metricsArray)
 			continue
 		}
+
+		labels := p.getCommonLabels(fsClientInfo, "", "")
 		switch statusType {
 		case "mount_retry_count":
-			ch <- p.mountRetryTotalCounter.mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.mountRetryTotalCounter.mustNewConstMetric(valueFloat64, labels...)
 		case "mount_point_status":
-			ch <- p.mountPointStatus.mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.mountPointStatus.mustNewConstMetric(valueFloat64, labels...)
 		case "mount_point_failover_count":
-			ch <- p.mountPointFailoverTotalCounter.mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+			ch <- p.mountPointFailoverTotalCounter.mustNewConstMetric(valueFloat64, labels...)
 		}
 	}
 }

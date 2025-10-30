@@ -28,15 +28,17 @@ func init() {
 }
 
 type Driver struct {
-	pids *sync.Map
-	wg   sync.WaitGroup
-	raw  mount.Interface
+	pids           *sync.Map
+	monitorManager *server.MountMonitorManager
+	wg             sync.WaitGroup
+	raw            mount.Interface
 }
 
 func NewDriver() *Driver {
 	return &Driver{
-		pids: new(sync.Map),
-		raw:  mount.NewWithoutSystemd(""),
+		pids:           new(sync.Map),
+		monitorManager: server.NewMountMonitorManager(),
+		raw:            mount.NewWithoutSystemd(""),
 	}
 }
 
@@ -50,10 +52,16 @@ func (h *Driver) Fstypes() []string {
 
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	options := req.Options
+	target := req.Target
+
+	// Get or create monitor for this target
+	monitor := h.monitorManager.GetMountMonitor(target, req.MetricsPath, h.raw, true)
 
 	// prepare passwd file
 	passwdFile, err := utils.SaveOssSecretsToFile(req.Secrets, req.Fstype)
 	if err != nil {
+		// Handle mount preparation failure
+		monitor.HandleMountResult(nil, err)
 		return err
 	}
 
@@ -80,10 +88,11 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 
 	err = cmd.Start()
 	if err != nil {
-		return fmt.Errorf("start ossfs2 failed: %w", err)
+		// Handle mount start failure
+		monitor.HandleMountResult(nil, fmt.Errorf("start ossfs2 failed: %w", err))
+		return err
 	}
 
-	target := req.Target
 	pid := cmd.Process.Pid
 	klog.InfoS("Started ossfs2", "pid", pid, "args", args)
 
@@ -94,6 +103,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		}
 	}
 
+	// Wait for mount to complete
 	ossfsExited := make(chan error, 1)
 	h.wg.Add(1)
 	h.pids.Store(pid, cmd)
@@ -142,6 +152,10 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	})
 
 	if err == nil {
+		// Handle mount result
+		monitor.HandleMountResult(cmd, err)
+		// Start monitoring goroutine (includes process exit monitoring)
+		h.monitorManager.StartMonitoring(target, cmd)
 		return nil
 	}
 
@@ -160,13 +174,18 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 			}
 		}
 	}
+	// Handle mount result
+	monitor.HandleMountResult(nil, err)
 	return err
 }
 
 func (h *Driver) Init() {}
 
 func (h *Driver) Terminate() {
-	// terminate all running ossfs
+	// Stop all mount monitoring
+	h.monitorManager.StopAllMonitoring()
+
+	// terminate all running ossfs2
 	h.pids.Range(func(key, value any) bool {
 		err := value.(*exec.Cmd).Process.Signal(syscall.SIGTERM)
 		if err != nil {
@@ -175,7 +194,9 @@ func (h *Driver) Terminate() {
 		klog.V(4).InfoS("Sended sigterm", "pid", key)
 		return true
 	})
-	// wait all ossfs processes to exit
+
+	// wait all ossfs2 processes and monitoring goroutines to exit
 	h.wg.Wait()
-	klog.InfoS("All ossfs2 processes exited")
+	h.monitorManager.WaitForAllMonitoring()
+	klog.InfoS("All ossfs2 processes and monitoring goroutines exited")
 }
