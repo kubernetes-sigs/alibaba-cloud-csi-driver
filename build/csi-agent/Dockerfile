@@ -35,6 +35,8 @@ RUN set -ex; \
     fi; \
     yum clean all
 
+RUN cp -r /etc/aliyun /etc/aliyun-defaults
+
 COPY --link --from=builder /out/csi-mount-proxy-server /usr/local/bin/
 COPY --link --from=builder /out/csi-agent /usr/local/bin/
 ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas,ossfs,ossfs2" ]
