@@ -133,7 +133,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 		servers.ControllerServer = NewControllerServer(csiCfg, client, m)
 	}
 	if serviceType&utils.Node != 0 {
-		servers.NodeServer = NewNodeServer(m)
+		servers.NodeServer = NewNodeServer(client, m)
 	}
 	if features.FunctionalMutableFeatureGate.Enabled(features.EnableVolumeGroupSnapshots) {
 		servers.GroupControllerServer = NewGroupControllerServer()
@@ -243,7 +243,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 }
 
 func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batcher[ecs.Disk]) {
-	client := desc.Disk{Client: GlobalConfigVar.EcsClient}
+	client := desc.Disk(GlobalConfigVar.EcsClient)
 	ctx := context.Background()
 	interval := 1 * time.Second
 	if fromNode {
