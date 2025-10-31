@@ -170,7 +170,7 @@ func (w *LowLatency[T]) descBatch(logger logr.Logger, t time.Time, requests map[
 	}
 	// Not found
 	sendToAll(requests, getResponse[*T]{})
-	logger.V(3).Info("got batch", "n", len(thisBatch),
+	logger.V(2).Info("got batch", "n", len(thisBatch),
 		"requestID", resp.RequestID, "duration", w.clk.Since(t), "wait", t.Sub(firstTime))
 }
 

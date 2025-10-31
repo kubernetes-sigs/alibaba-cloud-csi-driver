@@ -246,10 +246,12 @@ func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batch
 	client := desc.Disk{Client: GlobalConfigVar.EcsClient}
 	ctx := context.Background()
 	interval := 1 * time.Second
+	max := 2 * time.Second
 	if fromNode {
 		interval = 2 * time.Second // We have many nodes, use longer interval to avoid throttling
+		max = 3 * time.Second
 	}
-	waiter := waitstatus.NewBatched(client, clock.RealClock{}, interval, 3*time.Second)
+	waiter := waitstatus.NewBatched(client, clock.RealClock{}, interval, max)
 	go waiter.Run(ctx)
 
 	b := batcher.NewLowLatency(client, clock.RealClock{}, 1*time.Second, 8)
