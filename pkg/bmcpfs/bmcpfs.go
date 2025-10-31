@@ -30,13 +30,14 @@ const (
 	// keys in volume context or publish context
 	_vpcMountTarget = "vpcMountTarget"
 	_vscMountTarget = "vscMountTarget"
-	_vscId          = "vscId"
+	_vscID          = "vscId"
 	_networkType    = "networkType"
 	_path           = "path"
 	_mpAutoSwitch   = "mountpointAutoSwitch"
 
-	// prefix of node id
-	CommonNodeIDPrefix  = "common:"
+	// CommonNodeIDPrefix is the prefix for common node IDs
+	CommonNodeIDPrefix = "common:"
+	// LingjunNodeIDPrefix is the prefix for lingjun node IDs
 	LingjunNodeIDPrefix = "lingjun:"
 
 	// network types of CPFS mount targets
@@ -44,13 +45,17 @@ const (
 	networkTypeVSC = "vsc"
 
 	volumeHandleDelimiter = "+"
+
+	NODEID_INDEX = "nodeid-index"
 )
 
+// Driver represents the BMCPFS CSI driver
 type Driver struct {
 	endpoint string
 	servers  common.Servers
 }
 
+// NewDriver creates a new driver instance
 func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType) *Driver {
 	var driver Driver
 	driver.endpoint = endpoint
@@ -74,6 +79,7 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 	return &driver
 }
 
+// Run starts the driver
 func (d *Driver) Run() {
 	klog.InfoS("Starting driver", "driver", driverType, "endpoint", d.endpoint)
 	common.RunCSIServer(driverType, d.endpoint, d.servers)
