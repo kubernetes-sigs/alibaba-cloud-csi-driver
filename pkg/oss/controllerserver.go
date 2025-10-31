@@ -132,6 +132,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	// make pod template config
+	ptCfg := makePodTemplateConfig(opts)
 	// Skip controller publish for PVs with attribute direct=true.
 	// The actual mounting of these volumes will be handled by rund.
 	if opts.DirectAssigned {
@@ -143,12 +145,13 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 	// launch ossfs pod
 	fusePod, err := cs.fusePodManagers[opts.FuseType].Create(&mounter.FusePodContext{
-		Context:    ctx,
-		Namespace:  fusePodNamespace,
-		NodeName:   nodeName,
-		VolumeId:   req.VolumeId,
-		AuthConfig: authCfg,
-		FuseType:   opts.FuseType,
+		Context:           ctx,
+		Namespace:         fusePodNamespace,
+		NodeName:          nodeName,
+		VolumeId:          req.VolumeId,
+		AuthConfig:        authCfg,
+		PodTemplateConfig: ptCfg,
+		FuseType:          opts.FuseType,
 	}, controllerPublishPath, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create %s pod: %v", opts.FuseType, err)

@@ -3,6 +3,7 @@ package oss
 import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -86,4 +87,7 @@ type Options struct {
 	AuthType      string `json:"authType"`
 	FuseType      string `json:"fuseType"`
 	ReadOnly      bool   `json:"readOnly"`
+
+	// pod template
+	DnsPolicy corev1.DNSPolicy `json:"dnsPolicy"`
 }

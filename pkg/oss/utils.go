@@ -33,6 +33,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
@@ -149,6 +150,16 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 				volumeAsSubpath = true
 			default:
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support direct and subpath", v, k).Error())
+			}
+		case "dnspolicy":
+			switch strings.ToLower(value) {
+			case strings.ToLower(string(corev1.DNSClusterFirst)),
+				strings.ToLower(string(corev1.DNSClusterFirstWithHostNet)),
+				strings.ToLower(string(corev1.DNSDefault)):
+				opts.DnsPolicy = corev1.DNSPolicy(value)
+			default:
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support %v, %v, %v",
+					v, k, corev1.DNSClusterFirst, corev1.DNSClusterFirstWithHostNet, corev1.DNSDefault).Error())
 			}
 		}
 	}
@@ -403,6 +414,11 @@ func makeAuthConfig(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.Met
 		return nil, WrapOssError(AuthError, "%s: %v", opt.FuseType, err)
 	}
 	return authCfg, nil
+}
+func makePodTemplateConfig(opt *oss.Options) *mounter.PodTemplateConfig {
+	return &mounter.PodTemplateConfig{
+		DnsPolicy: opt.DnsPolicy,
+	}
 }
 
 func makeMountOptions(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) (

@@ -9,9 +9,47 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 )
+
+func Test_buildPodSpec_dnsPolicy(t *testing.T) {
+	nodeName := "test-node-name"
+	volumeId := "test-pv-name"
+	authCfg := &mounterutils.AuthConfig{}
+	ptCfg := &mounterutils.PodTemplateConfig{}
+	authCfg.AuthType = AuthTypeSTS
+	fakeOssfs := &fuseOssfs{}
+	spec, err := fakeOssfs.buildPodSpec(&mounterutils.FusePodContext{
+		Context:           context.Background(),
+		Namespace:         mounterutils.LegacyFusePodNamespace,
+		NodeName:          nodeName,
+		VolumeId:          volumeId,
+		AuthConfig:        authCfg,
+		PodTemplateConfig: ptCfg,
+		FuseType:          OssFsType,
+	}, "target")
+
+	require.NoError(t, err)
+	assert.Equal(t, corev1.DNSPolicy(""), spec.DNSPolicy)
+
+	ptCfg = &mounterutils.PodTemplateConfig{
+		DnsPolicy: corev1.DNSPolicy("ClusterFirstWithHostNet"),
+	}
+	spec, err = fakeOssfs.buildPodSpec(&mounterutils.FusePodContext{
+		Context:           context.Background(),
+		Namespace:         mounterutils.LegacyFusePodNamespace,
+		NodeName:          nodeName,
+		VolumeId:          volumeId,
+		AuthConfig:        authCfg,
+		PodTemplateConfig: ptCfg,
+		FuseType:          OssFsType,
+	}, "target")
+
+	require.NoError(t, err)
+	assert.Equal(t, corev1.DNSClusterFirstWithHostNet, spec.DNSPolicy)
+}
 
 func Test_buildAuthSpec_ossfs(t *testing.T) {
 	nodeName := "test-node-name"

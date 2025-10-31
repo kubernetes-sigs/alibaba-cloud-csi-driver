@@ -59,6 +59,10 @@ type RrsaConfig struct {
 	AssumeRoleArn      string
 }
 
+type PodTemplateConfig struct {
+	DnsPolicy corev1.DNSPolicy
+}
+
 const (
 	DebugLevelFatal = "fatal"
 	DebugLevelError = "error"
@@ -74,11 +78,12 @@ const (
 
 type FusePodContext struct {
 	context.Context
-	Namespace  string
-	NodeName   string
-	VolumeId   string
-	FuseType   string
-	AuthConfig *AuthConfig
+	Namespace         string
+	NodeName          string
+	VolumeId          string
+	FuseType          string
+	AuthConfig        *AuthConfig
+	PodTemplateConfig *PodTemplateConfig
 }
 
 type FuseMounterType interface {
