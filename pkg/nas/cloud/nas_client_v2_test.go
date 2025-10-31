@@ -8,7 +8,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/ratelimit"
+	"golang.org/x/time/rate"
 )
 
 const nasV2Region = "cn-hangzhou"
@@ -39,7 +39,7 @@ func newNasClientV2ForTest(t *testing.T, mockExpects func(*interfaces.MockNasV2I
 	mockExpects(mockNas)
 	return &NasClientV2{
 		region:  nasV2Region,
-		limiter: ratelimit.New(2),
+		limiter: rate.NewLimiter(2, 10),
 		client:  mockNas,
 	}
 }
