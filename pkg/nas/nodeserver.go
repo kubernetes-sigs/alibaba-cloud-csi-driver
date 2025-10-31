@@ -318,6 +318,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
+	if strings.Contains(opt.Server, ":") {
+		return nil, errors.New("invalid server address: mount path must be specified in the 'path' field")
+	}
+
 	if opt.Path == "" {
 		opt.Path = "/"
 	}
