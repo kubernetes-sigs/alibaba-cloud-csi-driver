@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 // +kubebuilder:object:generate=true
-package v1alpha1
+package v1beta1
 
 import (
 	core_v1 "k8s.io/api/core/v1"
@@ -90,6 +90,7 @@ type VolumeGroupSnapshotStatus struct {
 	// The format of this field is a Unix nanoseconds time encoded as an int64.
 	// On Unix, the command date +%s%N returns the current time in nanoseconds
 	// since 1970-01-01 00:00:00 UTC.
+	// This field is updated based on the CreationTime field in VolumeGroupSnapshotContentStatus
 	// +optional
 	CreationTime *metav1.Time `json:"creationTime,omitempty" protobuf:"bytes,2,opt,name=creationTime"`
 
@@ -108,21 +109,6 @@ type VolumeGroupSnapshotStatus struct {
 	// group snapshot creation. Upon success, this error field will be cleared.
 	// +optional
 	Error *snapshotv1.VolumeSnapshotError `json:"error,omitempty" protobuf:"bytes,4,opt,name=error,casttype=VolumeSnapshotError"`
-
-	// VolumeSnapshotRefList is the list of PVC and VolumeSnapshot pairs that
-	// is part of this group snapshot.
-	// The maximum number of allowed snapshots in the group is 100.
-	// +optional
-	PVCVolumeSnapshotRefList []PVCVolumeSnapshotPair `json:"pvcVolumeSnapshotRefList,omitempty" protobuf:"bytes,5,opt,name=pvcVolumeSnapshotRefList"`
-}
-
-// PVCVolumeSnapshotPair defines a pair of a PVC reference and a Volume Snapshot Reference
-type PVCVolumeSnapshotPair struct {
-	// PersistentVolumeClaimRef is a reference to the PVC this pair is referring to
-	PersistentVolumeClaimRef core_v1.LocalObjectReference `json:"persistentVolumeClaimRef,omitempty" protobuf:"bytes,1,opt,name=persistentVolumeClaimRef"`
-
-	// VolumeSnapshotRef is a reference to the VolumeSnapshot this pair is referring to
-	VolumeSnapshotRef core_v1.LocalObjectReference `json:"volumeSnapshotRef,omitempty" protobuf:"bytes,2,opt,name=volumeSnapshotRef"`
 }
 
 //+genclient
@@ -133,6 +119,7 @@ type PVCVolumeSnapshotPair struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Namespaced,shortName=vgs
 // +kubebuilder:subresource:status
+// +kubebuilder:deprecatedversion
 // +kubebuilder:printcolumn:name="ReadyToUse",type=boolean,JSONPath=`.status.readyToUse`,description="Indicates if all the individual snapshots in the group are ready to be used to restore a group of volumes."
 // +kubebuilder:printcolumn:name="VolumeGroupSnapshotClass",type=string,JSONPath=`.spec.volumeGroupSnapshotClassName`,description="The name of the VolumeGroupSnapshotClass requested by the VolumeGroupSnapshot."
 // +kubebuilder:printcolumn:name="VolumeGroupSnapshotContent",type=string,JSONPath=`.status.boundVolumeGroupSnapshotContentName`,description="Name of the VolumeGroupSnapshotContent object to which the VolumeGroupSnapshot object intends to bind to. Please note that verification of binding actually requires checking both VolumeGroupSnapshot and VolumeGroupSnapshotContent to ensure both are pointing at each other. Binding MUST be verified prior to usage of this object."
@@ -176,6 +163,7 @@ type VolumeGroupSnapshotList struct {
 // is used by specifying its name in a VolumeGroupSnapshot object.
 // VolumeGroupSnapshotClasses are non-namespaced.
 // +kubebuilder:object:root=true
+// +kubebuilder:deprecatedversion
 // +kubebuilder:resource:scope=Cluster,shortName=vgsclass;vgsclasses
 // +kubebuilder:printcolumn:name="Driver",type=string,JSONPath=`.driver`
 // +kubebuilder:printcolumn:name="DeletionPolicy",type=string,JSONPath=`.deletionPolicy`,description="Determines whether a VolumeGroupSnapshotContent created through the VolumeGroupSnapshotClass should be deleted when its bound VolumeGroupSnapshot is deleted."
@@ -232,6 +220,7 @@ type VolumeGroupSnapshotClassList struct {
 // in the underlying storage system
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster,shortName=vgsc;vgscs
+// +kubebuilder:deprecatedversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="ReadyToUse",type=boolean,JSONPath=`.status.readyToUse`,description="Indicates if all the individual snapshots in the group are ready to be used to restore a group of volumes."
 // +kubebuilder:printcolumn:name="DeletionPolicy",type=string,JSONPath=`.spec.deletionPolicy`,description="Determines whether this VolumeGroupSnapshotContent and its physical group snapshot on the underlying storage system should be deleted when its bound VolumeGroupSnapshot is deleted."
@@ -281,7 +270,6 @@ type VolumeGroupSnapshotContentSpec struct {
 	// This field is immutable after creation.
 	// Required.
 	// +kubebuilder:validation:XValidation:rule="has(self.name) && has(self.__namespace__)",message="both volumeGroupSnapshotRef.name and volumeGroupSnapshotRef.namespace must be set"
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="volumeGroupSnapshotRef is immutable"
 	VolumeGroupSnapshotRef core_v1.ObjectReference `json:"volumeGroupSnapshotRef" protobuf:"bytes,1,opt,name=volumeGroupSnapshotRef"`
 
 	// DeletionPolicy determines whether this VolumeGroupSnapshotContent and the
@@ -340,8 +328,9 @@ type VolumeGroupSnapshotContentStatus struct {
 	// The format of this field is a Unix nanoseconds time encoded as an int64.
 	// On Unix, the command date +%s%N returns the current time in nanoseconds
 	// since 1970-01-01 00:00:00 UTC.
+	// This field is the source for the CreationTime field in VolumeGroupSnapshotStatus
 	// +optional
-	CreationTime *int64 `json:"creationTime,omitempty" protobuf:"varint,2,opt,name=creationTime"`
+	CreationTime *metav1.Time `json:"creationTime,omitempty" protobuf:"bytes,2,opt,name=creationTime"`
 
 	// ReadyToUse indicates if all the individual snapshots in the group are ready to be
 	// used to restore a group of volumes.
@@ -354,21 +343,11 @@ type VolumeGroupSnapshotContentStatus struct {
 	// +optional
 	Error *snapshotv1.VolumeSnapshotError `json:"error,omitempty" protobuf:"bytes,4,opt,name=error,casttype=VolumeSnapshotError"`
 
-	// PVVolumeSnapshotContentList is the list of pairs of PV and
-	// VolumeSnapshotContent for this group snapshot
-	// The maximum number of allowed snapshots in the group is 100.
+	// VolumeSnapshotHandlePairList is a list of CSI "volume_id" and "snapshot_id"
+	// pair returned by the CSI driver to identify snapshots and their source volumes
+	// on the storage system.
 	// +optional
-	PVVolumeSnapshotContentList []PVVolumeSnapshotContentPair `json:"pvVolumeSnapshotContentList,omitempty" protobuf:"bytes,5,opt,name=pvVolumeSnapshotContentRefList"`
-}
-
-// PVVolumeSnapshotContentPair represent a pair of PV names and
-// VolumeSnapshotContent names
-type PVVolumeSnapshotContentPair struct {
-	// PersistentVolumeRef is a reference to the persistent volume resource
-	PersistentVolumeRef core_v1.LocalObjectReference `json:"persistentVolumeRef,omitempty" protobuf:"bytes,1,opt,name=persistentVolumeRef"`
-
-	// VolumeSnapshotContentRef is a reference to the volume snapshot content resource
-	VolumeSnapshotContentRef core_v1.LocalObjectReference `json:"volumeSnapshotContentRef,omitempty" protobuf:"bytes,2,opt,name=volumeSnapshotContentRef"`
+	VolumeSnapshotHandlePairList []VolumeSnapshotHandlePair `json:"volumeSnapshotHandlePairList,omitempty" protobuf:"bytes,6,opt,name=volumeSnapshotHandlePairList"`
 }
 
 // VolumeGroupSnapshotContentSource represents the CSI source of a group snapshot.
@@ -409,4 +388,17 @@ type GroupSnapshotHandles struct {
 	// This field is immutable.
 	// Required.
 	VolumeSnapshotHandles []string `json:"volumeSnapshotHandles" protobuf:"bytes,2,opt,name=volumeSnapshotHandles"`
+}
+
+// VolumeSnapshotHandlePair defines a pair of a source volume handle and a snapshot handle
+type VolumeSnapshotHandlePair struct {
+	// VolumeHandle is a unique id returned by the CSI driver to identify a volume
+	// on the storage system
+	// Required.
+	VolumeHandle string `json:"volumeHandle" protobuf:"bytes,1,opt,name=volumeHandle"`
+
+	// SnapshotHandle is a unique id returned by the CSI driver to identify a volume
+	// snapshot on the storage system
+	// Required.
+	SnapshotHandle string `json:"snapshotHandle" protobuf:"bytes,2,opt,name=snapshotHandle"`
 }

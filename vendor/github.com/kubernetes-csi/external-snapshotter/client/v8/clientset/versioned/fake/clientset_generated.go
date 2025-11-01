@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Kubernetes Authors.
+Copyright 2025 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,8 +20,10 @@ package fake
 
 import (
 	clientset "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned"
-	groupsnapshotv1alpha1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumegroupsnapshot/v1alpha1"
-	fakegroupsnapshotv1alpha1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumegroupsnapshot/v1alpha1/fake"
+	groupsnapshotv1beta1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumegroupsnapshot/v1beta1"
+	fakegroupsnapshotv1beta1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumegroupsnapshot/v1beta1/fake"
+	groupsnapshotv1beta2 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumegroupsnapshot/v1beta2"
+	fakegroupsnapshotv1beta2 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumegroupsnapshot/v1beta2/fake"
 	snapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumesnapshot/v1"
 	fakesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumesnapshot/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -81,9 +83,14 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// GroupsnapshotV1alpha1 retrieves the GroupsnapshotV1alpha1Client
-func (c *Clientset) GroupsnapshotV1alpha1() groupsnapshotv1alpha1.GroupsnapshotV1alpha1Interface {
-	return &fakegroupsnapshotv1alpha1.FakeGroupsnapshotV1alpha1{Fake: &c.Fake}
+// GroupsnapshotV1beta1 retrieves the GroupsnapshotV1beta1Client
+func (c *Clientset) GroupsnapshotV1beta1() groupsnapshotv1beta1.GroupsnapshotV1beta1Interface {
+	return &fakegroupsnapshotv1beta1.FakeGroupsnapshotV1beta1{Fake: &c.Fake}
+}
+
+// GroupsnapshotV1beta2 retrieves the GroupsnapshotV1beta2Client
+func (c *Clientset) GroupsnapshotV1beta2() groupsnapshotv1beta2.GroupsnapshotV1beta2Interface {
+	return &fakegroupsnapshotv1beta2.FakeGroupsnapshotV1beta2{Fake: &c.Fake}
 }
 
 // SnapshotV1 retrieves the SnapshotV1Client
