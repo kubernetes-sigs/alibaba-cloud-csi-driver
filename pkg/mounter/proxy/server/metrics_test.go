@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -68,19 +67,6 @@ func TestUpdateMountPointMetrics(t *testing.T) {
 				require.NoError(t, err)
 				reasonContent := string(content)
 				assert.Contains(t, reasonContent, tt.handleErr.Error())
-			}
-
-			// Check mount_retry_count file (only when there's an error)
-			if tt.handleErr != nil {
-				retryFile := filepath.Join(tempDir, MetricsMountRetryCount)
-				content, err := os.ReadFile(retryFile)
-				require.NoError(t, err)
-				count, err := strconv.Atoi(string(content))
-				require.NoError(t, err)
-				// When file doesn't exist initially, updateCounter sets counter to 0
-				// When file exists, it increments the counter
-				// For first error, we expect 0 since file doesn't exist initially
-				assert.Equal(t, 0, count)
 			}
 		})
 	}

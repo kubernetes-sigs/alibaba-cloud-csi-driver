@@ -11,5 +11,5 @@ type ExtendedMountParams struct {
 
 type Mounter interface {
 	mountutils.Interface
-	ExtendedMount(source, target, fstype string, options []string, parms ExtendedMountParams) error
+	ExtendedMount(source, target, fstype string, options []string, params ExtendedMountParams) error
 }
