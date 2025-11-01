@@ -53,7 +53,16 @@ func (s *DescribeZonesResponseBody) SetZones(v []*DescribeZonesResponseBodyZones
 }
 
 func (s *DescribeZonesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Zones != nil {
+		for _, item := range s.Zones {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeZonesResponseBodyZones struct {

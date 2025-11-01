@@ -70,7 +70,16 @@ func (s *ListClusterNodesResponseBody) SetRequestId(v string) *ListClusterNodesR
 }
 
 func (s *ListClusterNodesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Nodes != nil {
+		for _, item := range s.Nodes {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListClusterNodesResponseBodyNodes struct {
@@ -110,6 +119,10 @@ type ListClusterNodesResponseBodyNodes struct {
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// example:
+	//
+	// e01-cn-2r42tmj4z02
+	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
 	// The system image ID.
 	//
 	// example:
@@ -248,6 +261,10 @@ func (s *ListClusterNodesResponseBodyNodes) GetHpnZone() *string {
 	return s.HpnZone
 }
 
+func (s *ListClusterNodesResponseBodyNodes) GetHyperNodeId() *string {
+	return s.HyperNodeId
+}
+
 func (s *ListClusterNodesResponseBodyNodes) GetImageId() *string {
 	return s.ImageId
 }
@@ -334,6 +351,11 @@ func (s *ListClusterNodesResponseBodyNodes) SetHpnZone(v string) *ListClusterNod
 	return s
 }
 
+func (s *ListClusterNodesResponseBodyNodes) SetHyperNodeId(v string) *ListClusterNodesResponseBodyNodes {
+	s.HyperNodeId = &v
+	return s
+}
+
 func (s *ListClusterNodesResponseBodyNodes) SetImageId(v string) *ListClusterNodesResponseBodyNodes {
 	s.ImageId = &v
 	return s
@@ -405,7 +427,25 @@ func (s *ListClusterNodesResponseBodyNodes) SetZoneId(v string) *ListClusterNode
 }
 
 func (s *ListClusterNodesResponseBodyNodes) Validate() error {
-	return dara.Validate(s)
+	if s.Networks != nil {
+		for _, item := range s.Networks {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.Tags != nil {
+		for _, item := range s.Tags {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListClusterNodesResponseBodyNodesNetworks struct {

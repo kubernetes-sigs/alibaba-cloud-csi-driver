@@ -70,7 +70,12 @@ func (s *DescribeSendFileResultsResponseBody) SetTotalCount(v string) *DescribeS
 }
 
 func (s *DescribeSendFileResultsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Invocations != nil {
+		if err := s.Invocations.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeSendFileResultsResponseBodyInvocations struct {
@@ -96,7 +101,16 @@ func (s *DescribeSendFileResultsResponseBodyInvocations) SetInvocation(v []*Desc
 }
 
 func (s *DescribeSendFileResultsResponseBodyInvocations) Validate() error {
-	return dara.Validate(s)
+	if s.Invocation != nil {
+		for _, item := range s.Invocation {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
@@ -332,7 +346,12 @@ func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) SetTargetDir(
 }
 
 func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) Validate() error {
-	return dara.Validate(s)
+	if s.InvokeNodes != nil {
+		if err := s.InvokeNodes.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes struct {
@@ -358,7 +377,16 @@ func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes) Se
 }
 
 func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes) Validate() error {
-	return dara.Validate(s)
+	if s.InvokeNode != nil {
+		for _, item := range s.InvokeNode {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode struct {

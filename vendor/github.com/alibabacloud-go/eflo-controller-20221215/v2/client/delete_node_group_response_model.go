@@ -59,5 +59,10 @@ func (s *DeleteNodeGroupResponse) SetBody(v *DeleteNodeGroupResponseBody) *Delet
 }
 
 func (s *DeleteNodeGroupResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

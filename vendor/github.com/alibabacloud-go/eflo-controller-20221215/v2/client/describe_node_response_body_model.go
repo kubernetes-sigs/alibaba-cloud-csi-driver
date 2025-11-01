@@ -25,6 +25,8 @@ type iDescribeNodeResponseBody interface {
 	GetHostname() *string
 	SetHpnZone(v string) *DescribeNodeResponseBody
 	GetHpnZone() *string
+	SetHyperNodeId(v string) *DescribeNodeResponseBody
+	GetHyperNodeId() *string
 	SetImageId(v string) *DescribeNodeResponseBody
 	GetImageId() *string
 	SetImageName(v string) *DescribeNodeResponseBody
@@ -100,6 +102,10 @@ type DescribeNodeResponseBody struct {
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// example:
+	//
+	// e01-cn-zvp2tgykr08
+	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
 	// The image ID.
 	//
 	// example:
@@ -252,6 +258,10 @@ func (s *DescribeNodeResponseBody) GetHpnZone() *string {
 	return s.HpnZone
 }
 
+func (s *DescribeNodeResponseBody) GetHyperNodeId() *string {
+	return s.HyperNodeId
+}
+
 func (s *DescribeNodeResponseBody) GetImageId() *string {
 	return s.ImageId
 }
@@ -348,6 +358,11 @@ func (s *DescribeNodeResponseBody) SetHpnZone(v string) *DescribeNodeResponseBod
 	return s
 }
 
+func (s *DescribeNodeResponseBody) SetHyperNodeId(v string) *DescribeNodeResponseBody {
+	s.HyperNodeId = &v
+	return s
+}
+
 func (s *DescribeNodeResponseBody) SetImageId(v string) *DescribeNodeResponseBody {
 	s.ImageId = &v
 	return s
@@ -419,7 +434,25 @@ func (s *DescribeNodeResponseBody) SetZoneId(v string) *DescribeNodeResponseBody
 }
 
 func (s *DescribeNodeResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Disks != nil {
+		for _, item := range s.Disks {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.Networks != nil {
+		for _, item := range s.Networks {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeNodeResponseBodyDisks struct {

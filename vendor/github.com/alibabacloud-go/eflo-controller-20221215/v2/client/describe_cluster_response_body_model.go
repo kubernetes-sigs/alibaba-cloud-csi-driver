@@ -39,10 +39,14 @@ type iDescribeClusterResponseBody interface {
 	GetRequestId() *string
 	SetResourceGroupId(v string) *DescribeClusterResponseBody
 	GetResourceGroupId() *string
+	SetSecurityGroupId(v string) *DescribeClusterResponseBody
+	GetSecurityGroupId() *string
 	SetTaskId(v string) *DescribeClusterResponseBody
 	GetTaskId() *string
 	SetUpdateTime(v string) *DescribeClusterResponseBody
 	GetUpdateTime() *string
+	SetVSwitchId(v string) *DescribeClusterResponseBody
+	GetVSwitchId() *string
 	SetVpcId(v string) *DescribeClusterResponseBody
 	GetVpcId() *string
 }
@@ -130,6 +134,7 @@ type DescribeClusterResponseBody struct {
 	//
 	// rg-aek2k3rqlvv6ytq
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
 	// The job ID.
 	//
 	// example:
@@ -142,6 +147,7 @@ type DescribeClusterResponseBody struct {
 	//
 	// 2022-08-23T06:36:17.000Z
 	UpdateTime *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
+	VSwitchId  *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
 	// The ID of the virtual private cloud (VPC).
 	//
 	// example:
@@ -218,12 +224,20 @@ func (s *DescribeClusterResponseBody) GetResourceGroupId() *string {
 	return s.ResourceGroupId
 }
 
+func (s *DescribeClusterResponseBody) GetSecurityGroupId() *string {
+	return s.SecurityGroupId
+}
+
 func (s *DescribeClusterResponseBody) GetTaskId() *string {
 	return s.TaskId
 }
 
 func (s *DescribeClusterResponseBody) GetUpdateTime() *string {
 	return s.UpdateTime
+}
+
+func (s *DescribeClusterResponseBody) GetVSwitchId() *string {
+	return s.VSwitchId
 }
 
 func (s *DescribeClusterResponseBody) GetVpcId() *string {
@@ -305,6 +319,11 @@ func (s *DescribeClusterResponseBody) SetResourceGroupId(v string) *DescribeClus
 	return s
 }
 
+func (s *DescribeClusterResponseBody) SetSecurityGroupId(v string) *DescribeClusterResponseBody {
+	s.SecurityGroupId = &v
+	return s
+}
+
 func (s *DescribeClusterResponseBody) SetTaskId(v string) *DescribeClusterResponseBody {
 	s.TaskId = &v
 	return s
@@ -315,13 +334,32 @@ func (s *DescribeClusterResponseBody) SetUpdateTime(v string) *DescribeClusterRe
 	return s
 }
 
+func (s *DescribeClusterResponseBody) SetVSwitchId(v string) *DescribeClusterResponseBody {
+	s.VSwitchId = &v
+	return s
+}
+
 func (s *DescribeClusterResponseBody) SetVpcId(v string) *DescribeClusterResponseBody {
 	s.VpcId = &v
 	return s
 }
 
 func (s *DescribeClusterResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Components != nil {
+		for _, item := range s.Components {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.Networks != nil {
+		if err := s.Networks.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeClusterResponseBodyComponents struct {

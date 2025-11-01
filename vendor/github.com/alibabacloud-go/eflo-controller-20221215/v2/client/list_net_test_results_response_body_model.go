@@ -93,7 +93,16 @@ func (s *ListNetTestResultsResponseBody) SetRequestId(v string) *ListNetTestResu
 }
 
 func (s *ListNetTestResultsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.NetTestResults != nil {
+		for _, item := range s.NetTestResults {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListNetTestResultsResponseBodyNetTestResults struct {
@@ -282,7 +291,22 @@ func (s *ListNetTestResultsResponseBodyNetTestResults) SetTrafficTest(v *ListNet
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResults) Validate() error {
-	return dara.Validate(s)
+	if s.CommTest != nil {
+		if err := s.CommTest.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.DelayTest != nil {
+		if err := s.DelayTest.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.TrafficTest != nil {
+		if err := s.TrafficTest.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsCommTest struct {
@@ -353,7 +377,16 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) SetType(v string)
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) Validate() error {
-	return dara.Validate(s)
+	if s.Hosts != nil {
+		for _, item := range s.Hosts {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsCommTestHosts struct {
@@ -439,7 +472,16 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTest) SetHosts(v []*Li
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTest) Validate() error {
-	return dara.Validate(s)
+	if s.Hosts != nil {
+		for _, item := range s.Hosts {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts struct {
@@ -626,7 +668,25 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) SetTrafficMode
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) Validate() error {
-	return dara.Validate(s)
+	if s.Clients != nil {
+		for _, item := range s.Clients {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.Servers != nil {
+		for _, item := range s.Servers {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients struct {

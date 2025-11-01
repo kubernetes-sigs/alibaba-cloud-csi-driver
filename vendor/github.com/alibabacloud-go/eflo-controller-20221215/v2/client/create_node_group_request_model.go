@@ -74,7 +74,12 @@ func (s *CreateNodeGroupRequest) SetNodeUnit(v map[string]interface{}) *CreateNo
 }
 
 func (s *CreateNodeGroupRequest) Validate() error {
-	return dara.Validate(s)
+	if s.NodeGroup != nil {
+		if err := s.NodeGroup.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateNodeGroupRequestNodeGroup struct {
@@ -262,7 +267,12 @@ func (s *CreateNodeGroupRequestNodeGroup) SetVirtualGpuEnabled(v bool) *CreateNo
 }
 
 func (s *CreateNodeGroupRequestNodeGroup) Validate() error {
-	return dara.Validate(s)
+	if s.SystemDisk != nil {
+		if err := s.SystemDisk.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateNodeGroupRequestNodeGroupSystemDisk struct {

@@ -106,7 +106,16 @@ func (s *ListVscsResponseBody) SetVscs(v []*ListVscsResponseBodyVscs) *ListVscsR
 }
 
 func (s *ListVscsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Vscs != nil {
+		for _, item := range s.Vscs {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListVscsResponseBodyVscs struct {
@@ -230,7 +239,16 @@ func (s *ListVscsResponseBodyVscs) SetVscType(v string) *ListVscsResponseBodyVsc
 }
 
 func (s *ListVscsResponseBodyVscs) Validate() error {
-	return dara.Validate(s)
+	if s.Tags != nil {
+		for _, item := range s.Tags {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListVscsResponseBodyVscsTags struct {

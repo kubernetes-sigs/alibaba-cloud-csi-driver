@@ -70,7 +70,16 @@ func (s *ListFreeNodesResponseBody) SetRequestId(v string) *ListFreeNodesRespons
 }
 
 func (s *ListFreeNodesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Nodes != nil {
+		for _, item := range s.Nodes {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListFreeNodesResponseBodyNodes struct {
@@ -98,6 +107,10 @@ type ListFreeNodesResponseBodyNodes struct {
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// example:
+	//
+	// e01-cn-zvp2tgykr08
+	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
 	// The instance type.
 	//
 	// example:
@@ -162,6 +175,10 @@ func (s *ListFreeNodesResponseBodyNodes) GetHpnZone() *string {
 	return s.HpnZone
 }
 
+func (s *ListFreeNodesResponseBodyNodes) GetHyperNodeId() *string {
+	return s.HyperNodeId
+}
+
 func (s *ListFreeNodesResponseBodyNodes) GetMachineType() *string {
 	return s.MachineType
 }
@@ -210,6 +227,11 @@ func (s *ListFreeNodesResponseBodyNodes) SetHpnZone(v string) *ListFreeNodesResp
 	return s
 }
 
+func (s *ListFreeNodesResponseBodyNodes) SetHyperNodeId(v string) *ListFreeNodesResponseBodyNodes {
+	s.HyperNodeId = &v
+	return s
+}
+
 func (s *ListFreeNodesResponseBodyNodes) SetMachineType(v string) *ListFreeNodesResponseBodyNodes {
 	s.MachineType = &v
 	return s
@@ -246,7 +268,16 @@ func (s *ListFreeNodesResponseBodyNodes) SetZoneId(v string) *ListFreeNodesRespo
 }
 
 func (s *ListFreeNodesResponseBodyNodes) Validate() error {
-	return dara.Validate(s)
+	if s.Tags != nil {
+		for _, item := range s.Tags {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListFreeNodesResponseBodyNodesTags struct {

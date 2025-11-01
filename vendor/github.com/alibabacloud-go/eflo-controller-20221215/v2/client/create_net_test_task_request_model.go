@@ -147,7 +147,22 @@ func (s *CreateNetTestTaskRequest) SetTrafficTest(v *CreateNetTestTaskRequestTra
 }
 
 func (s *CreateNetTestTaskRequest) Validate() error {
-	return dara.Validate(s)
+	if s.CommTest != nil {
+		if err := s.CommTest.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.DelayTest != nil {
+		if err := s.DelayTest.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.TrafficTest != nil {
+		if err := s.TrafficTest.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateNetTestTaskRequestCommTest struct {
@@ -218,7 +233,16 @@ func (s *CreateNetTestTaskRequestCommTest) SetType(v string) *CreateNetTestTaskR
 }
 
 func (s *CreateNetTestTaskRequestCommTest) Validate() error {
-	return dara.Validate(s)
+	if s.Hosts != nil {
+		for _, item := range s.Hosts {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateNetTestTaskRequestCommTestHosts struct {
@@ -319,7 +343,16 @@ func (s *CreateNetTestTaskRequestDelayTest) SetHosts(v []*CreateNetTestTaskReque
 }
 
 func (s *CreateNetTestTaskRequestDelayTest) Validate() error {
-	return dara.Validate(s)
+	if s.Hosts != nil {
+		for _, item := range s.Hosts {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateNetTestTaskRequestDelayTestHosts struct {
@@ -521,7 +554,25 @@ func (s *CreateNetTestTaskRequestTrafficTest) SetTrafficModel(v string) *CreateN
 }
 
 func (s *CreateNetTestTaskRequestTrafficTest) Validate() error {
-	return dara.Validate(s)
+	if s.Clients != nil {
+		for _, item := range s.Clients {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.Servers != nil {
+		for _, item := range s.Servers {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateNetTestTaskRequestTrafficTestClients struct {
