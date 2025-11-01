@@ -789,9 +789,18 @@ func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInf
 	}
 	// foreach mountpoint status related metrics
 	for _, mountPointStatus := range mountPointStatusArray {
-		metricsArray, err := readFirstLines(filepath.Join(volPath, mountPointStatus))
-		if err != nil {
-			continue
+		var metricsArray []string
+		if mountPointStatus == "last_fuse_client_exit_reason" {
+			metrics, err := readAllContent(filepath.Join(volPath, mountPointStatus))
+			if err != nil {
+				continue
+			}
+			metricsArray = []string{metrics}
+		} else {
+			metricsArray, err = readFirstLines(filepath.Join(volPath, mountPointStatus))
+			if err != nil {
+				continue
+			}
 		}
 		p.postMountPointStatusMetrics(mountPointStatus, fsClientInfo, metricsArray, ch)
 	}

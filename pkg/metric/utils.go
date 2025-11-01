@@ -44,6 +44,24 @@ func readFirstLines(path string) ([]string, error) {
 	return lineStrArray, scanner.Err()
 }
 
+// readAllContent reads all content from a file and replaces newlines with spaces
+func readAllContent(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	result := strings.ReplaceAll(string(content), "\n", " ")
+
+	return result, nil
+}
+
 func getDiskPvcByPvName(clientSet *kubernetes.Clientset, pvName string) (*apicorev1.ObjectReference, error) {
 	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
 	if err != nil {

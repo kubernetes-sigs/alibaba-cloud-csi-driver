@@ -21,15 +21,15 @@ func NewProxyMounter(socketPath string, inner mountutils.Interface) Mounter {
 	}
 }
 
-func (m *ProxyMounter) ExtendedMount(source, target, fstype string, options []string, parms ExtendedMountParams) error {
+func (m *ProxyMounter) ExtendedMount(source, target, fstype string, options []string, params ExtendedMountParams) error {
 	dclient := client.NewClient(m.socketPath)
 	resp, err := dclient.Mount(&proxy.MountRequest{
 		Source:      source,
 		Target:      target,
 		Fstype:      fstype,
 		Options:     options,
-		Secrets:     parms.Secrets,
-		MetricsPath: parms.MetricsPath,
+		Secrets:     params.Secrets,
+		MetricsPath: params.MetricsPath,
 	})
 	if err != nil {
 		return fmt.Errorf("call mounter daemon: %w", err)

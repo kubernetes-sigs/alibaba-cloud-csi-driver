@@ -69,10 +69,20 @@ func (manager *MountMonitorManager) GetMountMonitor(target, metricsPath string, 
 	if existingMonitor, exists := manager.monitors.Load(target); exists {
 		monitor := existingMonitor.(*MountMonitor)
 		// Not allow to update info like metrics path currently
+		monitor.mu.Lock()
+		defer monitor.mu.Unlock()
+		if monitor.retryCount < maxCountRecord {
+			monitor.retryCount++
+		}
 		klog.V(4).InfoS("Using existing monitor", "target", target)
 		return monitor
 	}
 	if !createIfNotExist {
+		return nil
+	}
+
+	if metricsPath == "" {
+		klog.V(4).InfoS("Skipping mount point monitoring for target %s: no metrics path provided", target)
 		return nil
 	}
 
@@ -92,39 +102,40 @@ func (manager *MountMonitorManager) GetMountMonitor(target, metricsPath string, 
 
 	manager.monitors.Store(target, monitor)
 
-	// Initialize metrics files to empty/zero state
-	monitor.updateMountPointMetrics(&monitor.retryCount, &monitor.failoverCount, nil, nil)
-
 	klog.InfoS("Created new monitor", "target", target)
 	return monitor
 }
 
-// HandleMountResult handles mount result (success or failure)
-func (m *MountMonitor) HandleMountResult(process *exec.Cmd, err error) {
+func SafeHandleMountResult(monitor *MountMonitor, process *exec.Cmd, err error) {
+	if monitor == nil {
+		return
+	}
+	monitor.handleMountResult(process, err)
+}
+
+// handleMountResult handles mount result (success or failure)
+func (m *MountMonitor) handleMountResult(process *exec.Cmd, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if err != nil {
 		// Mount failed
-		if m.retryCount < maxCountRecord {
-			m.retryCount++
-		}
-		m.updateMountPointMetrics(&m.retryCount, nil, ptr.To(true), err)
-
+		m.updateMountPointMetrics(ptr.To(m.retryCount), nil, ptr.To(true), err)
 		m.State = MonitorStateInitialized // Back to initialized for retry
 
 		klog.V(2).InfoS("Mount failed, updated retry count",
 			"target", m.Target,
 			"retry_count", m.retryCount,
 			"error", err)
-	} else {
-		// Mount successful
-		// Update mount_point_status to 0 (healthy)
-		m.updateMountPointMetrics(nil, nil, ptr.To(false), nil)
-
-		m.State = MonitorStateMonitoring
-		m.Pid = process.Process.Pid
+		return
 	}
+	// Mount successful
+	// Update mount_point_status to 0 (healthy)
+	m.updateMountPointMetrics(ptr.To(m.retryCount), nil, ptr.To(false), nil)
+
+	m.State = MonitorStateMonitoring
+	m.Pid = process.Process.Pid
+
 }
 
 // Stop stops the monitoring
@@ -133,19 +144,40 @@ func (m *MountMonitor) Stop() {
 	m.monitorCancel()
 }
 
-// WaitForAllMonitoring waits for all monitoring goroutines to finish
+// WaitForAllMonitoring waits for all monitoring goroutines to finish with timeout
 func (manager *MountMonitorManager) WaitForAllMonitoring() {
-	manager.wg.Wait()
+	const timeout = 2 * time.Second
+	done := make(chan struct{})
+
+	go func() {
+		manager.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		klog.V(4).InfoS("All monitoring goroutines finished")
+	case <-time.After(timeout):
+		klog.Warningf("WaitForAllMonitoring timed out after %v, some goroutines may still be running", timeout)
+	}
 }
 
 // checkMountPointStatus checks the current status of a mount point
-func (m *MountMonitor) checkMountPointStatus(target string) (err error) {
+// Note:
+// When [strict] is set to true, any abnormality of the mount point will result in an error.
+// This may cause continuous polling failures if the mount point is manually unmounted but the Pod is not deleted.
+// If there is no specific requirement to manually unmount the mount point, [strict] should be set to false
+// to avoid unnecessary errors during monitoring.
+func (m *MountMonitor) checkMountPointStatus(target string, strict bool) (err error) {
 	// Check if it's a mount point
 	notMnt, err := m.raw.IsLikelyNotMountPoint(target)
 	if err != nil {
 		// case 1: mount point does not exist
 		if os.IsNotExist(err) {
-			return fmt.Errorf("Mountpoint does not exist")
+			if strict {
+				return fmt.Errorf("Mount point does not exist")
+			}
+			return nil
 		}
 		// case 2: mount point is corrupted
 		if mountutils.IsCorruptedMnt(err) {
@@ -156,10 +188,9 @@ func (m *MountMonitor) checkMountPointStatus(target string) (err error) {
 	}
 
 	// case 4: mount point is not mounted
-	if notMnt {
+	if notMnt && strict {
 		return fmt.Errorf("Mountpoint is not mounted")
 	}
-
 	return nil
 }
 
@@ -176,11 +207,11 @@ func (m *MountMonitor) checkAndUpdateMountStatus() {
 	// metrics file stores notHealthy as "1", healthy as "0"
 	oldUnhealthy := old == "1"
 	// Check mount point status
-	err := m.checkMountPointStatus(m.Target)
+	err := m.checkMountPointStatus(m.Target, false)
 	if err != nil {
 		klog.ErrorS(err, "Check mount point status with error", "target", m.Target)
 	} else {
-		klog.V(2).InfoS("Check mount point status successfully", "target", m.Target)
+		klog.V(5).InfoS("Check mount point status successfully", "target", m.Target)
 	}
 	newUnhealthy := err != nil
 	if newUnhealthy != oldUnhealthy {
@@ -207,7 +238,7 @@ func (m *MountMonitor) updateMountPointMetrics(
 		if err := utils.WriteAndSyncFile(retryFile, []byte(strconv.Itoa(*retryCont)), 0644); err != nil {
 			klog.Errorf("Failed to update %s: %v", MetricsMountRetryCount, err)
 		}
-		klog.V(4).Infof("Update %s: %d", MetricsMountRetryCount, *retryCont)
+		klog.V(5).Infof("Update %s: %d", MetricsMountRetryCount, *retryCont)
 	}
 	if failoverCont != nil {
 		// Update mount_point_failover_count
@@ -215,7 +246,7 @@ func (m *MountMonitor) updateMountPointMetrics(
 		if err := utils.WriteAndSyncFile(failoverFile, []byte(strconv.Itoa(*failoverCont)), 0644); err != nil {
 			klog.Errorf("Failed to update %s: %v", MetricsMountPointFailoverCount, err)
 		}
-		klog.V(4).Infof("Update %s: %d", MetricsMountPointFailoverCount, *failoverCont)
+		klog.V(5).Infof("Update %s: %d", MetricsMountPointFailoverCount, *failoverCont)
 	}
 	if notHealthy != nil {
 		// Update mount_point_status
@@ -223,7 +254,7 @@ func (m *MountMonitor) updateMountPointMetrics(
 		if err := utils.WriteAndSyncFile(statusFile, []byte(boolToBinaryString(*notHealthy)), 0644); err != nil {
 			klog.Errorf("Failed to update %s: %v", MetricsMountPointStatus, err)
 		}
-		klog.V(4).Infof("Update %s: %t", MetricsMountPointStatus, *notHealthy)
+		klog.V(5).Infof("Update %s: %t", MetricsMountPointStatus, *notHealthy)
 	}
 	if lastExistError != nil {
 		// Update last_fuse_client_exit_reason
@@ -233,7 +264,7 @@ func (m *MountMonitor) updateMountPointMetrics(
 		if err := utils.WriteAndSyncFile(statusFile, []byte(errorMessage), 0644); err != nil {
 			klog.Errorf("Failed to update %s: %v", MetricsLastFuseClientExitReason, err)
 		}
-		klog.V(4).Infof("Update %s: %s", MetricsLastFuseClientExitReason, errorMessage)
+		klog.V(5).Infof("Update %s: %s", MetricsLastFuseClientExitReason, errorMessage)
 	}
 
 }

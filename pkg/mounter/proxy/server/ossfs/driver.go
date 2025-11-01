@@ -62,7 +62,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	passwdFile, err := utils.SaveOssSecretsToFile(req.Secrets, req.Fstype)
 	if err != nil {
 		// Handle mount preparation failure
-		monitor.HandleMountResult(nil, err)
+		server.SafeHandleMountResult(monitor, nil, err)
 		return err
 	}
 	options = append(options, "passwd_file="+passwdFile)
@@ -84,7 +84,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	err = cmd.Start()
 	if err != nil {
 		// Handle mount start failure
-		monitor.HandleMountResult(nil, fmt.Errorf("start ossfs failed: %w", err))
+		server.SafeHandleMountResult(monitor, nil, fmt.Errorf("start ossfs failed: %w", err))
 		return err
 	}
 
@@ -121,7 +121,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		// Immediate process-exit handling during mount attempt
 		// Assume the process exits with no error upon receiving SIGTERM,
 		// and exits with an error in case of unexpected failures.
-		monitor.HandleMountResult(cmd, err)
+		server.SafeHandleMountResult(monitor, cmd, err)
 		// Notify poll loop after metrics are updated
 		ossfsExited <- err
 		if err := os.Remove(passwdFile); err != nil {
@@ -153,7 +153,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 
 	if err == nil {
 		// Handle mount result
-		monitor.HandleMountResult(cmd, err)
+		server.SafeHandleMountResult(monitor, cmd, err)
 		// Start monitoring goroutine (ticker based only)
 		h.monitorManager.StartMonitoring(target)
 		return nil
@@ -196,7 +196,7 @@ func (h *Driver) Terminate() {
 	})
 
 	// wait all ossfs processes and monitoring goroutines to exit
-	h.wg.Wait()
 	h.monitorManager.WaitForAllMonitoring()
+	h.wg.Wait()
 	klog.InfoS("All ossfs processes and monitoring goroutines exited")
 }
