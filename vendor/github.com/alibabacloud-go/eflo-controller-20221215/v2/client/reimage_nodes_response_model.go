@@ -59,5 +59,10 @@ func (s *ReimageNodesResponse) SetBody(v *ReimageNodesResponseBody) *ReimageNode
 }
 
 func (s *ReimageNodesResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

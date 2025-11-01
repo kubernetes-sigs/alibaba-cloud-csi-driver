@@ -70,7 +70,16 @@ func (s *ListMachineTypesResponseBody) SetRequestId(v string) *ListMachineTypesR
 }
 
 func (s *ListMachineTypesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.MachineTypes != nil {
+		for _, item := range s.MachineTypes {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListMachineTypesResponseBodyMachineTypes struct {

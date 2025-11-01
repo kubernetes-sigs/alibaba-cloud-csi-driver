@@ -83,7 +83,12 @@ func (s *CreateDiagnosticTaskRequest) SetNodeIds(v []*string) *CreateDiagnosticT
 }
 
 func (s *CreateDiagnosticTaskRequest) Validate() error {
-	return dara.Validate(s)
+	if s.AiJobLogInfo != nil {
+		if err := s.AiJobLogInfo.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateDiagnosticTaskRequestAiJobLogInfo struct {
@@ -143,7 +148,16 @@ func (s *CreateDiagnosticTaskRequestAiJobLogInfo) SetStartTime(v string) *Create
 }
 
 func (s *CreateDiagnosticTaskRequestAiJobLogInfo) Validate() error {
-	return dara.Validate(s)
+	if s.AiJobLogs != nil {
+		for _, item := range s.AiJobLogs {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs struct {
@@ -199,7 +213,16 @@ func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) SetNodeId(v string) *
 }
 
 func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) Validate() error {
-	return dara.Validate(s)
+	if s.Logs != nil {
+		for _, item := range s.Logs {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs struct {

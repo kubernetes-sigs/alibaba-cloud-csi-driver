@@ -59,5 +59,10 @@ func (s *DescribeNodeTypeResponse) SetBody(v *DescribeNodeTypeResponseBody) *Des
 }
 
 func (s *DescribeNodeTypeResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

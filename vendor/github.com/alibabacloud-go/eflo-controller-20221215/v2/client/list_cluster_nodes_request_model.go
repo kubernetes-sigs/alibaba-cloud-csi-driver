@@ -17,6 +17,8 @@ type iListClusterNodesRequest interface {
 	GetNextToken() *string
 	SetNodeGroupId(v string) *ListClusterNodesRequest
 	GetNodeGroupId() *string
+	SetOperatingStates(v []*string) *ListClusterNodesRequest
+	GetOperatingStates() []*string
 	SetResourceGroupId(v string) *ListClusterNodesRequest
 	GetResourceGroupId() *string
 	SetTags(v []*ListClusterNodesRequestTags) *ListClusterNodesRequest
@@ -49,7 +51,8 @@ type ListClusterNodesRequest struct {
 	// example:
 	//
 	// ng-ec3c96ff0aa4c60d
-	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	NodeGroupId     *string   `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	OperatingStates []*string `json:"OperatingStates,omitempty" xml:"OperatingStates,omitempty" type:"Repeated"`
 	// The resource group ID.
 	//
 	// example:
@@ -84,6 +87,10 @@ func (s *ListClusterNodesRequest) GetNodeGroupId() *string {
 	return s.NodeGroupId
 }
 
+func (s *ListClusterNodesRequest) GetOperatingStates() []*string {
+	return s.OperatingStates
+}
+
 func (s *ListClusterNodesRequest) GetResourceGroupId() *string {
 	return s.ResourceGroupId
 }
@@ -112,6 +119,11 @@ func (s *ListClusterNodesRequest) SetNodeGroupId(v string) *ListClusterNodesRequ
 	return s
 }
 
+func (s *ListClusterNodesRequest) SetOperatingStates(v []*string) *ListClusterNodesRequest {
+	s.OperatingStates = v
+	return s
+}
+
 func (s *ListClusterNodesRequest) SetResourceGroupId(v string) *ListClusterNodesRequest {
 	s.ResourceGroupId = &v
 	return s
@@ -123,7 +135,16 @@ func (s *ListClusterNodesRequest) SetTags(v []*ListClusterNodesRequestTags) *Lis
 }
 
 func (s *ListClusterNodesRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Tags != nil {
+		for _, item := range s.Tags {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListClusterNodesRequestTags struct {

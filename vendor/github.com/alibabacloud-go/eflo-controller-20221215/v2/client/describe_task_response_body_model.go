@@ -227,7 +227,16 @@ func (s *DescribeTaskResponseBody) SetUpdateTime(v string) *DescribeTaskResponse
 }
 
 func (s *DescribeTaskResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Steps != nil {
+		for _, item := range s.Steps {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeTaskResponseBodySteps struct {
@@ -400,7 +409,16 @@ func (s *DescribeTaskResponseBodySteps) SetUpdateTime(v string) *DescribeTaskRes
 }
 
 func (s *DescribeTaskResponseBodySteps) Validate() error {
-	return dara.Validate(s)
+	if s.SubTasks != nil {
+		for _, item := range s.SubTasks {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeTaskResponseBodyStepsSubTasks struct {

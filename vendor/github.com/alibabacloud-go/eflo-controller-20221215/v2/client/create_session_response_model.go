@@ -59,5 +59,10 @@ func (s *CreateSessionResponse) SetBody(v *CreateSessionResponseBody) *CreateSes
 }
 
 func (s *CreateSessionResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

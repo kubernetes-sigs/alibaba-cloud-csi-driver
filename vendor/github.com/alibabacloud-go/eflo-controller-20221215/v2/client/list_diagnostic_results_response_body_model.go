@@ -93,7 +93,16 @@ func (s *ListDiagnosticResultsResponseBody) SetRequestId(v string) *ListDiagnost
 }
 
 func (s *ListDiagnosticResultsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.DiagnosticResults != nil {
+		for _, item := range s.DiagnosticResults {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListDiagnosticResultsResponseBodyDiagnosticResults struct {

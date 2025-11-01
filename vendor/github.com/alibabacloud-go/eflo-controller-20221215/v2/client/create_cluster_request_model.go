@@ -207,7 +207,39 @@ func (s *CreateClusterRequest) SetTag(v []*CreateClusterRequestTag) *CreateClust
 }
 
 func (s *CreateClusterRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Components != nil {
+		for _, item := range s.Components {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.Networks != nil {
+		if err := s.Networks.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.NodeGroups != nil {
+		for _, item := range s.NodeGroups {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateClusterRequestComponents struct {
@@ -248,7 +280,12 @@ func (s *CreateClusterRequestComponents) SetComponentType(v string) *CreateClust
 }
 
 func (s *CreateClusterRequestComponents) Validate() error {
-	return dara.Validate(s)
+	if s.ComponentConfig != nil {
+		if err := s.ComponentConfig.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateClusterRequestComponentsComponentConfig struct {
@@ -468,7 +505,26 @@ func (s *CreateClusterRequestNetworks) SetVpdInfo(v *CreateClusterRequestNetwork
 }
 
 func (s *CreateClusterRequestNetworks) Validate() error {
-	return dara.Validate(s)
+	if s.IpAllocationPolicy != nil {
+		for _, item := range s.IpAllocationPolicy {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.NewVpdInfo != nil {
+		if err := s.NewVpdInfo.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.VpdInfo != nil {
+		if err := s.VpdInfo.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicy struct {
@@ -516,7 +572,30 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicy) SetNodePolicy(v []*Crea
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicy) Validate() error {
-	return dara.Validate(s)
+	if s.BondPolicy != nil {
+		if err := s.BondPolicy.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.MachineTypePolicy != nil {
+		for _, item := range s.MachineTypePolicy {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.NodePolicy != nil {
+		for _, item := range s.NodePolicy {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyBondPolicy struct {
@@ -557,7 +636,16 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) SetBonds(v []
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) Validate() error {
-	return dara.Validate(s)
+	if s.Bonds != nil {
+		for _, item := range s.Bonds {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds struct {
@@ -643,7 +731,16 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) SetMac
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) Validate() error {
-	return dara.Validate(s)
+	if s.Bonds != nil {
+		for _, item := range s.Bonds {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds struct {
@@ -729,7 +826,16 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) SetNodeId(v s
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) Validate() error {
-	return dara.Validate(s)
+	if s.Bonds != nil {
+		for _, item := range s.Bonds {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds struct {
@@ -890,7 +996,16 @@ func (s *CreateClusterRequestNetworksNewVpdInfo) SetVpdSubnets(v []*CreateCluste
 }
 
 func (s *CreateClusterRequestNetworksNewVpdInfo) Validate() error {
-	return dara.Validate(s)
+	if s.VpdSubnets != nil {
+		for _, item := range s.VpdSubnets {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateClusterRequestNetworksNewVpdInfoVpdSubnets struct {
@@ -1000,7 +1115,8 @@ type CreateClusterRequestNodeGroups struct {
 	// example:
 	//
 	// true
-	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
+	FileSystemMountEnabled *bool                                       `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
+	HyperNodes             []*CreateClusterRequestNodeGroupsHyperNodes `json:"HyperNodes,omitempty" xml:"HyperNodes,omitempty" type:"Repeated"`
 	// System image ID
 	//
 	// example:
@@ -1073,6 +1189,10 @@ func (s *CreateClusterRequestNodeGroups) GetFileSystemMountEnabled() *bool {
 	return s.FileSystemMountEnabled
 }
 
+func (s *CreateClusterRequestNodeGroups) GetHyperNodes() []*CreateClusterRequestNodeGroupsHyperNodes {
+	return s.HyperNodes
+}
+
 func (s *CreateClusterRequestNodeGroups) GetImageId() *string {
 	return s.ImageId
 }
@@ -1119,6 +1239,11 @@ func (s *CreateClusterRequestNodeGroups) GetZoneId() *string {
 
 func (s *CreateClusterRequestNodeGroups) SetFileSystemMountEnabled(v bool) *CreateClusterRequestNodeGroups {
 	s.FileSystemMountEnabled = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroups) SetHyperNodes(v []*CreateClusterRequestNodeGroupsHyperNodes) *CreateClusterRequestNodeGroups {
+	s.HyperNodes = v
 	return s
 }
 
@@ -1178,6 +1303,188 @@ func (s *CreateClusterRequestNodeGroups) SetZoneId(v string) *CreateClusterReque
 }
 
 func (s *CreateClusterRequestNodeGroups) Validate() error {
+	if s.HyperNodes != nil {
+		for _, item := range s.HyperNodes {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.Nodes != nil {
+		for _, item := range s.Nodes {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.SystemDisk != nil {
+		if err := s.SystemDisk.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type CreateClusterRequestNodeGroupsHyperNodes struct {
+	DataDisk      []*CreateClusterRequestNodeGroupsHyperNodesDataDisk `json:"DataDisk,omitempty" xml:"DataDisk,omitempty" type:"Repeated"`
+	Hostname      *string                                             `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
+	HyperNodeId   *string                                             `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
+	LoginPassword *string                                             `json:"LoginPassword,omitempty" xml:"LoginPassword,omitempty"`
+	VSwitchId     *string                                             `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	VpcId         *string                                             `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+}
+
+func (s CreateClusterRequestNodeGroupsHyperNodes) String() string {
+	return dara.Prettify(s)
+}
+
+func (s CreateClusterRequestNodeGroupsHyperNodes) GoString() string {
+	return s.String()
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) GetDataDisk() []*CreateClusterRequestNodeGroupsHyperNodesDataDisk {
+	return s.DataDisk
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) GetHostname() *string {
+	return s.Hostname
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) GetHyperNodeId() *string {
+	return s.HyperNodeId
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) GetLoginPassword() *string {
+	return s.LoginPassword
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) GetVSwitchId() *string {
+	return s.VSwitchId
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) GetVpcId() *string {
+	return s.VpcId
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) SetDataDisk(v []*CreateClusterRequestNodeGroupsHyperNodesDataDisk) *CreateClusterRequestNodeGroupsHyperNodes {
+	s.DataDisk = v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) SetHostname(v string) *CreateClusterRequestNodeGroupsHyperNodes {
+	s.Hostname = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) SetHyperNodeId(v string) *CreateClusterRequestNodeGroupsHyperNodes {
+	s.HyperNodeId = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) SetLoginPassword(v string) *CreateClusterRequestNodeGroupsHyperNodes {
+	s.LoginPassword = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) SetVSwitchId(v string) *CreateClusterRequestNodeGroupsHyperNodes {
+	s.VSwitchId = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) SetVpcId(v string) *CreateClusterRequestNodeGroupsHyperNodes {
+	s.VpcId = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodes) Validate() error {
+	if s.DataDisk != nil {
+		for _, item := range s.DataDisk {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+type CreateClusterRequestNodeGroupsHyperNodesDataDisk struct {
+	BurstingEnabled  *bool   `json:"BurstingEnabled,omitempty" xml:"BurstingEnabled,omitempty"`
+	Category         *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	DeleteWithNode   *bool   `json:"DeleteWithNode,omitempty" xml:"DeleteWithNode,omitempty"`
+	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
+	ProvisionedIops  *int64  `json:"ProvisionedIops,omitempty" xml:"ProvisionedIops,omitempty"`
+	Size             *int32  `json:"Size,omitempty" xml:"Size,omitempty"`
+}
+
+func (s CreateClusterRequestNodeGroupsHyperNodesDataDisk) String() string {
+	return dara.Prettify(s)
+}
+
+func (s CreateClusterRequestNodeGroupsHyperNodesDataDisk) GoString() string {
+	return s.String()
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) GetBurstingEnabled() *bool {
+	return s.BurstingEnabled
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) GetCategory() *string {
+	return s.Category
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) GetDeleteWithNode() *bool {
+	return s.DeleteWithNode
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) GetPerformanceLevel() *string {
+	return s.PerformanceLevel
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) GetProvisionedIops() *int64 {
+	return s.ProvisionedIops
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) GetSize() *int32 {
+	return s.Size
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) SetBurstingEnabled(v bool) *CreateClusterRequestNodeGroupsHyperNodesDataDisk {
+	s.BurstingEnabled = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) SetCategory(v string) *CreateClusterRequestNodeGroupsHyperNodesDataDisk {
+	s.Category = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) SetDeleteWithNode(v bool) *CreateClusterRequestNodeGroupsHyperNodesDataDisk {
+	s.DeleteWithNode = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) SetPerformanceLevel(v string) *CreateClusterRequestNodeGroupsHyperNodesDataDisk {
+	s.PerformanceLevel = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) SetProvisionedIops(v int64) *CreateClusterRequestNodeGroupsHyperNodesDataDisk {
+	s.ProvisionedIops = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) SetSize(v int32) *CreateClusterRequestNodeGroupsHyperNodesDataDisk {
+	s.Size = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) Validate() error {
 	return dara.Validate(s)
 }
 
@@ -1279,10 +1586,20 @@ func (s *CreateClusterRequestNodeGroupsNodes) SetVpcId(v string) *CreateClusterR
 }
 
 func (s *CreateClusterRequestNodeGroupsNodes) Validate() error {
-	return dara.Validate(s)
+	if s.DataDisk != nil {
+		for _, item := range s.DataDisk {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateClusterRequestNodeGroupsNodesDataDisk struct {
+	BurstingEnabled *bool `json:"BurstingEnabled,omitempty" xml:"BurstingEnabled,omitempty"`
 	// Type
 	//
 	// example:
@@ -1301,6 +1618,7 @@ type CreateClusterRequestNodeGroupsNodesDataDisk struct {
 	//
 	// PL0
 	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
+	ProvisionedIops  *int64  `json:"ProvisionedIops,omitempty" xml:"ProvisionedIops,omitempty"`
 	// Disk size
 	//
 	// example:
@@ -1317,6 +1635,10 @@ func (s CreateClusterRequestNodeGroupsNodesDataDisk) GoString() string {
 	return s.String()
 }
 
+func (s *CreateClusterRequestNodeGroupsNodesDataDisk) GetBurstingEnabled() *bool {
+	return s.BurstingEnabled
+}
+
 func (s *CreateClusterRequestNodeGroupsNodesDataDisk) GetCategory() *string {
 	return s.Category
 }
@@ -1329,8 +1651,17 @@ func (s *CreateClusterRequestNodeGroupsNodesDataDisk) GetPerformanceLevel() *str
 	return s.PerformanceLevel
 }
 
+func (s *CreateClusterRequestNodeGroupsNodesDataDisk) GetProvisionedIops() *int64 {
+	return s.ProvisionedIops
+}
+
 func (s *CreateClusterRequestNodeGroupsNodesDataDisk) GetSize() *int32 {
 	return s.Size
+}
+
+func (s *CreateClusterRequestNodeGroupsNodesDataDisk) SetBurstingEnabled(v bool) *CreateClusterRequestNodeGroupsNodesDataDisk {
+	s.BurstingEnabled = &v
+	return s
 }
 
 func (s *CreateClusterRequestNodeGroupsNodesDataDisk) SetCategory(v string) *CreateClusterRequestNodeGroupsNodesDataDisk {
@@ -1345,6 +1676,11 @@ func (s *CreateClusterRequestNodeGroupsNodesDataDisk) SetDeleteWithNode(v bool) 
 
 func (s *CreateClusterRequestNodeGroupsNodesDataDisk) SetPerformanceLevel(v string) *CreateClusterRequestNodeGroupsNodesDataDisk {
 	s.PerformanceLevel = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsNodesDataDisk) SetProvisionedIops(v int64) *CreateClusterRequestNodeGroupsNodesDataDisk {
+	s.ProvisionedIops = &v
 	return s
 }
 

@@ -232,7 +232,22 @@ func (s *DescribeNetTestResultResponseBody) SetTrafficTest(v *DescribeNetTestRes
 }
 
 func (s *DescribeNetTestResultResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.CommTest != nil {
+		if err := s.CommTest.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.DelayTest != nil {
+		if err := s.DelayTest.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.TrafficTest != nil {
+		if err := s.TrafficTest.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeNetTestResultResponseBodyCommTest struct {
@@ -303,7 +318,16 @@ func (s *DescribeNetTestResultResponseBodyCommTest) SetType(v string) *DescribeN
 }
 
 func (s *DescribeNetTestResultResponseBodyCommTest) Validate() error {
-	return dara.Validate(s)
+	if s.Hosts != nil {
+		for _, item := range s.Hosts {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeNetTestResultResponseBodyCommTestHosts struct {
@@ -389,7 +413,16 @@ func (s *DescribeNetTestResultResponseBodyDelayTest) SetHosts(v []*DescribeNetTe
 }
 
 func (s *DescribeNetTestResultResponseBodyDelayTest) Validate() error {
-	return dara.Validate(s)
+	if s.Hosts != nil {
+		for _, item := range s.Hosts {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeNetTestResultResponseBodyDelayTestHosts struct {
@@ -578,7 +611,25 @@ func (s *DescribeNetTestResultResponseBodyTrafficTest) SetTrafficModel(v string)
 }
 
 func (s *DescribeNetTestResultResponseBodyTrafficTest) Validate() error {
-	return dara.Validate(s)
+	if s.Clients != nil {
+		for _, item := range s.Clients {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if s.Servers != nil {
+		for _, item := range s.Servers {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeNetTestResultResponseBodyTrafficTestClients struct {

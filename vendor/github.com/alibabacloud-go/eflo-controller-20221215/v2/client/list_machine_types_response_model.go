@@ -59,5 +59,10 @@ func (s *ListMachineTypesResponse) SetBody(v *ListMachineTypesResponseBody) *Lis
 }
 
 func (s *ListMachineTypesResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

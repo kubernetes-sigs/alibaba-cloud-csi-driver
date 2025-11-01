@@ -53,7 +53,16 @@ func (s *ListMachineNetworkInfoResponseBody) SetRequestId(v string) *ListMachine
 }
 
 func (s *ListMachineNetworkInfoResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.MachineNetworkInfo != nil {
+		for _, item := range s.MachineNetworkInfo {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListMachineNetworkInfoResponseBodyMachineNetworkInfo struct {
