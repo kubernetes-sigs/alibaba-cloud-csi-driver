@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 )
 
 func TestUpdateMountPointMetrics(t *testing.T) {
@@ -41,7 +40,7 @@ func TestUpdateMountPointMetrics(t *testing.T) {
 	}
 
 	mm := NewMountMonitorManager()
-	m := mm.GetMountMonitor("test-target", tempDir, nil, true)
+	m, _ := mm.GetMountMonitor("test-target", tempDir, nil, true)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -52,7 +51,7 @@ func TestUpdateMountPointMetrics(t *testing.T) {
 			}
 
 			// Call the function
-			m.updateMountPointMetrics(nil, nil, ptr.To(tt.handleErr != nil), tt.handleErr)
+			m.updateMountPointMetrics(nil, nil, tt.handleErr)
 
 			// Check mount_point_status file
 			statusFile := filepath.Join(tempDir, MetricsMountPointStatus)

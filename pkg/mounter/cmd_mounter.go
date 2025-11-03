@@ -27,10 +27,14 @@ func NewOssCmdMounter(execPath, volumeId string, inner mount.Interface) Mounter 
 	}
 }
 
-func (m *OssCmdMounter) ExtendedMount(source, target, fstype string, options []string, params ExtendedMountParams) error {
+func (m *OssCmdMounter) ExtendedMount(source, target, fstype string, options []string, params *ExtendedMountParams) error {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
 	defer cancel()
 
+	// Parameters in ExtendedMountParams are optional
+	if params == nil {
+		params = &ExtendedMountParams{}
+	}
 	passwd, err := utils.SaveOssSecretsToFile(params.Secrets, fstype)
 	if err != nil {
 		return err

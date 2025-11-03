@@ -21,7 +21,12 @@ func NewProxyMounter(socketPath string, inner mountutils.Interface) Mounter {
 	}
 }
 
-func (m *ProxyMounter) ExtendedMount(source, target, fstype string, options []string, params ExtendedMountParams) error {
+func (m *ProxyMounter) ExtendedMount(source, target, fstype string, options []string, params *ExtendedMountParams) error {
+	// Parameters in ExtendedMountParams are optional
+	if params == nil {
+		params = &ExtendedMountParams{}
+	}
+
 	dclient := client.NewClient(m.socketPath)
 	resp, err := dclient.Mount(&proxy.MountRequest{
 		Source:      source,
@@ -49,5 +54,5 @@ func (m *ProxyMounter) ExtendedMount(source, target, fstype string, options []st
 }
 
 func (m *ProxyMounter) Mount(source string, target string, fstype string, options []string) error {
-	return m.ExtendedMount(source, target, fstype, options, ExtendedMountParams{})
+	return m.ExtendedMount(source, target, fstype, options, nil)
 }

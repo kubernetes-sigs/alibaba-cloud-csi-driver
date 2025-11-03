@@ -56,13 +56,23 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	target := req.Target
 
 	// Get or create monitor for this target
-	monitor := h.monitorManager.GetMountMonitor(target, req.MetricsPath, h.raw, true)
+	var monitor *server.MountMonitor
+	if req.MetricsPath != "" {
+		var found bool
+		monitor, found = h.monitorManager.GetMountMonitor(target, req.MetricsPath, h.raw, true)
+		if monitor == nil {
+			klog.Errorf("Failed to get mount monitor for %s, stop monitoring mountpoint status", target)
+		} else if found {
+			monitor.IncreaseMountRetryCount()
+		}
+	}
 
 	// prepare passwd file
 	passwdFile, err := utils.SaveOssSecretsToFile(req.Secrets, req.Fstype)
 	if err != nil {
-		// Handle mount preparation failure
-		server.SafeHandleMountResult(monitor, nil, err)
+		if monitor != nil {
+			monitor.HandleMountFailureOrExit(err)
+		}
 		return err
 	}
 	options = append(options, "passwd_file="+passwdFile)
@@ -83,8 +93,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 
 	err = cmd.Start()
 	if err != nil {
-		// Handle mount start failure
-		server.SafeHandleMountResult(monitor, nil, fmt.Errorf("start ossfs failed: %w", err))
+		if monitor != nil {
+			monitor.HandleMountFailureOrExit(fmt.Errorf("start ossfs failed: %w", err))
+		}
 		return err
 	}
 
@@ -121,7 +132,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		// Immediate process-exit handling during mount attempt
 		// Assume the process exits with no error upon receiving SIGTERM,
 		// and exits with an error in case of unexpected failures.
-		server.SafeHandleMountResult(monitor, cmd, err)
+		if monitor != nil {
+			monitor.HandleMountFailureOrExit(err)
+		}
 		// Notify poll loop after metrics are updated
 		ossfsExited <- err
 		if err := os.Remove(passwdFile); err != nil {
@@ -152,10 +165,11 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	})
 
 	if err == nil {
-		// Handle mount result
-		server.SafeHandleMountResult(monitor, cmd, err)
-		// Start monitoring goroutine (ticker based only)
-		h.monitorManager.StartMonitoring(target)
+		if monitor != nil {
+			monitor.HandleMountSuccess(cmd)
+			// Start monitoring goroutine (ticker based only)
+			h.monitorManager.StartMonitoring(target)
+		}
 		return nil
 	}
 

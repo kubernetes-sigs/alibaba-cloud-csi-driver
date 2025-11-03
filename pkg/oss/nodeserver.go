@@ -171,7 +171,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		metricsPath := utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.Bucket)
 		err := ossfsMounter.ExtendedMount(
 			mountSource, targetPath, opts.FuseType,
-			mountOptions, mounter.ExtendedMountParams{
+			mountOptions, &mounter.ExtendedMountParams{
 				Secrets:     authCfg.Secrets,
 				MetricsPath: metricsPath,
 			})
@@ -193,7 +193,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		metricsPath := utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opts.FuseType, "oss", opts.Bucket, attachPath)
 		err := ossfsMounter.ExtendedMount(
 			mountSource, attachPath, opts.FuseType,
-			mountOptions, mounter.ExtendedMountParams{
+			mountOptions, &mounter.ExtendedMountParams{
 				Secrets:     authCfg.Secrets,
 				MetricsPath: metricsPath,
 			})
