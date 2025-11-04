@@ -1,5 +1,5 @@
 # syntax=registry-cn-hangzhou.ack.aliyuncs.com/dev/dockerfile:1.6
-FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.24.8 as build
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.24.9 as build
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 ARG TARGETARCH
 ARG TARGETOS
