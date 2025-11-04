@@ -76,6 +76,8 @@ pkg/cloud/ecsmock.go: pkg/cloud/ecsinterface.go
 	go tool mockgen -source pkg/cloud/ecsinterface.go -destination $@ -package cloud
 pkg/cloud/eflomock.go: pkg/cloud/eflointerface.go
 	go tool mockgen -source pkg/cloud/eflointerface.go -destination $@ -package cloud
+pkg/cloud/stsmock.go: pkg/cloud/stsinterface.go
+	go tool mockgen -source pkg/cloud/stsinterface.go -destination $@ -package cloud
 
 PROTOC=protoc
 pkg/disk/proto/disk.pb.go pkg/disk/proto/disk_ttrpc.pb.go: pkg/disk/disk.proto

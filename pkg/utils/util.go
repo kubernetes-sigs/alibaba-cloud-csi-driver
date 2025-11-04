@@ -31,9 +31,9 @@ import (
 	"strings"
 	"time"
 
+	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/go-ping/ping"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
@@ -272,27 +272,23 @@ func NewEcsClient(ac AccessControl) (ecsClient *ecs.Client) {
 	return
 }
 
-// NewStsClient create a stsClient object
-// TODO: The current region is set to the default value. Need to obtain the actual region.
-func NewStsClient(ac AccessControl) (stsClient *sts.Client) {
-	if ep := os.Getenv("STS_ENDPOINT"); ep != "" {
-		_ = aliyunep.AddEndpointMapping(DefaultRegion, "Sts", ep)
+func getOpenAPIConfig(regionID string) *openapi.Config {
+	config := &openapi.Config{RegionId: &regionID}
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		config.Protocol = &e
 	}
-	var err error
-	switch ac.UseMode {
-	case AccessKey:
-		stsClient, err = sts.NewClientWithAccessKey(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret)
-	case Credential:
-		stsClient, err = sts.NewClientWithOptions(DefaultRegion, ac.Config, ac.Credential)
-	default:
-		stsClient, err = sts.NewClientWithStsToken(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+	if e := os.Getenv("ALIBABA_CLOUD_NETWORK_TYPE"); e != "" {
+		config.Network = &e
+	}
+	return config
+}
 
+func GetStsConfig(regionID string) *openapi.Config {
+	config := getOpenAPIConfig(regionID)
+	if e := os.Getenv("STS_ENDPOINT"); e != "" {
+		config.Endpoint = &e
 	}
-
-	if err != nil {
-		return nil
-	}
-	return
+	return config
 }
 
 // IsDir check file is directory

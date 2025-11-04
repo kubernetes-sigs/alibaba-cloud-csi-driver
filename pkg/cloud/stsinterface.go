@@ -1,7 +1,7 @@
 package cloud
 
-import "github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
+import sts20150401 "github.com/alibabacloud-go/sts-20150401/v2/client"
 
 type STSInterface interface {
-	GetCallerIdentity(request *sts.GetCallerIdentityRequest) (response *sts.GetCallerIdentityResponse, err error)
+	GetCallerIdentity() (response *sts20150401.GetCallerIdentityResponse, err error)
 }
