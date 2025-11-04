@@ -2,12 +2,15 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
 go 1.24
 
+tool github.com/golang/mock/mockgen
+
 require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.12
 	github.com/alibabacloud-go/eflo-controller-20221215/v2 v2.7.0
 	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
 	github.com/alibabacloud-go/nas-20170626/v4 v4.1.2
+	github.com/alibabacloud-go/sts-20150401/v2 v2.0.4
 	github.com/alibabacloud-go/tea v1.3.12
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
 	github.com/aliyun/credentials-go v1.4.5
@@ -85,10 +88,13 @@ require (
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
+	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
+	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
