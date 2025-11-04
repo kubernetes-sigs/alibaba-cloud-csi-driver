@@ -26,7 +26,7 @@ RUN set -ex; \
         linux/arm64) ARCH="aarch_64" ;; \
         *) echo "unknown platform"; exit 1 ;; \
     esac; \
-    yum install -y fuse-devel util-linux mailcap procps tini; \
+    yum install -y fuse-devel util-linux mailcap procps python38 tini; \
     yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${ARCH}.rpm; \
     if [ "${ARCH}" = "x86_64" ]; then \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
@@ -34,7 +34,8 @@ RUN set -ex; \
         yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${ARCH}.rpm; \
         cp -r /etc/aliyun /etc/aliyun-defaults; \
     fi; \
-    yum clean all
+    yum clean all; \
+    update-alternatives --set python3 /usr/bin/python3.8
 
 
 COPY --link --from=builder /out/csi-mount-proxy-server /usr/local/bin/
