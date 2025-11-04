@@ -8,8 +8,9 @@ import (
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
+	alicred_old "github.com/aliyun/credentials-go/credentials"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
 	"go.uber.org/ratelimit"
 	"k8s.io/klog/v2"
@@ -36,11 +37,11 @@ func NewNasClientV2(region string) (*sdk.Client, error) {
 			Headers: headersV2,
 		})
 	// set credential
-	cred, err := utils.GetCredentialV2()
+	provider, err := credentials.NewProvider()
 	if err != nil {
-		return nil, fmt.Errorf("init credential: %w", err)
+		return nil, fmt.Errorf("failed to fetch credential: %w", err)
 	}
-	config = config.SetCredential(cred)
+	config = config.SetCredential(alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider))
 	// set endpoint
 	ep := os.Getenv("NAS_ENDPOINT")
 	if ep == "" {

@@ -9,8 +9,8 @@ import (
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	sdkerrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	nassdk "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
 )
 
@@ -25,14 +25,13 @@ func newNasClientV1(region string) (interfaces.NasV1Interface, error) {
 		_ = aliyunep.AddEndpointMapping(region, "Nas", ep)
 	}
 
-	ac := utils.GetAccessControl()
-	if ac.Credential == nil {
-		return nil, errors.New("failed to fetch credential")
+	provider, err := credentials.NewProvider()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch credential: %w", err)
 	}
-	config := ac.Config
-	if config == nil {
-		config = sdk.NewConfig()
-	}
+	credential := credentials.V1ProviderAdaptor(provider)
+
+	config := sdk.NewConfig()
 	scheme := "HTTPS"
 	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
 		scheme = e
@@ -42,7 +41,7 @@ func newNasClientV1(region string) (interfaces.NasV1Interface, error) {
 	if len(headers) > 0 {
 		config.Transport = utilshttp.RoundTripperWithHeader(config.Transport, headers)
 	}
-	client, err := nassdk.NewClientWithOptions(region, config, ac.Credential)
+	client, err := nassdk.NewClientWithOptions(region, config, credential)
 	return client, err
 }
 
