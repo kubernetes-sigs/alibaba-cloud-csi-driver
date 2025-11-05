@@ -107,10 +107,11 @@ const (
 	PROVISIONED_IOPS_KEY = "provisionedIops"
 	BURSTING_ENABLED_KEY = "burstingEnabled"
 
-	EXT4_FSTYPE = "ext4"
-	EXT3_FSTYPE = "ext3"
-	XFS_FSTYPE  = "xfs"
-	NTFS_FSTYPE = "ntfs"
+	EXT4_FSTYPE  = "ext4"
+	EXT3_FSTYPE  = "ext3"
+	XFS_FSTYPE   = "xfs"
+	NTFS_FSTYPE  = "ntfs"
+	EROFS_FSTYPE = "erofs"
 
 	SNAPSHOT_MAX_RETENTION_DAYS = 65536
 	SNAPSHOT_MIN_RETENTION_DAYS = 1
