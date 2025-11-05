@@ -4,7 +4,12 @@ import (
 	mountutils "k8s.io/mount-utils"
 )
 
+type ExtendedMountParams struct {
+	Secrets     map[string]string
+	MetricsPath string
+}
+
 type Mounter interface {
 	mountutils.Interface
-	MountWithSecrets(source, target, fstype string, options []string, secrets map[string]string) error
+	ExtendedMount(source, target, fstype string, options []string, params *ExtendedMountParams) error
 }

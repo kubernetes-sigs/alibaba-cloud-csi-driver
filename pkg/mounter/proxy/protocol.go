@@ -36,10 +36,11 @@ func (r *Response) ToError() error {
 }
 
 type MountRequest struct {
-	Source     string            `json:"source,omitempty"`
-	Target     string            `json:"target,omitempty"`
-	Fstype     string            `json:"fstype,omitempty"`
-	Options    []string          `json:"options,omitempty"`
-	MountFlags []string          `json:"mountFlags,omitempty"`
-	Secrets    map[string]string `json:"secrets,omitempty"`
+	Source      string            `json:"source,omitempty"`
+	Target      string            `json:"target,omitempty"`
+	Fstype      string            `json:"fstype,omitempty"`
+	Options     []string          `json:"options,omitempty"`
+	MountFlags  []string          `json:"mountFlags,omitempty"`
+	Secrets     map[string]string `json:"secrets,omitempty"`
+	MetricsPath string            `json:"metricsPath,omitempty"`
 }
