@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,14 +28,14 @@ func TestUpdateMountPointMetrics(t *testing.T) {
 			name:      "success case - no error",
 			handleErr: nil,
 			wantFiles: map[string]string{
-				MetricsMountPointStatus: "0",
+				utils.MetricsMountPointStatus: "0",
 			},
 		},
 		{
 			name:      "error case - with error",
 			handleErr: fmt.Errorf("test error"),
 			wantFiles: map[string]string{
-				MetricsMountPointStatus: "1",
+				utils.MetricsMountPointStatus: "1",
 			},
 		},
 	}
@@ -54,14 +55,14 @@ func TestUpdateMountPointMetrics(t *testing.T) {
 			m.updateMountPointMetrics(nil, nil, tt.handleErr)
 
 			// Check mount_point_status file
-			statusFile := filepath.Join(tempDir, MetricsMountPointStatus)
+			statusFile := filepath.Join(tempDir, utils.MetricsMountPointStatus)
 			content, err := os.ReadFile(statusFile)
 			require.NoError(t, err)
-			assert.Equal(t, tt.wantFiles[MetricsMountPointStatus], string(content))
+			assert.Equal(t, tt.wantFiles[utils.MetricsMountPointStatus], string(content))
 
 			// Check last_fuse_client_exit_reason file (only when there's an error)
 			if tt.handleErr != nil {
-				reasonFile := filepath.Join(tempDir, MetricsLastFuseClientExitReason)
+				reasonFile := filepath.Join(tempDir, utils.MetricsLastFuseClientExitReason)
 				content, err := os.ReadFile(reasonFile)
 				require.NoError(t, err)
 				reasonContent := string(content)

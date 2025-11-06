@@ -9,16 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 	mountutils "k8s.io/mount-utils"
-)
-
-const (
-	MetricsMountRetryCount          = "mount_retry_count"
-	MetricsMountPointStatus         = "mount_point_status"
-	MetricsMountPointFailoverCount  = "mount_point_failover_count"
-	MetricsLastFuseClientExitReason = "last_fuse_client_exit_reason"
 )
 
 var maxCountRecord int = 999
@@ -33,8 +27,10 @@ const (
 
 // MountMonitor manages monitoring for a single mount point
 type MountMonitor struct {
-	Target      string
-	Pid         int
+	Target string
+	Pid    int
+	// Note: MetricsPath is the host path volume mount point,
+	// recycled by CSI nodeUnstageVolume
 	MetricsPath string
 	State       MonitorState
 	mu          sync.RWMutex
@@ -47,7 +43,13 @@ type MountMonitor struct {
 
 // MountMonitorManager manages multiple mount monitors
 type MountMonitorManager struct {
-	monitors sync.Map // map[string]*MountMonitor - key is target path
+	// map[string]*MountMonitor - key is target path
+	// Monitors Lifecycle:
+	// - Creation: Monitors are created during the initial mount operation.
+	// - Termination: All monitors will be terminated together when the mount-proxy lifecycle ends.
+	// TODO: Need to handle the compatibility for cases where the lifecycle of mount-proxy
+	// (e.g., efc) and fuse client are not consistent.
+	monitors sync.Map
 	wg       sync.WaitGroup
 }
 
@@ -136,9 +138,24 @@ func (m *MountMonitor) HandleMountSuccess(process *exec.Cmd) {
 	klog.InfoS("Mount succeeded", "target", m.Target, "pid", m.Pid)
 }
 
-// Stop stops the monitoring
+// Stop stops the monitoring and cleans up metrics files
 func (m *MountMonitor) Stop() {
+	// Close stopCh first to signal monitoring goroutine to stop
 	close(m.stopCh)
+
+	// MetricsPath is a hostPath mount point in the pod, we should only remove files inside,
+	// not the directory itself, CSI nodeUnstageVolume will clean up the directory.
+	if m.MetricsPath != "" {
+		// Remove only the metrics files we created, not the entire directory
+		for _, filename := range utils.MountpointMetricsArray {
+			filePath := filepath.Join(m.MetricsPath, filename)
+			if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+				klog.ErrorS(err, "Failed to remove metrics file", "target", m.Target, "file", filePath)
+			}
+		}
+
+		klog.V(4).InfoS("Cleaned up metrics files", "target", m.Target, "path", m.MetricsPath)
+	}
 }
 
 // WaitForAllMonitoring waits for all monitoring goroutines to finish with timeout
@@ -200,7 +217,7 @@ func (m *MountMonitor) checkAndUpdateMountStatus() {
 	if m.State != MonitorStateMonitoring {
 		return
 	}
-	old := m.readMetricsFiles(MetricsMountPointStatus)
+	old := m.readMetricsFiles(utils.MetricsMountPointStatus)
 	// metrics file stores notHealthy as "1", healthy as "0"
 	oldUnhealthy := old == "1"
 	// Check mount point status
@@ -232,44 +249,44 @@ func (m *MountMonitor) updateMountPointMetrics(
 	lastExistError error) {
 	if retryCont != nil {
 		// Update mount_retry_count
-		retryFile := filepath.Join(m.MetricsPath, MetricsMountRetryCount)
+		retryFile := filepath.Join(m.MetricsPath, utils.MetricsMountRetryCount)
 		if err := os.WriteFile(retryFile, []byte(strconv.Itoa(*retryCont)), 0644); err != nil {
-			klog.ErrorS(err, "Failed to update %s", MetricsMountRetryCount)
+			klog.ErrorS(err, "Failed to update %s", utils.MetricsMountRetryCount)
 		}
-		klog.V(5).Infof("Update %s: %d", MetricsMountRetryCount, *retryCont)
+		klog.V(5).Infof("Update %s: %d", utils.MetricsMountRetryCount, *retryCont)
 	}
 	if failoverCont != nil {
 		// Update mount_point_failover_count
-		failoverFile := filepath.Join(m.MetricsPath, MetricsMountPointFailoverCount)
+		failoverFile := filepath.Join(m.MetricsPath, utils.MetricsMountPointFailoverCount)
 		if err := os.WriteFile(failoverFile, []byte(strconv.Itoa(*failoverCont)), 0644); err != nil {
-			klog.ErrorS(err, "Failed to update %s: %v", MetricsMountPointFailoverCount, err)
+			klog.ErrorS(err, "Failed to update %s: %v", utils.MetricsMountPointFailoverCount, err)
 		}
-		klog.V(5).Infof("Update %s: %d", MetricsMountPointFailoverCount, *failoverCont)
+		klog.V(5).Infof("Update %s: %d", utils.MetricsMountPointFailoverCount, *failoverCont)
 	}
 	if lastExistError != nil {
 		// Update last_fuse_client_exit_reason
-		statusFile := filepath.Join(m.MetricsPath, MetricsLastFuseClientExitReason)
+		statusFile := filepath.Join(m.MetricsPath, utils.MetricsLastFuseClientExitReason)
 		currentTime := time.Now().Format(time.RFC3339)
 		errorMessage := fmt.Sprintf("%s:: %s", currentTime, lastExistError.Error())
 		if err := os.WriteFile(statusFile, []byte(errorMessage), 0644); err != nil {
-			klog.ErrorS(err, "Failed to update %s: %v", MetricsLastFuseClientExitReason, err)
+			klog.ErrorS(err, "Failed to update %s: %v", utils.MetricsLastFuseClientExitReason, err)
 		}
-		klog.V(5).Infof("Update %s: %s", MetricsLastFuseClientExitReason, errorMessage)
+		klog.V(5).Infof("Update %s: %s", utils.MetricsLastFuseClientExitReason, errorMessage)
 	}
 	{
 		notHealthy := lastExistError != nil
 		// Update mount_point_status
-		statusFile := filepath.Join(m.MetricsPath, MetricsMountPointStatus)
+		statusFile := filepath.Join(m.MetricsPath, utils.MetricsMountPointStatus)
 		if err := os.WriteFile(statusFile, []byte(boolToBinaryString(notHealthy)), 0644); err != nil {
-			klog.ErrorS(err, "Failed to update %s: %v", MetricsMountPointStatus, err)
+			klog.ErrorS(err, "Failed to update %s: %v", utils.MetricsMountPointStatus, err)
 		}
-		klog.V(5).Infof("Update %s: %t", MetricsMountPointStatus, notHealthy)
+		klog.V(5).Infof("Update %s: %t", utils.MetricsMountPointStatus, notHealthy)
 	}
 }
 
 func (m *MountMonitor) readMetricsFiles(metrics string) string {
 	switch metrics {
-	case MetricsMountPointFailoverCount, MetricsLastFuseClientExitReason, MetricsMountPointStatus, MetricsMountRetryCount:
+	case utils.MetricsMountPointFailoverCount, utils.MetricsLastFuseClientExitReason, utils.MetricsMountPointStatus, utils.MetricsMountRetryCount:
 		file := filepath.Join(m.MetricsPath, metrics)
 		content, err := os.ReadFile(file)
 		if err != nil && !os.IsNotExist(err) {

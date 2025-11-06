@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog/v2"
@@ -15,17 +14,10 @@ import (
 var (
 	fsClientPathPrefix      = "/host/var/run/"
 	fsClientTypeArray       = []string{"ossfs", "efc"}
-	podInfo                 = "pod_info"
-	mountPointInfo          = "mount_point_info"
-	counterTypeArray        = []string{"capacity_counter", "inodes_counter", "throughput_counter", "iops_counter", "latency_counter", "posix_counter", "oss_object_counter"}
+	counterTypeArray        = utils.CounterTypeMetricsArray
 	backendCounterTypeArray = []string{"backend_throughput_counter", "backend_iops_counter", "backend_latency_counter", "backend_meta_qps_ounter"}
-	hotSpotArray            = []string{"hot_spot_read_file_top", "hot_spot_write_file_top", "hot_spot_head_file_top"}
-	mountPointStatusArray   = []string{
-		server.MetricsMountRetryCount,
-		server.MetricsMountPointStatus,
-		server.MetricsMountPointFailoverCount,
-		server.MetricsLastFuseClientExitReason,
-	}
+	hotSpotArray            = utils.HotSpotMetricsArray
+	mountPointStatusArray   = utils.MountpointMetricsArray
 )
 
 var (
@@ -316,22 +308,22 @@ var (
 		usFsStatLabelNames, nil,
 	)
 	mountRetryTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, server.MetricsMountRetryCount),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, utils.MetricsMountRetryCount),
 		".",
 		usFsStatLabelNames, nil,
 	)
 	mountPointStatusDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, server.MetricsMountPointStatus),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, utils.MetricsMountPointStatus),
 		".",
 		usFsStatLabelNames, nil,
 	)
 	mountPointFailoverTotalCountDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, server.MetricsMountPointFailoverCount),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, utils.MetricsMountPointFailoverCount),
 		".",
 		usFsStatLabelNames, nil,
 	)
 	lastFuseClientExitReasonDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, server.MetricsLastFuseClientExitReason),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, utils.MetricsLastFuseClientExitReason),
 		".",
 		usFsStatLabelNames, nil,
 	)
@@ -674,7 +666,7 @@ func (p *usFsStatCollector) postBackendCounterMetrics(counterType string, fsClie
 func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsClientInfo *fuseInfo, metricsArray []string, ch chan<- prometheus.Metric) {
 	var err error
 	for _, value := range metricsArray {
-		if statusType == server.MetricsLastFuseClientExitReason {
+		if statusType == utils.MetricsLastFuseClientExitReason {
 			labels := p.getCommonLabels(fsClientInfo, "", value)
 			ch <- p.lastFuseClientExitReason.mustNewConstMetric(1, labels...)
 			continue
@@ -689,11 +681,11 @@ func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsCli
 
 		labels := p.getCommonLabels(fsClientInfo, "", "")
 		switch statusType {
-		case server.MetricsMountRetryCount:
+		case utils.MetricsMountRetryCount:
 			ch <- p.mountRetryTotalCounter.mustNewConstMetric(valueFloat64, labels...)
-		case server.MetricsMountPointStatus:
+		case utils.MetricsMountPointStatus:
 			ch <- p.mountPointStatus.mustNewConstMetric(valueFloat64, labels...)
-		case server.MetricsMountPointFailoverCount:
+		case utils.MetricsMountPointFailoverCount:
 			ch <- p.mountPointFailoverTotalCounter.mustNewConstMetric(valueFloat64, labels...)
 		}
 	}
@@ -712,7 +704,7 @@ func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 		//foreach pod uid
 		for _, subDir := range subDirArray {
 			//stat pod_info, if exists, updateExclusiveMetrics; else updateSharedMetrics
-			if utils.IsFileExisting(filepath.Join(fsClientPathPrefix, fsClientType, subDir, podInfo)) {
+			if utils.IsFileExisting(filepath.Join(fsClientPathPrefix, fsClientType, subDir, utils.PodInfoFile)) {
 				// subDir -> podUid
 				p.updateExclusiveMetrics(fsClientType, subDir, fsClientInfo, ch)
 				continue
@@ -726,7 +718,7 @@ func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 
 func (p *usFsStatCollector) updateExclusiveMetrics(fsClientType, podUid string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
 	//get pod info
-	podInfoArray, err := readFirstLines(filepath.Join(fsClientPathPrefix, fsClientType, podUid, podInfo))
+	podInfoArray, err := readFirstLines(filepath.Join(fsClientPathPrefix, fsClientType, podUid, utils.PodInfoFile))
 	if err != nil {
 		return
 	}
@@ -756,7 +748,7 @@ func (p *usFsStatCollector) updateSharedMetrics(fsClientType, subDir string, fsC
 }
 
 func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
-	mountPointInfoArray, err := readFirstLines(filepath.Join(volPath, mountPointInfo))
+	mountPointInfoArray, err := readFirstLines(filepath.Join(volPath, utils.MountPointInfoFile))
 	if err != nil {
 		return
 	}
@@ -796,7 +788,7 @@ func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInf
 	// foreach mountpoint status related metrics
 	for _, mountPointStatus := range mountPointStatusArray {
 		var metricsArray []string
-		if mountPointStatus == server.MetricsLastFuseClientExitReason {
+		if mountPointStatus == utils.MetricsLastFuseClientExitReason {
 			metrics, err := readAllContent(filepath.Join(volPath, mountPointStatus))
 			if err != nil {
 				continue

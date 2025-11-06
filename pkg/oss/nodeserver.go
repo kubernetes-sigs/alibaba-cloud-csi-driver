@@ -266,6 +266,9 @@ func (ns *nodeServer) NodeUnstageVolume(
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", attachPath, err)
 	}
 
+	// The metricsPath in fuse Pod will be cleaned and not allowed to update the metrics
+	utils.RemoveMetrics(metricsPathPrefix, req)
+
 	// In the legacy mount process, NodePublishVolume creates ossfs pods in kube-system namespace to mount oss.
 	// We still need to umount the mountpoint in case csi-plugin is upgraded from these versions.
 	err = mountutils.CleanupMountPoint(req.StagingTargetPath, ns.rawMounter, false)
