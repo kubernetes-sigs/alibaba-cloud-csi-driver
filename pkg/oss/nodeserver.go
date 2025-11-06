@@ -19,7 +19,6 @@ package oss
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -268,12 +267,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 	}
 
 	// The metricsPath in fuse Pod will be cleaned and not allowed to update the metrics
-	metricsPath := utils.GetFuseMetricsMountDir(metricsPathPrefix, req.VolumeId)
-	if err := os.RemoveAll(metricsPath); err != nil {
-		klog.ErrorS(err, "Failed to remove metrics path", "volume", req.VolumeId, "path", metricsPath)
-	} else {
-		klog.V(4).InfoS("Removed metrics path", "volume", req.VolumeId, "path", metricsPath)
-	}
+	utils.RemoveMetrics(metricsPathPrefix, req)
 
 	// In the legacy mount process, NodePublishVolume creates ossfs pods in kube-system namespace to mount oss.
 	// We still need to umount the mountpoint in case csi-plugin is upgraded from these versions.

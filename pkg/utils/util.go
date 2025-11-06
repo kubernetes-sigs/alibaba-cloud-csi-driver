@@ -18,7 +18,6 @@ package utils
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,7 +37,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/go-ping/ping"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
-	"golang.org/x/sys/unix"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -306,48 +304,6 @@ func IsDir(path string) bool {
 	return s.IsDir()
 }
 
-// GetMetrics get path metric
-func GetMetrics(path string) (*csi.NodeGetVolumeStatsResponse, error) {
-	if path == "" {
-		return nil, fmt.Errorf("getMetrics No path given")
-	}
-	statfs := &unix.Statfs_t{}
-	err := unix.Statfs(path, statfs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Available is blocks available * fragment size
-	available := int64(statfs.Bavail) * int64(statfs.Bsize)
-
-	// Capacity is total block count * fragment size
-	capacity := int64(statfs.Blocks) * int64(statfs.Bsize)
-
-	// Usage is block being used * fragment size (aka block size).
-	usage := (int64(statfs.Blocks) - int64(statfs.Bfree)) * int64(statfs.Bsize)
-
-	inodes := int64(statfs.Files)
-	inodesFree := int64(statfs.Ffree)
-	inodesUsed := inodes - inodesFree
-
-	return &csi.NodeGetVolumeStatsResponse{
-		Usage: []*csi.VolumeUsage{
-			{
-				Available: available,
-				Total:     capacity,
-				Used:      usage,
-				Unit:      csi.VolumeUsage_BYTES,
-			},
-			{
-				Available: inodesFree,
-				Total:     inodes,
-				Used:      inodesUsed,
-				Unit:      csi.VolumeUsage_INODES,
-			},
-		},
-	}, nil
-}
-
 // GetFileContent get file content
 func GetFileContent(fileName string) string {
 	volumeFile := path.Join(fileName)
@@ -606,62 +562,6 @@ func IsPathAvailable(path string) error {
 		return fmt.Errorf("Read Path (%s) with error: %v ", path, err)
 	}
 	return nil
-}
-
-func GetFuseMetricsMountDir(metricsPathPrefix, volumeId string) string {
-	return filepath.Join(metricsPathPrefix, fmt.Sprintf("%x", sha256.Sum256([]byte(volumeId))))
-}
-
-func WriteSharedMetricsInfo(metricsPathPrefix string,
-	req *csi.NodePublishVolumeRequest,
-	clientName string, storageBackendName string, fsName string, sharedPath string) (
-	mountPointPath string,
-) {
-	mountPointPath = GetFuseMetricsMountDir(metricsPathPrefix, req.GetVolumeId())
-	mountPointName := "mount_point_info"
-	if !IsFileExisting(mountPointPath) {
-		_ = os.MkdirAll(mountPointPath, os.FileMode(0755))
-	}
-	if !IsFileExisting(filepath.Join(mountPointPath, mountPointName)) {
-		info := clientName + " " +
-			storageBackendName + " " +
-			fsName + " " +
-			req.GetVolumeId() + " " +
-			sharedPath
-		_ = WriteAndSyncFile(filepath.Join(mountPointPath, mountPointName), []byte(info), os.FileMode(0644))
-	}
-	return strings.TrimPrefix(mountPointPath, hostPrefix)
-}
-
-func WriteMetricsInfo(metricsPathPrefix string,
-	req *csi.NodePublishVolumeRequest,
-	metricsTop string, clientName string, storageBackendName string, fsName string) (
-	mountPointPath string,
-) {
-	podUIDPath := metricsPathPrefix + req.VolumeContext["csi.storage.k8s.io/pod.uid"] + "/"
-	mountPointPath = podUIDPath + req.GetVolumeId() + "/"
-	podInfoName := "pod_info"
-	mountPointName := "mount_point_info"
-	if !IsFileExisting(mountPointPath) {
-		_ = os.MkdirAll(mountPointPath, os.FileMode(0755))
-	}
-	if !IsFileExisting(podUIDPath + podInfoName) {
-		info := req.VolumeContext["csi.storage.k8s.io/pod.namespace"] + " " +
-			req.VolumeContext["csi.storage.k8s.io/pod.name"] + " " +
-			req.VolumeContext["csi.storage.k8s.io/pod.uid"] + " " +
-			metricsTop
-		_ = WriteAndSyncFile(podUIDPath+podInfoName, []byte(info), os.FileMode(0644))
-	}
-
-	if !IsFileExisting(mountPointPath + mountPointName) {
-		info := clientName + " " +
-			storageBackendName + " " +
-			fsName + " " +
-			req.GetVolumeId() + " " +
-			req.TargetPath
-		_ = WriteAndSyncFile(mountPointPath+mountPointName, []byte(info), os.FileMode(0644))
-	}
-	return strings.TrimPrefix(mountPointPath, hostPrefix)
 }
 
 // formatAndMount uses unix utils to format and mount the given disk
