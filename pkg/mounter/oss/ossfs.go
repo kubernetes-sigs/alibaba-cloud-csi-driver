@@ -21,7 +21,7 @@ import (
 )
 
 var defaultOssfsImageTag = "v1.88.4-80d165c-aliyun"
-var defaultOssfsUpdatedImageTag = "v1.91.8.ack.2-98ce9e9"
+var defaultOssfsUpdatedImageTag = "v1.91.8.ack.3-b0e4403"
 var defaultOssfsDbglevel = mounterutils.DebugLevelWarn
 
 const (
