@@ -73,6 +73,9 @@ const (
 	instanceTypeInfoAnnotation = "alibabacloud.com/instance-type-info"
 )
 
+// LingjunConfigFile is used to detect Lingjun node on the node side
+var LingjunConfigFile = "/host/etc/eflo_config/lingjun_config"
+
 // DefaultOptions is the struct for access key
 type DefaultOptions struct {
 	Global struct {
@@ -1407,4 +1410,26 @@ func (d DiskSize) String() string {
 		return fmt.Sprintf("%d GiB", d.Bytes/GBSIZE)
 	}
 	return fmt.Sprintf("%.3f GiB (0x%X)", float64(d.Bytes)/GBSIZE, d.Bytes)
+}
+
+// isLingjunNode checks if the node is a Lingjun node.
+// Priority:
+// 1) If the given node is the local node (matches env KUBE_NODE_NAME), detect by lingjun_config file like pkg/bmcpfs
+// 2) Fallback to node label alibabacloud.com/lingjun-worker == true
+func isLingjunNode(node *v1.Node) bool {
+	if data, err := os.ReadFile(LingjunConfigFile); err == nil {
+		var cfg struct {
+			NodeId string `json:"NodeId"`
+		}
+		if json.Unmarshal(data, &cfg) == nil && cfg.NodeId != "" {
+			return true
+		}
+	}
+	if node == nil {
+		return false
+	}
+	if value := node.Labels["alibabacloud.com/lingjun-worker"]; value == "true" {
+		return true
+	}
+	return false
 }

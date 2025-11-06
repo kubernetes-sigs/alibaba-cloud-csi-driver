@@ -37,6 +37,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
@@ -260,4 +261,42 @@ func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batch
 
 func defaultThrottler() *throttle.Throttler {
 	return throttle.NewThrottler(clock.RealClock{}, 1*time.Second, 10*time.Second)
+}
+
+// parseLingjunNodeDiskTypes parses allowed disk types for Lingjun nodes from a comma-separated string.
+// If value is nil or empty, default to essd_auto & cloud_essd.
+// Example: "cloud_essd,cloud_auto". Unknown entries are ignored.
+func parseLingjunNodeDiskTypes(value string) []string {
+	// Defaults per requirement
+	defaultTypes := []string{string(DiskESSDAuto), string(DiskESSD)}
+	s := strings.TrimSpace(value)
+	if s == "" {
+		klog.Info("parseLingjunNodeDiskTypes: empty input, using defaults")
+		return defaultTypes
+	}
+
+	parts := strings.Split(s, ",")
+	res := sets.New[Category]()
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		// Only accept exact category keys defined in AllCategories
+		if _, ok := AllCategories[Category(p)]; ok {
+			res.Insert(Category(p))
+		} else {
+			klog.Warningf("parseLingjunNodeDiskTypes: unknown disk category '%s', ignoring", p)
+		}
+	}
+	if res.Len() == 0 {
+		klog.Warning("parseLingjunNodeDiskTypes: no valid types parsed, using defaults")
+		return defaultTypes
+	}
+	cateList := []string{}
+	for cate := range res {
+		cateList = append(cateList, string(cate))
+	}
+	klog.Infof("parseLingjunNodeDiskTypes: parsed types: %v", cateList)
+	return cateList
 }
