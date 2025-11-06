@@ -223,3 +223,32 @@ func TestFallbackCNFSAndRecord(t *testing.T) {
 		})
 	}
 }
+
+func TestIsValidServer(t *testing.T) {
+	tests := []struct {
+		arg      string
+		expected bool
+	}{
+		{
+			arg:      "valid.nfs.server",
+			expected: true,
+		},
+		{
+			arg:      "invalid:nfs:server",
+			expected: false,
+		},
+		{
+			arg:      "[valid::ipv6:nfs:server]",
+			expected: true,
+		},
+		{
+			arg:      "[invalid:ipv6:nfs:server]:",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		actual := isValidServer(tt.arg)
+		assert.Equal(t, tt.expected, actual)
+	}
+}
