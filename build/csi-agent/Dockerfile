@@ -18,24 +18,25 @@ ARG TARGETPLATFORM
 # The versions specified here are for RPM packages, which may not necessarily align with the image version
 ARG OSSFS_VERSION=v1.91.8.ack.2
 ARG OSSFS2_VERSION=v2.0.2beta.ack.2
-ARG ALINAS_UTILS_VERSION=1.6-1.20241101165952.ce0ef4
-ARG EFC_VERSION=1.6-20241028201622.a31063
+ARG ALINAS_UTILS_VERSION=1.8-0.20250410201011.30aa55.al7
+ARG EFC_VERSION=1.8-20250226151552.7151bf.release
 RUN set -ex; \
     case "${TARGETPLATFORM}" in \
         linux/amd64) ARCH="x86_64" ;; \
         linux/arm64) ARCH="aarch_64" ;; \
         *) echo "unknown platform"; exit 1 ;; \
     esac; \
-    yum install -y fuse-devel util-linux mailcap procps tini; \
+    yum install -y fuse-devel util-linux mailcap procps python38 tini; \
     yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${ARCH}.rpm; \
     if [ "${ARCH}" = "x86_64" ]; then \
-        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.al7.noarch.rpm; \
-        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.release.${ARCH}.rpm; \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
         yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${ARCH}.rpm; \
+        cp -r /etc/aliyun /etc/aliyun-defaults; \
     fi; \
-    yum clean all
+    yum clean all; \
+    update-alternatives --set python3 /usr/bin/python3.8
 
-RUN cp -r /etc/aliyun /etc/aliyun-defaults
 
 COPY --link --from=builder /out/csi-mount-proxy-server /usr/local/bin/
 COPY --link --from=builder /out/csi-agent /usr/local/bin/
