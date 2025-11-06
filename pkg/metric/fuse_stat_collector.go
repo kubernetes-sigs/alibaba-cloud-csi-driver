@@ -20,12 +20,7 @@ var (
 	counterTypeArray        = []string{"capacity_counter", "inodes_counter", "throughput_counter", "iops_counter", "latency_counter", "posix_counter", "oss_object_counter"}
 	backendCounterTypeArray = []string{"backend_throughput_counter", "backend_iops_counter", "backend_latency_counter", "backend_meta_qps_ounter"}
 	hotSpotArray            = []string{"hot_spot_read_file_top", "hot_spot_write_file_top", "hot_spot_head_file_top"}
-	mountPointStatusArray   = []string{
-		server.MetricsMountRetryCount,
-		server.MetricsMountPointStatus,
-		server.MetricsMountPointFailoverCount,
-		server.MetricsLastFuseClientExitReason,
-	}
+	mountPointStatusArray   = server.MetricsArray
 )
 
 var (
