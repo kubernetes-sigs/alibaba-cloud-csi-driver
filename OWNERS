@@ -1,7 +1,14 @@
-approvers:
-- mowangdk
-reviewers:
-- mowangdk
-- AlbeeSo
-- huww98
-- iltyty
+# See the OWNERS docs at https://go.k8s.io/owners
+
+filters:
+  ".*":
+    approvers:
+    - mowangdk
+    reviewers:
+    - mowangdk
+    - AlbeeSo
+    - huww98
+    - iltyty
+  "go\\.(mod|sum)$|^vendor/":
+    approvers:
+    - huww98
