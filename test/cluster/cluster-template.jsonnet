@@ -28,7 +28,7 @@ local nodePool = {
         cms_enabled: false,
         unschedulable: false,
         runtime: "containerd",
-        runtime_version: "2.1.3",
+        runtime_version: "2.1.4.1",
     },
     management: {
         enable: false
@@ -39,7 +39,7 @@ local nodePool = {
 {
     name: clusterName,
     cluster_type: "ManagedKubernetes",
-    kubernetes_version: "1.33.3-aliyun.1",
+    kubernetes_version: "1.34.1-aliyun.1",
     region_id: std.extVar("region"),
     snat_entry: true,
     cloud_monitor_flags: false,
