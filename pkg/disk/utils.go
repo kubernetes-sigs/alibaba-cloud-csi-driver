@@ -1428,8 +1428,5 @@ func isLingjunNode(node *v1.Node) bool {
 	if node == nil {
 		return false
 	}
-	if value := node.Labels["alibabacloud.com/lingjun-worker"]; value == "true" {
-		return true
-	}
-	return false
+	return node.Labels["alibabacloud.com/lingjun-worker"] == "true"
 }
