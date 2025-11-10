@@ -840,17 +840,26 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}
 	var diskTypes []string
 	if !GlobalConfigVar.DiskAllowAllType {
-		diskTypes, err = GetAvailableDiskTypes(ctx, c, ns.metadata)
-		if err != nil {
-			if hasDiskTypeLabel(node) {
-				klog.ErrorS(err, "NodeGetInfo: failed to get available disk types, will use existing config.")
-			} else {
-				return nil, fmt.Errorf(
-					"failed to get available disk types: %w. "+
-						"You may add labels like node.csi.alibabacloud.com/disktype.cloud_essd=available to node manually", err)
-			}
+		// If it's a Lingjun node, reuse Lingjun detection and report configured supported types
+		if isLingjunNode(node) {
+			ebsCategory := os.Getenv("EBS_CATEGORY_LINGJUN_SUPPORTED")
+			// Prefer values parsed from kube-system/csi-plugin configmap
+			diskTypes = parseLingjunNodeDiskTypes(ebsCategory)
+			klog.Infof("NodeGetInfo: Lingjun node detected, supported disk types: %v", diskTypes)
 		} else {
-			klog.Infof("NodeGetInfo: Supported disk types: %v", diskTypes)
+			// Non-Lingjun: query ECS API for supported types
+			diskTypes, err = GetAvailableDiskTypes(ctx, c, ns.metadata)
+			if err != nil {
+				if hasDiskTypeLabel(node) {
+					klog.ErrorS(err, "NodeGetInfo: failed to get available disk types, will use existing config.")
+				} else {
+					return nil, fmt.Errorf(
+						"failed to get available disk types: %w. "+
+							"You may add labels like node.csi.alibabacloud.com/disktype.cloud_essd=available to node manually", err)
+				}
+			} else {
+				klog.Infof("NodeGetInfo: Supported disk types: %v", diskTypes)
+			}
 		}
 	} else {
 		klog.Warning("NodeGetInfo: DISK_ALLOW_ALL_TYPE is set, you need to ensure the EBS disk type is compatible with the ECS instance type yourself!")

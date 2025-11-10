@@ -989,3 +989,125 @@ func TestGetZone(t *testing.T) {
 		})
 	}
 }
+
+func TestIsLingjunNode(t *testing.T) {
+
+	// Save the original LingjunConfigFile value
+	originalLingjunConfigFile := LingjunConfigFile
+
+	// Restore the original value after tests complete
+	defer func() {
+		LingjunConfigFile = originalLingjunConfigFile
+	}()
+
+	tests := []struct {
+		name          string
+		node          *corev1.Node
+		configContent string
+		configError   bool
+		expected      bool
+	}{
+		{
+			name:     "nil node with no config file",
+			node:     nil,
+			expected: false,
+		},
+		{
+			name: "node with lingjun label true",
+			node: &corev1.Node{
+				ObjectMeta: v1.ObjectMeta{
+					Labels: map[string]string{
+						"alibabacloud.com/lingjun-worker": "true",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "node with lingjun label false",
+			node: &corev1.Node{
+				ObjectMeta: v1.ObjectMeta{
+					Labels: map[string]string{
+						"alibabacloud.com/lingjun-worker": "false",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "node with no lingjun label",
+			node: &corev1.Node{
+				ObjectMeta: v1.ObjectMeta{
+					Labels: map[string]string{
+						"some-other-label": "true",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "node with empty lingjun label",
+			node: &corev1.Node{
+				ObjectMeta: v1.ObjectMeta{
+					Labels: map[string]string{
+						"alibabacloud.com/lingjun-worker": "",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name:          "config file exists with valid NodeId",
+			node:          nil,
+			configContent: `{"NodeId": "node-123"}`,
+			expected:      true,
+		},
+		{
+			name:          "config file exists with empty NodeId",
+			node:          nil,
+			configContent: `{"NodeId": ""}`,
+			expected:      false,
+		},
+		{
+			name:        "config file does not exist",
+			node:        nil,
+			configError: true, // Indicates we should not create the file
+			expected:    false,
+		},
+		{
+			name:          "config file with invalid json",
+			node:          nil,
+			configContent: `{"NodeId": `,
+			expected:      false,
+		},
+		{
+			name: "config file exists with valid NodeId and node has lingjun label",
+			node: &corev1.Node{
+				ObjectMeta: v1.ObjectMeta{
+					Labels: map[string]string{
+						"alibabacloud.com/lingjun-worker": "true",
+					},
+				},
+			},
+			configContent: `{"NodeId": "node-123"}`,
+			expected:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			// Create a temporary directory for our test files
+			tempDir := t.TempDir()
+			// Set LingjunConfigFile to a temporary path for testing
+			LingjunConfigFile = filepath.Join(tempDir, "lingjun_config")
+			// Setup config file if needed
+			if !tt.configError {
+				assert.NoError(t, os.WriteFile(LingjunConfigFile, []byte(tt.configContent), 0644))
+			}
+			// Run the test
+			result := isLingjunNode(tt.node)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
