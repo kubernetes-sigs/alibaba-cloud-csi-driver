@@ -6,11 +6,12 @@ mkdir -p /staging-node/var/lib/dpkg/status.d
 
 DEPS=(
     /etc/netconfig
-    /etc/mke2fs.conf /sbin/{fsck,mkfs,mount,umount}.{ext{2,3,4},xfs,nfs}
+    /etc/mke2fs.conf /usr/sbin/{fsck,mkfs,mount,umount}.{ext{2,3,4},xfs,nfs}
     /usr/bin/{mount,umount,chmod,grep,tail,partx}
-    /usr/sbin/{fsck,mkfs,sfdisk,losetup}
-    /sbin/resize2fs
+    /usr/sbin/{fsck,mkfs,sfdisk,losetup,blkid}
+    /usr/sbin/resize2fs
     /usr/sbin/xfs_growfs
+    /usr/share/xfsprogs/mkfs/lts_6.1.conf
 )
 
 declare -A FILE_PACKAGES

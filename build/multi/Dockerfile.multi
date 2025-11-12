@@ -15,7 +15,7 @@ RUN --mount=type=bind,target=. \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -trimpath -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12:latest@sha256:fabbf1c0c357a3d42550111351daed089b20a2c954df13ee2fcff60602515e84 as distroless-base
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian13:latest@sha256:389cad21f73e4c37b94ffe5b13736d5a92bd5bd3c6c6b38c2be1c881e14ba2bd as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 ARG OSSFS_IMAGE_TAG=v1.91.12.ack.2-5cf3371
 ARG OSSFS2_IMAGE_TAG=v2.0.9.ack.3-a1f29fc
@@ -25,7 +25,7 @@ FROM distroless-base as csi-base
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20260918-slim as debian
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:trixie-20261005-slim as debian
 
 ARG TARGETARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$TARGETARCH \
@@ -43,93 +43,6 @@ RUN --mount=type=bind,from=distroless-base,target=/base \
 # For ./hack/update-base-image-deps.sh
 FROM distroless-base as dep-list
 COPY --link --from=debian /staging-node /
-
-# blkid from source: newer libblkid mistakes non-filesystem data for a filesystem less often than
-# the one Debian stable ships, and a false positive makes us refuse to format an empty disk.
-FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20260918-slim as build-util-linux
-ARG BUILDARCH
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH \
-    rm -f /etc/apt/apt.conf.d/docker-clean && \
-    echo 'Acquire::Check-Valid-Until false;' > /etc/apt/apt.conf.d/snapshot && \
-    sed -i '/^URIs:/d; s|^# http://snapshot.debian.org/|URIs: http://snapshot-cloudflare.debian.org/|' /etc/apt/sources.list.d/debian.sources && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends tar xz-utils make diffutils dpkg-dev
-
-# Above - shared by multiple TARGETARCH
-# Below - per-target
-ARG TARGETARCH
-# The target's libc via multiarch, not the libc6-dev-*-cross gcc recommends: those stay at the
-# revision the release froze at, and they put the libraries where libtool does not recognise a
-# system path, so it hardcodes a DT_RUNPATH into everything it links.
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH <<EOF
-#!/bin/bash
-set -e
-eval "$(dpkg-architecture -a$TARGETARCH -s)"
-dpkg --add-architecture $DEB_HOST_ARCH
-apt-get update && apt-get install -y --no-install-recommends gcc-${DEB_HOST_GNU_TYPE//_/-} libc6-dev:$DEB_HOST_ARCH
-EOF
-
-# kernel.org takes ten minutes to serve this file to us.
-# The checksum is what makes the source trustworthy; the SBOM below names the canonical URL.
-ADD --link --checksum=sha256:f586e35d320ff537aab3ffeca37e9ecd482ccbe013590db4429a414d8aa6a728 \
-    https://mirrors.ustc.edu.cn/kernel.org/linux/utils/util-linux/v2.41/util-linux-2.41.5.tar.xz /src.tar.xz
-RUN mkdir -p /src && tar -C /src --strip-components=1 -xf /src.tar.xz
-
-RUN <<EOF
-set -e
-cd /src
-SOURCE_DATE_EPOCH=$(stat -c %Y /src.tar.xz)
-export SOURCE_DATE_EPOCH
-echo "util-linux released at $(date --date "@$SOURCE_DATE_EPOCH" --iso-8601=seconds)"
-# Build it the way Debian builds everything else in this image, incl. the security hardening.
-# blkid is what reads attacker-controlled bytes here.
-eval "$(dpkg-architecture -a$TARGETARCH -s)"
-export CC=$DEB_HOST_GNU_TYPE-gcc DEB_BUILD_MAINT_OPTIONS=hardening=+bindnow
-eval "$(dpkg-buildflags --export=sh)"
-./configure --disable-all-programs --enable-blkid --enable-libblkid --libdir=\${prefix}/lib/$DEB_HOST_MULTIARCH \
-    --disable-nls --disable-bash-completion --disable-asciidoc --disable-dependency-tracking --disable-static \
-    --host=$DEB_HOST_GNU_TYPE
-make -j
-make install-strip DESTDIR=/install
-mkdir -p /out
-cd /install
-cp -dp --parents usr/lib/*/libblkid*.so.* sbin/blkid /out
-EOF
-
-COPY <<"EOT" /out/usr/local/share/sbom/blkid.spdx.json
-{
-    "spdxVersion": "SPDX-2.3",
-    "SPDXID": "SPDXRef-DOCUMENT",
-    "name": "util-linux-2.41.5",
-    "packages": [
-        {
-            "name": "util-linux",
-            "SPDXID": "SPDXRef-Package-source-util-linux",
-            "versionInfo": "2.41.5",
-            "filesAnalyzed": false,
-            "primaryPackagePurpose" : "SOURCE",
-            "packageFileName" : "util-linux-2.41.5.tar.xz",
-            "downloadLocation" : "https://www.kernel.org/pub/linux/utils/util-linux/v2.41/util-linux-2.41.5.tar.xz",
-            "checksums" : [{
-                "algorithm" : "SHA256",
-                "checksumValue" : "f586e35d320ff537aab3ffeca37e9ecd482ccbe013590db4429a414d8aa6a728"
-            }],
-            "releaseDate": "2026-06-16T12:20:59Z",
-            "externalRefs": [
-                {
-                    "referenceCategory": "SECURITY",
-                    "referenceType": "cpe23Type",
-                    "referenceLocator": "cpe:2.3:a:util-linux:util-linux:2.41.5:*:*:*:*:*:*:*"
-                }
-            ]
-        }
-    ]
-}
-EOT
-
-RUN find /out -exec touch -h --reference=/src.tar.xz {} +
 
 FROM scratch as download-amd64
 ADD --link --checksum=sha256:751ce5f900a954ffb4c87eb530d4e5d63f449041f1816207334abdd09ebf8c70 \
@@ -163,6 +76,3 @@ USER nonroot
 FROM csi-base
 ENV IS_BDF=false
 COPY --link --from=debian /staging-node /
-
-# overwrites libblkid from debian
-COPY --link --from=build-util-linux /out /
