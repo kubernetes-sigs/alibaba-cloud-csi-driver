@@ -15,7 +15,7 @@ RUN --mount=type=bind,target=. \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -trimpath -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12:latest@sha256:9e9b50d2048db3741f86a48d939b4e4cc775f5889b3496439343301ff54cdba8 as distroless-base
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian13:latest@sha256:894e78799ebace28d56fc226a05d76a601685e1382421299eed8b7a95b90fa9e as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 LABEL defaultOssfsImageTag="v1.91.8.ack.3-b0e4403" defaultOssfs2ImageTag="v2.0.4.ack.1-5073ed2"
 
@@ -23,7 +23,7 @@ FROM distroless-base as csi-base
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20251020-slim as debian
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:trixie-20251103-slim as debian
 
 ARG TARGETARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$TARGETARCH \
@@ -42,7 +42,7 @@ RUN --mount=type=bind,from=distroless-base,target=/base \
 FROM distroless-base as dep-list
 COPY --link --from=debian /staging-node /
 
-FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20251020-slim as build-0
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:trixie-20251103-slim as build-0
 ARG BUILDARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
     --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH \
@@ -50,7 +50,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDA
     echo 'Acquire::Check-Valid-Until false;' > /etc/apt/apt.conf.d/snapshot && \
     sed -i '/^URIs:/d; s|^# \(http://snapshot.debian.org/\)|URIs: \1|' /etc/apt/sources.list.d/debian.sources && \
     apt-get update && \
-    apt-get install -y tar xz-utils make diffutils
+    apt-get install -y tar xz-utils make diffutils gcc
+# We need to install gcc in addition to gcc-${HOST} below.
+# On e.g. amd64, gcc-x86-64-linux-gnu depends on "binutils-x86-64-linux-gnu", but it calls `as`, which is in "binutils" and not installed by default.
+# See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1083135 
 
 FROM build-0 as build-util-linux-amd64
 ENV HOST=x86_64-linux-gnu
@@ -77,7 +80,8 @@ SOURCE_DATE_EPOCH=$(stat -c %Y /src.tar.xz)
 export SOURCE_DATE_EPOCH
 echo "util-linux released at $(date --date "@$SOURCE_DATE_EPOCH" --iso-8601=seconds)"
 ./configure --disable-all-programs --enable-blkid --enable-libblkid --prefix=/usr/local \
-    --disable-nls --disable-bash-completion --disable-asciidoc --disable-dependency-tracking --disable-static --host=$HOST
+    --disable-nls --disable-bash-completion --disable-asciidoc --disable-dependency-tracking --disable-static --host=$HOST || \
+    { RET=$?; echo "content of ./config.log:"; cat ./config.log; exit $RET; }
 make -j
 make install-strip DESTDIR=/out
 cd /out/usr/local && rm -r include share lib/pkgconfig

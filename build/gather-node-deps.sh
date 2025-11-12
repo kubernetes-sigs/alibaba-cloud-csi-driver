@@ -6,10 +6,10 @@ mkdir -p /staging-node/var/lib/dpkg/status.d
 
 DEPS=(
     /etc/netconfig
-    /etc/mke2fs.conf /sbin/{fsck,mkfs,mount,umount}.{ext{2,3,4},xfs,nfs}
+    /etc/mke2fs.conf /usr/sbin/{fsck,mkfs,mount,umount}.{ext{2,3,4},xfs,nfs}
     /usr/bin/{mount,umount,lspci,lsof,chmod,grep,tail,partx}
     /usr/sbin/{fsck,mkfs,sfdisk,losetup}
-    /sbin/resize2fs
+    /usr/sbin/resize2fs
     /usr/sbin/xfs_growfs
 )
 
@@ -31,12 +31,6 @@ gather_dep() {
 
     # find the package that contains the source
     pkg=${FILE_PACKAGES[$source]}
-    if [ -z "$pkg" ] && [[ "$source" = /usr/* ]]; then
-        # retry without /usr prefix
-        # use source path matching dpkg for SBOM to work, because /lib is not linked to /usr/lib in distroless
-        source="${source#/usr}"
-        pkg=${FILE_PACKAGES[$source]}
-    fi
     if [ -z "$pkg" ]; then
         echo "failed to find package for $source"
         return 1
