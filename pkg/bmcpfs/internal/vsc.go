@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v2/client"
+	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	nasclient "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"golang.org/x/time/rate"
