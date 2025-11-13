@@ -93,6 +93,7 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 			return errors.New("EFC Client don't support this storage type:" + opt.FSType)
 		}
 		mountFstype = "alinas"
+		combinedOptions = append(combinedOptions, "auto_fallback_nfs")
 		// err = mounter.Mount(source, mountPoint, "alinas", combinedOptions)
 		isPathNotFound = func(err error) bool {
 			return strings.Contains(err.Error(), "Failed to bind mount")
@@ -112,6 +113,7 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 		}
 		if opt.Accesspoint != "" {
 			mountFstype = "alinas"
+			combinedOptions = append(combinedOptions, "auto_fallback_nfs")
 			// must enable tls when using accesspoint
 			combinedOptions = addTLSMountOptions(combinedOptions)
 		}

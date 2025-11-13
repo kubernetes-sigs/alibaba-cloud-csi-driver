@@ -46,7 +46,8 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	if req.Fstype == fstypeAlinas {
 		// options = append(options, "no_atomic_move", "auto_fallback_nfs")
 		options = append(options, "no_atomic_move")
-		options = addAutoFallbackNFSMountOptions(options)
+		// auto_fallback_nfs is exclusive to NAS, integrating it into bmcpfs causes misleading error messages
+		// options = addAutoFallbackNFSMountOptions(options)
 	}
 
 	return h.mounter.Mount(req.Source, req.Target, req.Fstype, options)
