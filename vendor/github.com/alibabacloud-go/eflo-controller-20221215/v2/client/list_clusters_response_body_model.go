@@ -70,7 +70,16 @@ func (s *ListClustersResponseBody) SetRequestId(v string) *ListClustersResponseB
 }
 
 func (s *ListClustersResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Clusters != nil {
+		for _, item := range s.Clusters {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListClustersResponseBodyClusters struct {
@@ -339,7 +348,16 @@ func (s *ListClustersResponseBodyClusters) SetVpcId(v string) *ListClustersRespo
 }
 
 func (s *ListClustersResponseBodyClusters) Validate() error {
-	return dara.Validate(s)
+	if s.Tags != nil {
+		for _, item := range s.Tags {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListClustersResponseBodyClustersTags struct {

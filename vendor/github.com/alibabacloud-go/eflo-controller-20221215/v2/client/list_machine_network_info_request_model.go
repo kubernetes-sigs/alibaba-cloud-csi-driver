@@ -36,7 +36,16 @@ func (s *ListMachineNetworkInfoRequest) SetMachineHpnInfo(v []*ListMachineNetwor
 }
 
 func (s *ListMachineNetworkInfoRequest) Validate() error {
-	return dara.Validate(s)
+	if s.MachineHpnInfo != nil {
+		for _, item := range s.MachineHpnInfo {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListMachineNetworkInfoRequestMachineHpnInfo struct {

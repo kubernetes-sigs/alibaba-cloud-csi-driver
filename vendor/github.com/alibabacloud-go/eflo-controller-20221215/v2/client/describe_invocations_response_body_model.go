@@ -53,7 +53,12 @@ func (s *DescribeInvocationsResponseBody) SetRequestId(v string) *DescribeInvoca
 }
 
 func (s *DescribeInvocationsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Invocations != nil {
+		if err := s.Invocations.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeInvocationsResponseBodyInvocations struct {
@@ -79,7 +84,16 @@ func (s *DescribeInvocationsResponseBodyInvocations) SetInvocation(v []*Describe
 }
 
 func (s *DescribeInvocationsResponseBodyInvocations) Validate() error {
-	return dara.Validate(s)
+	if s.Invocation != nil {
+		for _, item := range s.Invocation {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeInvocationsResponseBodyInvocationsInvocation struct {
@@ -368,7 +382,12 @@ func (s *DescribeInvocationsResponseBodyInvocationsInvocation) SetWorkingDir(v s
 }
 
 func (s *DescribeInvocationsResponseBodyInvocationsInvocation) Validate() error {
-	return dara.Validate(s)
+	if s.InvokeNodes != nil {
+		if err := s.InvokeNodes.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes struct {
@@ -394,7 +413,16 @@ func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes) SetInv
 }
 
 func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes) Validate() error {
-	return dara.Validate(s)
+	if s.InvokeNode != nil {
+		for _, item := range s.InvokeNode {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode struct {

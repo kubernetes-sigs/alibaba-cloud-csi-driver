@@ -59,5 +59,10 @@ func (s *ListVscsResponse) SetBody(v *ListVscsResponseBody) *ListVscsResponse {
 }
 
 func (s *ListVscsResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
