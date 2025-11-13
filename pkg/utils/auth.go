@@ -21,15 +21,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth"
 	cre "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials/provider"
-	crev2 "github.com/aliyun/credentials-go/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/crypto"
 	"k8s.io/klog/v2"
 )
@@ -207,97 +204,4 @@ func getCredentialAK() AccessControl {
 	}
 	config := sdk.NewConfig().WithScheme(scheme)
 	return AccessControl{Config: config, Credential: credential, UseMode: Credential}
-}
-
-type managedAddonTokenCredv2 struct {
-	sync.Mutex
-	token        *ManageTokens
-	lastUpdateAt time.Time
-	scale        float64
-}
-
-func newManagedAddonTokenCredv2() *managedAddonTokenCredv2 {
-	return &managedAddonTokenCredv2{
-		scale: addonTokenExpirationScale,
-	}
-}
-
-func (cred *managedAddonTokenCredv2) needUpdate() bool {
-	if cred.token == nil {
-		return true
-	}
-	duration := time.Since(cred.lastUpdateAt)
-	expiration := cred.token.ExpireAt.Sub(cred.lastUpdateAt)
-	return duration >= time.Duration(float64(expiration)*cred.scale)
-}
-
-func (cred *managedAddonTokenCredv2) updateAndGet() ManageTokens {
-	cred.Lock()
-	defer cred.Unlock()
-	if cred.needUpdate() {
-		tokens := getManagedToken()
-		cred.token = &tokens
-		cred.lastUpdateAt = time.Now()
-	}
-	return *cred.token
-}
-
-func (cred *managedAddonTokenCredv2) GetAccessKeyId() (*string, error) {
-	token := cred.updateAndGet()
-	return &token.AccessKeyID, nil
-}
-
-func (cred *managedAddonTokenCredv2) GetAccessKeySecret() (*string, error) {
-	token := cred.updateAndGet()
-	return &token.AccessKeySecret, nil
-}
-
-func (cred *managedAddonTokenCredv2) GetSecurityToken() (*string, error) {
-	token := cred.updateAndGet()
-	return &token.SecurityToken, nil
-}
-
-func (cred *managedAddonTokenCredv2) GetCredential() (*crev2.CredentialModel, error) {
-	token := cred.updateAndGet()
-	return &crev2.CredentialModel{
-		AccessKeyId:     &token.AccessKeyID,
-		AccessKeySecret: &token.AccessKeySecret,
-		SecurityToken:   &token.SecurityToken,
-		BearerToken:     tea.String(""),
-		Type:            tea.String("sts"),
-	}, nil
-}
-
-func (cred *managedAddonTokenCredv2) GetBearerToken() *string {
-	return tea.String("")
-}
-
-func (cred *managedAddonTokenCredv2) GetType() *string {
-	return tea.String("sts")
-}
-
-func GetCredentialV2() (crev2.Credential, error) {
-	// env variable
-	acLocalAK := GetEnvAK()
-	if len(acLocalAK.AccessKeyID) != 0 && len(acLocalAK.AccessKeySecret) != 0 {
-		klog.Info("credential v2: using ak from env variables")
-		config := new(crev2.Config).SetType("access_key").
-			SetAccessKeyId(acLocalAK.AccessKeyID).
-			SetAccessKeySecret(acLocalAK.AccessKeySecret)
-		return crev2.NewCredential(config)
-	}
-
-	// managed addon token
-	_, err := os.Stat(ConfigPath)
-	if err == nil {
-		klog.Info("credential v2: using managed addon token")
-		return newManagedAddonTokenCredv2(), nil
-	}
-	if !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	// try default credential chain
-	klog.Info("credential v2: using default credential chain")
-	return crev2.NewCredential(nil)
 }
