@@ -673,6 +673,7 @@ func mkfsDefaultArgs(fstype, source string) (args []string) {
 	} else if fstype == "xfs" {
 		args = []string{
 			"-f",
+			"-i", "nrext64=0", // This requires kernel v5.19, so disable for now.
 			source,
 		}
 	}
