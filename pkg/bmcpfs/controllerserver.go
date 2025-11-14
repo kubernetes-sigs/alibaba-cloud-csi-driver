@@ -122,6 +122,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 			if req.VolumeContext[_vpcMountTarget] == "" {
 				return nil, status.Errorf(codes.InvalidArgument, "missing %q config in volume context as vsc mountpoint not supported", _vpcMountTarget)
 			}
+			klog.InfoS("ControllerPublishVolume: vsc mountpoint not supported, switch to vpc mountpoint", "nodeId", req.NodeId, "mt", mt)
 			return &csi.ControllerPublishVolumeResponse{
 				PublishContext: map[string]string{
 					_networkType:    networkTypeVPC,

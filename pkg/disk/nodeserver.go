@@ -829,19 +829,24 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		return node, err
 	}
 
+	lingjunID := getLingjunNodeID()
+
 	c := GlobalConfigVar.EcsClient
+	efloc := GlobalConfigVar.EfloClient
 	if maxVolumesNum == 0 {
-		maxVolumesNum, err = getVolumeCountFromOpenAPI(getNode, c, ns.metadata, utilsio.RealDevTmpFS{})
+		maxVolumesNum, err = getVolumeCountFromOpenAPI(getNode, c, efloc, ns.metadata, utilsio.RealDevTmpFS{}, lingjunID)
 	} else {
 		node, err = getNode()
 	}
 	if err != nil {
 		return nil, err
 	}
+
 	var diskTypes []string
 	if !GlobalConfigVar.DiskAllowAllType {
 		// If it's a Lingjun node, reuse Lingjun detection and report configured supported types
-		if isLingjunNode(node) {
+		if lingjunID != "" {
+			klog.InfoS("lingjun node detected", "lingjunID", lingjunID)
 			ebsCategory := os.Getenv("EBS_CATEGORY_LINGJUN_SUPPORTED")
 			// Prefer values parsed from kube-system/csi-plugin configmap
 			diskTypes = parseLingjunNodeDiskTypes(ebsCategory)
@@ -884,6 +889,14 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}
 	if !GlobalConfigVar.PrivateTopologyKey {
 		segments[v1.LabelTopologyZone] = metadata.MustGet(ns.metadata, metadata.ZoneID)
+	}
+
+	// disable disk allocation when maxVolumesNum is 0
+	// events:
+	// Warning  ProvisioningFailed  diskplugin.csi.alibabacloud.com_csi-provisioner
+	// failed to provision volume with StorageClass "alicloud-disk-essd": error generating accessibility requirements: no available topology found
+	if maxVolumesNum == 0 {
+		segments = map[string]string{}
 	}
 
 	return &csi.NodeGetInfoResponse{

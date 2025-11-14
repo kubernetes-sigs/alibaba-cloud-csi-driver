@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	eflo "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	gomock "github.com/golang/mock/gomock"
@@ -39,6 +40,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2/ktesting"
 	"k8s.io/mount-utils"
+	"k8s.io/utils/ptr"
 )
 
 func TestIsFileExisting(t *testing.T) {
@@ -277,12 +279,31 @@ func (m *MockDisks) AddDisk(t testing.TB, path string, diskID []byte) {
 func TestGetAvailableDiskCount(t *testing.T) {
 	resp := ecs.CreateDescribeInstanceTypesResponse()
 	cloud.UnmarshalAcsResponse([]byte(DescribeInstanceTypesResponse), resp)
+	lingjunNodeResp := &eflo.DescribeNodeResponse{
+		Body: &eflo.DescribeNodeResponseBody{
+			NodeId:        ptr.To("i-2ze0yyw7rf00yz9fttpg"),
+			NodeGroupId:   ptr.To("ng-2ze0yyw7rf00yz9fttpg"),
+			NodeGroupName: ptr.To("test-node-group"),
+			NodeType:      ptr.To("emgh.xxxxx"),
+			HyperNodeId:   ptr.To("e01-cn-zvp2tgykr08"),
+		},
+	}
+	lingjunNodeTypeResp := &eflo.DescribeNodeTypeResponse{
+		Body: &eflo.DescribeNodeTypeResponseBody{
+			DiskQuantity: ptr.To(int32(12)),
+		},
+	}
 	ecsClient := cloud.NewMockECSInterface(gomock.NewController(t))
-	ecsClient.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(resp, nil)
+	efloClient := cloud.NewMockEFLOInterface(gomock.NewController(t))
+	ecsClient.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(resp, nil).AnyTimes()
+	efloClient.EXPECT().DescribeNode(gomock.Any()).Return(lingjunNodeResp, nil).AnyTimes()
+	efloClient.EXPECT().DescribeNodeType(gomock.Any()).Return(lingjunNodeTypeResp, nil).AnyTimes()
+
 	tests := []struct {
-		name     string
-		node     *corev1.Node
-		expected int
+		name          string
+		node          *corev1.Node
+		lingjunNodeId string
+		expected      int
 	}{
 		{
 			name:     "Get from OpenAPI",
@@ -300,11 +321,17 @@ func TestGetAvailableDiskCount(t *testing.T) {
 			},
 			expected: 8,
 		},
+		{
+			name:          "Get from EFL OpenAPI for Lingjun node",
+			node:          &corev1.Node{},
+			lingjunNodeId: "lingjun-node-123",
+			expected:      12,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual, _ := getAvailableDiskCount(tt.node, ecsClient, testMetadata)
+			actual, _ := getAvailableDiskCount(tt.node, ecsClient, efloClient, testMetadata, tt.lingjunNodeId)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
@@ -371,6 +398,7 @@ func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	c := cloud.NewMockECSInterface(ctrl)
+	efloc := cloud.NewMockEFLOInterface(ctrl)
 
 	describeDisksResponse := ecs.CreateDescribeDisksResponse()
 	cloud.UnmarshalAcsResponse([]byte(DescribeDisksResponse), describeDisksResponse)
@@ -391,7 +419,7 @@ func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 	dev.AddDisk(t, "node-for-testinglocaldisk", []byte("d-some-very-looooog-value-that-cause-getxattr-to-fail"))
 
 	getNode := func() (*corev1.Node, error) { return testNode(), nil }
-	count, err := getVolumeCountFromOpenAPI(getNode, c, testMetadata, &dev)
+	count, err := getVolumeCountFromOpenAPI(getNode, c, efloc, testMetadata, &dev, "")
 	assert.NoError(t, err)
 	assert.Equal(t, 7, count) // 7 = 9 available disks - 1 system disk (d-2ze49fivxwkwxl36o1d3) - 1 manually attached (d-2zeh74nnxxrobxz49eug)
 }
@@ -990,124 +1018,228 @@ func TestGetZone(t *testing.T) {
 	}
 }
 
-func TestIsLingjunNode(t *testing.T) {
+func TestGetLingjunNodeID(t *testing.T) {
 
 	// Save the original LingjunConfigFile value
 	originalLingjunConfigFile := LingjunConfigFile
 
-	// Restore the original value after tests complete
+	// Restore the original values after tests complete
 	defer func() {
 		LingjunConfigFile = originalLingjunConfigFile
 	}()
 
 	tests := []struct {
 		name          string
-		node          *corev1.Node
+		nodeNameEnv   string
 		configContent string
 		configError   bool
-		expected      bool
+		expectedID    string
+		expectedBool  bool
 	}{
 		{
-			name:     "nil node with no config file",
-			node:     nil,
-			expected: false,
-		},
-		{
-			name: "node with lingjun label true",
-			node: &corev1.Node{
-				ObjectMeta: v1.ObjectMeta{
-					Labels: map[string]string{
-						"alibabacloud.com/lingjun-worker": "true",
-					},
-				},
-			},
-			expected: true,
-		},
-		{
-			name: "node with lingjun label false",
-			node: &corev1.Node{
-				ObjectMeta: v1.ObjectMeta{
-					Labels: map[string]string{
-						"alibabacloud.com/lingjun-worker": "false",
-					},
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "node with no lingjun label",
-			node: &corev1.Node{
-				ObjectMeta: v1.ObjectMeta{
-					Labels: map[string]string{
-						"some-other-label": "true",
-					},
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "node with empty lingjun label",
-			node: &corev1.Node{
-				ObjectMeta: v1.ObjectMeta{
-					Labels: map[string]string{
-						"alibabacloud.com/lingjun-worker": "",
-					},
-				},
-			},
-			expected: false,
+			name:       "nil node with no config file",
+			expectedID: "",
 		},
 		{
 			name:          "config file exists with valid NodeId",
-			node:          nil,
 			configContent: `{"NodeId": "node-123"}`,
-			expected:      true,
+			expectedID:    "node-123",
 		},
 		{
 			name:          "config file exists with empty NodeId",
-			node:          nil,
 			configContent: `{"NodeId": ""}`,
-			expected:      false,
+			expectedID:    "",
 		},
 		{
 			name:        "config file does not exist",
-			node:        nil,
 			configError: true, // Indicates we should not create the file
-			expected:    false,
+			expectedID:  "",
 		},
 		{
 			name:          "config file with invalid json",
-			node:          nil,
 			configContent: `{"NodeId": `,
-			expected:      false,
+			expectedID:    "",
 		},
 		{
-			name: "config file exists with valid NodeId and node has lingjun label",
-			node: &corev1.Node{
-				ObjectMeta: v1.ObjectMeta{
-					Labels: map[string]string{
-						"alibabacloud.com/lingjun-worker": "true",
-					},
-				},
-			},
+			name:          "config file exists with valid NodeId and node has lingjun label",
 			configContent: `{"NodeId": "node-123"}`,
-			expected:      true,
+			expectedID:    "node-123",
+		},
+		{
+			name:          "local node with matching name and valid config",
+			nodeNameEnv:   "test-node",
+			configContent: `{"NodeId": "node-456"}`,
+			expectedID:    "node-456",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
+			// Set KUBE_NODE_NAME environment variable
+			if tt.nodeNameEnv != "" {
+				t.Setenv("KUBE_NODE_NAME", tt.nodeNameEnv)
+			}
 			// Create a temporary directory for our test files
 			tempDir := t.TempDir()
 			// Set LingjunConfigFile to a temporary path for testing
 			LingjunConfigFile = filepath.Join(tempDir, "lingjun_config")
 			// Setup config file if needed
 			if !tt.configError {
-				assert.NoError(t, os.WriteFile(LingjunConfigFile, []byte(tt.configContent), 0644))
+				if tt.configContent != "" {
+					assert.NoError(t, os.WriteFile(LingjunConfigFile, []byte(tt.configContent), 0644))
+				}
 			}
 			// Run the test
-			result := isLingjunNode(tt.node)
-			assert.Equal(t, tt.expected, result)
+			id := getLingjunNodeID()
+			assert.Equal(t, tt.expectedID, id)
+		})
+	}
+}
+
+func TestGetAvailableCountFromEFLOOpenAPI(t *testing.T) {
+	// 创建gomock控制器
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// 创建mock的EFLO客户端
+	mockEFLOClient := cloud.NewMockEFLOInterface(ctrl)
+
+	tests := []struct {
+		name          string
+		nodeType      string
+		setupMock     func()
+		expectedCount int
+		expectError   bool
+	}{
+		{
+			name:     "success",
+			nodeType: "ebmgvn",
+			setupMock: func() {
+				// 设置mock期望返回值
+				resp := &eflo.DescribeNodeTypeResponse{
+					Body: &eflo.DescribeNodeTypeResponseBody{
+						DiskQuantity: ptr.To[int32](10),
+					},
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNodeType(gomock.Any()).
+					Return(resp, nil)
+			},
+			expectedCount: 10,
+			expectError:   false,
+		},
+		{
+			name:     "api_error",
+			nodeType: "ebmgvn",
+			setupMock: func() {
+				// 模拟API调用失败
+				mockEFLOClient.EXPECT().
+					DescribeNodeType(gomock.Any()).
+					Return(nil, errors.New("API error"))
+			},
+			expectedCount: 0,
+			expectError:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// 设置mock行为
+			tc.setupMock()
+
+			// 调用被测试函数
+			count, err := getAvailableCountFromEFLOOpenAPI(mockEFLOClient, tc.nodeType)
+
+			// 验证结果
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Equal(t, 0, count)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedCount, count)
+			}
+		})
+	}
+}
+
+func TestGetNodeTypeFromEFLOOpenAPI(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockEFLOClient := cloud.NewMockEFLOInterface(ctrl)
+
+	tests := []struct {
+		name         string
+		lingjunID    string
+		setupMock    func()
+		expectedType string
+		expectError  bool
+	}{
+		{
+			name:      "success",
+			lingjunID: "node-123",
+			setupMock: func() {
+				// 设置mock期望返回值
+				nodeType := "ebmgvn"
+				resp := &eflo.DescribeNodeResponse{
+					Body: &eflo.DescribeNodeResponseBody{
+						NodeType: &nodeType,
+					},
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(resp, nil)
+			},
+			expectedType: "ebmgvn",
+			expectError:  false,
+		},
+		{
+			name:      "api_error",
+			lingjunID: "node-123",
+			setupMock: func() {
+				// 模拟API调用失败
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(nil, errors.New("API error"))
+			},
+			expectedType: "",
+			expectError:  true,
+		},
+		{
+			name:      "nil_node_type",
+			lingjunID: "node-123",
+			setupMock: func() {
+				// 模拟返回的 NodeType 为 nil
+				resp := &eflo.DescribeNodeResponse{
+					Body: &eflo.DescribeNodeResponseBody{
+						NodeType: nil,
+					},
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(resp, nil)
+			},
+			expectedType: "",
+			expectError:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// 设置mock行为
+			tc.setupMock()
+
+			// 调用被测试函数
+			nodeType, err := getNodeTypeFromEFLOOpenAPI(mockEFLOClient, tc.lingjunID)
+
+			// 验证结果
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Equal(t, "", nodeType)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedType, nodeType)
+			}
 		})
 	}
 }

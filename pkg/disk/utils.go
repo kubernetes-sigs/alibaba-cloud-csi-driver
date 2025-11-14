@@ -35,11 +35,14 @@ import (
 	"sync"
 	"time"
 
+	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
+	eflo "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
-	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
+	v1_credentials "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/ttrpc"
 	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
@@ -47,6 +50,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
@@ -119,7 +123,49 @@ var ecsOpenAPITransport = http.Transport{
 
 var ecsEndpointOnce sync.Once
 
-func newEcsClient(regionID string, cred credentials.CredentialsProvider) (ecsClient *ecs.Client) {
+func newEfloClient(region string) (*eflo.Client, error) {
+	// lingjun region could be different from ack region
+	// use another environment variable EFLO_CONTROLLER_REGION for special lingjun pre regions
+	if r := os.Getenv("EFLO_CONTROLLER_REGION"); r != "" {
+		region = r
+	}
+	config := new(openapi.Config).
+		SetUserAgent(KubernetesAlicloudIdentity).
+		SetRegionId(region).
+		SetConnectTimeout(10).
+		SetGlobalParameters(&openapi.GlobalParameters{
+			Queries: map[string]*string{
+				"RegionId": &region,
+			},
+		})
+	// set credential
+	provider, err := credentials.NewProvider()
+	if err != nil {
+		return nil, fmt.Errorf("init credential: %w", err)
+	}
+	config = config.SetCredential(alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider))
+	// set endpoint
+	ep := os.Getenv("EFLO_CONTROLLER_ENDPOINT")
+	if ep != "" {
+		config = config.SetEndpoint(ep)
+	} else {
+		config = config.SetEndpoint(fmt.Sprintf("eflo-controller-vpc.%s.aliyuncs.com", region))
+	}
+	// set protocol
+	scheme := "HTTPS"
+	if strings.Contains(region, "test") {
+		// must use HTTP in lingjun test regions
+		scheme = "HTTP"
+	}
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		scheme = e
+	}
+	config = config.SetProtocol(scheme)
+	// init client
+	return eflo.NewClient(config)
+}
+
+func newEcsClient(regionID string, cred v1_credentials.CredentialsProvider) (ecsClient *ecs.Client) {
 	scheme := "HTTPS"
 	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
 		scheme = e
@@ -1126,11 +1172,15 @@ func getAttachedCloudDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProv
 	return diskIds, nil
 }
 
-func getAvailableDiskCount(node *v1.Node, ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (int, error) {
+func getAvailableDiskCount(node *v1.Node, ecsClient cloud.ECSInterface, efloC cloud.EFLOInterface, m metadata.MetadataProvider, lingjunNodeId string) (int, error) {
 	if count, err := getAvailableDiskCountFromAnnotation(node); err == nil {
 		return count, nil
 	}
-	return getAvailableDiskCountFromOpenAPI(ecsClient, m)
+	if lingjunNodeId != "" {
+		return getLingjunAvailableDiskCount(efloC, lingjunNodeId)
+	} else {
+		return getAvailableDiskCountFromOpenAPI(ecsClient, m)
+	}
 }
 
 func getAvailableDiskCountFromAnnotation(node *v1.Node) (int, error) {
@@ -1165,7 +1215,46 @@ func getAvailableDiskCountFromOpenAPI(ecsClient cloud.ECSInterface, m metadata.M
 	return 0, fmt.Errorf("unexpected DescribeInstanceTypes response for %s: %s", instanceType, response.GetHttpContentString())
 }
 
-func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInterface, m metadata.MetadataProvider, dev utilsio.DiskLister) (int, error) {
+func getLingjunAvailableDiskCount(efloClient cloud.EFLOInterface, lingjunID string) (int, error) {
+
+	nodeType, err := getNodeTypeFromEFLOOpenAPI(efloClient, lingjunID)
+	if err != nil {
+		return 0, err
+	}
+	klog.InfoS("getLingjunAvailableDiskCount: ", "nodeType", nodeType)
+	if nodeType == "" {
+		return 0, fmt.Errorf("cannot get node type for lingjun %s", lingjunID)
+	}
+	return getAvailableCountFromEFLOOpenAPI(efloClient, nodeType)
+}
+
+func getAvailableCountFromEFLOOpenAPI(efloClient cloud.EFLOInterface, nodeType string) (int, error) {
+	req := &eflo.DescribeNodeTypeRequest{
+		NodeType: &nodeType,
+	}
+	resp, err := efloClient.DescribeNodeType(req)
+	if err != nil {
+		return 0, fmt.Errorf("DescribeNodeType failed: %w", err)
+	}
+	klog.InfoS("getAvailableCountFromEFLOOpenAPI: ", "resp", resp)
+	return int(*resp.Body.DiskQuantity), nil
+}
+
+func getNodeTypeFromEFLOOpenAPI(efloClient cloud.EFLOInterface, lingjunID string) (string, error) {
+	req := &eflo.DescribeNodeRequest{
+		NodeId: &lingjunID,
+	}
+	resp, err := efloClient.DescribeNode(req)
+	if err != nil {
+		return "", fmt.Errorf("DescribeNode failed: %w", err)
+	}
+	if resp == nil || resp.Body == nil || resp.Body.NodeType == nil {
+		return "", fmt.Errorf("DescribeNode returned nil NodeType")
+	}
+	return *resp.Body.NodeType, nil
+}
+
+func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInterface, efloC cloud.EFLOInterface, m metadata.MetadataProvider, dev utilsio.DiskLister, lingjunID string) (int, error) {
 	// An attached disk is not managed by us if:
 	// 1. it is not in node.Status.VolumesInUse or node.Status.VolumesAttached; and
 	// 2. it does not have the xattr set.
@@ -1208,7 +1297,7 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 		return 0, err
 	}
 
-	availableCount, err := getAvailableDiskCount(node, c, m)
+	availableCount, err := getAvailableDiskCount(node, c, efloC, m, lingjunID)
 	if err != nil {
 		return 0, err
 	}
@@ -1412,21 +1501,15 @@ func (d DiskSize) String() string {
 	return fmt.Sprintf("%.3f GiB (0x%X)", float64(d.Bytes)/GBSIZE, d.Bytes)
 }
 
-// isLingjunNode checks if the node is a Lingjun node.
-// Priority:
-// 1) If the given node is the local node (matches env KUBE_NODE_NAME), detect by lingjun_config file like pkg/bmcpfs
-// 2) Fallback to node label alibabacloud.com/lingjun-worker == true
-func isLingjunNode(node *v1.Node) bool {
+// getLingjunNodeID get lingjun node id from configuration file
+func getLingjunNodeID() string {
 	if data, err := os.ReadFile(LingjunConfigFile); err == nil {
 		var cfg struct {
 			NodeId string `json:"NodeId"`
 		}
 		if json.Unmarshal(data, &cfg) == nil && cfg.NodeId != "" {
-			return true
+			return cfg.NodeId
 		}
 	}
-	if node == nil {
-		return false
-	}
-	return node.Labels["alibabacloud.com/lingjun-worker"] == "true"
+	return ""
 }
