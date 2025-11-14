@@ -1,6 +1,8 @@
 package nas
 
 import (
+	"context"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
@@ -11,18 +13,20 @@ type NasMounter struct {
 	alinasMounter mountutils.Interface
 }
 
-func (m *NasMounter) Mount(source string, target string, fstype string, options []string) (err error) {
+var _ mounter.Mounter = &NasMounter{}
+
+func (m *NasMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) (err error) {
 	logger := klog.Background().WithValues(
-		"source", source,
-		"target", target,
-		"options", options,
-		"fstype", fstype,
+		"source", op.Source,
+		"target", op.Target,
+		"options", op.Options,
+		"fstype", op.FsType,
 	)
-	switch fstype {
+	switch op.FsType {
 	case "alinas", "cpfs", "cpfs-nfs":
-		err = m.alinasMounter.Mount(source, target, fstype, options)
+		err = m.alinasMounter.Mount(op.Source, op.Target, op.FsType, op.Options)
 	default:
-		err = m.Interface.Mount(source, target, fstype, options)
+		err = m.Mount(op.Source, op.Target, op.FsType, op.Options)
 	}
 	if err != nil {
 		logger.Error(err, "failed to mount")
@@ -32,7 +36,7 @@ func (m *NasMounter) Mount(source string, target string, fstype string, options 
 	return err
 }
 
-func newNasMounter(agentMode bool, socketPath string) mountutils.Interface {
+func newNasMounter(agentMode bool, socketPath string) mounter.Mounter {
 	inner := mountutils.NewWithoutSystemd("")
 	m := &NasMounter{
 		Interface:     inner,
@@ -41,7 +45,7 @@ func newNasMounter(agentMode bool, socketPath string) mountutils.Interface {
 	switch {
 	case socketPath != "":
 		m.alinasMounter = mounter.NewProxyMounter(socketPath, inner)
-	case !agentMode: // normal case, use connector mounter to ensure backward compatability
+	case !agentMode: // normal case, use connector mounter to ensure backward compatibility
 		m.alinasMounter = mounter.NewConnectorMounter(inner, "")
 	}
 	return m

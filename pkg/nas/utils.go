@@ -17,6 +17,7 @@ limitations under the License.
 package nas
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -27,7 +28,8 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
-	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -52,6 +54,8 @@ const (
 	TcpSlotTableEntries      = "/proc/sys/sunrpc/tcp_slot_table_entries"
 	TcpSlotTableEntriesValue = "128\n"
 
+	akIDKey           = "akId"
+	akSecretKey       = "akSecret"
 	filesystemIDKey   = "fileSystemId"
 	filesystemTypeKey = "fileSystemType"
 )
@@ -66,11 +70,12 @@ type RoleAuth struct {
 	Code            string
 }
 
-func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
+func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
 	var (
 		mountFstype     string
 		source          string
 		combinedOptions []string
+		secrets         map[string]string
 		isPathNotFound  func(error) bool
 	)
 	if opt.Accesspoint != "" {
@@ -80,6 +85,12 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 	}
 	if opt.Options != "" {
 		combinedOptions = append(combinedOptions, opt.Options)
+	}
+	if opt.AkID != "" && opt.AkSecret != "" {
+		secrets = map[string]string{
+			akIDKey:     opt.AkID,
+			akSecretKey: opt.AkSecret,
+		}
 	}
 
 	switch opt.ClientType {
@@ -128,7 +139,15 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 			mountFstype = opt.MountProtocol
 		}
 	}
-	err := mounter.Mount(source, targetPath, mountFstype, combinedOptions)
+
+	err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
+		Source:   source,
+		Target:   targetPath,
+		FsType:   mountFstype,
+		Options:  combinedOptions,
+		Secrets:  secrets,
+		VolumeID: volumeId,
+	})
 	if err == nil {
 		return nil
 	}
@@ -155,16 +174,30 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 		return err
 	}
 	defer os.Remove(tmpPath)
-	if err := mounter.Mount(rootSource, tmpPath, mountFstype, combinedOptions); err != nil {
+	if err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
+		Source:   rootSource,
+		Target:   tmpPath,
+		FsType:   mountFstype,
+		Options:  combinedOptions,
+		Secrets:  secrets,
+		VolumeID: volumeId,
+	}); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Join(tmpPath, relPath), os.ModePerm); err != nil {
 		return err
 	}
-	if err := cleanupMountpoint(mounter, tmpPath); err != nil {
+	if err := cleanupMountpoint(m, tmpPath); err != nil {
 		klog.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
 	}
-	return mounter.Mount(source, targetPath, mountFstype, combinedOptions)
+	return m.ExtendedMount(context.Background(), &mounter.MountOperation{
+		Source:   source,
+		Target:   targetPath,
+		FsType:   mountFstype,
+		Options:  combinedOptions,
+		Secrets:  secrets,
+		VolumeID: volumeId,
+	})
 }
 
 func isEFCPathNotFoundError(err error) bool {
@@ -199,7 +232,7 @@ func ParseMountFlags(mntOptions []string) (string, string) {
 	var vers string
 	var otherOptions []string
 	for _, options := range mntOptions {
-		for _, option := range mounter.SplitMountOptions(options) {
+		for _, option := range mounterutils.SplitMountOptions(options) {
 			if option == "" {
 				continue
 			}
@@ -219,7 +252,7 @@ func ParseMountFlags(mntOptions []string) (string, string) {
 
 func addTLSMountOptions(baseOptions []string) []string {
 	for _, options := range baseOptions {
-		for _, option := range mounter.SplitMountOptions(options) {
+		for _, option := range mounterutils.SplitMountOptions(options) {
 			if option == "" {
 				continue
 			}
