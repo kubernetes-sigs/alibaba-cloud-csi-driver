@@ -34,6 +34,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
@@ -42,12 +43,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	mountutils "k8s.io/mount-utils"
 )
 
 type nodeServer struct {
 	config   *internal.NodeConfig
-	mounter  mountutils.Interface
+	mounter  mounter.Mounter
 	locks    *utils.VolumeLocks
 	recorder record.EventRecorder
 	common.GenericNodeServer
@@ -91,6 +91,8 @@ type Options struct {
 	MountProtocol string `json:"mountProtocol"`
 	ClientType    string `json:"clientType"`
 	FSType        string `json:"fsType"`
+	AkID          string
+	AkSecret      string
 }
 
 // RunvNasOptions struct definition
@@ -246,6 +248,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.MountProtocol = strings.TrimSpace(value)
 		}
 	}
+	opt.AkID = req.Secrets[akIDKey]
+	opt.AkSecret = req.Secrets[akSecretKey]
 
 	if cnfsName != "" {
 		cnfs, err := ns.getCNFS(ctx, req, cnfsName)
