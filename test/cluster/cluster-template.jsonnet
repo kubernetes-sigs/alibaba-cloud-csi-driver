@@ -21,14 +21,14 @@ local nodePool = {
         login_as_non_root: false,
         platform: "AliyunLinux",
         image_id: std.extVar("os_image_alinux3"),
-        image_type: "AliyunLinux3"
+        image_type: "AliyunLinux3ContainerOptimized"
     },
     kubernetes_config: {
         cpu_policy: "none",
         cms_enabled: false,
         unschedulable: false,
         runtime: "containerd",
-        runtime_version: "2.1.3",
+        runtime_version: "2.1.4.1",
     },
     management: {
         enable: false
@@ -39,7 +39,7 @@ local nodePool = {
 {
     name: clusterName,
     cluster_type: "ManagedKubernetes",
-    kubernetes_version: "1.33.3-aliyun.1",
+    kubernetes_version: "1.34.1-aliyun.1",
     region_id: std.extVar("region"),
     snat_entry: true,
     cloud_monitor_flags: false,
