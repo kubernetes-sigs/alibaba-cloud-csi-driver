@@ -18,8 +18,13 @@ ARG TARGETPLATFORM
 # The versions specified here are for RPM packages, which may not necessarily align with the image version
 ARG OSSFS_VERSION=v1.91.8.ack.3
 ARG OSSFS2_VERSION=v2.0.4.ack.1
-ARG ALINAS_UTILS_VERSION=1.8-0.20250410201011.30aa55.al7
-ARG EFC_VERSION=1.8-20250226151552.7151bf.release
+ARG ALINAS_UTILS_VERSION=1.9-0.20250805171424.2871b7.al7
+ARG EFC_VERSION=1.9-20250822095129.f34347.release
+# v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch. 
+# It's temporarily unavailable for all ACK clusters, 
+# catering only to ARM for compatibility. An update to all CPFS storage cluster versions is required.
+ARG EFC_ARM_VERSION=2.1-20251105164215.8422bf.release
+ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20251104202327.e70d33.generic
 RUN set -ex; \
     case "${TARGETPLATFORM}" in \
         linux/amd64) ARCH="x86_64" ;; \
@@ -32,8 +37,11 @@ RUN set -ex; \
     if [ "${ARCH}" = "x86_64" ]; then \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
-        cp -r /etc/aliyun /etc/aliyun-defaults; \
+    elif [ "${ARCH}" = "aarch_64" ]; then \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_ARM_VERSION}.aarch64.rpm; \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_ARM_VERSION}.aarch64.rpm; \
     fi; \
+    cp -r /etc/aliyun /etc/aliyun-defaults; \
     yum clean all; \
     update-alternatives --set python3 /usr/bin/python3.8
 
@@ -41,4 +49,3 @@ RUN set -ex; \
 COPY --link --from=builder /out/csi-mount-proxy-server /usr/local/bin/
 COPY --link --from=builder /out/csi-agent /usr/local/bin/
 ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas,ossfs,ossfs2" ]
-
