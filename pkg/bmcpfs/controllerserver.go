@@ -27,11 +27,12 @@ import (
 	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v2/client"
 	nasclient "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
+	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -191,11 +192,11 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 			},
 		})
 	// set credential
-	cred, err := utils.GetCredentialV2()
+	provider, err := credentials.NewProvider()
 	if err != nil {
-		return nil, fmt.Errorf("init credential: %w", err)
+		return nil, fmt.Errorf("failed to fetch credential: %w", err)
 	}
-	config = config.SetCredential(cred)
+	config = config.SetCredential(alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider))
 	// set endpoint
 	ep := os.Getenv("EFLO_CONTROLLER_ENDPOINT")
 	if ep != "" {
