@@ -43,4 +43,5 @@ type MountRequest struct {
 	MountFlags  []string          `json:"mountFlags,omitempty"`
 	Secrets     map[string]string `json:"secrets,omitempty"`
 	MetricsPath string            `json:"metricsPath,omitempty"`
+	VolumeID    string            `json:"volumeID,omitempty"`
 }

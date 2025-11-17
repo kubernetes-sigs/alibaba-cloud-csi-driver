@@ -11,9 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
-	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -25,11 +27,16 @@ const (
 )
 
 func init() {
-	server.RegisterDriver(&Driver{mounter: mount.New("")})
+	server.RegisterDriver(&Driver{
+		Mounter: mounter.NewForMounter(
+			&extendedMounter{Interface: mount.New("")},
+			interceptors.NewAlinasSecretInterceptor(),
+		),
+	})
 }
 
 type Driver struct {
-	mounter mount.Interface
+	mounter.Mounter
 }
 
 func (h *Driver) Name() string {
@@ -41,15 +48,15 @@ func (h *Driver) Fstypes() []string {
 }
 
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
-	klog.InfoS("Mounting", "fstype", req.Fstype, "source", req.Source, "target", req.Target, "options", req.Options)
-	options := append(req.Options, "no_start_watchdog")
-	if req.Fstype == fstypeAlinas {
-		// options = append(options, "no_atomic_move", "auto_fallback_nfs")
-		options = append(options, "no_atomic_move")
-		options = addAutoFallbackNFSMountOptions(options)
-	}
-
-	return h.mounter.Mount(req.Source, req.Target, req.Fstype, options)
+	return h.ExtendedMount(ctx, &mounter.MountOperation{
+		Source:      req.Source,
+		Target:      req.Target,
+		FsType:      req.Fstype,
+		Options:     req.Options,
+		Secrets:     req.Secrets,
+		MetricsPath: req.MetricsPath,
+		VolumeID:    req.VolumeID,
+	})
 }
 
 func (h *Driver) Init() {
@@ -79,7 +86,7 @@ func addAutoFallbackNFSMountOptions(mountOptions []string) []string {
 	isEFC := false
 	isVSC := false
 	for _, options := range mountOptions {
-		for _, option := range mounter.SplitMountOptions(options) {
+		for _, option := range mounterutils.SplitMountOptions(options) {
 			if option == "" {
 				continue
 			}
@@ -160,4 +167,21 @@ func copyFile(src, dst string) error {
 	}
 
 	return dstFile.Sync()
+}
+
+type extendedMounter struct {
+	mount.Interface
+}
+
+var _ mounter.Mounter = &extendedMounter{}
+
+func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
+	klog.InfoS("Mounting", "fstype", op.FsType, "source", op.Source, "target", op.Target, "options", op.Options)
+	op.Options = append(op.Options, "no_start_watchdog")
+	if op.FsType == fstypeAlinas {
+		// options = append(options, "no_atomic_move", "auto_fallback_nfs")
+		op.Options = append(op.Options, "no_atomic_move")
+		op.Options = addAutoFallbackNFSMountOptions(op.Options)
+	}
+	return m.Mount(op.Source, op.Target, op.FsType, op.Options)
 }
