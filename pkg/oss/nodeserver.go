@@ -26,6 +26,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -65,6 +66,11 @@ const (
 // for cases where fuseType does not affect like UnPublishVolume,
 // use unifiedFsType instead
 var unifiedFsType = OssFsType
+
+var ossInterceptors = map[string][]mounter.MountInterceptor{
+	OssFsType:  {interceptors.NewOssfsSecretInterceptor()},
+	OssFs2Type: {interceptors.NewOssfs2SecretInterceptor()},
+}
 
 func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{Capabilities: []*csi.NodeServiceCapability{
@@ -161,7 +167,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		ossfsMounter = mounter.NewOssCmdMounter(ns.ossfsPaths[opts.FuseType], req.VolumeId, ns.rawMounter)
+		ossfsMounter = mounter.NewForMounter(
+			mounter.NewOssCmdMounter(ns.ossfsPaths[opts.FuseType], req.VolumeId, ns.rawMounter),
+			ossInterceptors[opts.FuseType]...,
+		)
 	} else {
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
 	}
@@ -169,12 +178,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// When work as csi-agent, directly mount on the target path.
 	if ns.skipAttach {
 		metricsPath := utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.Bucket)
-		err := ossfsMounter.ExtendedMount(
-			mountSource, targetPath, opts.FuseType,
-			mountOptions, &mounter.ExtendedMountParams{
-				Secrets:     authCfg.Secrets,
-				MetricsPath: metricsPath,
-			})
+		err := ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
+			Source:      mountSource,
+			Target:      targetPath,
+			FsType:      opts.FuseType,
+			Options:     mountOptions,
+			Secrets:     authCfg.Secrets,
+			MetricsPath: metricsPath,
+		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -191,12 +202,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if notMnt {
 		metricsPath := utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opts.FuseType, "oss", opts.Bucket, attachPath)
-		err := ossfsMounter.ExtendedMount(
-			mountSource, attachPath, opts.FuseType,
-			mountOptions, &mounter.ExtendedMountParams{
-				Secrets:     authCfg.Secrets,
-				MetricsPath: metricsPath,
-			})
+		err := ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
+			Source:      mountSource,
+			Target:      attachPath,
+			FsType:      opts.FuseType,
+			Options:     mountOptions,
+			Secrets:     authCfg.Secrets,
+			MetricsPath: metricsPath,
+		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

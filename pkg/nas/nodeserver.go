@@ -68,15 +68,10 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: config.NodeName,
 		},
+		mounter: newNasMounter(config.AgentMode, config.MountProxySocket),
 	}
-	if config.MountProxySocket == "" {
-		if !ns.config.AgentMode {
-			ns.recorder = utils.NewEventRecorder()
-		}
-		ns.mounter = newNasMounter(ns.config.AgentMode)
-	} else {
-		ns.recorder = utils.NewEventRecorder()
-		ns.mounter = newNasMounterWithProxy(config.MountProxySocket)
+	if !ns.config.AgentMode {
+		ns.recorder = utils.NewEventRecorder() // There is no kubeconfig under agent mode
 	}
 	return ns
 }
