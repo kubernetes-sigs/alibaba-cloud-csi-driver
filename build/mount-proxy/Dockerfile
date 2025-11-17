@@ -96,17 +96,27 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as alinas
 
 ARG TARGETPLATFORM
-ARG ALINAS_UTILS_VERSION=1.8-0.20250410201011.30aa55.al7
-ARG EFC_VERSION=1.8-20250226151552.7151bf.release
+ARG ALINAS_UTILS_VERSION=1.9-0.20250805171424.2871b7.al7
+ARG EFC_VERSION=1.9-20250822095129.f34347.release
+# v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch. 
+# It's temporarily unavailable for all ACK clusters, 
+# catering only to ARM for compatibility. An update to all CPFS storage cluster versions is required.
+ARG EFC_ARM_VERSION=2.1-20251105164215.8422bf.release
+ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20251104202327.e70d33.generic
 RUN set -ex; \
     case "${TARGETPLATFORM}" in \
         linux/amd64) ARCH="x86_64" ;; \
-        # linux/arm64) ARCH="aarch_64" ;; \
+        linux/arm64) ARCH="aarch_64" ;; \
         *) echo "unsupported platform"; exit 1 ;; \
     esac; \
     yum install -y util-linux procps python38 tini; \
-    yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
-    yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
+    if [ "${ARCH}" = "x86_64" ]; then \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
+    elif [ "${ARCH}" = "aarch_64" ]; then \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_ARM_VERSION}.aarch64.rpm; \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_ARM_VERSION}.aarch64.rpm; \
+    fi; \
     yum clean all; \
     update-alternatives --set python3 /usr/bin/python3.8
 # alinas-utils generates some dynamic configuration files (such as TLS keys, etc.) under /etc/aliyun/{alinas,cpfs}.
