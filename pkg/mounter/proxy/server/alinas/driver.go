@@ -92,8 +92,11 @@ func addAutoFallbackNFSMountOptions(mountOptions []string) []string {
 			}
 		}
 	}
-	if isEFC && !isVSC {
-		mountOptions = append(mountOptions, "auto_fallback_nfs")
+	if isEFC {
+		mountOptions = append(mountOptions, "no_add_cgroup")
+		if !isVSC {
+			mountOptions = append(mountOptions, "auto_fallback_nfs")
+		}
 	}
 	return mountOptions
 }
