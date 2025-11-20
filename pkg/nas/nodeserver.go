@@ -441,7 +441,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	//mount nas client
-	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, podUID); err != nil {
+	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, podUID, ns.config.AgentMode); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if opt.MountProtocol == "efc" {
@@ -575,7 +575,7 @@ func (ns *nodeServer) mountLosetupPv(mountPoint string, opt *Options, volumeID s
 		return fmt.Errorf("mountLosetupPv: create nfs mountPath error %s ", err.Error())
 	}
 	//mount nas to use losetup dev
-	err := doMount(ns.mounter, opt, nfsPath, volumeID, podID)
+	err := doMount(ns.mounter, opt, nfsPath, volumeID, podID, ns.config.AgentMode)
 	if err != nil {
 		return fmt.Errorf("mountLosetupPv: mount losetup volume failed: %s", err.Error())
 	}
