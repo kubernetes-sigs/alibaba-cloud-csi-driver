@@ -52,6 +52,7 @@ import (
 type controllerServer struct {
 	recorder       record.EventRecorder
 	ad             DiskAttachDetach
+	cd             DiskCreateDelete
 	meta           metadata.MetadataProvider
 	ecs            cloud.ECSInterface
 	snapshotWaiter waitstatus.StatusWaiter[ecs.Snapshot]
@@ -103,6 +104,12 @@ func NewControllerServer(csiCfg utils.Config, ecs cloud.ECSInterface, m metadata
 
 			attachThrottler: defaultThrottler(),
 			detachThrottler: defaultThrottler(),
+		},
+		cd: DiskCreateDelete{
+			ecs:             ecs,
+			batcher:         batcher,
+			createThrottler: defaultThrottler(),
+			deleteThrottler: defaultThrottler(),
 		},
 		snapshotWaiter: newSnapshotStatusWaiter(),
 	}
@@ -177,7 +184,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		isVirtualNode = node.Labels[common.NodeTypeLabelKey] == common.VirtualNodeType
 	}
 
-	diskID, attempt, err := createDisk(cs.ecs, req.GetName(), snapshotID, diskVol, supportedTypes, selectedInstance, isVirtualNode)
+	diskID, attempt, err := cs.cd.createDisk(ctx, req.GetName(), snapshotID, diskVol, supportedTypes, selectedInstance, isVirtualNode)
 	if err != nil {
 		if errors.Is(err, ErrParameterMismatch) {
 			return nil, status.Errorf(codes.AlreadyExists, "volume %s already created but %v", req.Name, err)
@@ -220,7 +227,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	var disk *ecs.Disk
 	describeDisk := func() (*csi.DeleteVolumeResponse, error) {
 		var err error
-		disk, err = findDiskByID(req.VolumeId, cs.ecs)
+		disk, err = cs.cd.batcher.Describe(ctx, req.VolumeId)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "DeleteVolume: find disk(%s) by id with error: %v", req.VolumeId, err)
 		}
@@ -274,7 +281,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 	}
 
-	_, err := deleteDisk(ctx, cs.ecs, req.VolumeId)
+	_, err := cs.cd.deleteDisk(ctx, cs.ecs, req.VolumeId)
 	if err != nil {
 		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 		return nil, status.Errorf(codes.Internal, "DeleteVolume: Delete disk with error: %s", newErrMsg)

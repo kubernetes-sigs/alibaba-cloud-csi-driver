@@ -4,14 +4,19 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2/ktesting"
+	"k8s.io/utils/clock"
 )
 
 var (
@@ -31,37 +36,49 @@ func init() {
 }`), resizeDiskResponse)
 }
 
-func TestDeleteDisk(t *testing.T) {
+func testCreateDelete(t *testing.T) (*cloud.MockECSInterface, *DiskCreateDelete) {
 	ctrl := gomock.NewController(t)
 	c := cloud.NewMockECSInterface(ctrl)
 
+	return c, &DiskCreateDelete{
+		ecs:             c,
+		createThrottler: defaultThrottler(),
+		deleteThrottler: defaultThrottler(),
+		batcher:         batcher.NewLowLatency(desc.Disk(c), clock.RealClock{}, 1*time.Second, 8),
+	}
+}
+
+func TestDeleteDisk(t *testing.T) {
+	c, cd := testCreateDelete(t)
+	_, ctx := ktesting.NewTestContext(t)
+
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(deleteDiskResponse, nil)
 
-	_, err := deleteDisk(context.Background(), c, "test-disk")
+	_, err := cd.deleteDisk(ctx, c, "test-disk")
 	assert.Nil(t, err)
 }
 
 func TestDeleteDiskRetryOnInitError(t *testing.T) {
 	t.Parallel()
-	ctrl := gomock.NewController(t)
-	c := cloud.NewMockECSInterface(ctrl)
+	c, cd := testCreateDelete(t)
+	_, ctx := ktesting.NewTestContext(t)
 
 	initErr := alicloudErr.NewServerError(400, `{"Code": "IncorrectDiskStatus.Initializing"}`, "")
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(nil, initErr)
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(deleteDiskResponse, nil)
 
-	_, err := deleteDisk(context.Background(), c, "test-disk")
+	_, err := cd.deleteDisk(ctx, c, "test-disk")
 	assert.Nil(t, err)
 }
 
 func TestDeleteDiskPassthroughError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	c := cloud.NewMockECSInterface(ctrl)
+	c, cd := testCreateDelete(t)
+	_, ctx := ktesting.NewTestContext(t)
 
 	serverErr := alicloudErr.NewServerError(400, `{"Code": "AnyOtherErrors"}`, "")
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(nil, serverErr)
 
-	_, err := deleteDisk(context.Background(), c, "test-disk")
+	_, err := cd.deleteDisk(ctx, c, "test-disk")
 	assert.Equal(t, serverErr, err)
 }
 
@@ -384,8 +401,8 @@ func TestCreateDisk_Basic(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			client := cloud.NewMockECSInterface(ctrl)
+			client, cd := testCreateDelete(t)
+			_, ctx := ktesting.NewTestContext(t)
 
 			if !c.err {
 				client.EXPECT().CreateDisk(gomock.Any()).Return(&ecs.CreateDiskResponse{
@@ -396,7 +413,7 @@ func TestCreateDisk_Basic(t *testing.T) {
 				client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "AnyOtherErrors"}`, ""))
 			}
 
-			diskID, attempt, err := createDisk(client, "disk-name", "", c.args, c.supports, c.instance, c.isVirtualNode)
+			diskID, attempt, err := cd.createDisk(ctx, "disk-name", "", c.args, c.supports, c.instance, c.isVirtualNode)
 			if c.err {
 				assert.Error(t, err)
 			} else {
@@ -409,8 +426,8 @@ func TestCreateDisk_Basic(t *testing.T) {
 }
 
 func TestCreateDisk_ServerFailFallback(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	client := cloud.NewMockECSInterface(ctrl)
+	client, cd := testCreateDelete(t)
+	_, ctx := ktesting.NewTestContext(t)
 
 	client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "InvalidDataDiskSize.ValueNotSupported"}`, ""))
 	client.EXPECT().CreateDisk(gomock.Any()).Return(&ecs.CreateDiskResponse{
@@ -418,7 +435,7 @@ func TestCreateDisk_ServerFailFallback(t *testing.T) {
 	}, nil)
 
 	args := &diskVolumeArgs{Type: []Category{DiskESSD, DiskESSDAuto}, RequestGB: 20}
-	diskID, attempt, err := createDisk(client, "disk-name", "", args, nil, "", false)
+	diskID, attempt, err := cd.createDisk(ctx, "disk-name", "", args, nil, "", false)
 	assert.NoError(t, err)
 	assert.Equal(t, "d-123", diskID)
 	assert.Equal(t, DiskESSDAuto, attempt.Category)
@@ -456,8 +473,8 @@ func TestCreateDisk_ParameterMismatch(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			client := cloud.NewMockECSInterface(ctrl)
+			client, cd := testCreateDelete(t)
+			_, ctx := ktesting.NewTestContext(t)
 
 			r1 := client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "IdempotentParameterMismatch"}`, ""))
 			r2 := client.EXPECT().DescribeDisks(gomock.Any()).Return(&ecs.DescribeDisksResponse{
@@ -472,7 +489,7 @@ func TestCreateDisk_ParameterMismatch(t *testing.T) {
 			}
 
 			args := &diskVolumeArgs{Type: []Category{DiskESSD, DiskESSDAuto}, RequestGB: 20}
-			diskID, attempt, err := createDisk(client, "disk-name", "", args, nil, "", false)
+			diskID, attempt, err := cd.createDisk(ctx, "disk-name", "", args, nil, "", false)
 			if c.err {
 				assert.Error(t, err)
 			} else {
@@ -492,8 +509,8 @@ func TestCreateDisk_ParameterMismatch(t *testing.T) {
 }
 
 func TestCreateDisk_NoInfiniteLoop(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	client := cloud.NewMockECSInterface(ctrl)
+	client, cd := testCreateDelete(t)
+	_, ctx := ktesting.NewTestContext(t)
 
 	client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "IdempotentParameterMismatch"}`, "")).Times(2)
 	client.EXPECT().DescribeDisks(gomock.Any()).Return(&ecs.DescribeDisksResponse{
@@ -503,7 +520,7 @@ func TestCreateDisk_NoInfiniteLoop(t *testing.T) {
 	}, nil)
 
 	args := &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20}
-	_, _, err := createDisk(client, "disk-name", "", args, nil, "", false)
+	_, _, err := cd.createDisk(ctx, "disk-name", "", args, nil, "", false)
 	assert.Error(t, err)
 }
 
