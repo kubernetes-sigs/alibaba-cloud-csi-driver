@@ -19,6 +19,7 @@ package oss
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -29,6 +30,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
@@ -38,12 +41,18 @@ const (
 	mountProxySocket = "mountPorxySocket"
 )
 
+type podLoc struct {
+	volumeID, nodeID string
+}
+
 // controller server try to create/delete volumes
 type controllerServer struct {
 	client          kubernetes.Interface
 	cnfsGetter      cnfsv1beta1.CNFSGetter
 	metadata        metadata.MetadataProvider
 	fusePodManagers map[string]*oss.OSSFusePodManager
+	legacyPods      sets.Set[podLoc]
+	legacyPodsMu    sync.Mutex
 	common.GenericControllerServer
 }
 
@@ -88,6 +97,27 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
+func (cs *controllerServer) hasLegacyPods(ctx context.Context, loc podLoc) (bool, error) {
+	cs.legacyPodsMu.Lock()
+	defer cs.legacyPodsMu.Unlock()
+	if cs.legacyPods == nil {
+		pods, err := cs.client.CoreV1().Pods(mounter.LegacyFusePodNamespace).List(ctx, metav1.ListOptions{
+			LabelSelector: mounter.FuseVolumeIdLabelKey,
+		})
+		if err != nil {
+			return false, fmt.Errorf("failed to list legacy pods: %w", err)
+		}
+		cs.legacyPods = make(sets.Set[podLoc], len(pods.Items))
+		for _, pod := range pods.Items {
+			cs.legacyPods.Insert(podLoc{
+				volumeID: pod.Labels[mounter.FuseVolumeIdLabelKey],
+				nodeID:   pod.Spec.NodeName,
+			})
+		}
+	}
+	return cs.legacyPods.Has(loc), nil
+}
+
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	klog.Infof("ControllerUnpublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
 	// To maintain the compatibility, all kinds of fuseType Pod share the same globalmount path as ossfs.
@@ -96,18 +126,28 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		Namespace: fusePodNamespace,
 		NodeName:  req.NodeId,
 		VolumeId:  req.VolumeId,
-	}, ""); err != nil {
+	}); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// To maintain the compatibility, cleanup fuse pods in kube-system namespace
-	if err := cs.fusePodManagers[unifiedFsType].Delete(&mounter.FusePodContext{
-		Context:   ctx,
-		Namespace: mounter.LegacyFusePodNamespace,
-		NodeName:  req.NodeId,
-		VolumeId:  req.VolumeId,
-	}, ""); err != nil {
+	loc := podLoc{req.VolumeId, req.NodeId}
+	legacy, err := cs.hasLegacyPods(ctx, loc)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if legacy {
+		// To maintain the compatibility, cleanup fuse pods in kube-system namespace
+		if err := cs.fusePodManagers[unifiedFsType].Delete(&mounter.FusePodContext{
+			Context:   ctx,
+			Namespace: mounter.LegacyFusePodNamespace,
+			NodeName:  req.NodeId,
+			VolumeId:  req.VolumeId,
+		}); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		cs.legacyPodsMu.Lock()
+		delete(cs.legacyPods, loc)
+		cs.legacyPodsMu.Unlock()
 	}
 
 	klog.Infof("ControllerUnpublishVolume: successfully unpublished volume %s on node %s", req.VolumeId, req.NodeId)
@@ -152,7 +192,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		AuthConfig:        authCfg,
 		PodTemplateConfig: ptCfg,
 		FuseType:          opts.FuseType,
-	}, controllerPublishPath, false)
+	}, controllerPublishPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create %s pod: %v", opts.FuseType, err)
 	}
