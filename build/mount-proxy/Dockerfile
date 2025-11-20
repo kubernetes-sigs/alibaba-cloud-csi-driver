@@ -96,7 +96,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as alinas
 
 ARG TARGETPLATFORM
-ARG ALINAS_UTILS_VERSION=1.9-0.20250805171424.2871b7.al7
+ARG ALINAS_UTILS_VERSION=1.9-0.20251120211108.7e6a18.al7
 ARG EFC_VERSION=1.9-20250822095129.f34347.release
 # v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch. 
 # It's temporarily unavailable for all ACK clusters, 
