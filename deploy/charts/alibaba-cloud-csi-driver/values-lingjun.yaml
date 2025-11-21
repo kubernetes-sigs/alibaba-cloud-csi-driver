@@ -4,4 +4,4 @@ csi:
     controller:
       enabled: true
   disk:
-    enabled: false
+    enabled: true
