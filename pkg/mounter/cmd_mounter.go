@@ -51,6 +51,7 @@ func getArgs(op *MountOperation) []string {
 		return mount.MakeMountArgs(op.Source, op.Target, "", op.Options)
 	case "ossfs2":
 		args := []string{"mount", op.Target}
+		args = append(args, op.Args...)
 		for _, o := range op.Options {
 			args = append(args, fmt.Sprintf("--%s", o))
 		}
