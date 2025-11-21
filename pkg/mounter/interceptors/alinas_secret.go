@@ -17,7 +17,7 @@ func NewAlinasSecretInterceptor() mounter.MountInterceptor {
 	return AlinasSecretInterceptor{}
 }
 
-func (AlinasSecretInterceptor) BeforeMount(op *mounter.MountOperation) (*mounter.MountOperation, error) {
+func (AlinasSecretInterceptor) BeforeMount(op *mounter.MountOperation, _ error) (*mounter.MountOperation, error) {
 	if op == nil || op.Secrets == nil {
 		return op, nil
 	}
@@ -45,4 +45,8 @@ func makeCredFileContent(secrets map[string]string) []byte {
 		secrets["akId"],
 		secrets["akSecret"],
 	)
+}
+
+func (AlinasSecretInterceptor) AfterMount(op *mounter.MountOperation, err error) error {
+	return nil
 }

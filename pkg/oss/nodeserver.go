@@ -64,6 +64,8 @@ const (
 // use unifiedFsType instead
 var unifiedFsType = OssFsType
 
+// Used by OssCmdMounter only, since ProxyMounter is only the client side,
+// the interceptors are applied at the server side.
 var ossInterceptors = map[string][]mounter.MountInterceptor{
 	OssFsType:  {interceptors.NewOssfsSecretInterceptor()},
 	OssFs2Type: {interceptors.NewOssfs2SecretInterceptor()},
