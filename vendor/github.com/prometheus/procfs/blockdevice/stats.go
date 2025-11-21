@@ -1,4 +1,4 @@
-// Copyright 2018 The Prometheus Authors
+// Copyright The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/prometheus/procfs"
 	"github.com/prometheus/procfs/internal/fs"
 	"github.com/prometheus/procfs/internal/util"
 )
@@ -178,6 +179,11 @@ type BlockQueueStats struct {
 	WriteZeroesMaxBytes uint64
 }
 
+type IODeviceStats struct {
+	IODoneCount uint64
+	IOErrCount  uint64
+}
+
 // DeviceMapperInfo models the devicemapper files that are located in the sysfs tree for each block device
 // and described in the kernel documentation:
 // https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-block-dm
@@ -209,6 +215,8 @@ const (
 	sysBlockQueue       = "queue"
 	sysBlockDM          = "dm"
 	sysUnderlyingDev    = "slaves"
+	sysBlockSize        = "size"
+	sysDevicePath       = "device"
 )
 
 // FS represents the pseudo-filesystems proc and sys, which provides an
@@ -417,8 +425,7 @@ func (fs FS) SysBlockDeviceQueueStats(device string) (BlockQueueStats, error) {
 		return BlockQueueStats{}, err
 	}
 	var schedulers []string
-	xs := strings.Split(scheduler, " ")
-	for _, s := range xs {
+	for s := range strings.SplitSeq(scheduler, " ") {
 		if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
 			s = s[1 : len(s)-1]
 			stat.SchedulerCurrent = s
@@ -473,4 +480,36 @@ func (fs FS) SysBlockDeviceUnderlyingDevices(device string) (UnderlyingDeviceInf
 	}
 	return UnderlyingDeviceInfo{DeviceNames: underlying}, nil
 
+}
+
+// SysBlockDeviceSize returns the size of the block device from /sys/block/<device>/size
+// in bytes by multiplying the value by the Linux sector length of 512.
+func (fs FS) SysBlockDeviceSize(device string) (uint64, error) {
+	size, err := util.ReadUintFromFile(fs.sys.Path(sysBlockPath, device, sysBlockSize))
+	if err != nil {
+		return 0, err
+	}
+	return procfs.SectorSize * size, nil
+}
+
+// SysBlockDeviceIO returns stats for the block device io counters
+// IO done count: /sys/block/<disk>/device/iodone_cnt
+// IO error count: /sys/block/<disk>/device/ioerr_cnt.
+func (fs FS) SysBlockDeviceIOStat(device string) (IODeviceStats, error) {
+	var (
+		ioDeviceStats IODeviceStats
+		err           error
+	)
+	for file, p := range map[string]*uint64{
+		"iodone_cnt": &ioDeviceStats.IODoneCount,
+		"ioerr_cnt":  &ioDeviceStats.IOErrCount,
+	} {
+		var val uint64
+		val, err = util.ReadHexFromFile(fs.sys.Path(sysBlockPath, device, sysDevicePath, file))
+		if err != nil {
+			return IODeviceStats{}, err
+		}
+		*p = val
+	}
+	return ioDeviceStats, nil
 }
