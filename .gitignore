@@ -2,6 +2,7 @@
 .idea
 .vscode/
 .qoder/
+.devcontainer/
 .DS_Store
 diskplugin.csi.alibabacloud.com
 nasplugin.csi.alibabacloud.com
