@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package bmcpfs provides the BMCPFS (Block Mount CPFS) CSI driver implementation.
 package bmcpfs
 
 import (
@@ -47,7 +48,8 @@ const (
 
 	volumeHandleDelimiter = "+"
 
-	NODEID_INDEX = "nodeid-index"
+	// NodeIDIndex is the index name for node ID in the informer cache
+	NodeIDIndex = "nodeid-index"
 )
 
 // Driver represents the BMCPFS CSI driver

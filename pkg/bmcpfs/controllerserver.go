@@ -116,10 +116,12 @@ func newControllerServer(region string) (*controllerServer, error) {
 		return nil, err
 	}
 	kubeclient := mustGetKubeClient()
-	nodeInformer := informerv1.NewFilteredNodeInformer(kubeclient, 0, cache.Indexers{NODEID_INDEX: nodeIndexFunc}, func(options *metav1.ListOptions) {
+	nodeInformer := informerv1.NewFilteredNodeInformer(kubeclient, 0, cache.Indexers{NodeIDIndex: nodeIndexFunc}, func(options *metav1.ListOptions) {
 		options.FieldSelector = fields.OneTermEqualSelector("alibabacloud.com/lingjun-worker", "true").String()
 	})
-	nodeInformer.SetTransform(nodeTransformFunc)
+	if err := nodeInformer.SetTransform(nodeTransformFunc); err != nil {
+		return nil, fmt.Errorf("failed to set transform function: %w", err)
+	}
 	return &controllerServer{
 		vscManager:     internal.NewPrimaryVscManagerWithCache(efloClient),
 		attachDetacher: internal.NewCPFSAttachDetacher(nasClient),
@@ -136,16 +138,6 @@ func newControllerServer(region string) (*controllerServer, error) {
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("starting")
-
-	// Handle static volume creation (existing fileset)
-	csiVolume, err := staticFileSetCreate(req, cs.filsetManager)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "create static volume failed: %v", err)
-	}
-	if csiVolume != nil {
-		klog.Infof("CreateVolume: static volume create successful, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, csiVolume.VolumeId, csiVolume.VolumeContext)
-		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
-	}
 
 	// Validate parameters
 	if err := validateFileSetParameters(req); err != nil {
@@ -366,22 +358,20 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	if !nodeStatus.HasPrefixInUse(cpfsID) {
 		err := cs.attachDetacher.Detach(ctx, cpfsID, vsc.VscID)
 		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
+			return nil, status.Errorf(codes.Internal, "detach error: %v", err.Error())
 		}
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
-	// 分支2：inuse & attach 同时存在，跳过卸载，返回成功
 	if nodeStatus.HasPrefixInUse(cpfsID) && nodeStatus.HasVolumeAttachment(cpfsID) {
-		klog.Infof("volume is in use and attached, skip detach for cpfsID: %s at node: %s", cpfsID, lingjunInstanceID)
+		klog.InfoS("volume is in use and attached, skip detach", "cpfsID", cpfsID, "lingjunID", lingjunInstanceID)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
-	// 分支3：inuse 存在，除了当前的 cpfs+fileset 之外的 attach 不存在，双重检查后卸载
 	if nodeStatus.HasPrefixInUse(cpfsID) && !nodeStatus.HasVolumeAttachment(cpfsID) {
 		currentStatus, err := cs.getActualStateOfNodeVolumeAttached(nodeStatus.Name) // TODO: checkRemoteNodeStatusByNodeName
 		if err == nil && !currentStatus.HasVolumeAttachmentExceptVolumeHandle(cpfsID, req.VolumeId) {
 			err := cs.attachDetacher.Detach(ctx, cpfsID, vsc.VscID)
 			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
+				return nil, status.Errorf(codes.Internal, "detach error: %v", err.Error())
 			}
 			// TODO: patch event 到 node
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
