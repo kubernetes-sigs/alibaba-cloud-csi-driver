@@ -2,9 +2,7 @@ package mounter
 
 import (
 	"context"
-	"fmt"
 
-	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -26,46 +24,46 @@ type MountOperation struct {
 	MountResult any
 }
 
-type MountInterceptor interface {
-	BeforeMount(op *MountOperation, err error) (*MountOperation, error)
-	AfterMount(op *MountOperation, err error) error
-}
+type MountHandler func(ctx context.Context, op *MountOperation) error
+
+type MountInterceptor func(ctx context.Context, op *MountOperation, handler MountHandler) error
 
 type MountWorkflow struct {
 	Mounter
-	interceptors []MountInterceptor
+	chainedHandler MountHandler
 }
 
 var _ Mounter = &MountWorkflow{}
 
 func (w *MountWorkflow) ExtendedMount(ctx context.Context, op *MountOperation) error {
-	var err error
-	for i, interceptor := range w.interceptors {
-		if op, err = interceptor.BeforeMount(op, err); err != nil && i != len(w.interceptors)-1 {
-			// Log error but continue to the next interceptor, since some interceptors may
-			// want to handle the error, e.g. the OssMonitorInterceptor.
-			// Only log for the intermediate interceptors, otherwise the final error will be printed twice.
-			klog.ErrorS(err, "error executing BeforeMount interceptor")
-		}
-	}
-	if err != nil {
-		return fmt.Errorf("error executing BeforeMount interceptor: %w", err)
+	return w.chainedHandler(ctx, op)
+}
+
+// chainInterceptors creates a chain of interceptors similar to gRPC
+func chainInterceptors(interceptors []MountInterceptor, finalHandler MountHandler) MountHandler {
+	if len(interceptors) == 0 {
+		return finalHandler
 	}
 
-	err = w.Mounter.ExtendedMount(ctx, op)
-	for _, interceptor := range w.interceptors {
-		if afterErr := interceptor.AfterMount(op, err); afterErr != nil {
-			// Log error but continue to the next interceptor.
-			// Do not override the original error from mount operation.
-			klog.ErrorS(afterErr, "error executing AfterMount interceptor")
-		}
+	return func(ctx context.Context, op *MountOperation) error {
+		return interceptors[0](ctx, op, getChainHandler(interceptors, 0, finalHandler))
 	}
-	return err
+}
+
+// getChainHandler creates a handler that chains interceptors recursively
+func getChainHandler(interceptors []MountInterceptor, curr int, finalHandler MountHandler) MountHandler {
+	if curr == len(interceptors)-1 {
+		return finalHandler
+	}
+
+	return func(ctx context.Context, op *MountOperation) error {
+		return interceptors[curr+1](ctx, op, getChainHandler(interceptors, curr+1, finalHandler))
+	}
 }
 
 func NewForMounter(m Mounter, interceptors ...MountInterceptor) Mounter {
 	return &MountWorkflow{
-		Mounter:      m,
-		interceptors: interceptors,
+		Mounter:        m,
+		chainedHandler: chainInterceptors(interceptors, m.ExtendedMount),
 	}
 }

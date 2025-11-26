@@ -1,41 +1,60 @@
 package interceptors
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"os"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"k8s.io/klog/v2"
 )
 
-type OssfsSecretInterceptor struct {
-	passwdFile string
+var _ mounter.MountInterceptor = OssfsSecretInterceptor
+
+func OssfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
+	return ossfsSecretInterceptor(ctx, op, handler, "ossfs")
 }
 
-var _ mounter.MountInterceptor = OssfsSecretInterceptor{}
-
-func NewOssfsSecretInterceptor() mounter.MountInterceptor {
-	return OssfsSecretInterceptor{}
+func Ossfs2SecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
+	return ossfsSecretInterceptor(ctx, op, handler, "ossfs2")
 }
 
-func (i OssfsSecretInterceptor) BeforeMount(req *mounter.MountOperation, _ error) (*mounter.MountOperation, error) {
-	var err error
-	i.passwdFile, err = utils.SaveOssSecretsToFile(req.Secrets, req.FsType)
+func ossfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler, fuseType string) error {
+	passwdFile, err := utils.SaveOssSecretsToFile(op.Secrets, op.FsType)
 	if err != nil {
-		return req, err
+		return err
 	}
-	if i.passwdFile != "" {
-		req.Options = append(req.Options, "passwd_file="+i.passwdFile)
+	if passwdFile != "" {
+		if fuseType == "ossfs" {
+			op.Args = append(op.Args, "passwd_file="+passwdFile)
+		} else {
+			op.Args = append(op.Args, []string{"-c", passwdFile}...)
+		}
 	}
-	return req, nil
-}
 
-func (i OssfsSecretInterceptor) AfterMount(op *mounter.MountOperation, err error) error {
-	if i.passwdFile == "" {
+	if err = handler(ctx, op); err != nil {
+		return err
+	}
+
+	if passwdFile == "" || op.MountResult == nil {
 		return nil
 	}
-	if err := os.Remove(i.passwdFile); err != nil {
-		return fmt.Errorf("error removing passwd file: %w, mountpoint=%s, path=%s", err, op.Target, i.passwdFile)
+	result, ok := op.MountResult.(*server.OssfsMountResult)
+	if !ok {
+		klog.ErrorS(
+			errors.New("failed to assert ossfs mount result"),
+			"skipping cleanup of passwd file", "mountpoint", op.Target, "path", passwdFile,
+		)
+		return nil
 	}
+
+	go func() {
+		<-result.ExitChan
+		if err := os.Remove(passwdFile); err != nil {
+			klog.ErrorS(err, "failed to cleanup ossfs passwd file", "mountpoint", op.Target, "path", passwdFile)
+		}
+	}()
 	return nil
 }

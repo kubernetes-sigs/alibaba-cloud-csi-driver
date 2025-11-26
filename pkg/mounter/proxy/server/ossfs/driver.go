@@ -18,7 +18,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
-	serverutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -47,8 +46,8 @@ func NewDriver() *Driver {
 	}
 	driver.Mounter = mounter.NewForMounter(
 		m,
-		interceptors.NewOssfsSecretInterceptor(),
-		interceptors.NewOssfsMonitorInterceptor(),
+		interceptors.OssfsSecretInterceptor,
+		interceptors.OssfsMonitorInterceptor,
 	)
 	return driver
 }
@@ -107,11 +106,12 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	target := op.Target
 
 	args := mount.MakeMountArgs(op.Source, op.Target, "", options)
+	args = append(args, op.Args...)
 	args = append(args, "-f")
 
 	var stderrBuf bytes.Buffer
 	multiWriter := io.MultiWriter(os.Stderr, &stderrBuf)
-	sw := serverutils.NewSwitchableWriter(multiWriter)
+	sw := server.NewSwitchableWriter(multiWriter)
 	cmd := exec.Command("ossfs", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = sw
