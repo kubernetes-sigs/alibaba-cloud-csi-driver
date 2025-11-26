@@ -23,6 +23,11 @@ issues:
     - path: .*\.go 
       linters:
         - unused
+    # Temporary: suppress deprecated Endpoints API warning until dadi migrates to EndpointSlice.
+    - path: pkg/dadi/.*\.go
+      text: corev1\.Endpoints is deprecated
+      linters:
+        - staticcheck
 
   # Mode of the generated files analysis.
   #
