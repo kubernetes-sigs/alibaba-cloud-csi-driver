@@ -12,21 +12,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func Test_parseGroupSnapshotAnnotations(t *testing.T) {
-	annotations := make(map[string]string)
-	ecsParams := &createGroupSnapshotParams{}
-
-	// Test case 1: snapshotTTL is empty
-	annotations[common.SnapshotTTLKey] = ""
-	err := parseGroupSnapshotAnnotations(annotations, ecsParams)
-	assert.Nil(t, err)
-
-	// Test case 2: snapshotTTL is not empty
-	annotations[common.SnapshotTTLKey] = "10"
-	err = parseGroupSnapshotAnnotations(annotations, ecsParams)
-	assert.Error(t, err)
-}
-
 func Test_formatGroupSnapshot(t *testing.T) {
 	// Create a mock groupSnapshot object
 	mockGroupSnapshot := &ecs.SnapshotGroup{
@@ -455,9 +440,7 @@ func Test_parseGroupSnapshotParameters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ecsParams := &createGroupSnapshotParams{}
-
-			err := parseGroupSnapshotParameters(tt.params, ecsParams)
+			ecsParams, err := parseGroupSnapshotParameters(tt.params)
 
 			if tt.wantError {
 				assert.Error(t, err)
