@@ -45,8 +45,8 @@ func NewDriver() *Driver {
 	}
 	driver.Mounter = mounter.NewForMounter(
 		m,
-		interceptors.NewOssfs2SecretInterceptor(),
-		interceptors.NewOssfsMonitorInterceptor(),
+		interceptors.Ossfs2SecretInterceptor,
+		interceptors.OssfsMonitorInterceptor,
 	)
 	return driver
 }

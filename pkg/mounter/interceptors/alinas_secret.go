@@ -1,6 +1,7 @@
 package interceptors
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -9,33 +10,29 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type AlinasSecretInterceptor struct{}
+var _ mounter.MountInterceptor = AlinasSecretInterceptor
 
-var _ mounter.MountInterceptor = AlinasSecretInterceptor{}
-
-func NewAlinasSecretInterceptor() mounter.MountInterceptor {
-	return AlinasSecretInterceptor{}
-}
-
-func (AlinasSecretInterceptor) BeforeMount(op *mounter.MountOperation, _ error) (*mounter.MountOperation, error) {
+func AlinasSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
 	if op == nil || op.Secrets == nil {
-		return op, nil
+		return handler(ctx, op)
 	}
 
 	tmpDir, err := os.MkdirTemp("", "alinas-")
 	if err != nil {
-		return op, err
+		return err
 	}
 
 	credFileContent := makeCredFileContent(op.Secrets)
 	credFilePath := path.Join(tmpDir, op.VolumeID+".credentials")
 	if err = os.WriteFile(credFilePath, credFileContent, 0o600); err != nil {
-		return op, err
+		os.RemoveAll(tmpDir) // cleanup in case of error
+		return err
 	}
 
 	klog.V(4).InfoS("Created alinas credential file", "path", credFilePath)
 	op.Options = append(op.Options, "ram_config_file="+credFilePath)
-	return op, nil
+
+	return handler(ctx, op)
 }
 
 func makeCredFileContent(secrets map[string]string) []byte {
@@ -45,8 +42,4 @@ func makeCredFileContent(secrets map[string]string) []byte {
 		secrets["akId"],
 		secrets["akSecret"],
 	)
-}
-
-func (AlinasSecretInterceptor) AfterMount(op *mounter.MountOperation, err error) error {
-	return nil
 }
