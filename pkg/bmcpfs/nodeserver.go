@@ -71,7 +71,6 @@ func newNodeServer() (*nodeServer, error) {
 	mounter := mounter.NewProxyMounter(defaultAlinasMountProxySocket, mount.NewWithoutSystemd(""))
 	return &nodeServer{
 		GenericNodeServer: common.GenericNodeServer{NodeID: nodeID},
-		locks:             utils.NewVolumeLocks(),
 		mounter:           mounter,
 	}, nil
 }
