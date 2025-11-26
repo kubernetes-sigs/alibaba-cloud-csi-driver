@@ -30,7 +30,7 @@ func init() {
 	server.RegisterDriver(&Driver{
 		Mounter: mounter.NewForMounter(
 			&extendedMounter{Interface: mount.New("")},
-			interceptors.NewAlinasSecretInterceptor(),
+			interceptors.AlinasSecretInterceptor,
 		),
 	})
 }
