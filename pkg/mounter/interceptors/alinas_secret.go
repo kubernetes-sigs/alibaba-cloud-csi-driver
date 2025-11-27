@@ -17,15 +17,26 @@ func AlinasSecretInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 		return handler(ctx, op)
 	}
 
-	tmpDir, err := os.MkdirTemp("", "alinas-")
+	tmpCredFile, err := os.CreateTemp("", op.VolumeID+"-*.credentials")
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err = os.Remove(tmpCredFile.Name()); err != nil && !os.IsNotExist(err) {
+			klog.ErrorS(err, "Failed to remove temporary alinas credential file", "path", tmpCredFile.Name())
+		}
+	}()
 
 	credFileContent := makeCredFileContent(op.Secrets)
-	credFilePath := path.Join(tmpDir, op.VolumeID+".credentials")
-	if err = os.WriteFile(credFilePath, credFileContent, 0o600); err != nil {
-		os.RemoveAll(tmpDir) // cleanup in case of error
+	if _, err = tmpCredFile.Write(credFileContent); err != nil {
+		return err
+	}
+	if err = tmpCredFile.Close(); err != nil {
+		return err
+	}
+
+	credFilePath := path.Join(os.TempDir(), op.VolumeID+".credentials")
+	if err = os.Rename(tmpCredFile.Name(), credFilePath); err != nil {
 		return err
 	}
 
