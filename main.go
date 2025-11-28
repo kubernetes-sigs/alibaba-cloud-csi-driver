@@ -27,9 +27,13 @@ import (
 	"sync"
 	"time"
 
+	sts20150401 "github.com/alibabacloud-go/sts-20150401/v2/client"
+	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -157,8 +161,18 @@ func main() {
 
 	ac := utils.GetAccessControl()
 	ecsClient := utils.NewEcsClient(ac)
-	stsClient := utils.NewStsClient(ac)
-	meta.EnableOpenAPI(ecsClient, stsClient)
+	meta.EnableOpenAPI(ecsClient)
+
+	provider, err := credentials.NewProvider()
+	if err != nil {
+		klog.ErrorS(err, "failed to get credential for metadata, will not enable OpenAPI")
+	} else {
+		cred := alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider)
+		stsClient := func(regionID string) (cloud.STSInterface, error) {
+			return sts20150401.NewClient(utils.GetStsConfig(regionID).SetCredential(cred))
+		}
+		meta.EnableSts(stsClient)
+	}
 
 	for i, driverName := range driverNames {
 		if !strings.Contains(driverName, TypePluginSuffix) && driverName != ExtenderAgent {
