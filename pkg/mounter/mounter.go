@@ -52,7 +52,7 @@ func chainInterceptors(interceptors []MountInterceptor, finalHandler MountHandle
 
 // getChainHandler creates a handler that chains interceptors recursively
 func getChainHandler(interceptors []MountInterceptor, curr int, finalHandler MountHandler) MountHandler {
-	if curr == len(interceptors)-1 {
+	if curr >= len(interceptors)-1 {
 		return finalHandler
 	}
 
