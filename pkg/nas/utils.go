@@ -66,7 +66,7 @@ type RoleAuth struct {
 	Code            string
 }
 
-func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, podUid string) error {
+func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
 	var (
 		mountFstype     string
 		source          string
@@ -94,9 +94,7 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 		}
 		mountFstype = "alinas"
 		// err = mounter.Mount(source, mountPoint, "alinas", combinedOptions)
-		isPathNotFound = func(err error) bool {
-			return strings.Contains(err.Error(), "Failed to bind mount")
-		}
+		isPathNotFound = isEFCPathNotFoundError
 	case NativeClient:
 		switch opt.FSType {
 		case "cpfs":
@@ -115,16 +113,19 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 			// must enable tls when using accesspoint
 			combinedOptions = addTLSMountOptions(combinedOptions)
 		}
+		isPathNotFound = isNFSPathNotFoundError
 		// Enable compatibility for BMCPFS VPC mount points using the NAS Driver, to support the same usage in ECI.
 		if isCPFS(opt.FSType, opt.Server) && opt.MountProtocol == "efc" {
 			mountFstype = "alinas"
 			combinedOptions = append(combinedOptions, "efc,protocol=efc,net=tcp,fstype=cpfs")
+			if agentMode {
+				isPathNotFound = isEFCPathNotFoundError
+			} else {
+				klog.V(4).InfoS("When using EFC, automatic directory creation is only supported in agent mode.")
+			}
 		}
 		if mountFstype == "" {
 			mountFstype = opt.MountProtocol
-		}
-		isPathNotFound = func(err error) bool {
-			return strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting")
 		}
 	}
 	err := mounter.Mount(source, targetPath, mountFstype, combinedOptions)
@@ -164,6 +165,23 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 		klog.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
 	}
 	return mounter.Mount(source, targetPath, mountFstype, combinedOptions)
+}
+
+func isEFCPathNotFoundError(err error) bool {
+	return strings.Contains(err.Error(), "Failed to bind mount")
+}
+
+func isNFSPathNotFoundError(err error) bool {
+	errors := []string{
+		"reason given by server: No such file or directory",
+		"access denied by server while mounting",
+	}
+	for _, error := range errors {
+		if strings.Contains(err.Error(), error) {
+			return true
+		}
+	}
+	return false
 }
 
 // check system config,
