@@ -4,14 +4,21 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2/ktesting"
+	"k8s.io/utils/clock"
 )
 
 var (
@@ -31,37 +38,49 @@ func init() {
 }`), resizeDiskResponse)
 }
 
-func TestDeleteDisk(t *testing.T) {
+func testCreateDelete(t *testing.T) (*cloud.MockECSInterface, *DiskCreateDelete) {
 	ctrl := gomock.NewController(t)
 	c := cloud.NewMockECSInterface(ctrl)
 
+	return c, &DiskCreateDelete{
+		ecs:             c,
+		createThrottler: defaultThrottler(),
+		deleteThrottler: defaultThrottler(),
+		batcher:         batcher.NewLowLatency(desc.Disk(c), clock.RealClock{}, 1*time.Second, 8),
+	}
+}
+
+func TestDeleteDisk(t *testing.T) {
+	c, cd := testCreateDelete(t)
+	_, ctx := ktesting.NewTestContext(t)
+
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(deleteDiskResponse, nil)
 
-	_, err := deleteDisk(context.Background(), c, "test-disk")
+	_, err := cd.deleteDisk(ctx, c, "test-disk")
 	assert.Nil(t, err)
 }
 
 func TestDeleteDiskRetryOnInitError(t *testing.T) {
 	t.Parallel()
-	ctrl := gomock.NewController(t)
-	c := cloud.NewMockECSInterface(ctrl)
+	c, cd := testCreateDelete(t)
+	_, ctx := ktesting.NewTestContext(t)
 
 	initErr := alicloudErr.NewServerError(400, `{"Code": "IncorrectDiskStatus.Initializing"}`, "")
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(nil, initErr)
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(deleteDiskResponse, nil)
 
-	_, err := deleteDisk(context.Background(), c, "test-disk")
+	_, err := cd.deleteDisk(ctx, c, "test-disk")
 	assert.Nil(t, err)
 }
 
 func TestDeleteDiskPassthroughError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	c := cloud.NewMockECSInterface(ctrl)
+	c, cd := testCreateDelete(t)
+	_, ctx := ktesting.NewTestContext(t)
 
 	serverErr := alicloudErr.NewServerError(400, `{"Code": "AnyOtherErrors"}`, "")
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(nil, serverErr)
 
-	_, err := deleteDisk(context.Background(), c, "test-disk")
+	_, err := cd.deleteDisk(ctx, c, "test-disk")
 	assert.Equal(t, serverErr, err)
 }
 
@@ -384,8 +403,8 @@ func TestCreateDisk_Basic(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			client := cloud.NewMockECSInterface(ctrl)
+			client, cd := testCreateDelete(t)
+			_, ctx := ktesting.NewTestContext(t)
 
 			if !c.err {
 				client.EXPECT().CreateDisk(gomock.Any()).Return(&ecs.CreateDiskResponse{
@@ -396,7 +415,7 @@ func TestCreateDisk_Basic(t *testing.T) {
 				client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "AnyOtherErrors"}`, ""))
 			}
 
-			diskID, attempt, err := createDisk(client, "disk-name", "", c.args, c.supports, c.instance, c.isVirtualNode)
+			diskID, attempt, err := cd.createDisk(ctx, "disk-name", "", c.args, c.supports, c.instance, c.isVirtualNode)
 			if c.err {
 				assert.Error(t, err)
 			} else {
@@ -409,8 +428,8 @@ func TestCreateDisk_Basic(t *testing.T) {
 }
 
 func TestCreateDisk_ServerFailFallback(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	client := cloud.NewMockECSInterface(ctrl)
+	client, cd := testCreateDelete(t)
+	_, ctx := ktesting.NewTestContext(t)
 
 	client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "InvalidDataDiskSize.ValueNotSupported"}`, ""))
 	client.EXPECT().CreateDisk(gomock.Any()).Return(&ecs.CreateDiskResponse{
@@ -418,7 +437,7 @@ func TestCreateDisk_ServerFailFallback(t *testing.T) {
 	}, nil)
 
 	args := &diskVolumeArgs{Type: []Category{DiskESSD, DiskESSDAuto}, RequestGB: 20}
-	diskID, attempt, err := createDisk(client, "disk-name", "", args, nil, "", false)
+	diskID, attempt, err := cd.createDisk(ctx, "disk-name", "", args, nil, "", false)
 	assert.NoError(t, err)
 	assert.Equal(t, "d-123", diskID)
 	assert.Equal(t, DiskESSDAuto, attempt.Category)
@@ -456,8 +475,8 @@ func TestCreateDisk_ParameterMismatch(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			client := cloud.NewMockECSInterface(ctrl)
+			client, cd := testCreateDelete(t)
+			_, ctx := ktesting.NewTestContext(t)
 
 			r1 := client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "IdempotentParameterMismatch"}`, ""))
 			r2 := client.EXPECT().DescribeDisks(gomock.Any()).Return(&ecs.DescribeDisksResponse{
@@ -472,7 +491,7 @@ func TestCreateDisk_ParameterMismatch(t *testing.T) {
 			}
 
 			args := &diskVolumeArgs{Type: []Category{DiskESSD, DiskESSDAuto}, RequestGB: 20}
-			diskID, attempt, err := createDisk(client, "disk-name", "", args, nil, "", false)
+			diskID, attempt, err := cd.createDisk(ctx, "disk-name", "", args, nil, "", false)
 			if c.err {
 				assert.Error(t, err)
 			} else {
@@ -492,8 +511,8 @@ func TestCreateDisk_ParameterMismatch(t *testing.T) {
 }
 
 func TestCreateDisk_NoInfiniteLoop(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	client := cloud.NewMockECSInterface(ctrl)
+	client, cd := testCreateDelete(t)
+	_, ctx := ktesting.NewTestContext(t)
 
 	client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "IdempotentParameterMismatch"}`, "")).Times(2)
 	client.EXPECT().DescribeDisks(gomock.Any()).Return(&ecs.DescribeDisksResponse{
@@ -503,7 +522,7 @@ func TestCreateDisk_NoInfiniteLoop(t *testing.T) {
 	}, nil)
 
 	args := &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20}
-	_, _, err := createDisk(client, "disk-name", "", args, nil, "", false)
+	_, _, err := cd.createDisk(ctx, "disk-name", "", args, nil, "", false)
 	assert.Error(t, err)
 }
 
@@ -578,6 +597,153 @@ func Test_getDiskDescribeRequest(t *testing.T) {
 			request := getDiskDescribeRequest(tt.diskIDs)
 			assert.NotNil(t, request)
 			assert.Equal(t, tt.expected, request.DiskIds)
+		})
+	}
+}
+
+func testAttachDetach(t *testing.T) (context.Context, *cloud.MockECSInterface, *DiskAttachDetach) {
+	ctrl := gomock.NewController(t)
+	ecs := cloud.NewMockECSInterface(ctrl)
+	_, ctx := ktesting.NewTestContext(t)
+
+	client := desc.Disk(ecs)
+	b := batcher.NewPassthrough(client)
+	return ctx, ecs, &DiskAttachDetach{
+		slots:           NewSlots(0, 0),
+		ecs:             ecs,
+		waiter:          waitstatus.NewSimple(client, clock.RealClock{}),
+		batcher:         b,
+		attachThrottler: defaultThrottler(),
+		detachThrottler: defaultThrottler(),
+		dev:             DefaultDeviceManager,
+	}
+}
+
+func disk(status string, node string) ecs.Disk {
+	disk := ecs.Disk{
+		Status:       status,
+		Category:     "cloud_regional_disk_auto", // only one support forceAttach
+		MultiAttach:  "Disabled",
+		DiskId:       "d-testdiskid",
+		InstanceId:   node,
+		SerialNumber: "fake-serial-number",
+	}
+	if node != "" {
+		disk.Attachments.Attachment = []ecs.Attachment{
+			{InstanceId: node},
+		}
+	}
+	return disk
+}
+
+func diskResp(disk ecs.Disk) *ecs.DescribeDisksResponse {
+	return &ecs.DescribeDisksResponse{
+		Disks: ecs.DisksInDescribeDisks{
+			Disk: []ecs.Disk{disk},
+		},
+	}
+}
+
+func TestAttachDisk(t *testing.T) {
+	GlobalConfigVar.DetachBeforeAttach = true // This is the default
+	cases := []struct {
+		name          string
+		before, after ecs.Disk
+		detaching     bool
+		detach        bool
+		detached      ecs.Disk
+		noAttach      bool
+		forceAttach   bool
+		expectErr     bool
+	}{
+		{
+			name:     "already attached",
+			before:   disk("In_use", "i-testinstanceid"),
+			noAttach: true,
+		},
+		{
+			name:        "attached to other",
+			before:      disk("In_use", "i-anotherinstance"),
+			detaching:   true,
+			forceAttach: true,
+			after:       disk("In_use", "i-testinstanceid"),
+		},
+		{
+			name:     "attached to other (no force attach)",
+			before:   disk("In_use", "i-anotherinstance"),
+			detach:   true,
+			detached: disk("Available", ""),
+			after:    disk("In_use", "i-testinstanceid"),
+		},
+		{
+			name:   "normal",
+			before: disk("Available", ""),
+			after:  disk("In_use", "i-testinstanceid"),
+		},
+		{
+			name:      "attaching",
+			before:    disk("Attaching", ""),
+			noAttach:  true,
+			expectErr: true,
+		},
+		{
+			name:      "detaching from self",
+			before:    disk("Detaching", "i-testinstanceid"),
+			noAttach:  true,
+			expectErr: true,
+		},
+		{
+			// This not supported by ECS, but desired by us to speed up failover. Hopes they will support it someday.
+			name:        "detaching from other",
+			before:      disk("Detaching", "i-anotherinstance"),
+			detaching:   true,
+			forceAttach: true,
+			after:       disk("In_use", "i-testinstanceid"),
+		},
+		{
+			// This is likely to fail in real env. But we try it anyway, in case the detach just finished after we checked
+			name:        "detaching from other (no force attach)",
+			before:      disk("Detaching", "i-anotherinstance"),
+			forceAttach: false,
+			after:       disk("In_use", "i-testinstanceid"),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, c, ad := testAttachDetach(t)
+
+			if tc.detaching {
+				ad.detaching.Store("d-testdiskid", "i-anotherinstance")
+			}
+
+			c.EXPECT().DescribeDisks(gomock.Any()).Return(diskResp(tc.before), nil)
+			if tc.detach {
+				detachCall := c.EXPECT().DetachDisk(gomock.Any()).Return(&ecs.DetachDiskResponse{}, nil)
+				c.EXPECT().DescribeDisks(gomock.Any()).Return(diskResp(tc.detached), nil).After(detachCall)
+			}
+			force := false
+			if !tc.noAttach {
+				attachCall := c.EXPECT().AttachDisk(gomock.Any()).Return(&ecs.AttachDiskResponse{}, nil).
+					Do(func(request *ecs.AttachDiskRequest) {
+						if request.Force.HasValue() {
+							var err error
+							force, err = request.Force.GetValue()
+							if err != nil {
+								t.Fatalf("unexpected error: %v", err)
+							}
+						}
+					})
+				c.EXPECT().DescribeDisks(gomock.Any()).Return(diskResp(tc.after), nil).After(attachCall)
+			}
+			serial, err := ad.attachDisk(ctx, "d-testdiskid", "i-testinstanceid", false)
+
+			assert.Equal(t, tc.forceAttach, force)
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, "fake-serial-number", serial)
+			}
 		})
 	}
 }
