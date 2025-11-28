@@ -85,6 +85,7 @@ func (ns *nodeServer) publishDirectVolume(ctx context.Context, req *csi.NodePubl
 		"targetPath":  req.GetTargetPath(),
 	}
 	if opt.AkSecret != "" && strings.HasPrefix(opt.AkSecret, sealedSecretPrefix) {
+		// `AkID` and `AkSecret` are fixed for the protocol
 		metadata[AkID] = opt.AkID
 		metadata[AkSecret] = opt.AkSecret
 	}
