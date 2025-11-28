@@ -22,6 +22,10 @@ func Ossfs2SecretInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 }
 
 func ossfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler, fuseType string) error {
+	if op == nil || op.Secrets == nil {
+		return handler(ctx, op)
+	}
+
 	passwdFile, err := utils.SaveOssSecretsToFile(op.Secrets, op.FsType)
 	if err != nil {
 		return err
@@ -41,7 +45,7 @@ func ossfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, han
 	if passwdFile == "" || op.MountResult == nil {
 		return nil
 	}
-	result, ok := op.MountResult.(*server.OssfsMountResult)
+	result, ok := op.MountResult.(server.OssfsMountResult)
 	if !ok {
 		klog.ErrorS(
 			errors.New("failed to assert ossfs mount result"),

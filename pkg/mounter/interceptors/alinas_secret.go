@@ -10,6 +10,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+var credDir = os.TempDir()
 var _ mounter.MountInterceptor = AlinasSecretInterceptor
 
 func AlinasSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
@@ -17,7 +18,7 @@ func AlinasSecretInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 		return handler(ctx, op)
 	}
 
-	tmpCredFile, err := os.CreateTemp("", op.VolumeID+"-*.credentials")
+	tmpCredFile, err := os.CreateTemp(credDir, op.VolumeID+"-*.credentials")
 	if err != nil {
 		return err
 	}
@@ -35,7 +36,7 @@ func AlinasSecretInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 		return err
 	}
 
-	credFilePath := path.Join(os.TempDir(), op.VolumeID+".credentials")
+	credFilePath := path.Join(credDir, op.VolumeID+".credentials")
 	if err = os.Rename(tmpCredFile.Name(), credFilePath); err != nil {
 		return err
 	}
