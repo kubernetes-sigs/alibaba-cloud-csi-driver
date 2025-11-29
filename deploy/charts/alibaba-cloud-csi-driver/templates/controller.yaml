@@ -358,6 +358,29 @@ spec:
               mountPath: /csi
 {{- end -}}
 {{- if and .Values.csi.bmcpfs.enabled .Values.csi.bmcpfs.controller.enabled }}
+        - name: external-bmcpfs-provisioner
+          image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
+          args:
+            - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8100
+            - --volume-name-prefix=bmcpfs
+            - --default-fstype=bmcpfs
+            - --timeout=150s
+            - --leader-election=true
+            - --retry-interval-start=500ms
+            - --kube-api-qps=100
+            - --kube-api-burst=200
+            - --v=5
+          resources: 
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          volumeMounts:
+            - name: bmcpfs-provisioner-dir
+              mountPath: /csi
         - name: external-bmcpfs-attacher
           image: {{ include "imageSpec" (list .Values "externalAttacher") }}
           resources:

@@ -30,13 +30,14 @@ const (
 	// keys in volume context or publish context
 	_vpcMountTarget = "vpcMountTarget"
 	_vscMountTarget = "vscMountTarget"
-	_vscId          = "vscId"
+	_vscID          = "vscId"
 	_networkType    = "networkType"
 	_path           = "path"
 	_mpAutoSwitch   = "mountpointAutoSwitch"
 
-	// prefix of node id
-	CommonNodeIDPrefix  = "common:"
+	// CommonNodeIDPrefix is the prefix for common node IDs
+	CommonNodeIDPrefix = "common:"
+	// LingjunNodeIDPrefix is the prefix for lingjun node IDs
 	LingjunNodeIDPrefix = "lingjun:"
 
 	// network types of CPFS mount targets
