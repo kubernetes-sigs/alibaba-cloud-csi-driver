@@ -41,6 +41,7 @@ type nodeServer struct {
 }
 
 const (
+	// LingjunConfigFile is the path to the lingjun config file
 	LingjunConfigFile             = "/host/etc/eflo_config/lingjun_config"
 	defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
 )
@@ -57,15 +58,15 @@ func newNodeServer() (*nodeServer, error) {
 		}
 	} else {
 		var lingjunConfig struct {
-			NodeId string `json:"NodeId"`
+			NodeID string `json:"NodeId"`
 		}
 		if err := json.Unmarshal(data, &lingjunConfig); err != nil {
 			return nil, fmt.Errorf("parse lingjun_config: %w", err)
 		}
-		if lingjunConfig.NodeId == "" {
+		if lingjunConfig.NodeID == "" {
 			return nil, errors.New("unexpected lingjun_config: NodeId is empty")
 		}
-		nodeID = LingjunNodeIDPrefix + lingjunConfig.NodeId
+		nodeID = LingjunNodeIDPrefix + lingjunConfig.NodeID
 	}
 	klog.Infof("bmcpfsplugin nodeId: %s", nodeID)
 	mounter := mounter.NewProxyMounter(defaultAlinasMountProxySocket, mount.NewWithoutSystemd(""))

@@ -34,13 +34,18 @@ import (
 )
 
 const (
+	// VscTypePrimary is the type for primary VSC
 	VscTypePrimary = "primary"
 
+	// VscStatusCreating is the status when VSC is being created
 	VscStatusCreating = "Creating"
-	VscStatusNormal   = "Normal"
+	// VscStatusNormal is the status when VSC is normal
+	VscStatusNormal = "Normal"
+	// VscStatusDeleting is the status when VSC is being deleted
 	VscStatusDeleting = "Deleting"
 )
 
+// Vsc represents a VSC (Virtual Switch Cluster)
 type Vsc struct {
 	NodeID string
 	VscID  string
@@ -48,46 +53,51 @@ type Vsc struct {
 	Status string
 }
 
+// VscManager is the interface for managing VSCs
 type VscManager interface {
-	CreatePrimaryVscFor(instanceId string) (string, error)
-	GetPrimaryVscOf(instanceId string) (*Vsc, error)
-	GetVsc(vscId string) (*Vsc, error)
+	CreatePrimaryVscFor(instanceID string) (string, error)
+	GetPrimaryVscOf(instanceID string) (*Vsc, error)
+	GetVsc(vscID string) (*Vsc, error)
 }
 
+// NewVscManager creates a new VSC manager
 func NewVscManager(client *efloclient.Client) VscManager {
 	return &LingjunVscManager{client: client}
 }
 
+// LingjunVscManager is the implementation of VscManager for Lingjun
 type LingjunVscManager struct {
 	client *efloclient.Client
 }
 
-func (m *LingjunVscManager) CreatePrimaryVscFor(instanceId string) (string, error) {
+// CreatePrimaryVscFor creates a primary VSC for the given instance
+func (m *LingjunVscManager) CreatePrimaryVscFor(instanceID string) (string, error) {
 	req := &efloclient.CreateVscRequest{
-		NodeId:  &instanceId,
+		NodeId:  &instanceID,
 		VscType: tea.String(VscTypePrimary),
 	}
 	resp, err := m.client.CreateVsc(req)
 	if err != nil {
 		return "", fmt.Errorf("eflo:CreateVsc failed: %w", err)
 	}
-	klog.InfoS("eflo:CreateVsc succeeded", "instanceId", instanceId, "response", resp.Body)
+	klog.InfoS("eflo:CreateVsc succeeded", "instanceId", instanceID, "response", resp.Body)
 	if tea.StringValue(resp.Body.VscId) == "" {
 		return "", errors.New("unexpected response of CreateVsc")
 	}
 	return tea.StringValue(resp.Body.VscId), nil
 }
 
-func (m *LingjunVscManager) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
+// GetPrimaryVscOf gets the primary VSC of the given instance
+func (m *LingjunVscManager) GetPrimaryVscOf(instanceID string) (*Vsc, error) {
 	req := &efloclient.ListVscsRequest{
-		NodeIds:    []*string{&instanceId},
+		NodeIds:    []*string{&instanceID},
 		MaxResults: tea.Int32(100),
 	}
 	resp, err := m.client.ListVscs(req)
 	if err != nil {
 		return nil, fmt.Errorf("eflo:ListVscs failed: %w", err)
 	}
-	klog.V(4).InfoS("eflo:ListVscs succeeded", "instanceId", instanceId, "response", resp.Body)
+	klog.V(4).InfoS("eflo:ListVscs succeeded", "instanceId", instanceID, "response", resp.Body)
 	for _, vsc := range resp.Body.Vscs {
 		if tea.StringValue(vsc.VscType) == VscTypePrimary {
 			return &Vsc{
@@ -101,15 +111,16 @@ func (m *LingjunVscManager) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
 	return nil, nil
 }
 
-func (m *LingjunVscManager) GetVsc(vscId string) (*Vsc, error) {
+// GetVsc gets the VSC with the given ID
+func (m *LingjunVscManager) GetVsc(vscID string) (*Vsc, error) {
 	req := &efloclient.DescribeVscRequest{
-		VscId: &vscId,
+		VscId: &vscID,
 	}
 	resp, err := m.client.DescribeVsc(req)
 	if err != nil {
 		return nil, fmt.Errorf("eflo:DescribeVsc failed: %w", err)
 	}
-	klog.InfoS("eflo:DescribeVsc succeeded", "vscId", vscId, "response", resp.Body)
+	klog.InfoS("eflo:DescribeVsc succeeded", "vscId", vscID, "response", resp.Body)
 	return &Vsc{
 		NodeID: tea.StringValue(resp.Body.NodeId),
 		VscID:  tea.StringValue(resp.Body.VscId),
@@ -123,6 +134,7 @@ type vscWithErr struct {
 	err error
 }
 
+// PrimaryVscManagerWithCache is a VSC manager with caching capabilities
 type PrimaryVscManagerWithCache struct {
 	VscManager
 	retryTimes int
@@ -139,6 +151,7 @@ const (
 	defaultVscManagerWorkerCount = 3
 )
 
+// NewPrimaryVscManagerWithCache creates a new PrimaryVscManagerWithCache
 func NewPrimaryVscManagerWithCache(efloClient *efloclient.Client) *PrimaryVscManagerWithCache {
 	m := &PrimaryVscManagerWithCache{
 		VscManager: NewVscManager(efloClient),
@@ -163,56 +176,56 @@ func NewPrimaryVscManagerWithCache(efloClient *efloclient.Client) *PrimaryVscMan
 }
 
 func (m *PrimaryVscManagerWithCache) handleNext() bool {
-	instanceId, quit := m.queue.Get()
+	instanceID, quit := m.queue.Get()
 	if quit {
 		return false
 	}
-	defer m.queue.Done(instanceId)
+	defer m.queue.Done(instanceID)
 
-	newVsc, err := m.getOrCreatePrimaryFor(instanceId)
+	newVsc, err := m.getOrCreatePrimaryFor(instanceID)
 
 	m.cond.L.Lock()
-	m.cache[instanceId] = vscWithErr{newVsc, err}
+	m.cache[instanceID] = vscWithErr{newVsc, err}
 	m.cond.L.Unlock()
 
 	if err == nil {
-		m.queue.Forget(instanceId)
+		m.queue.Forget(instanceID)
 		m.cond.Broadcast()
 	} else {
 		sdkErr := &tea.SDKError{}
-		if errors.As(err, &sdkErr) || m.queue.NumRequeues(instanceId) > m.retryTimes {
-			klog.ErrorS(err, "Failed to ensure VSC", "instance", instanceId)
-			m.queue.Forget(instanceId)
+		if errors.As(err, &sdkErr) || m.queue.NumRequeues(instanceID) > m.retryTimes {
+			klog.ErrorS(err, "Failed to ensure VSC", "instance", instanceID)
+			m.queue.Forget(instanceID)
 			m.cond.Broadcast()
 		} else {
-			klog.InfoS("Retrying to ensure VSC", "instance", instanceId, "error", err)
-			m.queue.AddRateLimited(instanceId)
+			klog.InfoS("Retrying to ensure VSC", "instance", instanceID, "error", err)
+			m.queue.AddRateLimited(instanceID)
 		}
 	}
 	return true
 }
 
-func (m *PrimaryVscManagerWithCache) getOrCreatePrimaryFor(instanceId string) (*Vsc, error) {
+func (m *PrimaryVscManagerWithCache) getOrCreatePrimaryFor(instanceID string) (*Vsc, error) {
 	var err error
 	// try to get existing vsc
-	vsc, err := m.VscManager.GetPrimaryVscOf(instanceId)
+	vsc, err := m.VscManager.GetPrimaryVscOf(instanceID)
 	if err != nil {
 		return nil, err
 	}
 	// primary vsc of the instance not found, create it
-	var vscId string
+	var vscID string
 	if vsc == nil {
-		vscId, err = m.CreatePrimaryVscFor(instanceId)
+		vscID, err = m.CreatePrimaryVscFor(instanceID)
 		if err != nil {
 			return nil, err
 		}
-		vsc, err = m.GetVsc(vscId)
+		vsc, err = m.GetVsc(vscID)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if vsc == nil {
-		return nil, fmt.Errorf("vsc %s not found after creation", vscId)
+		return nil, fmt.Errorf("vsc %s not found after creation", vscID)
 	}
 	// check vsc status
 	if vsc.Status != VscStatusNormal {
@@ -221,27 +234,28 @@ func (m *PrimaryVscManagerWithCache) getOrCreatePrimaryFor(instanceId string) (*
 	return vsc, nil
 }
 
-func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, instanceId string, refresh bool) (string, error) {
+// EnsurePrimaryVsc ensures a primary VSC exists for the given instance
+func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, instanceID string, refresh bool) (string, error) {
 	m.cond.L.Lock()
 	defer m.cond.L.Unlock()
 
 	if !refresh {
-		vsc, exists := m.cache[instanceId]
+		vsc, exists := m.cache[instanceID]
 		if exists && vsc.err == nil {
 			return vsc.VscID, nil
 		}
 	}
 
-	delete(m.cache, instanceId)
-	m.queue.Add(instanceId)
+	delete(m.cache, instanceID)
+	m.queue.Add(instanceID)
 	for {
-		vsc, exists := m.cache[instanceId]
+		vsc, exists := m.cache[instanceID]
 		if exists {
-			var vscId string
+			var vscID string
 			if vsc.Vsc != nil {
-				vscId = vsc.VscID
+				vscID = vsc.VscID
 			}
-			return vscId, vsc.err
+			return vscID, vsc.err
 		}
 		select {
 		case <-ctx.Done():
@@ -252,16 +266,17 @@ func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, insta
 	}
 }
 
-func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
+// GetPrimaryVscOf gets the primary VSC of the given instance with cache support
+func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceID string) (*Vsc, error) {
 	m.cond.L.Lock()
-	cachedVsc, exists := m.cache[instanceId]
+	cachedVsc, exists := m.cache[instanceID]
 	if exists && cachedVsc.Vsc != nil {
 		m.cond.L.Unlock()
 		return cachedVsc.Vsc, nil
 	}
 	m.cond.L.Unlock()
 
-	vsc, err := m.VscManager.GetPrimaryVscOf(instanceId)
+	vsc, err := m.VscManager.GetPrimaryVscOf(instanceID)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +286,7 @@ func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceId string) (*Vsc, e
 		m.cond.L.Lock()
 		clonedVsc := new(Vsc)
 		*clonedVsc = *vsc
-		m.cache[instanceId] = vscWithErr{clonedVsc, nil}
+		m.cache[instanceID] = vscWithErr{clonedVsc, nil}
 		m.cond.L.Unlock()
 	}
 
@@ -279,12 +294,18 @@ func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceId string) (*Vsc, e
 }
 
 const (
+	// CPFSVscStatusAttaching is the status when attaching
 	CPFSVscStatusAttaching = "Attaching"
-	CPFSVscStatusAttached  = "Attached"
+	// CPFSVscStatusAttached is the status when attached
+	CPFSVscStatusAttached = "Attached"
+	// CPFSVscStatusDetaching is the status when detaching
 	CPFSVscStatusDetaching = "Detaching"
-	CPFSVscStatusDetached  = "Detached"
-	CPFSVscStatusFailed    = "Failed"
+	// CPFSVscStatusDetached is the status when detached
+	CPFSVscStatusDetached = "Detached"
+	// CPFSVscStatusFailed is the status when failed
+	CPFSVscStatusFailed = "Failed"
 
+	// VscAttachNotSupported is the error code when VSC attach is not supported
 	VscAttachNotSupported = "AttachVscTarget.VscAttachNotSupported"
 )
 
@@ -293,29 +314,31 @@ const (
 	defaultADWaitTimeout = time.Second * 10
 )
 
-func newAttachNotSupportedError(err error, volumeId, nodeId string) *AttachNotSupportedError {
+func newAttachNotSupportedError(err error, volumeID, nodeID string) *AttachNotSupportedError {
 	return &AttachNotSupportedError{
 		message:  err.Error(),
-		volumeId: volumeId,
-		vscId:    nodeId,
+		volumeID: volumeID,
+		vscID:    nodeID,
 	}
 }
 
 // NewAttachNotSupportedError creates a new AttachNotSupportedError
-func NewAttachNotSupportedError(err error, volumeId, nodeId string) *AttachNotSupportedError {
-	return newAttachNotSupportedError(err, volumeId, nodeId)
+func NewAttachNotSupportedError(err error, volumeID, nodeID string) *AttachNotSupportedError {
+	return newAttachNotSupportedError(err, volumeID, nodeID)
 }
 
+// AttachNotSupportedError represents an error when VSC attach is not supported
 type AttachNotSupportedError struct {
 	message  string
-	volumeId string
-	vscId    string
+	volumeID string
+	vscID    string
 }
 
 func (e *AttachNotSupportedError) Error() string {
-	return "volumeID: " + e.volumeId + "vscId: " + e.vscId + e.message
+	return "volumeID: " + e.volumeID + "vscId: " + e.vscID + e.message
 }
 
+// IsAttachNotSupportedError checks if the error is an AttachNotSupportedError
 func IsAttachNotSupportedError(err error) bool {
 	if err == nil {
 		return false
@@ -328,15 +351,19 @@ func IsAttachNotSupportedError(err error) bool {
 	return errors.As(err, &sdkErr) && tea.StringValue(sdkErr.Code) == VscAttachNotSupported
 }
 
+// CPFSVscAttachInfo represents CPFS VSC attach information
 type CPFSVscAttachInfo = nasclient.DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo
 
+// CPFSVscAttachInfoCond is a function type for checking CPFS VSC attach conditions
 type CPFSVscAttachInfoCond func(*CPFSVscAttachInfo) (done bool, err error)
 
+// CPFSAttachDetacher is the interface for attaching/detaching CPFS
 type CPFSAttachDetacher interface {
-	Attach(ctx context.Context, fsId, vscId string) error
-	Detach(ctx context.Context, fsId, vscId string) error
+	Attach(ctx context.Context, fsID, vscID string) error
+	Detach(ctx context.Context, fsID, vscID string) error
 }
 
+// NewCPFSAttachDetacher creates a new CPFS attach detacher
 func NewCPFSAttachDetacher(client *nasclient.Client) CPFSAttachDetacher {
 	return &cpfsAttachDetacher{
 		client:       client,
@@ -353,13 +380,13 @@ type cpfsAttachDetacher struct {
 	waitTimeout  time.Duration
 }
 
-func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) error {
-	attachInfo, err := ad.describe(fsId, vscId)
+func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsID, vscID string) error {
+	attachInfo, err := ad.describe(fsID, vscID)
 	if err != nil {
 		return err
 	}
 	if attachInfo != nil {
-		klog.InfoS("Already attached", "filesystem", fsId, "vscId", vscId)
+		klog.InfoS("Already attached", "filesystem", fsID, "vscId", vscID)
 		switch tea.StringValue(attachInfo.Status) {
 		case CPFSVscStatusAttaching:
 		case CPFSVscStatusAttached:
@@ -368,16 +395,16 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 			return fmt.Errorf("unexpected attachinfo status: %v", tea.StringValue(attachInfo.Status))
 		}
 	} else {
-		if err := ad.attach(fsId, vscId); err != nil {
+		if err := ad.attach(fsID, vscID); err != nil {
 			if strings.Contains(err.Error(), VscAttachNotSupported) {
-				return newAttachNotSupportedError(err, fsId, vscId)
+				return newAttachNotSupportedError(err, fsID, vscID)
 			}
 			return err
 		}
 	}
-	return ad.waitFor(ctx, fsId, vscId, func(i *CPFSVscAttachInfo) (bool, error) {
+	return ad.waitFor(ctx, fsID, vscID, func(i *CPFSVscAttachInfo) (bool, error) {
 		if i == nil {
-			return false, fmt.Errorf("filesystem %s not attached to %s", fsId, vscId)
+			return false, fmt.Errorf("filesystem %s not attached to %s", fsID, vscID)
 		}
 		switch tea.StringValue(i.Status) {
 		case CPFSVscStatusAttaching:
@@ -390,8 +417,8 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 	}, "wait for cpfs to be attached")
 }
 
-func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) error {
-	if err := ad.detach(fsId, vscId); err != nil {
+func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsID, vscID string) error {
+	if err := ad.detach(fsID, vscID); err != nil {
 		sdkErr := new(tea.SDKError)
 		if errors.As(err, &sdkErr) {
 			errCode := tea.StringValue(sdkErr.Code)
@@ -403,7 +430,7 @@ func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) er
 		}
 		return err
 	}
-	return ad.waitFor(ctx, fsId, vscId, func(i *CPFSVscAttachInfo) (bool, error) {
+	return ad.waitFor(ctx, fsID, vscID, func(i *CPFSVscAttachInfo) (bool, error) {
 		if i == nil {
 			return true, nil
 		}
@@ -418,12 +445,12 @@ func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) er
 	}, "wait for cpfs to be detached")
 }
 
-func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsId, vscId string, cond CPFSVscAttachInfoCond, cause string) error {
+func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsID, vscID string, cond CPFSVscAttachInfoCond, cause string) error {
 	deadline := ad.clk.NewTimer(ad.waitTimeout)
 	ticker := ad.clk.NewTicker(ad.pollInterval)
 	defer ticker.Stop()
 	for {
-		attachInfo, err := ad.describe(fsId, vscId)
+		attachInfo, err := ad.describe(fsID, vscID)
 		if err != nil {
 			return err
 		}
@@ -444,12 +471,12 @@ func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsId, vscId string, c
 	}
 }
 
-func (ad *cpfsAttachDetacher) attach(fsId, vscId string) error {
+func (ad *cpfsAttachDetacher) attach(fsID, vscID string) error {
 	req := &nasclient.AttachVscToFilesystemsRequest{
 		ResourceIds: []*nasclient.AttachVscToFilesystemsRequestResourceIds{
 			{
-				FileSystemId: &fsId,
-				VscId:        &vscId,
+				FileSystemId: &fsID,
+				VscId:        &vscID,
 			},
 		},
 	}
@@ -457,16 +484,16 @@ func (ad *cpfsAttachDetacher) attach(fsId, vscId string) error {
 	if err != nil {
 		return fmt.Errorf("nas:AttachVscToFilesystems failed: %w", err)
 	}
-	klog.InfoS("nas:AttachVscToFilesystemsRequest succeeded", "filesystem", fsId, "vscId", vscId, "requestid", resp.Body.RequestId)
+	klog.InfoS("nas:AttachVscToFilesystemsRequest succeeded", "filesystem", fsID, "vscId", vscID, "requestid", resp.Body.RequestId)
 	return nil
 }
 
-func (ad *cpfsAttachDetacher) detach(fsId, vscId string) error {
+func (ad *cpfsAttachDetacher) detach(fsID, vscID string) error {
 	req := &nasclient.DetachVscFromFilesystemsRequest{
 		ResourceIds: []*nasclient.DetachVscFromFilesystemsRequestResourceIds{
 			{
-				FileSystemId: &fsId,
-				VscId:        &vscId,
+				FileSystemId: &fsID,
+				VscId:        &vscID,
 			},
 		},
 	}
@@ -474,16 +501,16 @@ func (ad *cpfsAttachDetacher) detach(fsId, vscId string) error {
 	if err != nil {
 		return fmt.Errorf("nas:DetachVscFromFilesystems failed: %w", err)
 	}
-	klog.InfoS("nas:DetachVscFromFilesystems succeeded", "filesystem", fsId, "vscId", vscId, "requestid", resp.Body.RequestId)
+	klog.InfoS("nas:DetachVscFromFilesystems succeeded", "filesystem", fsID, "vscId", vscID, "requestid", resp.Body.RequestId)
 	return nil
 }
 
-func (ad *cpfsAttachDetacher) describe(fsId, vscId string) (*CPFSVscAttachInfo, error) {
+func (ad *cpfsAttachDetacher) describe(fsID, vscID string) (*CPFSVscAttachInfo, error) {
 	req := &nasclient.DescribeFilesystemsVscAttachInfoRequest{
 		ResourceIds: []*nasclient.DescribeFilesystemsVscAttachInfoRequestResourceIds{
 			{
-				FileSystemId: &fsId,
-				VscId:        &vscId,
+				FileSystemId: &fsID,
+				VscId:        &vscID,
 			},
 		},
 	}
