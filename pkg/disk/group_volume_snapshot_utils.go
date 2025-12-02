@@ -1,7 +1,6 @@
 package disk
 
 import (
-	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -10,48 +9,16 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 )
 
-func getVolumeGroupSnapshotConfig(req *csi.CreateVolumeGroupSnapshotRequest) (*createGroupSnapshotParams, error) {
-	var ecsParams createGroupSnapshotParams
-	if req.Parameters != nil {
-		err := parseGroupSnapshotParameters(req.Parameters, &ecsParams)
-		if err != nil {
-			klog.Errorf("CreateSnapshot:: Snapshot name[%s], parse config failed: %v", req.Name, err)
-			return nil, err
-		}
-	}
-
-	vsName := req.Parameters[common.VolumeGroupSnapshotNameKey]
-	vsNameSpace := req.Parameters[common.VolumeGroupSnapshotNamespaceKey]
-	// volumesnapshot not in parameters, just return
-	if vsName == "" || vsNameSpace == "" {
-		return &ecsParams, nil
-	}
-
-	volumeGroupSnapshot, err := GlobalConfigVar.SnapClient.GroupsnapshotV1alpha1().VolumeGroupSnapshots(vsNameSpace).Get(context.Background(), vsName, metav1.GetOptions{})
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get VolumeGroupSnapshot: %s/%s: %v", vsNameSpace, vsName, err)
-	}
-	err = parseGroupSnapshotAnnotations(volumeGroupSnapshot.Annotations, &ecsParams)
-	if err != nil {
-		klog.Errorf("CreateVolumeGroupSnapshot:: Snapshot name[%s], parse annotation failed: %v", req.Name, err)
-		return nil, err
-	}
-	return &ecsParams, nil
-}
-
-func parseGroupSnapshotParameters(params map[string]string, ecsParams *createGroupSnapshotParams) (err error) {
+func parseGroupSnapshotParameters(params map[string]string) (*createGroupSnapshotParams, error) {
+	ecsParams := &createGroupSnapshotParams{}
 	tags := make(map[string]string)
 	for k, v := range params {
 		switch k {
 		case RETENTIONDAYS:
-			return fmt.Errorf("groupSnapshot do not support retentionDays: %w", err)
+			return nil, fmt.Errorf("groupSnapshot do not support retentionDays")
 		case SNAPSHOTRESOURCEGROUPID:
 			ecsParams.ResourceGroupID = v
 		case common.VolumeGroupSnapshotNameKey:
@@ -81,19 +48,7 @@ func parseGroupSnapshotParameters(params map[string]string, ecsParams *createGro
 			})
 		}
 	}
-	return nil
-}
-
-// if volumesnapshot have Annotations, use it first.
-// storage.alibabacloud.com/snapshot-ttl
-func parseGroupSnapshotAnnotations(anno map[string]string, ecsParams *createGroupSnapshotParams) error {
-	snapshotTTL := anno[common.SnapshotTTLKey]
-
-	if snapshotTTL != "" {
-		return fmt.Errorf("groupSnapshot do not support retentionDays")
-	}
-
-	return nil
+	return ecsParams, nil
 }
 
 func formatGroupSnapshot(groupSnapshot *ecs.SnapshotGroup) (*csi.VolumeGroupSnapshot, error) {
