@@ -1,28 +1,29 @@
 package cloud
 
 import (
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/ratelimit"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/time/rate"
 )
 
 func TestNasClientFactory(t *testing.T) {
 	t.Parallel()
 	actual := NewNasClientFactory()
-	expected := &NasClientFactory{ratelimit.New(defaultQps)}
+	expected := &NasClientFactory{rate.NewLimiter(defaultQps, 10)}
 	assert.Equal(t, expected, actual)
 }
 
 func TestNasClientFactoryValidEnv(t *testing.T) {
 	t.Setenv("NAS_LIMIT_PERSECOND", "3")
-	expected := &NasClientFactory{ratelimit.New(3)}
+	expected := &NasClientFactory{rate.NewLimiter(3, 10)}
 	actual := NewNasClientFactory()
 	assert.Equal(t, expected, actual)
 }
 
 func TestNasClientFactoryInvalidEnv(t *testing.T) {
 	t.Setenv("NAS_LIMIT_PERSECOND", "3i")
-	expected := &NasClientFactory{ratelimit.New(defaultQps)}
+	expected := &NasClientFactory{rate.NewLimiter(defaultQps, 10)}
 	actual := NewNasClientFactory()
 	assert.Equal(t, expected, actual)
 }
