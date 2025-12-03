@@ -532,12 +532,11 @@ type Driver interface {
 	CheckVFIOUsage() error
 }
 
-func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineType, extras map[string]string) (Driver, error) {
+func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineType) (Driver, error) {
 	d := &driver{
 		blockDevice:  blockDevice,
 		deviceNumber: deviceNumber,
 		machineType:  _type,
-		extras:       extras,
 	}
 	deviceNumberFromDevice := ""
 	if blockDevice != "" {
@@ -611,7 +610,6 @@ type driver struct {
 	blockDevice  string
 	deviceNumber string
 	machineType  MachineType
-	extras       map[string]string
 }
 
 func (d *driver) GetDeviceNumber() string {
