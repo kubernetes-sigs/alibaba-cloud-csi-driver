@@ -164,21 +164,22 @@ func CreateEvent(recorder record.EventRecorder, objectRef *v1.ObjectReference, e
 
 // NewEventRecorder is create snapshots event recorder
 func NewEventRecorder() record.EventRecorder {
-	cfg, err := options.GetRestConfig()
-	if err != nil {
-		klog.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	clientset, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		klog.Fatalf("NewControllerServer: Failed to create client: %v", err)
-	}
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartLogging(klog.Infof)
-	source := v1.EventSource{Component: "csi-controller-server"}
-	sink := &v1core.EventSinkImpl{
-		Interface: v1core.New(clientset.CoreV1().RESTClient()).Events(""),
+	cfg, err := options.GetRestConfig()
+	if err != nil {
+		klog.ErrorS(err, "Error building kubeconfig for events")
+	} else {
+		clientset, err := kubernetes.NewForConfig(cfg)
+		if err != nil {
+			klog.Fatalf("NewControllerServer: Failed to create client: %v", err)
+		}
+		sink := &v1core.EventSinkImpl{
+			Interface: clientset.CoreV1().Events(""),
+		}
+		broadcaster.StartRecordingToSink(sink)
 	}
-	broadcaster.StartRecordingToSink(sink)
+	source := v1.EventSource{Component: "csi-controller-server"}
 	return broadcaster.NewRecorder(scheme.Scheme, source)
 }
 
