@@ -13,11 +13,7 @@ import (
 
 func TestUpdateMountPointMetrics(t *testing.T) {
 	// Create temporary directory for testing
-	tempDir, err := os.MkdirTemp("", "metrics_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir) // Clean up
+	tempDir := t.TempDir()
 
 	tests := []struct {
 		name      string
@@ -70,4 +66,33 @@ func TestUpdateMountPointMetrics(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetMountMonitor_CreatesMetricsPath(t *testing.T) {
+	// Create temporary directory for testing
+	tempDir := t.TempDir()
+
+	// Test case 1: metricsPath doesn't exist, should be created
+	nonExistentPath := filepath.Join(tempDir, "non-existent", "path")
+	mm := NewMountMonitorManager()
+	monitor, found := mm.GetMountMonitor("test-target-1", nonExistentPath, nil, true)
+	require.NotNil(t, monitor, "Monitor should be created")
+	assert.False(t, found, "Monitor should be newly created")
+
+	// Verify directory was created
+	assert.DirExists(t, nonExistentPath)
+
+	// Test case 2: metricsPath == "", should not create monitor
+	monitor2, found2 := mm.GetMountMonitor("test-target-2", "", nil, true)
+	assert.Nil(t, monitor2, "Monitor should not be created when metricsPath is empty")
+	assert.False(t, found2, "Monitor should not be found")
+
+	// Test case 3: metricsPath exists, should work normally
+	existingPath := filepath.Join(tempDir, "existing")
+	err := os.MkdirAll(existingPath, 0755)
+	require.NoError(t, err, "Failed to create existing directory")
+
+	monitor3, found3 := mm.GetMountMonitor("test-target-3", existingPath, nil, true)
+	require.NotNil(t, monitor3, "Monitor should be created")
+	assert.False(t, found3, "Monitor should be newly created")
 }
