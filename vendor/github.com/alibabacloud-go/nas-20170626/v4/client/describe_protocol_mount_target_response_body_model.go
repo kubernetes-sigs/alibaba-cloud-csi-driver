@@ -70,7 +70,16 @@ func (s *DescribeProtocolMountTargetResponseBody) SetRequestId(v string) *Descri
 }
 
 func (s *DescribeProtocolMountTargetResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.ProtocolMountTargets != nil {
+		for _, item := range s.ProtocolMountTargets {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeProtocolMountTargetResponseBodyProtocolMountTargets struct {

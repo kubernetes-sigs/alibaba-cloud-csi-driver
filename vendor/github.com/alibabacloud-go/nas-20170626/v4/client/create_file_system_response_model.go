@@ -59,5 +59,10 @@ func (s *CreateFileSystemResponse) SetBody(v *CreateFileSystemResponseBody) *Cre
 }
 
 func (s *CreateFileSystemResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

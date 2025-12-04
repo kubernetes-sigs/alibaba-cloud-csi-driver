@@ -104,7 +104,12 @@ func (s *DescribeAccessGroupsResponseBody) SetTotalCount(v int32) *DescribeAcces
 }
 
 func (s *DescribeAccessGroupsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.AccessGroups != nil {
+		if err := s.AccessGroups.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeAccessGroupsResponseBodyAccessGroups struct {
@@ -129,7 +134,16 @@ func (s *DescribeAccessGroupsResponseBodyAccessGroups) SetAccessGroup(v []*Descr
 }
 
 func (s *DescribeAccessGroupsResponseBodyAccessGroups) Validate() error {
-	return dara.Validate(s)
+	if s.AccessGroup != nil {
+		for _, item := range s.AccessGroup {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup struct {

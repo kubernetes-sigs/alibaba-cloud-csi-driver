@@ -59,5 +59,10 @@ func (s *DeleteLDAPConfigResponse) SetBody(v *DeleteLDAPConfigResponseBody) *Del
 }
 
 func (s *DeleteLDAPConfigResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

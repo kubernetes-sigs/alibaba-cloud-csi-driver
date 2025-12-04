@@ -186,7 +186,12 @@ func (s *CreateFilesetRequest) SetQuota(v *CreateFilesetRequestQuota) *CreateFil
 }
 
 func (s *CreateFilesetRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Quota != nil {
+		if err := s.Quota.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateFilesetRequestQuota struct {

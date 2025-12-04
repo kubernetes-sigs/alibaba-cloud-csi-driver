@@ -423,7 +423,16 @@ func (s *CreateFileSystemRequest) SetZoneId(v string) *CreateFileSystemRequest {
 }
 
 func (s *CreateFileSystemRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateFileSystemRequestTag struct {

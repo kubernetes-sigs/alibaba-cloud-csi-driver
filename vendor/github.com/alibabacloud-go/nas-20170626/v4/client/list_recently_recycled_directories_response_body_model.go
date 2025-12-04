@@ -72,7 +72,16 @@ func (s *ListRecentlyRecycledDirectoriesResponseBody) SetRequestId(v string) *Li
 }
 
 func (s *ListRecentlyRecycledDirectoriesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Entries != nil {
+		for _, item := range s.Entries {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListRecentlyRecycledDirectoriesResponseBodyEntries struct {

@@ -59,7 +59,16 @@ func (s *AttachVscToFilesystemsRequest) SetResourceIds(v []*AttachVscToFilesyste
 }
 
 func (s *AttachVscToFilesystemsRequest) Validate() error {
-	return dara.Validate(s)
+	if s.ResourceIds != nil {
+		for _, item := range s.ResourceIds {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type AttachVscToFilesystemsRequestResourceIds struct {

@@ -104,7 +104,12 @@ func (s *DescribeStoragePackagesResponseBody) SetTotalCount(v int32) *DescribeSt
 }
 
 func (s *DescribeStoragePackagesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Packages != nil {
+		if err := s.Packages.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeStoragePackagesResponseBodyPackages struct {
@@ -129,7 +134,16 @@ func (s *DescribeStoragePackagesResponseBodyPackages) SetPackage(v []*DescribeSt
 }
 
 func (s *DescribeStoragePackagesResponseBodyPackages) Validate() error {
-	return dara.Validate(s)
+	if s.Package != nil {
+		for _, item := range s.Package {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeStoragePackagesResponseBodyPackagesPackage struct {

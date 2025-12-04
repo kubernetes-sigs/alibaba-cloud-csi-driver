@@ -104,7 +104,12 @@ func (s *DescribeAutoSnapshotTasksResponseBody) SetTotalCount(v int32) *Describe
 }
 
 func (s *DescribeAutoSnapshotTasksResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.AutoSnapshotTasks != nil {
+		if err := s.AutoSnapshotTasks.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeAutoSnapshotTasksResponseBodyAutoSnapshotTasks struct {
@@ -129,7 +134,16 @@ func (s *DescribeAutoSnapshotTasksResponseBodyAutoSnapshotTasks) SetAutoSnapshot
 }
 
 func (s *DescribeAutoSnapshotTasksResponseBodyAutoSnapshotTasks) Validate() error {
-	return dara.Validate(s)
+	if s.AutoSnapshotTask != nil {
+		for _, item := range s.AutoSnapshotTask {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeAutoSnapshotTasksResponseBodyAutoSnapshotTasksAutoSnapshotTask struct {

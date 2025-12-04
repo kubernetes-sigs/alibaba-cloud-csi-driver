@@ -108,7 +108,12 @@ func (s *DescribeFilesystemsVscAttachInfoResponseBody) SetVscAttachInfo(v *Descr
 }
 
 func (s *DescribeFilesystemsVscAttachInfoResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.VscAttachInfo != nil {
+		if err := s.VscAttachInfo.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfo struct {
@@ -133,7 +138,16 @@ func (s *DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfo) SetVscAttach
 }
 
 func (s *DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfo) Validate() error {
-	return dara.Validate(s)
+	if s.VscAttachInfo != nil {
+		for _, item := range s.VscAttachInfo {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo struct {

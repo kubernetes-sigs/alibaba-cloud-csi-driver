@@ -104,7 +104,12 @@ func (s *DescribeAutoSnapshotPoliciesResponseBody) SetTotalCount(v int32) *Descr
 }
 
 func (s *DescribeAutoSnapshotPoliciesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.AutoSnapshotPolicies != nil {
+		if err := s.AutoSnapshotPolicies.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeAutoSnapshotPoliciesResponseBodyAutoSnapshotPolicies struct {
@@ -129,7 +134,16 @@ func (s *DescribeAutoSnapshotPoliciesResponseBodyAutoSnapshotPolicies) SetAutoSn
 }
 
 func (s *DescribeAutoSnapshotPoliciesResponseBodyAutoSnapshotPolicies) Validate() error {
-	return dara.Validate(s)
+	if s.AutoSnapshotPolicy != nil {
+		for _, item := range s.AutoSnapshotPolicy {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeAutoSnapshotPoliciesResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicy struct {

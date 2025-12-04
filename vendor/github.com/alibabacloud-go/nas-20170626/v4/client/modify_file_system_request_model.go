@@ -88,7 +88,12 @@ func (s *ModifyFileSystemRequest) SetOptions(v *ModifyFileSystemRequestOptions) 
 }
 
 func (s *ModifyFileSystemRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Options != nil {
+		if err := s.Options.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type ModifyFileSystemRequestOptions struct {

@@ -72,7 +72,16 @@ func (s *ListRecycledDirectoriesAndFilesResponseBody) SetRequestId(v string) *Li
 }
 
 func (s *ListRecycledDirectoriesAndFilesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Entries != nil {
+		for _, item := range s.Entries {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListRecycledDirectoriesAndFilesResponseBodyEntries struct {

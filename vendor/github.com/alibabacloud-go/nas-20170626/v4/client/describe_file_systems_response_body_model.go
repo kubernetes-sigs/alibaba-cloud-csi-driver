@@ -104,7 +104,12 @@ func (s *DescribeFileSystemsResponseBody) SetTotalCount(v int32) *DescribeFileSy
 }
 
 func (s *DescribeFileSystemsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.FileSystems != nil {
+		if err := s.FileSystems.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystems struct {
@@ -129,7 +134,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystems) SetFileSystem(v []*Describe
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystems) Validate() error {
-	return dara.Validate(s)
+	if s.FileSystem != nil {
+		for _, item := range s.FileSystem {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
@@ -668,7 +682,42 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetZoneId(v strin
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) Validate() error {
-	return dara.Validate(s)
+	if s.Ldap != nil {
+		if err := s.Ldap.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.MountTargets != nil {
+		if err := s.MountTargets.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Options != nil {
+		if err := s.Options.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Packages != nil {
+		if err := s.Packages.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.SupportedFeatures != nil {
+		if err := s.SupportedFeatures.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Tags != nil {
+		if err := s.Tags.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.VswIds != nil {
+		if err := s.VswIds.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemLdap struct {
@@ -753,7 +802,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargets) SetMo
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargets) Validate() error {
-	return dara.Validate(s)
+	if s.MountTarget != nil {
+		for _, item := range s.MountTarget {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget struct {
@@ -913,7 +971,17 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget) Validate() error {
-	return dara.Validate(s)
+	if s.ClientMasterNodes != nil {
+		if err := s.ClientMasterNodes.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Tags != nil {
+		if err := s.Tags.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetClientMasterNodes struct {
@@ -938,7 +1006,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetClientMasterNodes) Validate() error {
-	return dara.Validate(s)
+	if s.ClientMasterNode != nil {
+		for _, item := range s.ClientMasterNode {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetClientMasterNodesClientMasterNode struct {
@@ -1023,7 +1100,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetTags) Validate() error {
-	return dara.Validate(s)
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetTagsTag struct {
@@ -1129,7 +1215,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackages) SetPackag
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackages) Validate() error {
-	return dara.Validate(s)
+	if s.Package != nil {
+		for _, item := range s.Package {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemPackagesPackage struct {
@@ -1275,7 +1370,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemTags) SetTag(v []*D
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemTags) Validate() error {
-	return dara.Validate(s)
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemTagsTag struct {

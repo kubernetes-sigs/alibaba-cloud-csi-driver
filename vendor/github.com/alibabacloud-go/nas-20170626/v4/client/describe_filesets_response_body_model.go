@@ -95,7 +95,12 @@ func (s *DescribeFilesetsResponseBody) SetRequestId(v string) *DescribeFilesetsR
 }
 
 func (s *DescribeFilesetsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Entries != nil {
+		if err := s.Entries.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFilesetsResponseBodyEntries struct {
@@ -120,7 +125,16 @@ func (s *DescribeFilesetsResponseBodyEntries) SetEntrie(v []*DescribeFilesetsRes
 }
 
 func (s *DescribeFilesetsResponseBodyEntries) Validate() error {
-	return dara.Validate(s)
+	if s.Entrie != nil {
+		for _, item := range s.Entrie {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFilesetsResponseBodyEntriesEntrie struct {
@@ -326,7 +340,12 @@ func (s *DescribeFilesetsResponseBodyEntriesEntrie) SetUpdateTime(v string) *Des
 }
 
 func (s *DescribeFilesetsResponseBodyEntriesEntrie) Validate() error {
-	return dara.Validate(s)
+	if s.Quota != nil {
+		if err := s.Quota.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFilesetsResponseBodyEntriesEntrieQuota struct {

@@ -162,7 +162,16 @@ func (s *ApplyDataFlowAutoRefreshRequest) SetFileSystemId(v string) *ApplyDataFl
 }
 
 func (s *ApplyDataFlowAutoRefreshRequest) Validate() error {
-	return dara.Validate(s)
+	if s.AutoRefreshs != nil {
+		for _, item := range s.AutoRefreshs {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ApplyDataFlowAutoRefreshRequestAutoRefreshs struct {

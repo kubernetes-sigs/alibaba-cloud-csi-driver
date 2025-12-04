@@ -70,7 +70,12 @@ func (s *DescribeDataFlowsResponseBody) SetRequestId(v string) *DescribeDataFlow
 }
 
 func (s *DescribeDataFlowsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.DataFlowInfo != nil {
+		if err := s.DataFlowInfo.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfo struct {
@@ -95,7 +100,16 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfo) SetDataFlow(v []*DescribeDat
 }
 
 func (s *DescribeDataFlowsResponseBodyDataFlowInfo) Validate() error {
-	return dara.Validate(s)
+	if s.DataFlow != nil {
+		for _, item := range s.DataFlow {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
@@ -449,7 +463,12 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlow) SetUpdateTime(v stri
 }
 
 func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlow) Validate() error {
-	return dara.Validate(s)
+	if s.AutoRefresh != nil {
+		if err := s.AutoRefresh.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh struct {
@@ -474,7 +493,16 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh) SetAutoRe
 }
 
 func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh) Validate() error {
-	return dara.Validate(s)
+	if s.AutoRefresh != nil {
+		for _, item := range s.AutoRefresh {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefreshAutoRefresh struct {

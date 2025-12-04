@@ -38,11 +38,11 @@ type DescribeAccessGroupsRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- standard (default): General-purpose NAS file system
+	// 	- standard (default): General-purpose NAS file system.
 	//
-	// 	- extreme: Extreme NAS file system
+	// 	- extreme: Extreme NAS file system.
 	//
-	// 	- cpfs: Cloud Parallel File Storage (CPFS) file system
+	// 	- cpfs: Cloud Parallel File Storage (CPFS) file system.
 	//
 	// > CPFS file systems are available only on the China site (aliyun.com).
 	//

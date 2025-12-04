@@ -70,7 +70,16 @@ func (s *ListDirectoriesAndFilesResponseBody) SetRequestId(v string) *ListDirect
 }
 
 func (s *ListDirectoriesAndFilesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Entries != nil {
+		for _, item := range s.Entries {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListDirectoriesAndFilesResponseBodyEntries struct {
