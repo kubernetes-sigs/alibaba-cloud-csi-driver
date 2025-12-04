@@ -13,7 +13,7 @@ func Test_GetRoleSessionName(t *testing.T) {
 		target   string
 		wantName string
 	}{
-		{"vol1", "/mnt/target1", "ossfs.vol1." + computeMountPathHash("/mnt/target1")},
+		{"vol1", "/mnt/target1", "ossfs.vol1." + ComputeMountPathHash("/mnt/target1")},
 		{"hereisalonglongpvnamethatisalreadylongerthan64ibeleive", "/mnt/target2", "ossfs.hereisalonglongpvnamethatisalreadylongerthan64ibeleive.c85"},
 	}
 
@@ -78,7 +78,7 @@ func Test_computeVolumeIdLabelVal(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, computeVolumeIdLabelVal(tt.volumeId))
+			assert.Equal(t, tt.expected, ComputeVolumeIdLabelVal(tt.volumeId))
 		})
 	}
 }

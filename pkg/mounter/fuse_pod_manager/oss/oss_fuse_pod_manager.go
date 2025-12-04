@@ -2,25 +2,25 @@ package oss
 
 import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 type OSSFuseMounterType interface {
-	utils.FuseMounterType
+	fpm.FuseMounterType
 	PrecheckAuthConfig(o *Options, onNode bool) error
-	MakeAuthConfig(o *Options, m metadata.MetadataProvider) (*utils.AuthConfig, error)
+	MakeAuthConfig(o *Options, m metadata.MetadataProvider) (*fpm.AuthConfig, error)
 	MakeMountOptions(o *Options, m metadata.MetadataProvider) ([]string, error)
 }
 
 type OSSFusePodManager struct {
-	utils.FusePodManager
+	fpm.FusePodManager
 	OSSFuseMounterType
 }
 
 func NewOSSFusePodManager(fuseType OSSFuseMounterType, client kubernetes.Interface) *OSSFusePodManager {
-	manager := utils.NewFusePodManager(fuseType, client)
+	manager := fpm.NewFusePodManager(fuseType, client)
 	return &OSSFusePodManager{
 		*manager,
 		fuseType,

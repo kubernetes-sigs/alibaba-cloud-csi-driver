@@ -1,4 +1,4 @@
-package utils
+package fuse_pod_manager
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	corev1 "k8s.io/api/core/v1"
 	apiserrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -24,8 +25,6 @@ import (
 const (
 	fusePodManagerTimeout  = time.Second * 30
 	FuseServiceAccountName = "csi-fuse-ossfs"
-	// deprecated
-	LegacyFusePodNamespace = "kube-system"
 )
 
 const (
@@ -151,7 +150,7 @@ func ExtractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 				invalid = true
 				break
 			}
-			err = ValidateAnnotations(annotations)
+			err = utils.ValidateAnnotations(annotations)
 			if err != nil {
 				invalid = true
 				break
@@ -164,7 +163,7 @@ func ExtractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 				invalid = true
 				break
 			}
-			err = ValidateLabels(labels)
+			err = utils.ValidateLabels(labels)
 			if err != nil {
 				invalid = true
 				break
@@ -207,7 +206,7 @@ func NewFusePodManager(fuseType FuseMounterType, client kubernetes.Interface) *F
 
 func (fpm *FusePodManager) labelsAndListOptionsFor(c *FusePodContext, target string) (map[string]string, metav1.ListOptions) {
 	labels := map[string]string{
-		FuseVolumeIdLabelKey: computeVolumeIdLabelVal(c.VolumeId),
+		FuseVolumeIdLabelKey: utils.ComputeVolumeIdLabelVal(c.VolumeId),
 	}
 	// ControllerUnPublish cannot get fuseType info,
 	// so FuseTypeLabelKey cannot used as a label for Delete
@@ -215,7 +214,7 @@ func (fpm *FusePodManager) labelsAndListOptionsFor(c *FusePodContext, target str
 		labels[FuseTypeLabelKey] = c.FuseType
 	}
 	if target != "" {
-		labels[FuseMountPathHashLabelKey] = computeMountPathHash(target)
+		labels[FuseMountPathHashLabelKey] = utils.ComputeMountPathHash(target)
 	}
 	listOptions := metav1.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector("spec.nodeName", c.NodeName).String(),

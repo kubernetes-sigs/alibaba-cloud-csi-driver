@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
+	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/kata/directvolume"
 	"k8s.io/klog/v2"
 )
@@ -23,7 +23,7 @@ const (
 	sealedSecretPrefix = "sealed."
 )
 
-func (ns *nodeServer) publishDirectVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, opt *oss.Options) (*csi.NodePublishVolumeResponse, error) {
+func (ns *nodeServer) publishDirectVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, opt *ossfpm.Options) (*csi.NodePublishVolumeResponse, error) {
 	logger := klog.FromContext(ctx).WithValues(
 		"nodeServer", "OSSNodeServer",
 		"volumeID", req.VolumeId,

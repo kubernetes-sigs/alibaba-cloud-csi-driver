@@ -1,4 +1,4 @@
-package oss
+package ossfs
 
 import (
 	"context"
@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
+	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,34 +18,34 @@ import (
 func Test_buildPodSpec_dnsPolicy(t *testing.T) {
 	nodeName := "test-node-name"
 	volumeId := "test-pv-name"
-	authCfg := &mounterutils.AuthConfig{}
-	ptCfg := &mounterutils.PodTemplateConfig{}
-	authCfg.AuthType = AuthTypeSTS
+	authCfg := &fpm.AuthConfig{}
+	ptCfg := &fpm.PodTemplateConfig{}
+	authCfg.AuthType = ossfpm.AuthTypeSTS
 	fakeOssfs := &fuseOssfs{}
-	spec, err := fakeOssfs.buildPodSpec(&mounterutils.FusePodContext{
+	spec, err := fakeOssfs.buildPodSpec(&fpm.FusePodContext{
 		Context:           context.Background(),
 		Namespace:         mounterutils.LegacyFusePodNamespace,
 		NodeName:          nodeName,
 		VolumeId:          volumeId,
 		AuthConfig:        authCfg,
 		PodTemplateConfig: ptCfg,
-		FuseType:          OssFsType,
+		FuseType:          ossfpm.OssFsType,
 	}, "target")
 
 	require.NoError(t, err)
 	assert.Equal(t, corev1.DNSPolicy(""), spec.DNSPolicy)
 
-	ptCfg = &mounterutils.PodTemplateConfig{
+	ptCfg = &fpm.PodTemplateConfig{
 		DnsPolicy: corev1.DNSPolicy("ClusterFirstWithHostNet"),
 	}
-	spec, err = fakeOssfs.buildPodSpec(&mounterutils.FusePodContext{
+	spec, err = fakeOssfs.buildPodSpec(&fpm.FusePodContext{
 		Context:           context.Background(),
 		Namespace:         mounterutils.LegacyFusePodNamespace,
 		NodeName:          nodeName,
 		VolumeId:          volumeId,
 		AuthConfig:        authCfg,
 		PodTemplateConfig: ptCfg,
-		FuseType:          OssFsType,
+		FuseType:          ossfpm.OssFsType,
 	}, "target")
 
 	require.NoError(t, err)
@@ -54,7 +55,7 @@ func Test_buildPodSpec_dnsPolicy(t *testing.T) {
 func Test_buildAuthSpec_ossfs(t *testing.T) {
 	nodeName := "test-node-name"
 	volumeId := "test-pv-name"
-	authCfg := &mounterutils.AuthConfig{}
+	authCfg := &fpm.AuthConfig{}
 	container := corev1.Container{
 		Name:  "fuse-mounter",
 		Image: "test-image",
@@ -76,20 +77,20 @@ func Test_buildAuthSpec_ossfs(t *testing.T) {
 	}
 	spec := corev1.PodSpec{}
 	spec.Volumes = []corev1.Volume{targetVolume}
-	rrsaCfg := mounterutils.RrsaConfig{
+	rrsaCfg := fpm.RrsaConfig{
 		OidcProviderArn: "test-oidc-provider-arn",
 		RoleArn:         "test-role-arn",
 	}
 	authCfg.RrsaConfig = &rrsaCfg
-	authCfg.AuthType = AuthTypeRRSA
+	authCfg.AuthType = ossfpm.AuthTypeRRSA
 	fakeOssfs := &fuseOssfs{}
-	fakeOssfs.buildAuthSpec(&mounterutils.FusePodContext{
+	fakeOssfs.buildAuthSpec(&fpm.FusePodContext{
 		Context:    context.Background(),
 		Namespace:  mounterutils.LegacyFusePodNamespace,
 		NodeName:   nodeName,
 		VolumeId:   volumeId,
 		AuthConfig: authCfg,
-		FuseType:   OssFsType,
+		FuseType:   ossfpm.OssFsType,
 	}, "target", &spec, &container)
 
 	assert.Equal(t, "rrsa-oidc-token", spec.Volumes[len(spec.Volumes)-1].Name)
@@ -103,132 +104,132 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 	fakeOssfs := NewFuseOssfs(nil, fakeMeta)
 	tests := []struct {
 		name    string
-		opts    *Options
+		opts    *ossfpm.Options
 		wantErr bool
 	}{
 		{
 			name: "empty aksk",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "/path",
-				FuseType: OssFsType,
+				FuseType: ossfpm.OssFsType,
 			},
 			wantErr: true,
 		},
 		{
 			name: "success with accessKey",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "/path",
 				AkID:     "11111",
 				AkSecret: "22222",
-				FuseType: OssFsType,
+				FuseType: ossfpm.OssFsType,
 			},
 			wantErr: false,
 		},
 		{
 			name: "success with secretRef",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:       "1.1.1.1",
 				Bucket:    "aliyun",
 				Path:      "/path",
 				SecretRef: "secret",
-				FuseType:  OssFsType,
+				FuseType:  ossfpm.OssFsType,
 			},
 			wantErr: false,
 		},
 		{
 			name: "conflict between accessKey and secretRef",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:       "1.1.1.1",
 				Bucket:    "aliyun",
 				Path:      "/path",
 				SecretRef: "secret",
 				AkID:      "11111",
-				FuseType:  OssFsType,
+				FuseType:  ossfpm.OssFsType,
 			},
 			wantErr: true,
 		},
 		{
 			name: "invalid secretRef",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:       "1.1.1.1",
 				Bucket:    "aliyun",
 				Path:      "/path",
-				SecretRef: utils.GetCredientialsSecretName(OssFsType),
-				FuseType:  OssFsType,
+				SecretRef: mounterutils.GetCredientialsSecretName(ossfpm.OssFsType),
+				FuseType:  ossfpm.OssFsType,
 			},
 			wantErr: true,
 		},
 		{
 			name: "use assumeRole with non-RRSA authType",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:           "1.1.1.1",
 				Bucket:        "aliyun",
 				Path:          "/path",
 				SecretRef:     "secret",
 				AkID:          "11111",
 				AssumeRoleArn: "test-assume-role-arn",
-				FuseType:      OssFsType,
+				FuseType:      ossfpm.OssFsType,
 			},
 			wantErr: true,
 		},
 		{
 			name: "empty roleName, ARNs",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "/path",
-				AuthType: AuthTypeRRSA,
-				FuseType: OssFsType,
+				AuthType: ossfpm.AuthTypeRRSA,
+				FuseType: ossfpm.OssFsType,
 			},
 			wantErr: true,
 		},
 		{
 			name: "empty roleName, ARN",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:             "1.1.1.1",
 				Bucket:          "aliyun",
 				Path:            "/path",
-				AuthType:        AuthTypeRRSA,
+				AuthType:        ossfpm.AuthTypeRRSA,
 				OidcProviderArn: "test-oidc-provider-arn",
-				FuseType:        OssFsType,
+				FuseType:        ossfpm.OssFsType,
 			},
 			wantErr: true,
 		},
 		{
 			name: "success with csi-secret-store",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:                 "1.1.1.1",
 				Bucket:              "aliyun",
 				Path:                "/path",
-				AuthType:            AuthTypeCSS,
+				AuthType:            ossfpm.AuthTypeCSS,
 				SecretProviderClass: "test-secret-provider-class",
-				FuseType:            OssFsType,
+				FuseType:            ossfpm.OssFsType,
 			},
 			wantErr: false,
 		},
 		{
 			name: "empty secretProviderClass",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "/path",
-				AuthType: AuthTypeCSS,
-				FuseType: OssFsType,
+				AuthType: ossfpm.AuthTypeCSS,
+				FuseType: ossfpm.OssFsType,
 			},
 			wantErr: true,
 		},
 		{
 			name: "success with public authType",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "/path",
-				AuthType: AuthTypePublic,
-				FuseType: OssFsType,
+				AuthType: ossfpm.AuthTypePublic,
+				FuseType: ossfpm.OssFsType,
 			},
 			wantErr: false,
 		},
@@ -248,31 +249,31 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 	fakeOssfs := NewFuseOssfs(nil, fakeMeta)
 	tests := []struct {
 		name           string
-		options        *Options
-		expectedConfig *utils.AuthConfig
+		options        *ossfpm.Options
+		expectedConfig *fpm.AuthConfig
 		expectedError  error
 	}{
 		{
 			name: "public",
-			options: &Options{
-				AuthType: AuthTypePublic,
+			options: &ossfpm.Options{
+				AuthType: ossfpm.AuthTypePublic,
 			},
-			expectedConfig: &utils.AuthConfig{
-				AuthType: AuthTypePublic,
+			expectedConfig: &fpm.AuthConfig{
+				AuthType: ossfpm.AuthTypePublic,
 			},
 			expectedError: nil,
 		},
 		{
 			name: "AuthTypeRRSA_Success",
-			options: &Options{
-				AuthType:           AuthTypeRRSA,
+			options: &ossfpm.Options{
+				AuthType:           ossfpm.AuthTypeRRSA,
 				ServiceAccountName: "test-sa",
 				RoleName:           "test-role",
 				AssumeRoleArn:      "test-assume-role-arn",
 			},
-			expectedConfig: &utils.AuthConfig{
-				AuthType: AuthTypeRRSA,
-				RrsaConfig: &utils.RrsaConfig{
+			expectedConfig: &fpm.AuthConfig{
+				AuthType: ossfpm.AuthTypeRRSA,
+				RrsaConfig: &fpm.RrsaConfig{
 					ServiceAccountName: "test-sa",
 					RoleArn:            "acs:ram::account-id:role/test-role",
 					OidcProviderArn:    "acs:ram::account-id:oidc-provider/ack-rrsa-cluster-id",
@@ -283,35 +284,35 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 		},
 		{
 			name: "AuthTypeCSS",
-			options: &Options{
-				AuthType:            AuthTypeCSS,
+			options: &ossfpm.Options{
+				AuthType:            ossfpm.AuthTypeCSS,
 				SecretProviderClass: "secret-provider-class",
 			},
-			expectedConfig: &utils.AuthConfig{
-				AuthType:                AuthTypeCSS,
+			expectedConfig: &fpm.AuthConfig{
+				AuthType:                ossfpm.AuthTypeCSS,
 				SecretProviderClassName: "secret-provider-class",
 			},
 			expectedError: nil,
 		},
 		{
 			name: "AuthTypeSTS",
-			options: &Options{
-				AuthType: AuthTypeSTS,
+			options: &ossfpm.Options{
+				AuthType: ossfpm.AuthTypeSTS,
 				RoleName: "role-name",
 			},
-			expectedConfig: &utils.AuthConfig{
-				AuthType: AuthTypeSTS,
+			expectedConfig: &fpm.AuthConfig{
+				AuthType: ossfpm.AuthTypeSTS,
 				RoleName: "role-name",
 			},
 			expectedError: nil,
 		},
 		{
 			name: "OtherAuthType_SecretRef",
-			options: &Options{
+			options: &ossfpm.Options{
 				AuthType:  "",
 				SecretRef: "secret-ref",
 			},
-			expectedConfig: &utils.AuthConfig{
+			expectedConfig: &fpm.AuthConfig{
 				AuthType:  "",
 				SecretRef: "secret-ref",
 			},
@@ -319,17 +320,17 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 		},
 		{
 			name: "OtherAuthType_Secrets",
-			options: &Options{
+			options: &ossfpm.Options{
 				AuthType: "",
 				Bucket:   "bucket",
 				AkID:     "ak-id",
 				AkSecret: "ak-secret",
-				FuseType: OssFsType,
+				FuseType: ossfpm.OssFsType,
 			},
-			expectedConfig: &utils.AuthConfig{
+			expectedConfig: &fpm.AuthConfig{
 				AuthType: "",
 				Secrets: map[string]string{
-					utils.GetPasswdFileName(OssFsType): "bucket:ak-id:ak-secret",
+					mounterutils.GetPasswdFileName(ossfpm.OssFsType): "bucket:ak-id:ak-secret",
 				},
 			},
 			expectedError: nil,
@@ -353,14 +354,14 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 func TestMakeMountOptions_ossfs(t *testing.T) {
 	tests := []struct {
 		name          string
-		opts          *Options
+		opts          *ossfpm.Options
 		region        string
 		expected      []string
 		expectedError bool
 	}{
 		{
 			name: "Basic Options",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL: "oss://bucket",
 			},
 			expected: []string{
@@ -369,7 +370,7 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		},
 		{
 			name: "ReadOnly Option",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:      "oss://bucket",
 				ReadOnly: true,
 			},
@@ -380,9 +381,9 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		},
 		{
 			name: "EncryptedTypeAes256",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:       "oss://bucket",
-				Encrypted: EncryptedTypeAes256,
+				Encrypted: ossfpm.EncryptedTypeAes256,
 			},
 			expected: []string{
 				"url=oss://bucket",
@@ -391,9 +392,9 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		},
 		{
 			name: "EncryptedTypeKms",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:       "oss://bucket",
-				Encrypted: EncryptedTypeKms,
+				Encrypted: ossfpm.EncryptedTypeKms,
 				KmsKeyId:  "1234",
 			},
 			expected: []string{
@@ -403,10 +404,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		},
 		{
 			name: "Metrics Enabled, use rrsa",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:           "oss://bucket",
 				MetricsTop:    "5",
-				AuthType:      AuthTypeRRSA,
+				AuthType:      ossfpm.AuthTypeRRSA,
 				AssumeRoleArn: "arn:acs:ram::123456789012:role/role-name",
 			},
 			region: "us-east-1",
@@ -420,9 +421,9 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		},
 		{
 			name: "SigV4",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:        "oss://bucket",
-				SigVersion: SigV4,
+				SigVersion: ossfpm.SigV4,
 			},
 			region: "us-east-1",
 			expected: []string{
@@ -434,17 +435,17 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		},
 		{
 			name: "SigV4 Without Region",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:        "oss://bucket",
-				SigVersion: SigV4,
+				SigVersion: ossfpm.SigV4,
 			},
 			expectedError: true,
 		},
 		{
 			name: "AuthTypeCSS",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:      "oss://bucket",
-				AuthType: AuthTypeCSS,
+				AuthType: ossfpm.AuthTypeCSS,
 			},
 			expected: []string{
 				"url=oss://bucket",
@@ -453,9 +454,9 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		},
 		{
 			name: "AuthTypeSTS",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:      "oss://bucket",
-				AuthType: AuthTypeSTS,
+				AuthType: ossfpm.AuthTypeSTS,
 				RoleName: "role-name",
 			},
 			expected: []string{
@@ -465,7 +466,7 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		},
 		{
 			name: "DefaultAuthType",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				URL:       "oss://bucket",
 				SecretRef: "secret",
 				FuseType:  "ossfs",
@@ -494,21 +495,21 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 	tests := []struct {
 		name        string
 		region      string
-		opts        *Options
+		opts        *ossfpm.Options
 		wantOptions []string
 	}{
 		{
 			name: "public",
-			opts: &Options{
-				AuthType: AuthTypePublic,
+			opts: &ossfpm.Options{
+				AuthType: ossfpm.AuthTypePublic,
 			},
 			wantOptions: []string{"public_bucket=1"},
 		},
 		{
 			name:   "rrsa",
 			region: "us-east-1",
-			opts: &Options{
-				AuthType:      AuthTypeRRSA,
+			opts: &ossfpm.Options{
+				AuthType:      ossfpm.AuthTypeRRSA,
 				AssumeRoleArn: "acs:ram::account-id:role/test-role",
 				ExternalId:    "test-external-id",
 			},
@@ -520,8 +521,8 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 		},
 		{
 			name: "rrsa - empty region",
-			opts: &Options{
-				AuthType:   AuthTypeRRSA,
+			opts: &ossfpm.Options{
+				AuthType:   ossfpm.AuthTypeRRSA,
 				ExternalId: "test-external-id",
 			},
 			wantOptions: []string{
@@ -530,8 +531,8 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 		},
 		{
 			name: "css",
-			opts: &Options{
-				AuthType: AuthTypeCSS,
+			opts: &ossfpm.Options{
+				AuthType: ossfpm.AuthTypeCSS,
 			},
 			wantOptions: []string{
 				"secret_store_dir=/etc/ossfs/secrets-store",
@@ -539,8 +540,8 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 		},
 		{
 			name: "sts",
-			opts: &Options{
-				AuthType: AuthTypeSTS,
+			opts: &ossfpm.Options{
+				AuthType: ossfpm.AuthTypeSTS,
 				RoleName: "test-role",
 			},
 			wantOptions: []string{
@@ -549,7 +550,7 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 		},
 		{
 			name: "secretref",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				SecretRef: "test-secret",
 				FuseType:  "ossfs",
 			},
@@ -560,7 +561,7 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 		},
 		{
 			name: "aksk",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				FuseType: "ossfs",
 			},
 		},

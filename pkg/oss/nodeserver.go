@@ -26,7 +26,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
+	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -43,7 +43,7 @@ type nodeServer struct {
 	clientset       kubernetes.Interface
 	cnfsGetter      cnfsv1beta1.CNFSGetter
 	rawMounter      mountutils.Interface
-	fusePodManagers map[string]*oss.OSSFusePodManager
+	fusePodManagers map[string]*ossfpm.OSSFusePodManager
 	ossfsPaths      map[string]string
 	common.GenericNodeServer
 	skipAttach bool
@@ -157,7 +157,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// Note: In ACK and ACS GPU scenarios, the socket path is provided by publishContext.
 	var ossfsMounter mounter.Mounter
 	if socketPath == "" {
-		mountOptions, err = mounterutils.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
+		mountOptions, err = ossfpm.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -269,7 +269,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 	// The metricsPath in fuse Pod will be cleaned and not allowed to update the metrics
 	utils.RemoveMetrics(metricsPathPrefix, req)
 
-	// In the legacy mount process, NodePublishVolume creates ossfs pods in kube-system namespace to mount oss.
+	// In the legacy mount process, NodePublishVolume creates ossfs pods in kube-system namespace to mount ossfpm.
 	// We still need to umount the mountpoint in case csi-plugin is upgraded from these versions.
 	err = mountutils.CleanupMountPoint(req.StagingTargetPath, ns.rawMounter, false)
 	if err != nil {
