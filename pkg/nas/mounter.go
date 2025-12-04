@@ -10,7 +10,7 @@ import (
 
 type NasMounter struct {
 	mountutils.Interface
-	alinasMounter mountutils.Interface
+	alinasMounter mounter.Mounter
 }
 
 var _ mounter.Mounter = &NasMounter{}
@@ -24,7 +24,7 @@ func (m *NasMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperati
 	)
 	switch op.FsType {
 	case "alinas", "cpfs", "cpfs-nfs":
-		err = m.alinasMounter.Mount(op.Source, op.Target, op.FsType, op.Options)
+		err = m.alinasMounter.ExtendedMount(ctx, op)
 	default:
 		err = m.Mount(op.Source, op.Target, op.FsType, op.Options)
 	}
@@ -39,14 +39,15 @@ func (m *NasMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperati
 func newNasMounter(agentMode bool, socketPath string) mounter.Mounter {
 	inner := mountutils.NewWithoutSystemd("")
 	m := &NasMounter{
-		Interface:     inner,
-		alinasMounter: inner,
+		Interface: inner,
 	}
 	switch {
 	case socketPath != "":
 		m.alinasMounter = mounter.NewProxyMounter(socketPath, inner)
 	case !agentMode: // normal case, use connector mounter to ensure backward compatibility
 		m.alinasMounter = mounter.NewConnectorMounter(inner, "")
+	default:
+		m.alinasMounter = mounter.NewAdaptorMounter(inner)
 	}
 	return m
 }
