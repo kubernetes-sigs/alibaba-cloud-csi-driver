@@ -113,19 +113,16 @@ func TestCreateOpenAPI(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 			var ecsClient cloud.ECSInterface
-			var stsClient cloud.STSInterface
 			if c.available {
 				ecsClient = testEcsClient(ctrl)
-				stsClient = testStsClient(ctrl)
 			} else {
 				ecsClient = cloud.NewMockECSInterface(ctrl)
-				stsClient = cloud.NewMockSTSInterface(ctrl)
 			}
 
 			m := NewMetadata()
 			m.providers = append(m.providers, FakeProvider{Values: c.values})
 
-			m.EnableOpenAPI(ecsClient, stsClient)
+			m.EnableOpenAPI(ecsClient)
 			zone, err := m.Get(ZoneID)
 			if c.available {
 				assert.Equal(t, "cn-beijing-k", zone)
@@ -142,11 +139,32 @@ func TestCreateOpenAPIFromEnv(t *testing.T) {
 	t.Setenv("KUBE_NODE_NAME", "i-2zec1slzwdzrwmvlr4w2")
 	ctrl := gomock.NewController(t)
 	ecsClient := testEcsClient(ctrl)
-	stsClient := testStsClient(ctrl)
 
 	m := NewMetadata()
-	m.EnableOpenAPI(ecsClient, stsClient)
+	m.EnableOpenAPI(ecsClient)
 	assert.Equal(t, "cn-beijing-k", MustGet(m, ZoneID))
+}
+
+func TestCreateSts(t *testing.T) {
+	t.Setenv("REGION_ID", "cn-beijing")
+	ctrl := gomock.NewController(t)
+	stsClient := testStsClientFactory(ctrl)
+
+	m := NewMetadata()
+	m.EnableSts(stsClient)
+	assert.Equal(t, "112233445566", MustGet(m, AccountID))
+}
+
+func TestCreateStsNoRegionID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	stsClient := testStsClientFactory(ctrl)
+
+	m := NewMetadata()
+	m.EnableSts(stsClient)
+	_, err := m.Get(999) // anything else
+	assert.ErrorIs(t, err, ErrUnknownMetadataKey)
+	_, err = m.Get(AccountID)
+	assert.ErrorIs(t, err, ErrUnknownMetadataKey)
 }
 
 func fakeMetadata(t *testing.T) *Metadata {

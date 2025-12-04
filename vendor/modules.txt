@@ -27,6 +27,9 @@ github.com/alibabacloud-go/nas-20170626/v4/client
 # github.com/alibabacloud-go/openapi-util v0.1.1
 ## explicit; go 1.14
 github.com/alibabacloud-go/openapi-util/service
+# github.com/alibabacloud-go/sts-20150401/v2 v2.0.4
+## explicit; go 1.14
+github.com/alibabacloud-go/sts-20150401/v2/client
 # github.com/alibabacloud-go/tea v1.3.13
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea/dara
@@ -54,7 +57,6 @@ github.com/aliyun/alibaba-cloud-sdk-go/sdk/utils
 github.com/aliyun/alibaba-cloud-sdk-go/services/dfs
 github.com/aliyun/alibaba-cloud-sdk-go/services/ecs
 github.com/aliyun/alibaba-cloud-sdk-go/services/nas
-github.com/aliyun/alibaba-cloud-sdk-go/services/sts
 # github.com/aliyun/credentials-go v1.4.8
 ## explicit; go 1.14
 github.com/aliyun/credentials-go

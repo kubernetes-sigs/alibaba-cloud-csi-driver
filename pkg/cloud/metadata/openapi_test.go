@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
@@ -54,34 +53,14 @@ func testEcsClient(ctrl *gomock.Controller) cloud.ECSInterface {
 	return ecsClient
 }
 
-const getCallerIdentityRespJson = `{
-	"IdentityType": "Account",
-	"AccountId": "112233445566",
-	"RequestId": "5051F631-1599-5DBD-9C0A-3DD86092DA9D",
-	"PrincipalId": "112233445566",
-	"UserId": "112233445566",
-	"Arn": "acs:ram::112233445566:root"
-}`
-
-func testStsClient(ctrl *gomock.Controller) cloud.STSInterface {
-	res := sts.CreateGetCallerIdentityResponse()
-	cloud.UnmarshalAcsResponse([]byte(getCallerIdentityRespJson), res)
-
-	stsClient := cloud.NewMockSTSInterface(ctrl)
-	stsClient.EXPECT().GetCallerIdentity(gomock.Any()).Return(res, nil)
-	return stsClient
-}
-
 func TestGetOpenAPI(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ecsClient := testEcsClient(ctrl)
-	stsClient := testStsClient(ctrl)
 
-	m, err := NewOpenAPIMetadata(ecsClient, stsClient, "cn-beijing", "i-2zec1slzwdzrwmvlr4w2")
+	m, err := NewOpenAPIMetadata(ecsClient, "cn-beijing", "i-2zec1slzwdzrwmvlr4w2")
 	assert.NoError(t, err)
 
 	assert.Equal(t, "cn-beijing-k", MustGet(m, ZoneID))
 	assert.Equal(t, "ecs.g7.xlarge", MustGet(m, InstanceType))
 	assert.Equal(t, "i-2zec1slzwdzrwmvlr4w2", MustGet(m, InstanceID))
-	assert.Equal(t, "112233445566", MustGet(m, AccountID))
 }
