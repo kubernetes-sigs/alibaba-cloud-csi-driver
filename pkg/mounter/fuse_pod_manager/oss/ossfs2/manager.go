@@ -25,7 +25,7 @@ import (
 func init() {
 	ossfpm.RegisterFuseMounter(ossfpm.OssFs2Type, NewFuseOssfs)
 	ossfpm.RegisterFuseMounterPath(ossfpm.OssFs2Type, "/usr/local/bin/ossfs2")
-	ossfpm.RegisterFuseInterceptors(ossfpm.OssFs2Type, []mounter.MountInterceptor{interceptors.NewOssfs2SecretInterceptor()})
+	ossfpm.RegisterFuseInterceptors(ossfpm.OssFs2Type, []mounter.MountInterceptor{interceptors.Ossfs2SecretInterceptor})
 }
 
 var defaultOssfs2Dbglevel = fpm.DebugLevelInfo

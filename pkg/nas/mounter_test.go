@@ -43,7 +43,7 @@ func TestNasMounter_MountSuccess(t *testing.T) {
 func TestNasMounter_FuseMountError(t *testing.T) {
 	nasMounter := &NasMounter{
 		Interface:     &errorMockMounter{},
-		alinasMounter: mounter.NewAdaptorMounter(&successMockMounter{}),
+		alinasMounter: mounter.NewAdaptorMounter(&errorMockMounter{}),
 	}
 	err := nasMounter.ExtendedMount(context.Background(), &mounter.MountOperation{
 		FsType: "cpfs",
