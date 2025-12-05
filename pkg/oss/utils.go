@@ -28,8 +28,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
-	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
+	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -59,7 +59,7 @@ const (
 // reqName: for subpath generating, CreateVolumeRequest.GetName
 // onNode: run on nodeserver mode
 func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, reqName string, onNode bool, m metadata.MetadataProvider) *oss.Options {
+	readOnly bool, reqName string, onNode bool, m metadata.MetadataProvider) *ossfpm.Options {
 
 	if volOptions == nil {
 		volOptions = map[string]string{}
@@ -68,7 +68,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		secrets = map[string]string{}
 	}
 
-	opts := &oss.Options{
+	opts := &ossfpm.Options{
 		UseSharedPath: true,
 		Path:          "/",
 		AkID:          strings.TrimSpace(secrets[AkID]),
@@ -136,9 +136,9 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		case "externalid":
 			opts.ExternalId = value
 		case "sigversion":
-			switch oss.SigVersion(value) {
-			case oss.SigV1, oss.SigV4:
-				opts.SigVersion = oss.SigVersion(value)
+			switch ossfpm.SigVersion(value) {
+			case ossfpm.SigV1, ossfpm.SigV4:
+				opts.SigVersion = ossfpm.SigVersion(value)
 			default:
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support v1 and v4", v, k).Error())
 			}
@@ -211,7 +211,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			opts.AkSecret = ac.AccessKeySecret
 		}
 
-	case oss.AuthTypeSTS:
+	case ossfpm.AuthTypeSTS:
 		// try to get default ECS worker role from metadata server
 		if opts.RoleName == "" {
 			workerRole, err := m.Get(metadata.RAMRoleName)
@@ -234,7 +234,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	return opts
 }
 
-func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts *oss.Options) error {
+func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts *ossfpm.Options) error {
 	if opts.CNFSName == "" {
 		return nil
 	}
@@ -369,7 +369,7 @@ func setFsType(vc map[string]string) {
 }
 
 // Check oss options
-func checkOssOptions(opt *oss.Options, fpm *oss.OSSFusePodManager) error {
+func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
 	if fpm == nil {
 		return WrapOssError(ParamError, "Unsupported fuseType %s", opt.FuseType)
 	}
@@ -391,7 +391,7 @@ func checkOssOptions(opt *oss.Options, fpm *oss.OSSFusePodManager) error {
 			return WrapOssError(PathError, "start with %s, should start with /", opt.Path)
 		}
 
-		if opt.Encrypted != "" && opt.Encrypted != oss.EncryptedTypeKms && opt.Encrypted != oss.EncryptedTypeAes256 {
+		if opt.Encrypted != "" && opt.Encrypted != ossfpm.EncryptedTypeKms && opt.Encrypted != ossfpm.EncryptedTypeAes256 {
 			return WrapOssError(EncryptError, "invalid SSE encrypted type")
 		}
 
@@ -404,7 +404,7 @@ func checkOssOptions(opt *oss.Options, fpm *oss.OSSFusePodManager) error {
 	return nil
 }
 
-func makeAuthConfig(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.MetadataProvider, onNode bool) (*mounter.AuthConfig, error) {
+func makeAuthConfig(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m metadata.MetadataProvider, onNode bool) (*fpm.AuthConfig, error) {
 	err := fpm.PrecheckAuthConfig(opt, onNode)
 	if err != nil {
 		return nil, WrapOssError(AuthError, "%s: %v", opt.FuseType, err)
@@ -415,13 +415,13 @@ func makeAuthConfig(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.Met
 	}
 	return authCfg, nil
 }
-func makePodTemplateConfig(opt *oss.Options) *mounter.PodTemplateConfig {
-	return &mounter.PodTemplateConfig{
+func makePodTemplateConfig(opt *ossfpm.Options) *fpm.PodTemplateConfig {
+	return &fpm.PodTemplateConfig{
 		DnsPolicy: opt.DnsPolicy,
 	}
 }
 
-func makeMountOptions(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) (
+func makeMountOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) (
 	mountOptions []string, err error) {
 	mountOptions, err = parseOtherOpts(opt.OtherOpts)
 	if err != nil {

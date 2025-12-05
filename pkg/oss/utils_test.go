@@ -24,9 +24,11 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
-	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
-	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
+	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
+	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs"
+	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs2"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -41,7 +43,7 @@ var m = metadata.FakeProvider{
 func Test_parseOptions(t *testing.T) {
 	t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
 
-	var expectedOptions, gotOptions *oss.Options
+	var expectedOptions, gotOptions *ossfpm.Options
 	// CreateVolume
 	testCVReq := csi.CreateVolumeRequest{
 		Parameters: map[string]string{
@@ -62,7 +64,7 @@ func Test_parseOptions(t *testing.T) {
 			},
 		},
 	}
-	expectedOptions = &oss.Options{
+	expectedOptions = &ossfpm.Options{
 		Bucket:        "test-bucket",
 		URL:           "https://oss-cn-hangzhou.aliyuncs.com",
 		AkID:          "test-akid",
@@ -96,7 +98,7 @@ func Test_parseOptions(t *testing.T) {
 			},
 		},
 	}
-	expectedOptions = &oss.Options{
+	expectedOptions = &ossfpm.Options{
 		Bucket:        "test-bucket",
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
@@ -134,7 +136,7 @@ func Test_parseOptions(t *testing.T) {
 		},
 		Readonly: true,
 	}
-	expectedOptions = &oss.Options{
+	expectedOptions = &ossfpm.Options{
 		Bucket:        "test-bucket",
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
@@ -156,7 +158,7 @@ func Test_parseOptions(t *testing.T) {
 	t.Setenv("ACCESS_KEY_ID", "test-akid")
 	t.Setenv("ACCESS_KEY_SECRET", "test-aksecret")
 	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
-	expectedOptions = &oss.Options{
+	expectedOptions = &ossfpm.Options{
 		AkID:          "test-akid",
 		AkSecret:      "test-aksecret",
 		FuseType:      "ossfs",
@@ -173,8 +175,8 @@ func Test_parseOptions(t *testing.T) {
 		"url":      "oss-cn-beijing.aliyuncs.com",
 	}
 	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
-	expectedOptions = &oss.Options{
-		AuthType:      oss.AuthTypeSTS,
+	expectedOptions = &ossfpm.Options{
+		AuthType:      ossfpm.AuthTypeSTS,
 		FuseType:      "ossfs",
 		Path:          "/",
 		UseSharedPath: true,
@@ -190,8 +192,8 @@ func Test_parseOptions(t *testing.T) {
 		"url":      "oss-cn-beijing.aliyuncs.com",
 	}
 	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
-	expectedOptions = &oss.Options{
-		AuthType:      oss.AuthTypeSTS,
+	expectedOptions = &ossfpm.Options{
+		AuthType:      ossfpm.AuthTypeSTS,
 		FuseType:      "ossfs",
 		Path:          "/",
 		UseSharedPath: true,
@@ -516,21 +518,21 @@ func TestSetFsType(t *testing.T) {
 
 func Test_checkOssOptions(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	ossfs := oss.NewFuseOssfs(nil, fakeMeta)
-	ossfs2 := oss.NewFuseOssfs2(nil, fakeMeta)
-	fusePodManagers := map[string]*oss.OSSFusePodManager{
-		OssFsType:  oss.NewOSSFusePodManager(ossfs, nil),
-		OssFs2Type: oss.NewOSSFusePodManager(ossfs2, nil),
+	ossfs, _ := ossfpm.GetFuseMounter(ossfpm.OssFsType, nil, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(ossfpm.OssFs2Type, nil, fakeMeta)
+	fusePodManagers := map[string]*ossfpm.OSSFusePodManager{
+		OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil),
+		OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil),
 	}
 
 	tests := []struct {
 		name    string
-		opts    *oss.Options
+		opts    *ossfpm.Options
 		errType error
 	}{
 		{
 			name: "empty fuse type",
-			opts: &oss.Options{
+			opts: &ossfpm.Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "/path",
@@ -541,7 +543,7 @@ func Test_checkOssOptions(t *testing.T) {
 		},
 		{
 			name: "invalid fuse type",
-			opts: &oss.Options{
+			opts: &ossfpm.Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "abc/",
@@ -551,7 +553,7 @@ func Test_checkOssOptions(t *testing.T) {
 		},
 		{
 			name: "invalid path",
-			opts: &oss.Options{
+			opts: &ossfpm.Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "abc/",
@@ -563,7 +565,7 @@ func Test_checkOssOptions(t *testing.T) {
 		},
 		{
 			name: "empty URL",
-			opts: &oss.Options{
+			opts: &ossfpm.Options{
 				Bucket:   "aliyun",
 				Path:     "/path",
 				AkID:     "11111",
@@ -574,7 +576,7 @@ func Test_checkOssOptions(t *testing.T) {
 		},
 		{
 			name: "invalid encrypted type",
-			opts: &oss.Options{
+			opts: &ossfpm.Options{
 				URL:       "1.1.1.1",
 				Bucket:    "aliyun",
 				Path:      "/path",
@@ -587,20 +589,20 @@ func Test_checkOssOptions(t *testing.T) {
 		},
 		{
 			name: "valid kms sse",
-			opts: &oss.Options{
+			opts: &ossfpm.Options{
 				URL:       "1.1.1.1",
 				Bucket:    "aliyun",
 				Path:      "/path",
 				AkID:      "11111",
 				AkSecret:  "22222",
-				Encrypted: oss.EncryptedTypeKms,
+				Encrypted: ossfpm.EncryptedTypeKms,
 				FuseType:  OssFsType,
 			},
 			errType: nil,
 		},
 		{
 			name: "invalid url",
-			opts: &oss.Options{
+			opts: &ossfpm.Options{
 				URL:      "aliyun.oss-cn-hangzhou.aliyuncs.com",
 				Bucket:   "aliyun",
 				Path:     "/path",
@@ -612,12 +614,12 @@ func Test_checkOssOptions(t *testing.T) {
 		},
 		{
 			name: "public bucket",
-			opts: &oss.Options{
+			opts: &ossfpm.Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "/path",
 				FuseType: OssFsType,
-				AuthType: oss.AuthTypePublic,
+				AuthType: ossfpm.AuthTypePublic,
 			},
 			errType: nil,
 		},
@@ -632,9 +634,9 @@ func Test_checkOssOptions(t *testing.T) {
 
 func TestMakeAuthConfig(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	ossfs := oss.NewFuseOssfs(nil, fakeMeta)
-	ossfsFpm := oss.NewOSSFusePodManager(ossfs, nil)
-	opt := &oss.Options{
+	ossfs, _ := ossfpm.GetFuseMounter(ossfpm.OssFsType, nil, fakeMeta)
+	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil)
+	opt := &ossfpm.Options{
 		URL:      "1.1.1.1",
 		Bucket:   "aliyun",
 		Path:     "/path",
@@ -642,18 +644,18 @@ func TestMakeAuthConfig(t *testing.T) {
 		AkSecret: "22222",
 		FuseType: OssFsType,
 	}
-	want := &mounterutils.AuthConfig{
+	want := &fpm.AuthConfig{
 		Secrets: map[string]string{
-			mounterutils.GetPasswdFileName(OssFsType): fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
+			utils.GetPasswdFileName(OssFsType): fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
 		},
 	}
 	authCfg, err := makeAuthConfig(opt, ossfsFpm, fakeMeta, true)
 	assert.NoError(t, err)
 	assert.Equal(t, want, authCfg)
 
-	ossfs2 := oss.NewFuseOssfs2(nil, fakeMeta)
-	ossfs2Fpm := oss.NewOSSFusePodManager(ossfs2, nil)
-	opt2 := &oss.Options{
+	ossfs2, _ := ossfpm.GetFuseMounter(ossfpm.OssFs2Type, nil, fakeMeta)
+	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil)
+	opt2 := &ossfpm.Options{
 		URL:      "1.1.1.1",
 		Bucket:   "aliyun",
 		Path:     "/path",
@@ -661,9 +663,9 @@ func TestMakeAuthConfig(t *testing.T) {
 		AkSecret: "22222",
 		FuseType: OssFs2Type,
 	}
-	want2 := &mounterutils.AuthConfig{
+	want2 := &fpm.AuthConfig{
 		Secrets: map[string]string{
-			mounterutils.GetPasswdFileName(OssFs2Type): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", opt.AkID, opt.AkSecret),
+			utils.GetPasswdFileName(OssFs2Type): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", opt.AkID, opt.AkSecret),
 		},
 	}
 	authCfg2, err := makeAuthConfig(opt2, ossfs2Fpm, fakeMeta, true)
@@ -674,9 +676,9 @@ func TestMakeAuthConfig(t *testing.T) {
 func TestMakeMountOptions(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-beijing")
 	fakeMeta := metadata.NewMetadata()
-	ossfs := oss.NewFuseOssfs(nil, fakeMeta)
-	ossfsFpm := oss.NewOSSFusePodManager(ossfs, nil)
-	opt := &oss.Options{
+	ossfs, _ := ossfpm.GetFuseMounter(ossfpm.OssFsType, nil, fakeMeta)
+	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil)
+	opt := &ossfpm.Options{
 		URL:        "1.1.1.1",
 		Bucket:     "aliyun",
 		Path:       "/path",
@@ -685,7 +687,7 @@ func TestMakeMountOptions(t *testing.T) {
 		FuseType:   OssFsType,
 		OtherOpts:  "-o allow_other -o max_stat_cache_size=0",
 		SigVersion: "v4",
-		Encrypted:  oss.EncryptedTypeKms,
+		Encrypted:  ossfpm.EncryptedTypeKms,
 	}
 	cap := &csi.VolumeCapability{
 		AccessType: &csi.VolumeCapability_Mount{
@@ -707,9 +709,9 @@ func TestMakeMountOptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, want, got)
 
-	ossfs2 := oss.NewFuseOssfs2(nil, fakeMeta)
-	ossfs2Fpm := oss.NewOSSFusePodManager(ossfs2, nil)
-	opt2 := &oss.Options{
+	ossfs2, _ := ossfpm.GetFuseMounter(ossfpm.OssFs2Type, nil, fakeMeta)
+	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil)
+	opt2 := &ossfpm.Options{
 		URL:        "1.1.1.1",
 		Bucket:     "aliyun",
 		Path:       "/path",
@@ -732,11 +734,11 @@ func TestMakeMountOptions(t *testing.T) {
 }
 
 func TestMakePodTemplateConfig(t *testing.T) {
-	assert.Equal(t, &mounter.PodTemplateConfig{
+	assert.Equal(t, &fpm.PodTemplateConfig{
 		DnsPolicy: corev1.DNSClusterFirstWithHostNet,
-	}, makePodTemplateConfig(&oss.Options{
+	}, makePodTemplateConfig(&ossfpm.Options{
 		DnsPolicy: corev1.DNSClusterFirstWithHostNet,
 	}))
 
-	assert.Equal(t, &mounter.PodTemplateConfig{}, makePodTemplateConfig(&oss.Options{}))
+	assert.Equal(t, &fpm.PodTemplateConfig{}, makePodTemplateConfig(&ossfpm.Options{}))
 }

@@ -1,4 +1,4 @@
-package oss
+package ossfs2
 
 import (
 	"fmt"
@@ -10,6 +10,8 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
+	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -18,45 +20,49 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-var defaultOssfs2ImageTag = "v2.0.4.ack.1-5073ed2"
-var defaultOssfs2Dbglevel = mounterutils.DebugLevelInfo
+func init() {
+	ossfpm.RegisterFuseMounter(ossfpm.OssFs2Type, NewFuseOssfs)
+	ossfpm.RegisterFuseMounterPath(ossfpm.OssFs2Type, "/usr/local/bin/ossfs2")
+}
 
-type fuseOssfs2 struct {
-	config mounterutils.FuseContainerConfig
+var defaultOssfs2Dbglevel = fpm.DebugLevelInfo
+
+type fuseOssfs struct {
+	config fpm.FuseContainerConfig
 }
 
 var ossfs2Dbglevels = map[string]string{
-	mounterutils.DebugLevelDebug: "debug",
-	mounterutils.DebugLevelInfo:  "info",
+	fpm.DebugLevelDebug: "debug",
+	fpm.DebugLevelInfo:  "info",
 }
 
-func NewFuseOssfs2(configmap *corev1.ConfigMap, m metadata.MetadataProvider) OSSFuseMounterType {
-	config := mounterutils.ExtractFuseContainerConfig(configmap, OssFs2Type)
+func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) ossfpm.OSSFuseMounterType {
+	config := fpm.ExtractFuseContainerConfig(configmap, ossfpm.OssFs2Type)
 	// set default image
-	setDefaultImage(OssFs2Type, m, &config)
+	ossfpm.SetDefaultImage(ossfpm.OssFs2Type, m, &config)
 	// set default memory request
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
 		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
 	}
 
-	return &fuseOssfs2{config: config}
+	return &fuseOssfs{config: config}
 }
 
-func (f *fuseOssfs2) Name() string {
-	return OssFs2Type
+func (f *fuseOssfs) Name() string {
+	return ossfpm.OssFs2Type
 }
-func (f *fuseOssfs2) PrecheckAuthConfig(o *Options, onNode bool) error {
+func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 
-	if o.AuthType != AuthTypeRRSA && o.AssumeRoleArn != "" {
+	if o.AuthType != ossfpm.AuthTypeRRSA && o.AssumeRoleArn != "" {
 		return fmt.Errorf("only support access OSS through STS AssumeRole when authType is RRSA")
 	}
 
 	switch o.AuthType {
-	case AuthTypeRRSA:
-		if err := checkRRSAParams(o); err != nil {
+	case ossfpm.AuthTypeRRSA:
+		if err := ossfpm.CheckRRSAParams(o); err != nil {
 			return err
 		}
-	case AuthTypeSTS:
+	case ossfpm.AuthTypeSTS:
 		// rolename may retrieve from metadata service
 		if onNode && o.RoleName == "" {
 			return fmt.Errorf("missing roleName or ramRole in volume attributes")
@@ -69,7 +75,7 @@ func (f *fuseOssfs2) PrecheckAuthConfig(o *Options, onNode bool) error {
 			if o.AkID != "" || o.AkSecret != "" {
 				return fmt.Errorf("AK and secretRef cannot be set at the same time")
 			}
-			if o.SecretRef == mounterutils.GetCredientialsSecretName(OssFsType) {
+			if o.SecretRef == mounterutils.GetCredientialsSecretName(ossfpm.OssFsType) {
 				return fmt.Errorf("invalid SecretRef name")
 			}
 			return nil
@@ -84,16 +90,16 @@ func (f *fuseOssfs2) PrecheckAuthConfig(o *Options, onNode bool) error {
 	return nil
 }
 
-func (f *fuseOssfs2) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (authCfg *mounterutils.AuthConfig, err error) {
-	authCfg = &mounterutils.AuthConfig{AuthType: o.AuthType}
+func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvider) (authCfg *fpm.AuthConfig, err error) {
+	authCfg = &fpm.AuthConfig{AuthType: o.AuthType}
 	switch o.AuthType {
-	case AuthTypeRRSA:
-		rrsaCfg, err := getRRSAConfig(o, m)
+	case ossfpm.AuthTypeRRSA:
+		rrsaCfg, err := ossfpm.GetRRSAConfig(o, m)
 		if err != nil {
 			return nil, fmt.Errorf("Get RoleArn and OidcProviderArn for RRSA error: %v", err)
 		}
 		authCfg.RrsaConfig = rrsaCfg
-	case AuthTypeSTS:
+	case ossfpm.AuthTypeSTS:
 		authCfg.RoleName = o.RoleName
 	case "":
 		if o.SecretRef != "" {
@@ -109,7 +115,7 @@ func (f *fuseOssfs2) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (au
 	return authCfg, nil
 }
 
-func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (mountOptions []string, err error) {
+func (f *fuseOssfs) MakeMountOptions(o *ossfpm.Options, m metadata.MetadataProvider) (mountOptions []string, err error) {
 	mountOptions = append(mountOptions,
 		"oss_endpoint="+o.URL,
 		"oss_bucket="+o.Bucket,
@@ -125,7 +131,7 @@ func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (
 		mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", o.MetricsTop))
 	}
 
-	if o.SigVersion == SigV4 {
+	if o.SigVersion == ossfpm.SigV4 {
 		region, _ := m.Get(metadata.RegionID)
 		if region == "" {
 			return nil, fmt.Errorf("SigV4 is not supported without region")
@@ -139,7 +145,7 @@ func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (
 	return
 }
 
-func (f *fuseOssfs2) PodTemplateSpec(c *mounterutils.FusePodContext, target string) (*corev1.PodTemplateSpec, error) {
+func (f *fuseOssfs) PodTemplateSpec(c *fpm.FusePodContext, target string) (*corev1.PodTemplateSpec, error) {
 	spec, err := f.buildPodSpec(c, target)
 	if err != nil {
 		return nil, err
@@ -153,26 +159,26 @@ func (f *fuseOssfs2) PodTemplateSpec(c *mounterutils.FusePodContext, target stri
 	return pod, nil
 }
 
-func (f *fuseOssfs2) getAuthOptions(o *Options, region string) (mountOptions []string) {
+func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptions []string) {
 	switch o.AuthType {
-	case AuthTypeRRSA:
-		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", getSTSEndpoint(region)))
+	case ossfpm.AuthTypeRRSA:
+		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", ossfpm.GetSTSEndpoint(region)))
 		if o.AssumeRoleArn != "" {
 			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", o.AssumeRoleArn))
 			if o.ExternalId != "" {
 				mountOptions = append(mountOptions, fmt.Sprintf("assume_role_external_id=%s", o.ExternalId))
 			}
 		}
-	case AuthTypeSTS:
+	case ossfpm.AuthTypeSTS:
 		if o.RoleName != "" {
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	case "":
 		if o.SecretRef != "" {
 			mountOptions = append(mountOptions,
-				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), KeyAccessKeyId)),
-				fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), KeyAccessKeySecret)),
-				fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), KeySecurityToken)),
+				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), ossfpm.KeyAccessKeyId)),
+				fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), ossfpm.KeyAccessKeySecret)),
+				fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), ossfpm.KeySecurityToken)),
 			)
 		}
 		// publishSecretRef will make option in mount-proxy server
@@ -182,7 +188,7 @@ func (f *fuseOssfs2) getAuthOptions(o *Options, region string) (mountOptions []s
 	return
 }
 
-func (f *fuseOssfs2) buildPodSpec(c *mounterutils.FusePodContext, target string) (spec corev1.PodSpec, _ error) {
+func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec corev1.PodSpec, _ error) {
 	targetDir := filepath.Dir(target)
 	targetDirVolume := corev1.Volume{
 		Name: "target-dir",
@@ -264,7 +270,7 @@ const (
 	KeyLogDir   = "log_dir"
 )
 
-func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
+func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS2_OPTIONS")
 	if defaultOSSFSOptions != "" {
 		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
@@ -298,11 +304,11 @@ func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
 	}
 
 	// set use_metrics to enabled monitoring by default
-	if _, ok := tm[KeyUseMetrics]; !ok {
+	if _, ok := tm["use_metrics"]; !ok {
 		// TODO: After stabilization, change the default value to true
 		// Currently, metrics collection is controlled by the MetricsMode configuration
 		// Once the feature is stable, we should enable metrics by default
-		if f.config.MetricsMode == mounterutils.MetricsModeEnabled {
+		if f.config.MetricsMode == fpm.MetricsModeEnabled {
 			options = append(options, "use_metrics=true")
 		}
 	}
@@ -310,7 +316,7 @@ func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
 	return options
 }
 
-func (f *fuseOssfs2) buildAuthSpec(c *mounterutils.FusePodContext, target string, spec *corev1.PodSpec, container *corev1.Container) {
+func (f *fuseOssfs) buildAuthSpec(c *fpm.FusePodContext, target string, spec *corev1.PodSpec, container *corev1.Container) {
 	if spec == nil || container == nil {
 		return
 	}
@@ -320,8 +326,8 @@ func (f *fuseOssfs2) buildAuthSpec(c *mounterutils.FusePodContext, target string
 	}
 
 	switch authCfg.AuthType {
-	case AuthTypeSTS:
-	case AuthTypeRRSA:
+	case ossfpm.AuthTypeSTS:
+	case ossfpm.AuthTypeRRSA:
 		if authCfg.RrsaConfig == nil {
 			return
 		}
@@ -370,7 +376,7 @@ func (f *fuseOssfs2) buildAuthSpec(c *mounterutils.FusePodContext, target string
 		}
 		container.Env = append(container.Env, envs...)
 	case "":
-		secretVolumeSource := getPasswdSecretVolume(authCfg.SecretRef, c.FuseType)
+		secretVolumeSource := ossfpm.GetPasswdSecretVolume(authCfg.SecretRef, c.FuseType)
 		if secretVolumeSource != nil {
 			passwdSecretVolume := corev1.Volume{
 				Name: mounterutils.GetPasswdFileName(c.FuseType),

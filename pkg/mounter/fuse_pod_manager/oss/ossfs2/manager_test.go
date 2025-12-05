@@ -1,4 +1,4 @@
-package oss
+package ossfs2
 
 import (
 	"context"
@@ -7,7 +7,8 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
+	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -16,59 +17,59 @@ import (
 
 func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	fakeOssfs := NewFuseOssfs2(nil, fakeMeta)
+	fakeOssfs := NewFuseOssfs(nil, fakeMeta)
 	tests := []struct {
 		name    string
-		opts    *Options
+		opts    *ossfpm.Options
 		wantErr bool
 	}{
 		{
 			"invalid authtype",
-			&Options{
-				AuthType: AuthTypeCSS,
+			&ossfpm.Options{
+				AuthType: ossfpm.AuthTypeCSS,
 			},
 			true,
 		},
 		{
 			"valid sts",
-			&Options{
-				AuthType: AuthTypeSTS,
+			&ossfpm.Options{
+				AuthType: ossfpm.AuthTypeSTS,
 				RoleName: "test",
 			},
 			false,
 		},
 		{
 			"invalid sts",
-			&Options{
-				AuthType: AuthTypeSTS,
+			&ossfpm.Options{
+				AuthType: ossfpm.AuthTypeSTS,
 			},
 			true,
 		},
 		{
 			"invalid rrsa",
-			&Options{
-				AuthType: AuthTypeRRSA,
+			&ossfpm.Options{
+				AuthType: ossfpm.AuthTypeRRSA,
 			},
 			true,
 		},
 		{
 			"valid rrsa",
-			&Options{
-				AuthType: AuthTypeRRSA,
+			&ossfpm.Options{
+				AuthType: ossfpm.AuthTypeRRSA,
 				RoleName: "test",
 			},
 			false,
 		},
 		{
 			"use assumeRole with non-RRSA authType",
-			&Options{
+			&ossfpm.Options{
 				AssumeRoleArn: "test-assume-role-arn",
 			},
 			true,
 		},
 		{
 			"empty aksecret",
-			&Options{
+			&ossfpm.Options{
 				AkID:     "test-ak",
 				AkSecret: "",
 			},
@@ -76,7 +77,7 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 		},
 		{
 			"success - aksk",
-			&Options{
+			&ossfpm.Options{
 				AkID:     "test-ak",
 				AkSecret: "test-ak-secret",
 			},
@@ -84,7 +85,7 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 		},
 		{
 			"success - secretref",
-			&Options{
+			&ossfpm.Options{
 				SecretRef: "test-secret-ref",
 			},
 			false,
@@ -102,58 +103,58 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 	t.Setenv("CLUSTER_ID", "cluster-id")
 	t.Setenv("ALIBABA_CLOUD_ACCOUNT_ID", "account-id")
 	fakeMeta := metadata.NewMetadata()
-	fakeOssfs := NewFuseOssfs2(nil, fakeMeta)
+	fakeOssfs := NewFuseOssfs(nil, fakeMeta)
 	tests := []struct {
 		name    string
-		options *Options
-		wantCfg *utils.AuthConfig
+		options *ossfpm.Options
+		wantCfg *fpm.AuthConfig
 		wantErr bool
 	}{
 		{
 			"sts",
-			&Options{
-				AuthType: AuthTypeSTS,
+			&ossfpm.Options{
+				AuthType: ossfpm.AuthTypeSTS,
 				RoleName: "test-role-name",
 			},
-			&utils.AuthConfig{
-				AuthType: AuthTypeSTS,
+			&fpm.AuthConfig{
+				AuthType: ossfpm.AuthTypeSTS,
 				RoleName: "test-role-name",
 			},
 			false,
 		},
 		{
 			"aksk",
-			&Options{
+			&ossfpm.Options{
 				AkID:     "test-ak",
 				AkSecret: "test-ak-secret",
 			},
-			&utils.AuthConfig{
+			&fpm.AuthConfig{
 				Secrets: map[string]string{
-					utils.GetPasswdFileName(fakeOssfs.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", "test-ak", "test-ak-secret"),
+					mounterutils.GetPasswdFileName(fakeOssfs.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", "test-ak", "test-ak-secret"),
 				},
 			},
 			false,
 		},
 		{
 			"secretref",
-			&Options{
+			&ossfpm.Options{
 				SecretRef: "test-secretref",
 			},
-			&utils.AuthConfig{
+			&fpm.AuthConfig{
 				SecretRef: "test-secretref",
 			},
 			false,
 		},
 		{
 			"rrsa with rolename",
-			&Options{
-				AuthType: AuthTypeRRSA,
+			&ossfpm.Options{
+				AuthType: ossfpm.AuthTypeRRSA,
 				RoleName: "test-role",
 			},
-			&utils.AuthConfig{
-				AuthType: AuthTypeRRSA,
-				RrsaConfig: &utils.RrsaConfig{
-					ServiceAccountName: mounterutils.FuseServiceAccountName,
+			&fpm.AuthConfig{
+				AuthType: ossfpm.AuthTypeRRSA,
+				RrsaConfig: &fpm.RrsaConfig{
+					ServiceAccountName: fpm.FuseServiceAccountName,
 					RoleArn:            "acs:ram::account-id:role/test-role",
 					OidcProviderArn:    "acs:ram::account-id:oidc-provider/ack-rrsa-cluster-id",
 				},
@@ -162,16 +163,16 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 		},
 		{
 			"rrsa with arns",
-			&Options{
-				AuthType:           AuthTypeRRSA,
+			&ossfpm.Options{
+				AuthType:           ossfpm.AuthTypeRRSA,
 				ServiceAccountName: "test-sa",
 				RoleArn:            "test-role-arn",
 				OidcProviderArn:    "test-oidc-provider-arn",
 				AssumeRoleArn:      "test-assume-role-arn",
 			},
-			&utils.AuthConfig{
-				AuthType: AuthTypeRRSA,
-				RrsaConfig: &utils.RrsaConfig{
+			&fpm.AuthConfig{
+				AuthType: ossfpm.AuthTypeRRSA,
+				RrsaConfig: &fpm.RrsaConfig{
 					ServiceAccountName: "test-sa",
 					RoleArn:            "test-role-arn",
 					OidcProviderArn:    "test-oidc-provider-arn",
@@ -193,14 +194,14 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 func TestMakeMountOptions_ossfs2(t *testing.T) {
 	tests := []struct {
 		name          string
-		opts          *Options
+		opts          *ossfpm.Options
 		region        string
 		expected      []string
 		expectedError bool
 	}{
 		{
 			name: "ro",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				AkID:     "test-ak",
 				AkSecret: "test-ak-secret",
 				Bucket:   "test-bucket",
@@ -217,13 +218,13 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		},
 		{
 			name: "sigv4",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				AkID:       "test-ak",
 				AkSecret:   "test-ak-secret",
 				Bucket:     "test-bucket",
 				Path:       "/",
 				URL:        "oss://test-bucket/",
-				SigVersion: SigV4,
+				SigVersion: ossfpm.SigV4,
 			},
 			region: "test-region",
 			expected: []string{
@@ -235,19 +236,19 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		},
 		{
 			name: "sigv4 with empty region",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				AkID:       "test-ak",
 				AkSecret:   "test-ak-secret",
 				Bucket:     "test-bucket",
 				Path:       "/",
 				URL:        "oss://test-bucket/",
-				SigVersion: SigV4,
+				SigVersion: ossfpm.SigV4,
 			},
 			expectedError: true,
 		},
 		{
 			name: "secretref",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				SecretRef: "test-secretref",
 				FuseType:  "ossfs2",
 				Bucket:    "test-bucket",
@@ -266,7 +267,7 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		},
 		{
 			name: "metrics top",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				AkID:       "test-ak",
 				AkSecret:   "test-ak-secret",
 				Bucket:     "test-bucket",
@@ -287,7 +288,7 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("REGION_ID", tt.region)
 			fakeMeta := metadata.NewMetadata()
-			fakeOssfs := NewFuseOssfs2(nil, fakeMeta)
+			fakeOssfs := NewFuseOssfs(nil, fakeMeta)
 			opts, err := fakeOssfs.MakeMountOptions(tt.opts, fakeMeta)
 			assert.Equal(t, tt.expectedError, err != nil)
 			assert.Equal(t, tt.expected, opts)
@@ -297,10 +298,10 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 
 func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	fakeInter := NewFuseOssfs2(nil, fakeMeta)
-	fakeOssfs, ok := fakeInter.(*fuseOssfs2)
+	fakeInter := NewFuseOssfs(nil, fakeMeta)
+	fakeOssfs, ok := fakeInter.(*fuseOssfs)
 	if !ok {
-		t.Fatalf("failed to cast to fuseOssfs2")
+		t.Fatalf("failed to cast to fuseOssfs")
 	}
 	tests := []struct {
 		name        string
@@ -360,12 +361,12 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 func TestGetAuthOpttions_ossfs2(t *testing.T) {
 	tests := []struct {
 		name        string
-		opts        *Options
+		opts        *ossfpm.Options
 		wantOptions []string
 	}{
 		{
 			name: "secretref",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				SecretRef: "test-secret",
 				FuseType:  "ossfs2",
 			},
@@ -377,15 +378,15 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 		},
 		{
 			name: "aksk",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				FuseType: "ossfs2",
 			},
 		},
 		{
 			name: "rrsa",
-			opts: &Options{
+			opts: &ossfpm.Options{
 				FuseType:   "ossfs2",
-				AuthType:   AuthTypeRRSA,
+				AuthType:   ossfpm.AuthTypeRRSA,
 				ExternalId: "test-id",
 			},
 			wantOptions: []string{
@@ -395,7 +396,7 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeOssfs := &fuseOssfs2{}
+			fakeOssfs := &fuseOssfs{}
 			opts := fakeOssfs.getAuthOptions(tt.opts, "cn-hangzhou")
 			assert.Equal(t, tt.wantOptions, opts)
 		})
@@ -405,7 +406,7 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 func TestBuildAuthSpec_ossfs2(t *testing.T) {
 	nodeName := "test-node-name"
 	volumeId := "test-pv-name"
-	authCfg := &utils.AuthConfig{
+	authCfg := &fpm.AuthConfig{
 		SecretRef: "test-secret-ref",
 	}
 	container := corev1.Container{
@@ -429,8 +430,8 @@ func TestBuildAuthSpec_ossfs2(t *testing.T) {
 	}
 	spec := corev1.PodSpec{}
 	spec.Volumes = []corev1.Volume{targetVolume}
-	fakeOssfs := &fuseOssfs2{}
-	fakeOssfs.buildAuthSpec(&mounterutils.FusePodContext{
+	fakeOssfs := &fuseOssfs{}
+	fakeOssfs.buildAuthSpec(&fpm.FusePodContext{
 		Context:    context.Background(),
 		Namespace:  mounterutils.LegacyFusePodNamespace,
 		NodeName:   nodeName,
@@ -471,19 +472,19 @@ func TestBuildAuthSpec_ossfs2(t *testing.T) {
 
 	spec = corev1.PodSpec{}
 	spec.Volumes = []corev1.Volume{targetVolume}
-	rrsaCfg := mounterutils.RrsaConfig{
+	rrsaCfg := fpm.RrsaConfig{
 		OidcProviderArn: "test-oidc-provider-arn",
 		RoleArn:         "test-role-arn",
 	}
 	authCfg.RrsaConfig = &rrsaCfg
-	authCfg.AuthType = AuthTypeRRSA
-	fakeOssfs.buildAuthSpec(&mounterutils.FusePodContext{
+	authCfg.AuthType = ossfpm.AuthTypeRRSA
+	fakeOssfs.buildAuthSpec(&fpm.FusePodContext{
 		Context:    context.Background(),
 		Namespace:  mounterutils.LegacyFusePodNamespace,
 		NodeName:   nodeName,
 		VolumeId:   volumeId,
 		AuthConfig: authCfg,
-		FuseType:   OssFsType,
+		FuseType:   ossfpm.OssFsType,
 	}, "target", &spec, &container)
 
 	assert.Equal(t, "rrsa-oidc-token", spec.Volumes[len(spec.Volumes)-1].Name)

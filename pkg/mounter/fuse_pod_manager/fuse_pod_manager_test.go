@@ -1,4 +1,4 @@
-package utils
+package fuse_pod_manager
 
 import (
 	"testing"
@@ -32,7 +32,7 @@ func Test_ExtractFuseContainerConfig(t *testing.T) {
 			`,
 		},
 	}
-	config := ExtractFuseContainerConfig(configmap, OssFsType)
+	config := ExtractFuseContainerConfig(configmap, "ossfs")
 	expected := FuseContainerConfig{
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{

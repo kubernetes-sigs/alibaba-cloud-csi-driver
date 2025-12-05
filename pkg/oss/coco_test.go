@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
+	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/kata/directvolume"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,7 +25,7 @@ func Test_nodeServer_publishDirectVolume(t *testing.T) {
 			"kmsKeyId":  "foo-key-id",
 		},
 	}
-	opts := &oss.Options{
+	opts := &ossfpm.Options{
 		URL:       "https://oss-cn-hangzhou.aliyuncs.com",
 		Bucket:    "test-bucket",
 		Path:      "bucket/path",
@@ -73,7 +73,7 @@ func Test_nodeServer_publishDirectVolume_overwrite_annotations(t *testing.T) {
 			"annotations": `{"kata_fs_type": "type_v2", "kata_volume_type": "volume_type_v", "kata_device": "kata_device_vv" }`,
 		},
 	}
-	opts := &oss.Options{}
+	opts := &ossfpm.Options{}
 	resp, err := ns.publishDirectVolume(context.TODO(), req, opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)

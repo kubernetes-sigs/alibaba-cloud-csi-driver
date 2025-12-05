@@ -8,6 +8,7 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -21,6 +22,12 @@ const (
 	OssFs2Type = "ossfs2"
 )
 
+var (
+	defaultOssfsImageTag        = "v1.88.4-80d165c-aliyun"
+	defaultOssfsUpdatedImageTag = "v1.91.8.ack.3-b0e4403"
+	defaultOssfs2ImageTag       = "v2.0.4.ack.1-5073ed2"
+)
+
 // keys for STS token
 const (
 	KeyAccessKeyId     = "AccessKeyId"
@@ -29,7 +36,7 @@ const (
 	KeySecurityToken   = "SecurityToken"
 )
 
-func setDefaultImage(fuseType string, m metadata.MetadataProvider, config *mounterutils.FuseContainerConfig) {
+func SetDefaultImage(fuseType string, m metadata.MetadataProvider, config *fpm.FuseContainerConfig) {
 	// deprecated
 	if config.Image != "" {
 		return
@@ -54,15 +61,14 @@ func setDefaultImage(fuseType string, m metadata.MetadataProvider, config *mount
 			klog.Warningf("Unknown fuse type: %s", fuseType)
 			config.ImageTag = "latest"
 		}
-
 	}
 	image := fmt.Sprintf("csi-%s:%s", fuseType, config.ImageTag)
 	config.Image = path.Join(prefix, image)
 	klog.Infof("Use ossfs image: %s", config.Image)
 }
 
-// checkRRSAParams check parameters of RRSA
-func checkRRSAParams(o *Options) error {
+// CheckRRSAParams check parameters of RRSA
+func CheckRRSAParams(o *Options) error {
 
 	if o.RoleArn != "" && o.OidcProviderArn != "" {
 		return nil
@@ -78,15 +84,15 @@ func checkRRSAParams(o *Options) error {
 	return nil
 }
 
-// getRRSAConfig get oidcProviderArn and roleArn
-func getRRSAConfig(o *Options, m metadata.MetadataProvider) (rrsaCfg *mounterutils.RrsaConfig, err error) {
-	saName := mounterutils.FuseServiceAccountName
+// GetRRSAConfig get oidcProviderArn and roleArn
+func GetRRSAConfig(o *Options, m metadata.MetadataProvider) (rrsaCfg *fpm.RrsaConfig, err error) {
+	saName := fpm.FuseServiceAccountName
 	if o.ServiceAccountName != "" {
 		saName = o.ServiceAccountName
 	}
 
 	if o.OidcProviderArn != "" && o.RoleArn != "" {
-		return &mounterutils.RrsaConfig{
+		return &fpm.RrsaConfig{
 			OidcProviderArn:    o.OidcProviderArn,
 			RoleArn:            o.RoleArn,
 			ServiceAccountName: saName,
@@ -104,7 +110,7 @@ func getRRSAConfig(o *Options, m metadata.MetadataProvider) (rrsaCfg *mounteruti
 	}
 	provider := mounterutils.GetOIDCProvider(clusterId)
 	oidcProviderArn, roleArn := mounterutils.GetArn(provider, accountId, o.RoleName)
-	return &mounterutils.RrsaConfig{
+	return &fpm.RrsaConfig{
 		OidcProviderArn:    oidcProviderArn,
 		RoleArn:            roleArn,
 		ServiceAccountName: saName,
@@ -112,8 +118,8 @@ func getRRSAConfig(o *Options, m metadata.MetadataProvider) (rrsaCfg *mounteruti
 	}, nil
 }
 
-// getSTSEndpoint get STS endpoint
-func getSTSEndpoint(region string) string {
+// GetSTSEndpoint get STS endpoint
+func GetSTSEndpoint(region string) string {
 
 	// for PrivateCloud
 	if os.Getenv("STS_ENDPOINT") != "" {
@@ -134,7 +140,7 @@ var secretRefKeysToParse []string = []string{
 	KeySecurityToken,
 }
 
-func getPasswdSecretVolume(secretRef, fuseType string) (secret *corev1.SecretVolumeSource) {
+func GetPasswdSecretVolume(secretRef, fuseType string) (secret *corev1.SecretVolumeSource) {
 	if secretRef == "" {
 		return nil
 	}
@@ -152,4 +158,23 @@ func getPasswdSecretVolume(secretRef, fuseType string) (secret *corev1.SecretVol
 		Items:      items,
 	}
 	return
+}
+
+func AppendRRSAAuthOptions(m metadata.MetadataProvider, options []string, volumeId, target string, authCfg *fpm.AuthConfig) ([]string, error) {
+	if authCfg == nil {
+		return options, nil
+	}
+
+	if authCfg.AuthType == "rrsa" {
+		tokenFile, err := m.Get(metadata.RRSATokenFile)
+		if err != nil {
+			return nil, err
+		}
+		sessionName := mounterutils.GetRoleSessionName(volumeId, target, "ossfs")
+		options = append(options, fmt.Sprintf("rrsa_oidc_provider_arn=%s", authCfg.RrsaConfig.OidcProviderArn))
+		options = append(options, fmt.Sprintf("rrsa_role_arn=%s", authCfg.RrsaConfig.RoleArn))
+		options = append(options, fmt.Sprintf("rrsa_role_session_name=%s", sessionName))
+		options = append(options, fmt.Sprintf("rrsa_token_file=%s", tokenFile))
+	}
+	return options, nil
 }

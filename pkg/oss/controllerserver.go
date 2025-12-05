@@ -25,8 +25,10 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
-	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
+	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -50,7 +52,7 @@ type controllerServer struct {
 	client          kubernetes.Interface
 	cnfsGetter      cnfsv1beta1.CNFSGetter
 	metadata        metadata.MetadataProvider
-	fusePodManagers map[string]*oss.OSSFusePodManager
+	fusePodManagers map[string]*ossfpm.OSSFusePodManager
 	legacyPods      sets.Set[podLoc]
 	legacyPodsMu    sync.Mutex
 	common.GenericControllerServer
@@ -101,8 +103,8 @@ func (cs *controllerServer) hasLegacyPods(ctx context.Context, loc podLoc) (bool
 	cs.legacyPodsMu.Lock()
 	defer cs.legacyPodsMu.Unlock()
 	if cs.legacyPods == nil {
-		pods, err := cs.client.CoreV1().Pods(mounter.LegacyFusePodNamespace).List(ctx, metav1.ListOptions{
-			LabelSelector: mounter.FuseVolumeIdLabelKey,
+		pods, err := cs.client.CoreV1().Pods(utils.LegacyFusePodNamespace).List(ctx, metav1.ListOptions{
+			LabelSelector: fpm.FuseVolumeIdLabelKey,
 		})
 		if err != nil {
 			return false, fmt.Errorf("failed to list legacy pods: %w", err)
@@ -110,7 +112,7 @@ func (cs *controllerServer) hasLegacyPods(ctx context.Context, loc podLoc) (bool
 		cs.legacyPods = make(sets.Set[podLoc], len(pods.Items))
 		for _, pod := range pods.Items {
 			cs.legacyPods.Insert(podLoc{
-				volumeID: pod.Labels[mounter.FuseVolumeIdLabelKey],
+				volumeID: pod.Labels[fpm.FuseVolumeIdLabelKey],
 				nodeID:   pod.Spec.NodeName,
 			})
 		}
@@ -121,7 +123,7 @@ func (cs *controllerServer) hasLegacyPods(ctx context.Context, loc podLoc) (bool
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	klog.Infof("ControllerUnpublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
 	// To maintain the compatibility, all kinds of fuseType Pod share the same globalmount path as ossfs.
-	if err := cs.fusePodManagers[unifiedFsType].Delete(&mounter.FusePodContext{
+	if err := cs.fusePodManagers[unifiedFsType].Delete(&fpm.FusePodContext{
 		Context:   ctx,
 		Namespace: fusePodNamespace,
 		NodeName:  req.NodeId,
@@ -137,9 +139,9 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 	if legacy {
 		// To maintain the compatibility, cleanup fuse pods in kube-system namespace
-		if err := cs.fusePodManagers[unifiedFsType].Delete(&mounter.FusePodContext{
+		if err := cs.fusePodManagers[unifiedFsType].Delete(&fpm.FusePodContext{
 			Context:   ctx,
-			Namespace: mounter.LegacyFusePodNamespace,
+			Namespace: utils.LegacyFusePodNamespace,
 			NodeName:  req.NodeId,
 			VolumeId:  req.VolumeId,
 		}); err != nil {
@@ -168,7 +170,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// check and make auth config
-	authCfg, err := makeAuthConfig(opts, cs.fusePodManagers[OssFsType], cs.metadata, false)
+	authCfg, err := makeAuthConfig(opts, cs.fusePodManagers[opts.FuseType], cs.metadata, false)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -181,10 +183,10 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 	// make mount options
-	controllerPublishPath := mounter.GetAttachPath(req.VolumeId)
+	controllerPublishPath := mounterutils.GetAttachPath(req.VolumeId)
 
 	// launch ossfs pod
-	fusePod, err := cs.fusePodManagers[opts.FuseType].Create(&mounter.FusePodContext{
+	fusePod, err := cs.fusePodManagers[opts.FuseType].Create(&fpm.FusePodContext{
 		Context:           ctx,
 		Namespace:         fusePodNamespace,
 		NodeName:          nodeName,
@@ -200,7 +202,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	klog.Infof("ControllerPublishVolume: successfully published volume %s on node %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: map[string]string{
-			mountProxySocket: mounter.GetMountProxySocketPath(req.VolumeId),
+			mountProxySocket: mounterutils.GetMountProxySocketPath(req.VolumeId),
 			// make the fuse pod name visible in the VolumeAttachment status
 			"fusePod": fmt.Sprintf("%s/%s", fusePod.Namespace, fusePod.Name),
 		},
