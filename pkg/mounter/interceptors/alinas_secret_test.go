@@ -3,6 +3,7 @@ package interceptors
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"sync"
@@ -21,6 +22,25 @@ var (
 		return fmt.Errorf("failed")
 	}
 )
+
+func deepCopyMountOperation(op *mounter.MountOperation) *mounter.MountOperation {
+	if op == nil {
+		return nil
+	}
+	res := &mounter.MountOperation{
+		Secrets:     make(map[string]string),
+		Source:      op.Source,
+		Target:      op.Source,
+		FsType:      op.FsType,
+		Options:     op.Options,
+		Args:        op.Args,
+		VolumeID:    op.VolumeID,
+		MetricsPath: op.MetricsPath,
+		MountResult: op.MountResult,
+	}
+	maps.Copy(res.Secrets, op.Secrets)
+	return res
+}
 
 func TestAlinasSecretInterceptor(t *testing.T) {
 	credDir = t.TempDir()
@@ -88,7 +108,7 @@ func TestAlinasSecretInterceptor(t *testing.T) {
 					go func() {
 						defer wg.Done()
 						time.Sleep(time.Millisecond)
-						err := AlinasSecretInterceptor(context.Background(), tt.op, tt.handler)
+						err := AlinasSecretInterceptor(context.Background(), deepCopyMountOperation(tt.op), tt.handler)
 						mutex.Lock()
 						if err != nil {
 							errs = append(errs, err)

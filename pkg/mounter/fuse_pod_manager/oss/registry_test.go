@@ -42,7 +42,7 @@ func TestGetAllFuseMounterPaths(t *testing.T) {
 
 func TestGetFuseMounterInterceptors(t *testing.T) {
 	testType := "test-fuse-type-1"
-	testInterceptors := []mounter.MountInterceptor{interceptors.NewOssfsSecretInterceptor()}
+	testInterceptors := []mounter.MountInterceptor{interceptors.OssfsSecretInterceptor}
 
 	RegisterFuseInterceptors(testType, testInterceptors)
 
