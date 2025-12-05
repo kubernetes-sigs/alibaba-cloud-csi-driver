@@ -25,6 +25,9 @@ func NewProxyMounter(socketPath string, inner mountutils.Interface) Mounter {
 }
 
 func (m *ProxyMounter) ExtendedMount(ctx context.Context, op *MountOperation) error {
+	if op == nil {
+		return nil
+	}
 	dclient := client.NewClient(m.socketPath)
 	resp, err := dclient.Mount(&proxy.MountRequest{
 		Source:      op.Source,

@@ -34,10 +34,11 @@ func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 
 	err := handler(ctx, op)
 
-	// Immediate process-exit handling during mount attempt
-	// Assume the process exits with no error upon receiving SIGTERM,
-	// and exits with an error in case of unexpected failures.
-	monitor.HandleMountFailureOrExit(err)
+	if err != nil {
+		// This method should only be called when err != nil.
+		// Invoking it with a nil error will trigger a warning log.
+		monitor.HandleMountFailureOrExit(err)
+	}
 
 	if op.MountResult == nil {
 		return err
@@ -50,8 +51,12 @@ func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 	}
 
 	go func() {
-		err := <-res.ExitChan
-		monitor.HandleMountFailureOrExit(err)
+		exitErr := <-res.ExitChan
+		// Assume the process exits with no error upon receiving SIGTERM,
+		// and exits with an error in case of unexpected failures.
+		if err == nil && exitErr != nil {
+			monitor.HandleMountFailureOrExit(err)
+		}
 	}()
 
 	if err != nil {

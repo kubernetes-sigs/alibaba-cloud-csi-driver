@@ -28,7 +28,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -63,13 +62,6 @@ const (
 // for cases where fuseType does not affect like UnPublishVolume,
 // use unifiedFsType instead
 var unifiedFsType = OssFsType
-
-// Used by OssCmdMounter only, since ProxyMounter is only the client side,
-// the interceptors are applied at the server side.
-var ossInterceptors = map[string][]mounter.MountInterceptor{
-	OssFsType:  {interceptors.OssfsSecretInterceptor},
-	OssFs2Type: {interceptors.Ossfs2SecretInterceptor},
-}
 
 func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{Capabilities: []*csi.NodeServiceCapability{
@@ -192,7 +184,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		)
 	} else {
 		// runtimeType == RuntimeTypeRunD || runtimeType == RuntimeTypeRunC
-		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
+		ossfsMounter = mounter.NewForMounter(mounter.NewProxyMounter(socketPath, ns.rawMounter))
 	}
 
 	// When work as csi-agent, directly mount on the target path.

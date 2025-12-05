@@ -16,6 +16,9 @@ type ConnectorMounter struct {
 var _ Mounter = &ConnectorMounter{}
 
 func (m *ConnectorMounter) ExtendedMount(_ context.Context, op *MountOperation) error {
+	if op == nil {
+		return nil
+	}
 	args := mountutils.MakeMountArgs(op.Source, op.Target, op.FsType, op.Options)
 	mntCmd := []string{"systemd-run", "--scope", "--"}
 	if m.mounterPath == "" {
