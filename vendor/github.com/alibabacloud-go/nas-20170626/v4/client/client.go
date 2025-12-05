@@ -10,6 +10,7 @@ import (
 type Client struct {
 	openapi.Client
 	DisableSDKError *bool
+	EnableValidate  *bool
 }
 
 func NewClient(config *openapiutil.Config) (*Client, error) {
@@ -105,9 +106,11 @@ func (client *Client) GetEndpoint(productId *string, regionId *string, endpointR
 //
 // @return AddClientToBlackListResponse
 func (client *Client) AddClientToBlackListWithOptions(request *AddClientToBlackListRequest, runtime *dara.RuntimeOptions) (_result *AddClientToBlackListResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientIP) {
@@ -196,9 +199,11 @@ func (client *Client) AddClientToBlackList(request *AddClientToBlackListRequest)
 //
 // @return ApplyAutoSnapshotPolicyResponse
 func (client *Client) ApplyAutoSnapshotPolicyWithOptions(request *ApplyAutoSnapshotPolicyRequest, runtime *dara.RuntimeOptions) (_result *ApplyAutoSnapshotPolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyId) {
@@ -294,9 +299,11 @@ func (client *Client) ApplyAutoSnapshotPolicy(request *ApplyAutoSnapshotPolicyRe
 //
 // @return ApplyDataFlowAutoRefreshResponse
 func (client *Client) ApplyDataFlowAutoRefreshWithOptions(request *ApplyDataFlowAutoRefreshRequest, runtime *dara.RuntimeOptions) (_result *ApplyDataFlowAutoRefreshResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoRefreshInterval) {
@@ -406,9 +413,11 @@ func (client *Client) ApplyDataFlowAutoRefresh(request *ApplyDataFlowAutoRefresh
 //
 // @return AttachVscToFilesystemsResponse
 func (client *Client) AttachVscToFilesystemsWithOptions(request *AttachVscToFilesystemsRequest, runtime *dara.RuntimeOptions) (_result *AttachVscToFilesystemsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -482,9 +491,11 @@ func (client *Client) AttachVscToFilesystems(request *AttachVscToFilesystemsRequ
 //
 // @return CancelAutoSnapshotPolicyResponse
 func (client *Client) CancelAutoSnapshotPolicyWithOptions(request *CancelAutoSnapshotPolicyRequest, runtime *dara.RuntimeOptions) (_result *CancelAutoSnapshotPolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemIds) {
@@ -558,9 +569,11 @@ func (client *Client) CancelAutoSnapshotPolicy(request *CancelAutoSnapshotPolicy
 //
 // @return CancelDataFlowAutoRefreshResponse
 func (client *Client) CancelDataFlowAutoRefreshWithOptions(request *CancelDataFlowAutoRefreshRequest, runtime *dara.RuntimeOptions) (_result *CancelDataFlowAutoRefreshResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -652,9 +665,11 @@ func (client *Client) CancelDataFlowAutoRefresh(request *CancelDataFlowAutoRefre
 //
 // @return CancelDataFlowSubTaskResponse
 func (client *Client) CancelDataFlowSubTaskWithOptions(request *CancelDataFlowSubTaskRequest, runtime *dara.RuntimeOptions) (_result *CancelDataFlowSubTaskResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -748,9 +763,11 @@ func (client *Client) CancelDataFlowSubTask(request *CancelDataFlowSubTaskReques
 //
 // @return CancelDataFlowTaskResponse
 func (client *Client) CancelDataFlowTaskWithOptions(request *CancelDataFlowTaskRequest, runtime *dara.RuntimeOptions) (_result *CancelDataFlowTaskResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -836,9 +853,11 @@ func (client *Client) CancelDataFlowTask(request *CancelDataFlowTaskRequest) (_r
 //
 // @return CancelDirQuotaResponse
 func (client *Client) CancelDirQuotaWithOptions(request *CancelDirQuotaRequest, runtime *dara.RuntimeOptions) (_result *CancelDirQuotaResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -916,9 +935,11 @@ func (client *Client) CancelDirQuota(request *CancelDirQuotaRequest) (_result *C
 //
 // @return CancelFilesetQuotaResponse
 func (client *Client) CancelFilesetQuotaWithOptions(request *CancelFilesetQuotaRequest, runtime *dara.RuntimeOptions) (_result *CancelFilesetQuotaResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -996,9 +1017,11 @@ func (client *Client) CancelFilesetQuota(request *CancelFilesetQuotaRequest) (_r
 //
 // @return CancelLifecycleRetrieveJobResponse
 func (client *Client) CancelLifecycleRetrieveJobWithOptions(request *CancelLifecycleRetrieveJobRequest, runtime *dara.RuntimeOptions) (_result *CancelLifecycleRetrieveJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.JobId) {
@@ -1070,9 +1093,11 @@ func (client *Client) CancelLifecycleRetrieveJob(request *CancelLifecycleRetriev
 //
 // @return CancelRecycleBinJobResponse
 func (client *Client) CancelRecycleBinJobWithOptions(request *CancelRecycleBinJobRequest, runtime *dara.RuntimeOptions) (_result *CancelRecycleBinJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -1136,9 +1161,11 @@ func (client *Client) CancelRecycleBinJob(request *CancelRecycleBinJobRequest) (
 //
 // @return ChangeResourceGroupResponse
 func (client *Client) ChangeResourceGroupWithOptions(request *ChangeResourceGroupRequest, runtime *dara.RuntimeOptions) (_result *ChangeResourceGroupResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.NewResourceGroupId) {
@@ -1208,9 +1235,11 @@ func (client *Client) ChangeResourceGroup(request *ChangeResourceGroupRequest) (
 //
 // @return CreateAccessGroupResponse
 func (client *Client) CreateAccessGroupWithOptions(request *CreateAccessGroupRequest, runtime *dara.RuntimeOptions) (_result *CreateAccessGroupResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -1288,9 +1317,11 @@ func (client *Client) CreateAccessGroup(request *CreateAccessGroupRequest) (_res
 //
 // @return CreateAccessPointResponse
 func (client *Client) CreateAccessPointWithOptions(request *CreateAccessPointRequest, runtime *dara.RuntimeOptions) (_result *CreateAccessPointResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroup) {
@@ -1335,6 +1366,10 @@ func (client *Client) CreateAccessPointWithOptions(request *CreateAccessPointReq
 
 	if !dara.IsNil(request.RootDirectory) {
 		query["RootDirectory"] = request.RootDirectory
+	}
+
+	if !dara.IsNil(request.Tag) {
+		query["Tag"] = request.Tag
 	}
 
 	if !dara.IsNil(request.VpcId) {
@@ -1404,9 +1439,11 @@ func (client *Client) CreateAccessPoint(request *CreateAccessPointRequest) (_res
 //
 // @return CreateAccessRuleResponse
 func (client *Client) CreateAccessRuleWithOptions(request *CreateAccessRuleRequest, runtime *dara.RuntimeOptions) (_result *CreateAccessRuleResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -1510,9 +1547,11 @@ func (client *Client) CreateAccessRule(request *CreateAccessRuleRequest) (_resul
 //
 // @return CreateAutoSnapshotPolicyResponse
 func (client *Client) CreateAutoSnapshotPolicyWithOptions(request *CreateAutoSnapshotPolicyRequest, runtime *dara.RuntimeOptions) (_result *CreateAutoSnapshotPolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyName) {
@@ -1670,9 +1709,11 @@ func (client *Client) CreateAutoSnapshotPolicy(request *CreateAutoSnapshotPolicy
 //
 // @return CreateDataFlowResponse
 func (client *Client) CreateDataFlowWithOptions(request *CreateDataFlowRequest, runtime *dara.RuntimeOptions) (_result *CreateDataFlowResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoRefreshInterval) {
@@ -1850,9 +1891,11 @@ func (client *Client) CreateDataFlow(request *CreateDataFlowRequest) (_result *C
 //
 // @return CreateDataFlowSubTaskResponse
 func (client *Client) CreateDataFlowSubTaskWithOptions(request *CreateDataFlowSubTaskRequest, runtime *dara.RuntimeOptions) (_result *CreateDataFlowSubTaskResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -1962,9 +2005,11 @@ func (client *Client) CreateDataFlowSubTask(request *CreateDataFlowSubTaskReques
 //
 // @return CreateDataFlowTaskResponse
 func (client *Client) CreateDataFlowTaskWithOptions(request *CreateDataFlowTaskRequest, runtime *dara.RuntimeOptions) (_result *CreateDataFlowTaskResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -2092,9 +2137,11 @@ func (client *Client) CreateDataFlowTask(request *CreateDataFlowTaskRequest) (_r
 //
 // @return CreateDirResponse
 func (client *Client) CreateDirWithOptions(request *CreateDirRequest, runtime *dara.RuntimeOptions) (_result *CreateDirResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -2182,9 +2229,11 @@ func (client *Client) CreateDir(request *CreateDirRequest) (_result *CreateDirRe
 //
 // @return CreateFileResponse
 func (client *Client) CreateFileWithOptions(request *CreateFileRequest, runtime *dara.RuntimeOptions) (_result *CreateFileResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -2272,9 +2321,11 @@ func (client *Client) CreateFile(request *CreateFileRequest) (_result *CreateFil
 //
 // @return CreateFileSystemResponse
 func (client *Client) CreateFileSystemWithOptions(request *CreateFileSystemRequest, runtime *dara.RuntimeOptions) (_result *CreateFileSystemResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.Bandwidth) {
@@ -2430,9 +2481,11 @@ func (client *Client) CreateFileSystem(request *CreateFileSystemRequest) (_resul
 //
 // @return CreateFilesetResponse
 func (client *Client) CreateFilesetWithOptions(request *CreateFilesetRequest, runtime *dara.RuntimeOptions) (_result *CreateFilesetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -2538,9 +2591,11 @@ func (client *Client) CreateFileset(request *CreateFilesetRequest) (_result *Cre
 //
 // @return CreateLDAPConfigResponse
 func (client *Client) CreateLDAPConfigWithOptions(request *CreateLDAPConfigRequest, runtime *dara.RuntimeOptions) (_result *CreateLDAPConfigResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.BindDN) {
@@ -2619,9 +2674,11 @@ func (client *Client) CreateLDAPConfig(request *CreateLDAPConfigRequest) (_resul
 //
 // @return CreateLifecyclePolicyResponse
 func (client *Client) CreateLifecyclePolicyWithOptions(request *CreateLifecyclePolicyRequest, runtime *dara.RuntimeOptions) (_result *CreateLifecyclePolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -2711,9 +2768,11 @@ func (client *Client) CreateLifecyclePolicy(request *CreateLifecyclePolicyReques
 //
 // @return CreateLifecycleRetrieveJobResponse
 func (client *Client) CreateLifecycleRetrieveJobWithOptions(request *CreateLifecycleRetrieveJobRequest, runtime *dara.RuntimeOptions) (_result *CreateLifecycleRetrieveJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -2785,9 +2844,11 @@ func (client *Client) CreateLifecycleRetrieveJob(request *CreateLifecycleRetriev
 //
 // @return CreateLogAnalysisResponse
 func (client *Client) CreateLogAnalysisWithOptions(request *CreateLogAnalysisRequest, runtime *dara.RuntimeOptions) (_result *CreateLogAnalysisResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -2855,9 +2916,11 @@ func (client *Client) CreateLogAnalysis(request *CreateLogAnalysisRequest) (_res
 //
 // @return CreateMountTargetResponse
 func (client *Client) CreateMountTargetWithOptions(request *CreateMountTargetRequest, runtime *dara.RuntimeOptions) (_result *CreateMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -2967,9 +3030,11 @@ func (client *Client) CreateMountTarget(request *CreateMountTargetRequest) (_res
 //
 // @return CreateProtocolMountTargetResponse
 func (client *Client) CreateProtocolMountTargetWithOptions(request *CreateProtocolMountTargetRequest, runtime *dara.RuntimeOptions) (_result *CreateProtocolMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -3107,9 +3172,11 @@ func (client *Client) CreateProtocolMountTarget(request *CreateProtocolMountTarg
 //
 // @return CreateProtocolServiceResponse
 func (client *Client) CreateProtocolServiceWithOptions(request *CreateProtocolServiceRequest, runtime *dara.RuntimeOptions) (_result *CreateProtocolServiceResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -3233,9 +3300,11 @@ func (client *Client) CreateProtocolService(request *CreateProtocolServiceReques
 //
 // @return CreateRecycleBinDeleteJobResponse
 func (client *Client) CreateRecycleBinDeleteJobWithOptions(request *CreateRecycleBinDeleteJobRequest, runtime *dara.RuntimeOptions) (_result *CreateRecycleBinDeleteJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -3293,15 +3362,13 @@ func (client *Client) CreateRecycleBinDeleteJob(request *CreateRecycleBinDeleteJ
 //
 // Description:
 //
-// ### Usage notes
+//	  Only General-purpose NAS file systems support this operation.
 //
-//   - Only General-purpose NAS file systems support this operation.
+//		- You can run only one job at a time for a single file system to restore files to or clear files from the file system. You cannot create a restore or cleanup job when files are being restored from the recycle bin.
 //
-//   - You can run only one job at a time for a single file system to restore files to or clear files from the file system. You cannot create a restore or cleanup job when files are being restored from the recycle bin.
+//		- You can restore only one file or directory in a single restore job. If you restore a specified directory, all files in the directory are recursively restored.
 //
-//   - You can restore only one file or directory in a single restore job. If you restore a specified directory, all files in the directory are recursively restored.
-//
-//   - After files are restored, the data of the files is defragmented. When the data is being defragmented, the read performance is slightly degraded.
+//		- After files are restored, the data of the files is defragmented. When the data is being defragmented, the read performance is slightly degraded.
 //
 // @param request - CreateRecycleBinRestoreJobRequest
 //
@@ -3309,9 +3376,11 @@ func (client *Client) CreateRecycleBinDeleteJob(request *CreateRecycleBinDeleteJ
 //
 // @return CreateRecycleBinRestoreJobResponse
 func (client *Client) CreateRecycleBinRestoreJobWithOptions(request *CreateRecycleBinRestoreJobRequest, runtime *dara.RuntimeOptions) (_result *CreateRecycleBinRestoreJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -3343,15 +3412,13 @@ func (client *Client) CreateRecycleBinRestoreJobWithOptions(request *CreateRecyc
 //
 // Description:
 //
-// ### Usage notes
+//	  Only General-purpose NAS file systems support this operation.
 //
-//   - Only General-purpose NAS file systems support this operation.
+//		- You can run only one job at a time for a single file system to restore files to or clear files from the file system. You cannot create a restore or cleanup job when files are being restored from the recycle bin.
 //
-//   - You can run only one job at a time for a single file system to restore files to or clear files from the file system. You cannot create a restore or cleanup job when files are being restored from the recycle bin.
+//		- You can restore only one file or directory in a single restore job. If you restore a specified directory, all files in the directory are recursively restored.
 //
-//   - You can restore only one file or directory in a single restore job. If you restore a specified directory, all files in the directory are recursively restored.
-//
-//   - After files are restored, the data of the files is defragmented. When the data is being defragmented, the read performance is slightly degraded.
+//		- After files are restored, the data of the files is defragmented. When the data is being defragmented, the read performance is slightly degraded.
 //
 // @param request - CreateRecycleBinRestoreJobRequest
 //
@@ -3397,9 +3464,11 @@ func (client *Client) CreateRecycleBinRestoreJob(request *CreateRecycleBinRestor
 //
 // @return CreateSnapshotResponse
 func (client *Client) CreateSnapshotWithOptions(request *CreateSnapshotRequest, runtime *dara.RuntimeOptions) (_result *CreateSnapshotResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.Description) {
@@ -3493,9 +3562,11 @@ func (client *Client) CreateSnapshot(request *CreateSnapshotRequest) (_result *C
 //
 // @return DeleteAccessGroupResponse
 func (client *Client) DeleteAccessGroupWithOptions(request *DeleteAccessGroupRequest, runtime *dara.RuntimeOptions) (_result *DeleteAccessGroupResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -3567,9 +3638,11 @@ func (client *Client) DeleteAccessGroup(request *DeleteAccessGroupRequest) (_res
 //
 // @return DeleteAccessPointResponse
 func (client *Client) DeleteAccessPointWithOptions(request *DeleteAccessPointRequest, runtime *dara.RuntimeOptions) (_result *DeleteAccessPointResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessPointId) {
@@ -3641,9 +3714,11 @@ func (client *Client) DeleteAccessPoint(request *DeleteAccessPointRequest) (_res
 //
 // @return DeleteAccessRuleResponse
 func (client *Client) DeleteAccessRuleWithOptions(request *DeleteAccessRuleRequest, runtime *dara.RuntimeOptions) (_result *DeleteAccessRuleResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -3721,9 +3796,11 @@ func (client *Client) DeleteAccessRule(request *DeleteAccessRuleRequest) (_resul
 //
 // @return DeleteAutoSnapshotPolicyResponse
 func (client *Client) DeleteAutoSnapshotPolicyWithOptions(request *DeleteAutoSnapshotPolicyRequest, runtime *dara.RuntimeOptions) (_result *DeleteAutoSnapshotPolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyId) {
@@ -3797,9 +3874,11 @@ func (client *Client) DeleteAutoSnapshotPolicy(request *DeleteAutoSnapshotPolicy
 //
 // @return DeleteDataFlowResponse
 func (client *Client) DeleteDataFlowWithOptions(request *DeleteDataFlowRequest, runtime *dara.RuntimeOptions) (_result *DeleteDataFlowResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -3885,9 +3964,11 @@ func (client *Client) DeleteDataFlow(request *DeleteDataFlowRequest) (_result *D
 //
 // @return DeleteFileSystemResponse
 func (client *Client) DeleteFileSystemWithOptions(request *DeleteFileSystemRequest, runtime *dara.RuntimeOptions) (_result *DeleteFileSystemResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -3961,9 +4042,11 @@ func (client *Client) DeleteFileSystem(request *DeleteFileSystemRequest) (_resul
 //
 // @return DeleteFilesetResponse
 func (client *Client) DeleteFilesetWithOptions(request *DeleteFilesetRequest, runtime *dara.RuntimeOptions) (_result *DeleteFilesetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -4043,9 +4126,11 @@ func (client *Client) DeleteFileset(request *DeleteFilesetRequest) (_result *Del
 //
 // @return DeleteLDAPConfigResponse
 func (client *Client) DeleteLDAPConfigWithOptions(request *DeleteLDAPConfigRequest, runtime *dara.RuntimeOptions) (_result *DeleteLDAPConfigResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4110,9 +4195,11 @@ func (client *Client) DeleteLDAPConfig(request *DeleteLDAPConfigRequest) (_resul
 //
 // @return DeleteLifecyclePolicyResponse
 func (client *Client) DeleteLifecyclePolicyWithOptions(request *DeleteLifecyclePolicyRequest, runtime *dara.RuntimeOptions) (_result *DeleteLifecyclePolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4178,9 +4265,11 @@ func (client *Client) DeleteLifecyclePolicy(request *DeleteLifecyclePolicyReques
 //
 // @return DeleteLogAnalysisResponse
 func (client *Client) DeleteLogAnalysisWithOptions(request *DeleteLogAnalysisRequest, runtime *dara.RuntimeOptions) (_result *DeleteLogAnalysisResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4246,9 +4335,11 @@ func (client *Client) DeleteLogAnalysis(request *DeleteLogAnalysisRequest) (_res
 //
 // @return DeleteMountTargetResponse
 func (client *Client) DeleteMountTargetWithOptions(request *DeleteMountTargetRequest, runtime *dara.RuntimeOptions) (_result *DeleteMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4318,9 +4409,11 @@ func (client *Client) DeleteMountTarget(request *DeleteMountTargetRequest) (_res
 //
 // @return DeleteProtocolMountTargetResponse
 func (client *Client) DeleteProtocolMountTargetWithOptions(request *DeleteProtocolMountTargetRequest, runtime *dara.RuntimeOptions) (_result *DeleteProtocolMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -4404,9 +4497,11 @@ func (client *Client) DeleteProtocolMountTarget(request *DeleteProtocolMountTarg
 //
 // @return DeleteProtocolServiceResponse
 func (client *Client) DeleteProtocolServiceWithOptions(request *DeleteProtocolServiceRequest, runtime *dara.RuntimeOptions) (_result *DeleteProtocolServiceResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -4488,9 +4583,11 @@ func (client *Client) DeleteProtocolService(request *DeleteProtocolServiceReques
 //
 // @return DeleteSnapshotResponse
 func (client *Client) DeleteSnapshotWithOptions(request *DeleteSnapshotRequest, runtime *dara.RuntimeOptions) (_result *DeleteSnapshotResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.SnapshotId) {
@@ -4554,9 +4651,11 @@ func (client *Client) DeleteSnapshot(request *DeleteSnapshotRequest) (_result *D
 //
 // @return DescribeAccessGroupsResponse
 func (client *Client) DescribeAccessGroupsWithOptions(request *DescribeAccessGroupsRequest, runtime *dara.RuntimeOptions) (_result *DescribeAccessGroupsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -4634,9 +4733,11 @@ func (client *Client) DescribeAccessGroups(request *DescribeAccessGroupsRequest)
 //
 // @return DescribeAccessPointResponse
 func (client *Client) DescribeAccessPointWithOptions(request *DescribeAccessPointRequest, runtime *dara.RuntimeOptions) (_result *DescribeAccessPointResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessPointId) {
@@ -4706,9 +4807,11 @@ func (client *Client) DescribeAccessPoint(request *DescribeAccessPointRequest) (
 //
 // @return DescribeAccessPointsResponse
 func (client *Client) DescribeAccessPointsWithOptions(request *DescribeAccessPointsRequest, runtime *dara.RuntimeOptions) (_result *DescribeAccessPointsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroup) {
@@ -4725,6 +4828,10 @@ func (client *Client) DescribeAccessPointsWithOptions(request *DescribeAccessPoi
 
 	if !dara.IsNil(request.NextToken) {
 		query["NextToken"] = request.NextToken
+	}
+
+	if !dara.IsNil(request.Tag) {
+		query["Tag"] = request.Tag
 	}
 
 	req := &openapiutil.OpenApiRequest{
@@ -4782,9 +4889,11 @@ func (client *Client) DescribeAccessPoints(request *DescribeAccessPointsRequest)
 //
 // @return DescribeAccessRulesResponse
 func (client *Client) DescribeAccessRulesWithOptions(request *DescribeAccessRulesRequest, runtime *dara.RuntimeOptions) (_result *DescribeAccessRulesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -4864,9 +4973,11 @@ func (client *Client) DescribeAccessRules(request *DescribeAccessRulesRequest) (
 //
 // @return DescribeAutoSnapshotPoliciesResponse
 func (client *Client) DescribeAutoSnapshotPoliciesWithOptions(request *DescribeAutoSnapshotPoliciesRequest, runtime *dara.RuntimeOptions) (_result *DescribeAutoSnapshotPoliciesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyId) {
@@ -4948,9 +5059,11 @@ func (client *Client) DescribeAutoSnapshotPolicies(request *DescribeAutoSnapshot
 //
 // @return DescribeAutoSnapshotTasksResponse
 func (client *Client) DescribeAutoSnapshotTasksWithOptions(request *DescribeAutoSnapshotTasksRequest, runtime *dara.RuntimeOptions) (_result *DescribeAutoSnapshotTasksResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyIds) {
@@ -5036,9 +5149,11 @@ func (client *Client) DescribeAutoSnapshotTasks(request *DescribeAutoSnapshotTas
 //
 // @return DescribeBlackListClientsResponse
 func (client *Client) DescribeBlackListClientsWithOptions(request *DescribeBlackListClientsRequest, runtime *dara.RuntimeOptions) (_result *DescribeBlackListClientsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientIP) {
@@ -5115,9 +5230,11 @@ func (client *Client) DescribeBlackListClients(request *DescribeBlackListClients
 //
 // @return DescribeDataFlowSubTasksResponse
 func (client *Client) DescribeDataFlowSubTasksWithOptions(request *DescribeDataFlowSubTasksRequest, runtime *dara.RuntimeOptions) (_result *DescribeDataFlowSubTasksResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -5195,9 +5312,11 @@ func (client *Client) DescribeDataFlowSubTasks(request *DescribeDataFlowSubTasks
 //
 // @return DescribeDataFlowTasksResponse
 func (client *Client) DescribeDataFlowTasksWithOptions(request *DescribeDataFlowTasksRequest, runtime *dara.RuntimeOptions) (_result *DescribeDataFlowTasksResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -5283,9 +5402,11 @@ func (client *Client) DescribeDataFlowTasks(request *DescribeDataFlowTasksReques
 //
 // @return DescribeDataFlowsResponse
 func (client *Client) DescribeDataFlowsWithOptions(request *DescribeDataFlowsRequest, runtime *dara.RuntimeOptions) (_result *DescribeDataFlowsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -5367,9 +5488,11 @@ func (client *Client) DescribeDataFlows(request *DescribeDataFlowsRequest) (_res
 //
 // @return DescribeDirQuotasResponse
 func (client *Client) DescribeDirQuotasWithOptions(request *DescribeDirQuotasRequest, runtime *dara.RuntimeOptions) (_result *DescribeDirQuotasResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -5445,9 +5568,11 @@ func (client *Client) DescribeDirQuotas(request *DescribeDirQuotasRequest) (_res
 //
 // @return DescribeFileSystemStatisticsResponse
 func (client *Client) DescribeFileSystemStatisticsWithOptions(request *DescribeFileSystemStatisticsRequest, runtime *dara.RuntimeOptions) (_result *DescribeFileSystemStatisticsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.PageNumber) {
@@ -5512,9 +5637,11 @@ func (client *Client) DescribeFileSystemStatistics(request *DescribeFileSystemSt
 //
 // @return DescribeFileSystemsResponse
 func (client *Client) DescribeFileSystemsWithOptions(request *DescribeFileSystemsRequest, runtime *dara.RuntimeOptions) (_result *DescribeFileSystemsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -5604,9 +5731,11 @@ func (client *Client) DescribeFileSystems(request *DescribeFileSystemsRequest) (
 //
 // @return DescribeFilesetsResponse
 func (client *Client) DescribeFilesetsWithOptions(request *DescribeFilesetsRequest, runtime *dara.RuntimeOptions) (_result *DescribeFilesetsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -5698,9 +5827,11 @@ func (client *Client) DescribeFilesets(request *DescribeFilesetsRequest) (_resul
 //
 // @return DescribeFilesystemsVscAttachInfoResponse
 func (client *Client) DescribeFilesystemsVscAttachInfoWithOptions(request *DescribeFilesystemsVscAttachInfoRequest, runtime *dara.RuntimeOptions) (_result *DescribeFilesystemsVscAttachInfoResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.MaxResults) {
@@ -5776,9 +5907,11 @@ func (client *Client) DescribeFilesystemsVscAttachInfo(request *DescribeFilesyst
 //
 // @return DescribeLifecyclePoliciesResponse
 func (client *Client) DescribeLifecyclePoliciesWithOptions(request *DescribeLifecyclePoliciesRequest, runtime *dara.RuntimeOptions) (_result *DescribeLifecyclePoliciesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -5836,9 +5969,11 @@ func (client *Client) DescribeLifecyclePolicies(request *DescribeLifecyclePolici
 //
 // @return DescribeLogAnalysisResponse
 func (client *Client) DescribeLogAnalysisWithOptions(request *DescribeLogAnalysisRequest, runtime *dara.RuntimeOptions) (_result *DescribeLogAnalysisResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemType) {
@@ -5908,9 +6043,11 @@ func (client *Client) DescribeLogAnalysis(request *DescribeLogAnalysisRequest) (
 //
 // @return DescribeMountTargetsResponse
 func (client *Client) DescribeMountTargetsWithOptions(request *DescribeMountTargetsRequest, runtime *dara.RuntimeOptions) (_result *DescribeMountTargetsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.DualStackMountTargetDomain) {
@@ -5990,9 +6127,11 @@ func (client *Client) DescribeMountTargets(request *DescribeMountTargetsRequest)
 //
 // @return DescribeMountedClientsResponse
 func (client *Client) DescribeMountedClientsWithOptions(request *DescribeMountedClientsRequest, runtime *dara.RuntimeOptions) (_result *DescribeMountedClientsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientIP) {
@@ -6076,9 +6215,11 @@ func (client *Client) DescribeMountedClients(request *DescribeMountedClientsRequ
 //
 // @return DescribeNfsAclResponse
 func (client *Client) DescribeNfsAclWithOptions(request *DescribeNfsAclRequest, runtime *dara.RuntimeOptions) (_result *DescribeNfsAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -6140,9 +6281,11 @@ func (client *Client) DescribeNfsAcl(request *DescribeNfsAclRequest) (_result *D
 //
 // @return DescribeProtocolMountTargetResponse
 func (client *Client) DescribeProtocolMountTargetWithOptions(request *DescribeProtocolMountTargetRequest, runtime *dara.RuntimeOptions) (_result *DescribeProtocolMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -6224,9 +6367,11 @@ func (client *Client) DescribeProtocolMountTarget(request *DescribeProtocolMount
 //
 // @return DescribeProtocolServiceResponse
 func (client *Client) DescribeProtocolServiceWithOptions(request *DescribeProtocolServiceRequest, runtime *dara.RuntimeOptions) (_result *DescribeProtocolServiceResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -6312,9 +6457,11 @@ func (client *Client) DescribeProtocolService(request *DescribeProtocolServiceRe
 //
 // @return DescribeRegionsResponse
 func (client *Client) DescribeRegionsWithOptions(request *DescribeRegionsRequest, runtime *dara.RuntimeOptions) (_result *DescribeRegionsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemType) {
@@ -6380,9 +6527,11 @@ func (client *Client) DescribeRegions(request *DescribeRegionsRequest) (_result 
 //
 // @return DescribeSmbAclResponse
 func (client *Client) DescribeSmbAclWithOptions(request *DescribeSmbAclRequest, runtime *dara.RuntimeOptions) (_result *DescribeSmbAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -6446,9 +6595,11 @@ func (client *Client) DescribeSmbAcl(request *DescribeSmbAclRequest) (_result *D
 //
 // @return DescribeSnapshotsResponse
 func (client *Client) DescribeSnapshotsWithOptions(request *DescribeSnapshotsRequest, runtime *dara.RuntimeOptions) (_result *DescribeSnapshotsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -6540,9 +6691,11 @@ func (client *Client) DescribeSnapshots(request *DescribeSnapshotsRequest) (_res
 //
 // @return DescribeStoragePackagesResponse
 func (client *Client) DescribeStoragePackagesWithOptions(request *DescribeStoragePackagesRequest, runtime *dara.RuntimeOptions) (_result *DescribeStoragePackagesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.PageNumber) {
@@ -6612,9 +6765,11 @@ func (client *Client) DescribeStoragePackages(request *DescribeStoragePackagesRe
 //
 // @return DescribeZonesResponse
 func (client *Client) DescribeZonesWithOptions(request *DescribeZonesRequest, runtime *dara.RuntimeOptions) (_result *DescribeZonesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemType) {
@@ -6682,9 +6837,11 @@ func (client *Client) DescribeZones(request *DescribeZonesRequest) (_result *Des
 //
 // @return DetachVscFromFilesystemsResponse
 func (client *Client) DetachVscFromFilesystemsWithOptions(request *DetachVscFromFilesystemsRequest, runtime *dara.RuntimeOptions) (_result *DetachVscFromFilesystemsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -6760,9 +6917,11 @@ func (client *Client) DetachVscFromFilesystems(request *DetachVscFromFilesystems
 //
 // @return DisableAndCleanRecycleBinResponse
 func (client *Client) DisableAndCleanRecycleBinWithOptions(request *DisableAndCleanRecycleBinRequest, runtime *dara.RuntimeOptions) (_result *DisableAndCleanRecycleBinResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -6824,9 +6983,11 @@ func (client *Client) DisableAndCleanRecycleBin(request *DisableAndCleanRecycleB
 //
 // @return DisableNfsAclResponse
 func (client *Client) DisableNfsAclWithOptions(request *DisableNfsAclRequest, runtime *dara.RuntimeOptions) (_result *DisableNfsAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -6884,9 +7045,11 @@ func (client *Client) DisableNfsAcl(request *DisableNfsAclRequest) (_result *Dis
 //
 // @return DisableSmbAclResponse
 func (client *Client) DisableSmbAclWithOptions(request *DisableSmbAclRequest, runtime *dara.RuntimeOptions) (_result *DisableSmbAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -6944,9 +7107,11 @@ func (client *Client) DisableSmbAcl(request *DisableSmbAclRequest) (_result *Dis
 //
 // @return EnableNfsAclResponse
 func (client *Client) EnableNfsAclWithOptions(request *EnableNfsAclRequest, runtime *dara.RuntimeOptions) (_result *EnableNfsAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -7008,9 +7173,11 @@ func (client *Client) EnableNfsAcl(request *EnableNfsAclRequest) (_result *Enabl
 //
 // @return EnableRecycleBinResponse
 func (client *Client) EnableRecycleBinWithOptions(request *EnableRecycleBinRequest, runtime *dara.RuntimeOptions) (_result *EnableRecycleBinResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -7076,9 +7243,11 @@ func (client *Client) EnableRecycleBin(request *EnableRecycleBinRequest) (_resul
 //
 // @return EnableSmbAclResponse
 func (client *Client) EnableSmbAclWithOptions(request *EnableSmbAclRequest, runtime *dara.RuntimeOptions) (_result *EnableSmbAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -7148,9 +7317,11 @@ func (client *Client) EnableSmbAcl(request *EnableSmbAclRequest) (_result *Enabl
 //
 // @return GetDirectoryOrFilePropertiesResponse
 func (client *Client) GetDirectoryOrFilePropertiesWithOptions(request *GetDirectoryOrFilePropertiesRequest, runtime *dara.RuntimeOptions) (_result *GetDirectoryOrFilePropertiesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -7220,9 +7391,11 @@ func (client *Client) GetDirectoryOrFileProperties(request *GetDirectoryOrFilePr
 //
 // @return GetRecycleBinAttributeResponse
 func (client *Client) GetRecycleBinAttributeWithOptions(request *GetRecycleBinAttributeRequest, runtime *dara.RuntimeOptions) (_result *GetRecycleBinAttributeResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -7284,9 +7457,11 @@ func (client *Client) GetRecycleBinAttribute(request *GetRecycleBinAttributeRequ
 //
 // @return ListDirectoriesAndFilesResponse
 func (client *Client) ListDirectoriesAndFilesWithOptions(request *ListDirectoriesAndFilesRequest, runtime *dara.RuntimeOptions) (_result *ListDirectoriesAndFilesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.DirectoryOnly) {
@@ -7372,9 +7547,11 @@ func (client *Client) ListDirectoriesAndFiles(request *ListDirectoriesAndFilesRe
 //
 // @return ListLifecycleRetrieveJobsResponse
 func (client *Client) ListLifecycleRetrieveJobsWithOptions(request *ListLifecycleRetrieveJobsRequest, runtime *dara.RuntimeOptions) (_result *ListLifecycleRetrieveJobsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -7456,9 +7633,11 @@ func (client *Client) ListLifecycleRetrieveJobs(request *ListLifecycleRetrieveJo
 //
 // @return ListRecentlyRecycledDirectoriesResponse
 func (client *Client) ListRecentlyRecycledDirectoriesWithOptions(request *ListRecentlyRecycledDirectoriesRequest, runtime *dara.RuntimeOptions) (_result *ListRecentlyRecycledDirectoriesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -7522,9 +7701,11 @@ func (client *Client) ListRecentlyRecycledDirectories(request *ListRecentlyRecyc
 //
 // @return ListRecycleBinJobsResponse
 func (client *Client) ListRecycleBinJobsWithOptions(request *ListRecycleBinJobsRequest, runtime *dara.RuntimeOptions) (_result *ListRecycleBinJobsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -7588,9 +7769,11 @@ func (client *Client) ListRecycleBinJobs(request *ListRecycleBinJobsRequest) (_r
 //
 // @return ListRecycledDirectoriesAndFilesResponse
 func (client *Client) ListRecycledDirectoriesAndFilesWithOptions(request *ListRecycledDirectoriesAndFilesRequest, runtime *dara.RuntimeOptions) (_result *ListRecycledDirectoriesAndFilesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -7648,9 +7831,11 @@ func (client *Client) ListRecycledDirectoriesAndFiles(request *ListRecycledDirec
 //
 // @return ListTagResourcesResponse
 func (client *Client) ListTagResourcesWithOptions(request *ListTagResourcesRequest, runtime *dara.RuntimeOptions) (_result *ListTagResourcesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.NextToken) {
@@ -7724,9 +7909,11 @@ func (client *Client) ListTagResources(request *ListTagResourcesRequest) (_resul
 //
 // @return ModifyAccessGroupResponse
 func (client *Client) ModifyAccessGroupWithOptions(request *ModifyAccessGroupRequest, runtime *dara.RuntimeOptions) (_result *ModifyAccessGroupResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -7800,9 +7987,11 @@ func (client *Client) ModifyAccessGroup(request *ModifyAccessGroupRequest) (_res
 //
 // @return ModifyAccessPointResponse
 func (client *Client) ModifyAccessPointWithOptions(request *ModifyAccessPointRequest, runtime *dara.RuntimeOptions) (_result *ModifyAccessPointResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroup) {
@@ -7884,9 +8073,11 @@ func (client *Client) ModifyAccessPoint(request *ModifyAccessPointRequest) (_res
 //
 // @return ModifyAccessRuleResponse
 func (client *Client) ModifyAccessRuleWithOptions(request *ModifyAccessRuleRequest, runtime *dara.RuntimeOptions) (_result *ModifyAccessRuleResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -7982,9 +8173,11 @@ func (client *Client) ModifyAccessRule(request *ModifyAccessRuleRequest) (_resul
 //
 // @return ModifyAutoSnapshotPolicyResponse
 func (client *Client) ModifyAutoSnapshotPolicyWithOptions(request *ModifyAutoSnapshotPolicyRequest, runtime *dara.RuntimeOptions) (_result *ModifyAutoSnapshotPolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyId) {
@@ -8072,9 +8265,11 @@ func (client *Client) ModifyAutoSnapshotPolicy(request *ModifyAutoSnapshotPolicy
 //
 // @return ModifyDataFlowResponse
 func (client *Client) ModifyDataFlowWithOptions(request *ModifyDataFlowRequest, runtime *dara.RuntimeOptions) (_result *ModifyDataFlowResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -8170,9 +8365,11 @@ func (client *Client) ModifyDataFlow(request *ModifyDataFlowRequest) (_result *M
 //
 // @return ModifyDataFlowAutoRefreshResponse
 func (client *Client) ModifyDataFlowAutoRefreshWithOptions(request *ModifyDataFlowAutoRefreshRequest, runtime *dara.RuntimeOptions) (_result *ModifyDataFlowAutoRefreshResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoRefreshInterval) {
@@ -8260,9 +8457,11 @@ func (client *Client) ModifyDataFlowAutoRefresh(request *ModifyDataFlowAutoRefre
 //
 // @return ModifyFileSystemResponse
 func (client *Client) ModifyFileSystemWithOptions(tmpReq *ModifyFileSystemRequest, runtime *dara.RuntimeOptions) (_result *ModifyFileSystemResponse, _err error) {
-	_err = tmpReq.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = tmpReq.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	request := &ModifyFileSystemShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
@@ -8338,9 +8537,11 @@ func (client *Client) ModifyFileSystem(request *ModifyFileSystemRequest) (_resul
 //
 // @return ModifyFilesetResponse
 func (client *Client) ModifyFilesetWithOptions(request *ModifyFilesetRequest, runtime *dara.RuntimeOptions) (_result *ModifyFilesetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -8428,9 +8629,11 @@ func (client *Client) ModifyFileset(request *ModifyFilesetRequest) (_result *Mod
 //
 // @return ModifyLDAPConfigResponse
 func (client *Client) ModifyLDAPConfigWithOptions(request *ModifyLDAPConfigRequest, runtime *dara.RuntimeOptions) (_result *ModifyLDAPConfigResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.BindDN) {
@@ -8511,9 +8714,11 @@ func (client *Client) ModifyLDAPConfig(request *ModifyLDAPConfigRequest) (_resul
 //
 // @return ModifyLifecyclePolicyResponse
 func (client *Client) ModifyLifecyclePolicyWithOptions(request *ModifyLifecyclePolicyRequest, runtime *dara.RuntimeOptions) (_result *ModifyLifecyclePolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -8591,9 +8796,11 @@ func (client *Client) ModifyLifecyclePolicy(request *ModifyLifecyclePolicyReques
 //
 // @return ModifyMountTargetResponse
 func (client *Client) ModifyMountTargetWithOptions(request *ModifyMountTargetRequest, runtime *dara.RuntimeOptions) (_result *ModifyMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -8671,9 +8878,11 @@ func (client *Client) ModifyMountTarget(request *ModifyMountTargetRequest) (_res
 //
 // @return ModifyProtocolMountTargetResponse
 func (client *Client) ModifyProtocolMountTargetWithOptions(request *ModifyProtocolMountTargetRequest, runtime *dara.RuntimeOptions) (_result *ModifyProtocolMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -8759,9 +8968,11 @@ func (client *Client) ModifyProtocolMountTarget(request *ModifyProtocolMountTarg
 //
 // @return ModifyProtocolServiceResponse
 func (client *Client) ModifyProtocolServiceWithOptions(request *ModifyProtocolServiceRequest, runtime *dara.RuntimeOptions) (_result *ModifyProtocolServiceResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -8839,9 +9050,11 @@ func (client *Client) ModifyProtocolService(request *ModifyProtocolServiceReques
 //
 // @return ModifySmbAclResponse
 func (client *Client) ModifySmbAclWithOptions(request *ModifySmbAclRequest, runtime *dara.RuntimeOptions) (_result *ModifySmbAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.EnableAnonymousAccess) {
@@ -8980,9 +9193,11 @@ func (client *Client) OpenNASService() (_result *OpenNASServiceResponse, _err er
 //
 // @return RemoveClientFromBlackListResponse
 func (client *Client) RemoveClientFromBlackListWithOptions(request *RemoveClientFromBlackListRequest, runtime *dara.RuntimeOptions) (_result *RemoveClientFromBlackListResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientIP) {
@@ -9069,9 +9284,11 @@ func (client *Client) RemoveClientFromBlackList(request *RemoveClientFromBlackLi
 //
 // @return ResetFileSystemResponse
 func (client *Client) ResetFileSystemWithOptions(request *ResetFileSystemRequest, runtime *dara.RuntimeOptions) (_result *ResetFileSystemResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -9147,9 +9364,11 @@ func (client *Client) ResetFileSystem(request *ResetFileSystemRequest) (_result 
 //
 // @return RetryLifecycleRetrieveJobResponse
 func (client *Client) RetryLifecycleRetrieveJobWithOptions(request *RetryLifecycleRetrieveJobRequest, runtime *dara.RuntimeOptions) (_result *RetryLifecycleRetrieveJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.JobId) {
@@ -9215,9 +9434,11 @@ func (client *Client) RetryLifecycleRetrieveJob(request *RetryLifecycleRetrieveJ
 //
 // @return SetDirQuotaResponse
 func (client *Client) SetDirQuotaWithOptions(request *SetDirQuotaRequest, runtime *dara.RuntimeOptions) (_result *SetDirQuotaResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileCountLimit) {
@@ -9317,9 +9538,11 @@ func (client *Client) SetDirQuota(request *SetDirQuotaRequest) (_result *SetDirQ
 //
 // @return SetFilesetQuotaResponse
 func (client *Client) SetFilesetQuotaWithOptions(request *SetFilesetQuotaRequest, runtime *dara.RuntimeOptions) (_result *SetFilesetQuotaResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -9423,9 +9646,11 @@ func (client *Client) SetFilesetQuota(request *SetFilesetQuotaRequest) (_result 
 //
 // @return StartDataFlowResponse
 func (client *Client) StartDataFlowWithOptions(request *StartDataFlowRequest, runtime *dara.RuntimeOptions) (_result *StartDataFlowResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -9521,9 +9746,11 @@ func (client *Client) StartDataFlow(request *StartDataFlowRequest) (_result *Sta
 //
 // @return StopDataFlowResponse
 func (client *Client) StopDataFlowWithOptions(request *StopDataFlowRequest, runtime *dara.RuntimeOptions) (_result *StopDataFlowResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -9607,9 +9834,11 @@ func (client *Client) StopDataFlow(request *StopDataFlowRequest) (_result *StopD
 //
 // @return TagResourcesResponse
 func (client *Client) TagResourcesWithOptions(request *TagResourcesRequest, runtime *dara.RuntimeOptions) (_result *TagResourcesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ResourceId) {
@@ -9675,9 +9904,11 @@ func (client *Client) TagResources(request *TagResourcesRequest) (_result *TagRe
 //
 // @return UntagResourcesResponse
 func (client *Client) UntagResourcesWithOptions(request *UntagResourcesRequest, runtime *dara.RuntimeOptions) (_result *UntagResourcesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.All) {
@@ -9751,9 +9982,11 @@ func (client *Client) UntagResources(request *UntagResourcesRequest) (_result *U
 //
 // @return UpdateRecycleBinAttributeResponse
 func (client *Client) UpdateRecycleBinAttributeWithOptions(request *UpdateRecycleBinAttributeRequest, runtime *dara.RuntimeOptions) (_result *UpdateRecycleBinAttributeResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -9817,9 +10050,11 @@ func (client *Client) UpdateRecycleBinAttribute(request *UpdateRecycleBinAttribu
 //
 // @return UpgradeFileSystemResponse
 func (client *Client) UpgradeFileSystemWithOptions(request *UpgradeFileSystemRequest, runtime *dara.RuntimeOptions) (_result *UpgradeFileSystemResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.Capacity) {

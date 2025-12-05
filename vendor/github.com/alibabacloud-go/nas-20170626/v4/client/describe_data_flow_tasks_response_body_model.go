@@ -70,7 +70,12 @@ func (s *DescribeDataFlowTasksResponseBody) SetTaskInfo(v *DescribeDataFlowTasks
 }
 
 func (s *DescribeDataFlowTasksResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.TaskInfo != nil {
+		if err := s.TaskInfo.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfo struct {
@@ -95,7 +100,16 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfo) SetTask(v []*DescribeDataFlo
 }
 
 func (s *DescribeDataFlowTasksResponseBodyTaskInfo) Validate() error {
-	return dara.Validate(s)
+	if s.Task != nil {
+		for _, item := range s.Task {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
@@ -526,7 +540,17 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) SetTransferFileListPath(
 }
 
 func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) Validate() error {
-	return dara.Validate(s)
+	if s.ProgressStats != nil {
+		if err := s.ProgressStats.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Reports != nil {
+		if err := s.Reports.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfoTaskProgressStats struct {
@@ -686,7 +710,16 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfoTaskReports) SetReport(v []*De
 }
 
 func (s *DescribeDataFlowTasksResponseBodyTaskInfoTaskReports) Validate() error {
-	return dara.Validate(s)
+	if s.Report != nil {
+		for _, item := range s.Report {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfoTaskReportsReport struct {

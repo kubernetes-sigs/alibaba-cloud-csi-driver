@@ -53,7 +53,12 @@ func (s *GetRecycleBinAttributeResponseBody) SetRequestId(v string) *GetRecycleB
 }
 
 func (s *GetRecycleBinAttributeResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.RecycleBinAttribute != nil {
+		if err := s.RecycleBinAttribute.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type GetRecycleBinAttributeResponseBodyRecycleBinAttribute struct {

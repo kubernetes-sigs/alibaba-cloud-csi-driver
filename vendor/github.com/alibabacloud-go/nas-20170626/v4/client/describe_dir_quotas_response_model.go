@@ -59,5 +59,10 @@ func (s *DescribeDirQuotasResponse) SetBody(v *DescribeDirQuotasResponseBody) *D
 }
 
 func (s *DescribeDirQuotasResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
