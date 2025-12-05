@@ -19,5 +19,8 @@ func NewAdaptorMounter(inner mountutils.Interface) Mounter {
 }
 
 func (m *AdaptorMounter) ExtendedMount(_ context.Context, op *MountOperation) error {
+	if op == nil {
+		return nil
+	}
 	return m.Mount(op.Source, op.Target, op.FsType, op.Options)
 }

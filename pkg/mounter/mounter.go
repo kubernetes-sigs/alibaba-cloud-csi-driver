@@ -26,6 +26,19 @@ type MountOperation struct {
 
 type MountHandler func(ctx context.Context, op *MountOperation) error
 
+// MountInterceptor is a function that wraps the actual mount operation,
+// executing custom logic both before and after the mount.
+//
+//   - If any essential pre-mount operation fails, the interceptor must return an error,
+//     causing the entire mount process to abort immediately.
+//
+//   - In the post-mount phase, interceptors must preserve the original mount error.
+//     They should either:
+//     1. Log internal errors without returning them (to avoid masking the mount error), or
+//     2. Combine their own errors with the mount error (e.g., using errors.Join) and return the aggregate.
+//
+// This ensures the caller always receives the true mount result, while allowing interceptors
+// to perform side effects or enrich error context safely.
 type MountInterceptor func(ctx context.Context, op *MountOperation, handler MountHandler) error
 
 type MountWorkflow struct {

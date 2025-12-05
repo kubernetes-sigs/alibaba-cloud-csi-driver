@@ -36,20 +36,15 @@ type Driver struct {
 }
 
 func NewDriver() *Driver {
-	driver := &Driver{
+	return &Driver{
 		pids:           new(sync.Map),
 		monitorManager: server.NewMountMonitorManager(),
+		Mounter: mounter.NewForMounter(
+			mounter.NewAdaptorMounter(mount.NewWithoutSystemd("")),
+			interceptors.OssfsSecretInterceptor,
+			interceptors.OssfsMonitorInterceptor,
+		),
 	}
-	m := &extendedMounter{
-		driver:    driver,
-		Interface: mount.NewWithoutSystemd(""),
-	}
-	driver.Mounter = mounter.NewForMounter(
-		m,
-		interceptors.OssfsSecretInterceptor,
-		interceptors.OssfsMonitorInterceptor,
-	)
-	return driver
 }
 
 func (h *Driver) Name() string {
@@ -61,7 +56,7 @@ func (h *Driver) Fstypes() []string {
 }
 
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
-	return h.ExtendedMount(ctx, &mounter.MountOperation{
+	return h.Mounter.ExtendedMount(ctx, &mounter.MountOperation{
 		Source:      req.Source,
 		Target:      req.Target,
 		FsType:      req.Fstype,
@@ -72,36 +67,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	})
 }
 
-func (h *Driver) Init() {}
-
-func (h *Driver) Terminate() {
-	// Stop all mount monitoring
-	h.monitorManager.StopAllMonitoring()
-
-	// terminate all running ossfs
-	h.pids.Range(func(key, value any) bool {
-		err := value.(*exec.Cmd).Process.Signal(syscall.SIGTERM)
-		if err != nil {
-			klog.ErrorS(err, "Failed to terminate ossfs", "pid", key)
-		}
-		klog.V(4).InfoS("Sended sigterm", "pid", key)
-		return true
-	})
-
-	// wait all ossfs processes and monitoring goroutines to exit
-	h.monitorManager.WaitForAllMonitoring()
-	h.wg.Wait()
-	klog.InfoS("All ossfs processes and monitoring goroutines exited")
-}
-
-type extendedMounter struct {
-	driver *Driver
-	mount.Interface
-}
-
-var _ mounter.Mounter = &extendedMounter{}
-
-func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
+func (h *Driver) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
 	options := op.Options
 	target := op.Target
 
@@ -136,11 +102,11 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 
 	// Wait for mount to complete
 	ossfsExited := make(chan error, 1)
-	m.driver.wg.Add(1)
-	m.driver.pids.Store(pid, cmd)
+	h.wg.Add(1)
+	h.pids.Store(pid, cmd)
 	go func() {
-		defer m.driver.wg.Done()
-		defer m.driver.pids.Delete(pid)
+		defer h.wg.Done()
+		defer h.pids.Delete(pid)
 
 		err := cmd.Wait()
 		if err != nil {
@@ -167,7 +133,7 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 			}
 			return false, fmt.Errorf("ossfs exited")
 		default:
-			notMnt, err := m.IsLikelyNotMountPoint(target)
+			notMnt, err := h.Mounter.IsLikelyNotMountPoint(target)
 			if err != nil {
 				klog.ErrorS(err, "check mountpoint", "mountpoint", target)
 				return false, nil
@@ -206,4 +172,26 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	// Process exit handling (including metrics) is done in the Wait goroutine.
 	// Just return the error to caller to avoid double counting.
 	return err
+}
+
+func (h *Driver) Init() {}
+
+func (h *Driver) Terminate() {
+	// Stop all mount monitoring
+	h.monitorManager.StopAllMonitoring()
+
+	// terminate all running ossfs
+	h.pids.Range(func(key, value any) bool {
+		err := value.(*exec.Cmd).Process.Signal(syscall.SIGTERM)
+		if err != nil {
+			klog.ErrorS(err, "Failed to terminate ossfs", "pid", key)
+		}
+		klog.V(4).InfoS("Sended sigterm", "pid", key)
+		return true
+	})
+
+	// wait all ossfs processes and monitoring goroutines to exit
+	h.monitorManager.WaitForAllMonitoring()
+	h.wg.Wait()
+	klog.InfoS("All ossfs processes and monitoring goroutines exited")
 }
