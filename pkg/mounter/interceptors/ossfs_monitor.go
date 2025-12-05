@@ -18,6 +18,7 @@ var (
 )
 
 func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
+	klog.InfoS("ossfs monitor interceptor", "op", *op)
 	if op == nil || op.MetricsPath == "" {
 		return handler(ctx, op)
 	}

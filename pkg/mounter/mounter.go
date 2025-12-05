@@ -3,6 +3,7 @@ package mounter
 import (
 	"context"
 
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -54,11 +55,13 @@ func (w *MountWorkflow) ExtendedMount(ctx context.Context, op *MountOperation) e
 
 // chainInterceptors creates a chain of interceptors similar to gRPC
 func chainInterceptors(interceptors []MountInterceptor, finalHandler MountHandler) MountHandler {
+	klog.InfoS("chain interceptors", "length", len(interceptors))
 	if len(interceptors) == 0 {
 		return finalHandler
 	}
 
 	return func(ctx context.Context, op *MountOperation) error {
+		klog.InfoS("chain interceptors internal", "length", len(interceptors), "op", *op)
 		return interceptors[0](ctx, op, getChainHandler(interceptors, 0, finalHandler))
 	}
 }
@@ -75,6 +78,7 @@ func getChainHandler(interceptors []MountInterceptor, curr int, finalHandler Mou
 }
 
 func NewForMounter(m Mounter, interceptors ...MountInterceptor) Mounter {
+	klog.InfoS("NewForMounter", "interceptors", interceptors, "length", len(interceptors))
 	return &MountWorkflow{
 		Mounter:        m,
 		chainedHandler: chainInterceptors(interceptors, m.ExtendedMount),

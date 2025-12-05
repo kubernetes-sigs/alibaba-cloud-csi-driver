@@ -22,6 +22,7 @@ func Ossfs2SecretInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 }
 
 func ossfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler, fuseType string) error {
+	klog.InfoS("ossfs secret interceptor", "op", *op)
 	if op == nil || op.Secrets == nil {
 		return handler(ctx, op)
 	}
