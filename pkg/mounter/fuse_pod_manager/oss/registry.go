@@ -2,13 +2,15 @@ package oss
 
 import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 var (
-	fstypeToFactory = map[string]func(*corev1.ConfigMap, metadata.MetadataProvider) OSSFuseMounterType{}
-	fstypeToPath    = map[string]string{}
+	fstypeToFactory      = map[string]func(*corev1.ConfigMap, metadata.MetadataProvider) OSSFuseMounterType{}
+	fstypeToPath         = map[string]string{}
+	fstypeToInterceptors = map[string][]mounter.MountInterceptor{}
 )
 
 // RegisterFuseMounter registers a fuse mounter factory for a given fstype
@@ -19,6 +21,11 @@ func RegisterFuseMounter(fstype string, factory func(*corev1.ConfigMap, metadata
 // RegisterFuseMounterPath registers the executable path for a given fstype
 func RegisterFuseMounterPath(fstype, path string) {
 	fstypeToPath[fstype] = path
+}
+
+// RegisterFuseInterceptors registers the mount interceptors for a given fstype
+func RegisterFuseInterceptors(fstype string, interceptors []mounter.MountInterceptor) {
+	fstypeToInterceptors[fstype] = interceptors
 }
 
 // GetFuseMounterPath returns the executable path for a given fstype
@@ -34,6 +41,12 @@ func GetAllFuseMounterPaths() map[string]string {
 		result[fstype] = path
 	}
 	return result
+}
+
+// GetFuseMountInterceptors returns the mount interceptors for a given fstype
+func GetFuseMountInterceptors(fstype string) ([]mounter.MountInterceptor, bool) {
+	path, ok := fstypeToInterceptors[fstype]
+	return path, ok
 }
 
 // GetFuseMounter returns a fuse mounter instance for the given fstype

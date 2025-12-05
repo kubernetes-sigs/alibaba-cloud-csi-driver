@@ -11,8 +11,10 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -24,6 +26,7 @@ import (
 func init() {
 	ossfpm.RegisterFuseMounter(ossfpm.OssFsType, NewFuseOssfs)
 	ossfpm.RegisterFuseMounterPath(ossfpm.OssFsType, "/usr/local/bin/ossfs")
+	ossfpm.RegisterFuseInterceptors(ossfpm.OssFsType, []mounter.MountInterceptor{interceptors.OssfsSecretInterceptor})
 }
 
 var defaultOssfsDbglevel = fpm.DebugLevelWarn

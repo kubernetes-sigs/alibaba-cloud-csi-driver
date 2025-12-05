@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -36,6 +38,17 @@ func TestGetAllFuseMounterPaths(t *testing.T) {
 	paths := GetAllFuseMounterPaths()
 	assert.GreaterOrEqual(t, len(paths), 1, "Should have at least 1 registered path")
 	assert.Equal(t, testPath, paths[testType], "Should contain registered path")
+}
+
+func TestGetFuseMounterInterceptors(t *testing.T) {
+	testType := "test-fuse-type-1"
+	testInterceptors := []mounter.MountInterceptor{interceptors.OssfsSecretInterceptor}
+
+	RegisterFuseInterceptors(testType, testInterceptors)
+
+	interceptors, ok := GetFuseMountInterceptors(testType)
+	assert.True(t, ok, "should find registered interceptors")
+	assert.Equal(t, interceptors, testInterceptors)
 }
 
 func TestGetAllRegisteredFuseTypes(t *testing.T) {

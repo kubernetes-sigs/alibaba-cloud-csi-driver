@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -131,15 +130,15 @@ func (m *MountMonitor) HandleMountFailureOrExit(err error) {
 }
 
 // HandleMountSuccess handles the case when mount operation succeeds
-func (m *MountMonitor) HandleMountSuccess(process *exec.Cmd) {
+func (m *MountMonitor) HandleMountSuccess(pid int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	// Update metrics for mount success
 	m.updateMountPointMetrics(&m.retryCount, nil, nil)
 
+	m.Pid = pid
 	m.State = MonitorStateMonitoring
-	m.Pid = process.Process.Pid
 
 	klog.InfoS("Mount succeeded", "target", m.Target, "pid", m.Pid)
 }

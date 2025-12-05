@@ -14,10 +14,10 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
-	serverutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -28,17 +28,21 @@ func init() {
 }
 
 type Driver struct {
+	mounter.Mounter
 	pids           *sync.Map
 	monitorManager *server.MountMonitorManager
 	wg             sync.WaitGroup
-	raw            mount.Interface
 }
 
 func NewDriver() *Driver {
 	return &Driver{
 		pids:           new(sync.Map),
 		monitorManager: server.NewMountMonitorManager(),
-		raw:            mount.NewWithoutSystemd(""),
+		Mounter: mounter.NewForMounter(
+			mounter.NewAdaptorMounter(mount.NewWithoutSystemd("")),
+			interceptors.Ossfs2SecretInterceptor,
+			interceptors.OssfsMonitorInterceptor,
+		),
 	}
 }
 
@@ -51,36 +55,25 @@ func (h *Driver) Fstypes() []string {
 }
 
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
-	options := req.Options
-	target := req.Target
+	return h.ExtendedMount(ctx, &mounter.MountOperation{
+		Source:      req.Source,
+		Target:      req.Target,
+		FsType:      req.Fstype,
+		Options:     req.Options,
+		Secrets:     req.Secrets,
+		MetricsPath: req.MetricsPath,
+		VolumeID:    req.VolumeID,
+	})
+}
 
-	// Get or create monitor for this target
-	var monitor *server.MountMonitor
-	if req.MetricsPath != "" {
-		var found bool
-		monitor, found = h.monitorManager.GetMountMonitor(target, req.MetricsPath, h.raw, true)
-		if monitor == nil {
-			klog.Errorf("Failed to get mount monitor for %s, stop monitoring mountpoint status", target)
-		} else if found {
-			monitor.IncreaseMountRetryCount()
-		}
-	}
+func (h *Driver) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
+	options := op.Options
+	target := op.Target
 
-	// prepare passwd file
-	passwdFile, err := utils.SaveOssSecretsToFile(req.Secrets, req.Fstype)
-	if err != nil {
-		if monitor != nil {
-			monitor.HandleMountFailureOrExit(err)
-		}
-		return err
-	}
-
-	args := []string{"mount", req.Target}
+	args := []string{"mount", op.Target}
 	// ossfs2.0 forbid to use FUSE args
 	// args = append(args, req.MountFlags...)
-	if passwdFile != "" {
-		args = append(args, []string{"-c", passwdFile}...)
-	}
+	args = append(args, op.Args...)
 	for _, o := range options {
 		args = append(args, fmt.Sprintf("--%s", o))
 	}
@@ -88,7 +81,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 
 	var stderrBuf bytes.Buffer
 	multiWriter := io.MultiWriter(os.Stderr, &stderrBuf)
-	sw := serverutils.NewSwitchableWriter(multiWriter)
+	sw := server.NewSwitchableWriter(multiWriter)
 	cmd := exec.Command("ossfs2", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = sw
@@ -96,12 +89,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		sw.SwitchTarget(os.Stderr)
 	}()
 
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
-		if monitor != nil {
-			monitor.HandleMountFailureOrExit(fmt.Errorf("start ossfs2 failed: %w", err))
-		}
-		return err
+		return fmt.Errorf("start ossfs2 failed: %w", err)
 	}
 
 	pid := cmd.Process.Pid
@@ -134,17 +124,8 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		} else {
 			klog.InfoS("ossfs2 exited", "mountpoint", target, "pid", pid)
 		}
-		// Immediate process-exit handling during mount attempt
-		// Assume the process exits with no error upon receiving SIGTERM,
-		// and exits with an error in case of unexpected failures.
-		if monitor != nil {
-			monitor.HandleMountFailureOrExit(err)
-		}
 		// Notify poll loop after metrics are updated
 		ossfsExited <- err
-		if err := os.Remove(passwdFile); err != nil {
-			klog.ErrorS(err, "Remove configuration file", "mountpoint", target, "path", passwdFile)
-		}
 		close(ossfsExited)
 	}()
 
@@ -156,7 +137,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 			}
 			return false, fmt.Errorf("ossfs2 exited")
 		default:
-			notMnt, err := h.raw.IsLikelyNotMountPoint(target)
+			notMnt, err := h.Mounter.IsLikelyNotMountPoint(target)
 			if err != nil {
 				klog.ErrorS(err, "check mountpoint", "mountpoint", target)
 				return false, nil
@@ -170,10 +151,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	})
 
 	if err == nil {
-		if monitor != nil {
-			monitor.HandleMountSuccess(cmd)
-			// Start monitoring goroutine (ticker based only)
-			h.monitorManager.StartMonitoring(target)
+		op.MountResult = server.OssfsMountResult{
+			PID:      pid,
+			ExitChan: ossfsExited,
 		}
 		return nil
 	}
