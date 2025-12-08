@@ -55,7 +55,7 @@ func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 		// Assume the process exits with no error upon receiving SIGTERM,
 		// and exits with an error in case of unexpected failures.
 		if err == nil && exitErr != nil {
-			monitor.HandleMountFailureOrExit(err)
+			monitor.HandleMountFailureOrExit(exitErr)
 		}
 	}()
 
