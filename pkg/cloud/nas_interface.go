@@ -1,8 +1,8 @@
-package interfaces
+package cloud
 
 import nas "github.com/alibabacloud-go/nas-20170626/v4/client"
 
-type NasV2Interface interface {
+type NasInterface interface {
 	CancelDirQuota(request *nas.CancelDirQuotaRequest) (*nas.CancelDirQuotaResponse, error)
 	CreateAccessPoint(request *nas.CreateAccessPointRequest) (*nas.CreateAccessPointResponse, error)
 	CreateDir(request *nas.CreateDirRequest) (*nas.CreateDirResponse, error)

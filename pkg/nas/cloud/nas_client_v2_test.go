@@ -6,7 +6,7 @@ import (
 	nas "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/golang/mock/gomock"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
 )
@@ -21,7 +21,7 @@ func TestNewNasClientV2(t *testing.T) {
 
 func TestCreateDirSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CreateDir(gomock.Any()).Return(
 			&nas.CreateDirResponse{
 				Headers:    make(map[string]*string),
@@ -33,9 +33,9 @@ func TestCreateDirSuccess(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func newNasClientV2ForTest(t *testing.T, mockExpects func(*interfaces.MockNasV2Interface)) *NasClientV2 {
+func newNasClientV2ForTest(t *testing.T, mockExpects func(*cloud.MockNasInterface)) *NasClientV2 {
 	ctrl := gomock.NewController(t)
-	mockNas := interfaces.NewMockNasV2Interface(ctrl)
+	mockNas := cloud.NewMockNasInterface(ctrl)
 	mockExpects(mockNas)
 	return &NasClientV2{
 		region:  nasV2Region,
@@ -46,7 +46,7 @@ func newNasClientV2ForTest(t *testing.T, mockExpects func(*interfaces.MockNasV2I
 
 func TestCreateDirError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CreateDir(gomock.Any()).Return(
 			&nas.CreateDirResponse{
 				Headers:    make(map[string]*string),
@@ -64,7 +64,7 @@ func TestCreateDirError(t *testing.T) {
 
 func TestSetDirQuotaSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().SetDirQuota(gomock.Any()).Return(
 			&nas.SetDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -80,7 +80,7 @@ func TestSetDirQuotaSuccess(t *testing.T) {
 
 func TestSetDirQuotaFailure(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().SetDirQuota(gomock.Any()).Return(
 			&nas.SetDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -96,7 +96,7 @@ func TestSetDirQuotaFailure(t *testing.T) {
 
 func TestSetDirQuotaError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().SetDirQuota(gomock.Any()).Return(
 			&nas.SetDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -117,7 +117,7 @@ func TestSetDirQuotaError(t *testing.T) {
 
 func TestCancelDirQuotaSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CancelDirQuota(gomock.Any()).Return(
 			&nas.CancelDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -134,7 +134,7 @@ func TestCancelDirQuotaSuccess(t *testing.T) {
 
 func TestCancelDirQuotaFailure(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CancelDirQuota(gomock.Any()).Return(
 			&nas.CancelDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -151,7 +151,7 @@ func TestCancelDirQuotaFailure(t *testing.T) {
 
 func TestCancelDirQuotaError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CancelDirQuota(gomock.Any()).Return(
 			&nas.CancelDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -172,7 +172,7 @@ func TestCancelDirQuotaError(t *testing.T) {
 
 func TestCancelDirQuotaIgnoreQuotaNotExistsError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CancelDirQuota(gomock.Any()).Return(
 			&nas.CancelDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -193,7 +193,7 @@ func TestCancelDirQuotaIgnoreQuotaNotExistsError(t *testing.T) {
 
 func TestGetRecycleBinAttributeSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().GetRecycleBinAttribute(gomock.Any()).Return(
 			&nas.GetRecycleBinAttributeResponse{
 				Headers:    make(map[string]*string),
@@ -207,7 +207,7 @@ func TestGetRecycleBinAttributeSuccess(t *testing.T) {
 
 func TestGetRecycleBinAttributeError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().GetRecycleBinAttribute(gomock.Any()).Return(
 			&nas.GetRecycleBinAttributeResponse{
 				Headers:    make(map[string]*string),
@@ -225,7 +225,7 @@ func TestGetRecycleBinAttributeError(t *testing.T) {
 
 func TestCreateAccessPointSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CreateAccessPoint(gomock.Any()).Return(
 			&nas.CreateAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -239,7 +239,7 @@ func TestCreateAccessPointSuccess(t *testing.T) {
 
 func TestCreateAccessPointError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CreateAccessPoint(gomock.Any()).Return(
 			&nas.CreateAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -257,7 +257,7 @@ func TestCreateAccessPointError(t *testing.T) {
 
 func TestDeleteAccessPointSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().DeleteAccessPoint(gomock.Any()).Return(
 			&nas.DeleteAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -271,7 +271,7 @@ func TestDeleteAccessPointSuccess(t *testing.T) {
 
 func TestDeleteAccessPointError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().DeleteAccessPoint(gomock.Any()).Return(
 			&nas.DeleteAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -289,7 +289,7 @@ func TestDeleteAccessPointError(t *testing.T) {
 
 func TestDescribeAccessPointSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().DescribeAccessPoint(gomock.Any()).Return(
 			&nas.DescribeAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -303,7 +303,7 @@ func TestDescribeAccessPointSuccess(t *testing.T) {
 
 func TestDescribeAccessPointError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().DescribeAccessPoint(gomock.Any()).Return(
 			&nas.DescribeAccessPointResponse{
 				Headers:    make(map[string]*string),

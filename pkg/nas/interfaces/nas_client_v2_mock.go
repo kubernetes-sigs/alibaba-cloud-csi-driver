@@ -3,14 +3,15 @@ package interfaces
 import (
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/golang/mock/gomock"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 )
 
 type MockNasClientV2Interface struct {
-	client *MockNasV2Interface
+	client *cloud.MockNasInterface
 }
 
 func NewMockNasClientV2Interface(ctrl *gomock.Controller) *MockNasClientV2Interface {
-	return &MockNasClientV2Interface{client: NewMockNasV2Interface(ctrl)}
+	return &MockNasClientV2Interface{client: cloud.NewMockNasInterface(ctrl)}
 }
 
 func (n *MockNasClientV2Interface) CreateDir(req *sdk.CreateDirRequest) error {
