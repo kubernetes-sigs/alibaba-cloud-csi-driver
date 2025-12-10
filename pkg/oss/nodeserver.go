@@ -107,6 +107,15 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
+	// rund 3.0 protocol
+	// Note: In rund 3.0 node server (non csi-agent), skip all parameter validation and exit directly
+	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+		if ns.clientset != nil && utils.GetPodRunTime(ctx, req, ns.clientset) == utils.RundRunTimeTag {
+			klog.Infof("NodePublishVolume: skip as %s enabled", features.RundCSIProtocol3)
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+	}
+
 	// parse options
 	// ensure fuseType is not empty
 	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", true, ns.metadata)
@@ -125,9 +134,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// PVs with attribute direct=true will by mounted in rund guest os.
-	// csi need only to prepare the direct-volume mountinfo in /run/kata-containers/shared/direct-volumes directory.
-	if opts.DirectAssigned {
+	// Note: In non-csi-agent environment (!ns.skipAttach),
+	//   if DirectAssigned is True, it's a confidential container scenario (coco)
+	if opts.DirectAssigned && !ns.skipAttach {
 		return ns.publishDirectVolume(ctx, req, opts)
 	}
 
@@ -139,14 +148,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	mountOptions = ns.fusePodManagers[opts.FuseType].AddDefaultMountOptions(mountOptions)
-
-	// rund 3.0 protocol
-	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
-		if ns.clientset != nil && utils.GetPodRunTime(ctx, req, ns.clientset) == utils.RundRunTimeTag {
-			klog.Infof("NodePublishVolume: skip as %s enabled", features.RundCSIProtocol3)
-			return &csi.NodePublishVolumeResponse{}, nil
-		}
-	}
 
 	// get mount proxy socket path
 	socketPath := req.PublishContext[mountProxySocket]

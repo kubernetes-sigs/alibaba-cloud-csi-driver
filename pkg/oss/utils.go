@@ -69,10 +69,11 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	}
 
 	opts := &ossfpm.Options{
-		UseSharedPath: true,
-		Path:          "/",
-		AkID:          strings.TrimSpace(secrets[AkID]),
-		AkSecret:      strings.TrimSpace(secrets[AkSecret]),
+		UseSharedPath:  true,
+		Path:           "/",
+		AkID:           strings.TrimSpace(secrets[AkID]),
+		AkSecret:       strings.TrimSpace(secrets[AkSecret]),
+		DirectAssigned: getDirectAssignedValue(),
 	}
 
 	var volumeAsSubpath bool
@@ -443,4 +444,30 @@ func makeMountOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m meta
 	}
 	mountOptions = append(mountOptions, ops...)
 	return
+}
+
+// getDirectAssignedValue returns the default value for DirectAssigned option based on the runtime class.
+// The function reads DEFAULT_RUNTIME_CLASS environment variable and determines the appropriate default value:
+// - For "rund" runtime, returns true (direct assignment enabled by default)
+// - For "runc" runtime or empty value, returns false (direct assignment disabled by default)
+// - For any other value, logs a warning and returns false
+func getDirectAssignedValue() bool {
+	// Get runtime class from environment variable
+	runtimeClass := os.Getenv("DEFAULT_RUNTIME_CLASS")
+
+	// Validate runtime class, only allow "runc", "rund" or empty (treated as "runc")
+	// Note: Do not consider the confidential container scenario (coco),
+	//  because in this scenario, PV.attributes must explicitly specify whether directAssigned
+	switch strings.ToLower(runtimeClass) {
+	case strings.ToLower(utils.RundRunTimeTag):
+		// For rund, default value is true
+		return true
+	case strings.ToLower(utils.RuncRunTimeTag), "":
+		// For runc or empty (default to runc), default value is false
+		return false
+	default:
+		// Invalid runtime class, see as rund and return error
+		klog.Warningf("invalid DEFAULT_RUNTIME_CLASS value: %q, only %s and %s are allowed", runtimeClass, utils.RuncRunTimeTag, utils.RundRunTimeTag)
+		return false
+	}
 }

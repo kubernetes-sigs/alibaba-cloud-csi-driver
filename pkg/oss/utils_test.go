@@ -742,3 +742,124 @@ func TestMakePodTemplateConfig(t *testing.T) {
 
 	assert.Equal(t, &fpm.PodTemplateConfig{}, makePodTemplateConfig(&ossfpm.Options{}))
 }
+
+func TestGetDirectAssignedValue(t *testing.T) {
+	tests := []struct {
+		name         string
+		runtimeClass string
+		expected     bool
+	}{
+		{
+			name:         "Test with rund runtime class",
+			runtimeClass: "rund",
+			expected:     true,
+		},
+		{
+			name:         "Test with runc runtime class",
+			runtimeClass: "runc",
+			expected:     false,
+		},
+		{
+			name:         "Test with empty runtime class",
+			runtimeClass: "",
+			expected:     false,
+		},
+		{
+			name:         "Test with invalid runtime class",
+			runtimeClass: "invalid",
+			expected:     false,
+		},
+		{
+			name:         "Test with Rund runtime class (case insensitive)",
+			runtimeClass: "Rund",
+			expected:     true,
+		},
+		{
+			name:         "Test with runC runtime class (case insensitive)",
+			runtimeClass: "runC",
+			expected:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("DEFAULT_RUNTIME_CLASS", tt.runtimeClass)
+			result := getDirectAssignedValue()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestParseOptions_DirectAssigned(t *testing.T) {
+	tests := []struct {
+		name                  string
+		default_runtime_class string
+		volOptions            map[string]string
+		wantDirectAssigned    bool
+	}{
+		{
+			name:                  "empty runtime, empty volOptions",
+			default_runtime_class: "",
+			volOptions:            map[string]string{},
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "invalid runtime, empty volOptions",
+			default_runtime_class: "invalid",
+			volOptions:            map[string]string{},
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "default rund, empty volOptions",
+			default_runtime_class: "rund",
+			volOptions:            map[string]string{},
+			wantDirectAssigned:    true,
+		},
+		{
+			name:                  "default runc, empty volOptions",
+			default_runtime_class: "runc",
+			volOptions:            map[string]string{},
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "empty runtime, vol true",
+			default_runtime_class: "",
+			volOptions: map[string]string{
+				optDirectAssigned: "true",
+			},
+			wantDirectAssigned: true,
+		},
+		{
+			name:                  "invalid runtime, vol false",
+			default_runtime_class: "invalid",
+			volOptions: map[string]string{
+				optDirectAssigned: "false",
+			},
+			wantDirectAssigned: false,
+		},
+		{
+			name:                  "default rund, invalid volOptions",
+			default_runtime_class: "rund",
+			volOptions: map[string]string{
+				optDirectAssigned: "invalid",
+			},
+			wantDirectAssigned: true,
+		},
+		{
+			name:                  "default runc, vol true",
+			default_runtime_class: "runc",
+			volOptions: map[string]string{
+				optDirectAssigned: "true",
+			},
+			wantDirectAssigned: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeMeta := metadata.NewMetadata()
+			t.Setenv("DEFAULT_RUNTIME_CLASS", tt.default_runtime_class)
+			opt := parseOptions(tt.volOptions, nil, nil, false, "", false, fakeMeta)
+			assert.Equal(t, tt.wantDirectAssigned, opt.DirectAssigned)
+		})
+	}
+}

@@ -24,7 +24,7 @@ func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
 		metadata:        m,
 		locks:           utils.NewVolumeLocks(),
 		rawMounter:      mountutils.NewWithoutSystemd(""),
-		skipAttach:      true,
+		skipAttach:      true, // label for csi-agent environment
 		fusePodManagers: ossfpm.GetAllOSSFusePodManagers(nil, m, nil),
 		ossfsPaths:      ossfpm.GetAllFuseMounterPaths(),
 	}
