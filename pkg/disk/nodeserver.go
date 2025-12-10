@@ -1184,7 +1184,8 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 			return true, status.Error(codes.Internal, err.Error())
 		}
 		klog.Infof("current device driver : %v", cDriver)
-		if defaultDrivers.Has(cDriver) {
+		if defaultDrivers.Has(cDriver) || cDriver == "pci-pf-stub" {
+			// pci-pf-stub means the BDF is not used. Maybe the disk is already detached from controller.
 			if err = removeRunD3File(); err != nil {
 				return true, status.Error(codes.Internal, err.Error())
 			}
