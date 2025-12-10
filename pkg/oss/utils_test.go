@@ -745,46 +745,53 @@ func TestMakePodTemplateConfig(t *testing.T) {
 
 func TestGetDirectAssignedValue(t *testing.T) {
 	tests := []struct {
-		name         string
-		runtimeClass string
-		expected     bool
+		name     string
+		inputRC  string
+		envRC    string
+		expected bool
 	}{
 		{
-			name:         "Test with rund runtime class",
-			runtimeClass: "rund",
-			expected:     true,
+			name:     "Test with rund runtime class",
+			envRC:    "rund",
+			expected: true,
 		},
 		{
-			name:         "Test with runc runtime class",
-			runtimeClass: "runc",
-			expected:     false,
+			name:     "Test with runc runtime class",
+			envRC:    "runc",
+			expected: false,
 		},
 		{
-			name:         "Test with empty runtime class",
-			runtimeClass: "",
-			expected:     false,
+			name:     "Test with empty runtime class",
+			envRC:    "",
+			expected: false,
 		},
 		{
-			name:         "Test with invalid runtime class",
-			runtimeClass: "invalid",
-			expected:     false,
+			name:     "Test with invalid runtime class",
+			envRC:    "invalid",
+			expected: false,
 		},
 		{
-			name:         "Test with Rund runtime class (case insensitive)",
-			runtimeClass: "Rund",
-			expected:     true,
+			name:     "Test with Rund runtime class (case insensitive)",
+			inputRC:  "Rund",
+			expected: true,
 		},
 		{
-			name:         "Test with runC runtime class (case insensitive)",
-			runtimeClass: "runC",
-			expected:     false,
+			name:     "Test with runC runtime class (case insensitive)",
+			inputRC:  "runC",
+			expected: false,
+		},
+		{
+			name:     "overwrite env",
+			inputRC:  "runD",
+			envRC:    "runc",
+			expected: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("DEFAULT_RUNTIME_CLASS", tt.runtimeClass)
-			result := getDirectAssignedValue()
+			t.Setenv("DEFAULT_RUNTIME_CLASS", tt.envRC)
+			result := getDirectAssignedValue(tt.inputRC)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -853,6 +860,99 @@ func TestParseOptions_DirectAssigned(t *testing.T) {
 			},
 			wantDirectAssigned: true,
 		},
+		{
+			name:                  "empty runtime, runtimeclass rund",
+			default_runtime_class: "",
+			volOptions: map[string]string{
+				"runtimeclass": "rund",
+			},
+			wantDirectAssigned: true,
+		},
+		{
+			name:                  "default runc, runtimeclass rund",
+			default_runtime_class: "runc",
+			volOptions: map[string]string{
+				"runtimeclass": "rund",
+			},
+			wantDirectAssigned: true,
+		},
+		{
+			name:                  "default rund, runtimeclass runc",
+			default_runtime_class: "rund",
+			volOptions: map[string]string{
+				"runtimeclass": "runc",
+			},
+			wantDirectAssigned: false,
+		},
+		{
+			name:                  "default runc, runtimeclass runc",
+			default_runtime_class: "runc",
+			volOptions: map[string]string{
+				"runtimeclass": "runc",
+			},
+			wantDirectAssigned: false,
+		},
+		{
+			name:                  "default runc, runtimeclass rund, direct true",
+			default_runtime_class: "runc",
+			volOptions: map[string]string{
+				"runtimeclass":    "rund",
+				optDirectAssigned: "true",
+			},
+			wantDirectAssigned: true,
+		},
+		{
+			name:                  "default rund, runtimeclass rund, direct false",
+			default_runtime_class: "rund",
+			volOptions: map[string]string{
+				"runtimeclass":    "rund",
+				optDirectAssigned: "false",
+			},
+			wantDirectAssigned: false,
+		},
+		{
+			name:                  "default rund, runtimeclass runc, direct invalid (fallback to runtimeclass)",
+			default_runtime_class: "rund",
+			volOptions: map[string]string{
+				"runtimeclass":    "runc",
+				optDirectAssigned: "invalid",
+			},
+			wantDirectAssigned: false,
+		},
+		{
+			name:                  "default rund, runtimeclass invalid, direct invalid (fallback to runtimeclass result which is false)",
+			default_runtime_class: "rund",
+			volOptions: map[string]string{
+				"runtimeclass":    "invalid",
+				optDirectAssigned: "invalid",
+			},
+			wantDirectAssigned: false,
+		},
+		{
+			name:                  "default runc, runtimeclass invalid, direct invalid (fallback to default)",
+			default_runtime_class: "runc",
+			volOptions: map[string]string{
+				"runtimeclass":    "invalid",
+				optDirectAssigned: "invalid",
+			},
+			wantDirectAssigned: false,
+		},
+		{
+			name:                  "default rund, no runtimeclass, direct invalid (fallback to default)",
+			default_runtime_class: "rund",
+			volOptions: map[string]string{
+				optDirectAssigned: "invalid",
+			},
+			wantDirectAssigned: true,
+		},
+		{
+			name:                  "default runc, no runtimeclass, direct invalid (fallback to default)",
+			default_runtime_class: "runc",
+			volOptions: map[string]string{
+				optDirectAssigned: "invalid",
+			},
+			wantDirectAssigned: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -860,6 +960,162 @@ func TestParseOptions_DirectAssigned(t *testing.T) {
 			t.Setenv("DEFAULT_RUNTIME_CLASS", tt.default_runtime_class)
 			opt := parseOptions(tt.volOptions, nil, nil, false, "", false, fakeMeta)
 			assert.Equal(t, tt.wantDirectAssigned, opt.DirectAssigned)
+		})
+	}
+}
+
+func TestParseDirectAssigned(t *testing.T) {
+	tests := []struct {
+		name                  string
+		val_runtime_class     string
+		val_direct_assigned   string
+		default_runtime_class string
+		wantDirectAssigned    bool
+	}{
+		{
+			name:                  "empty volOptions",
+			default_runtime_class: "runc",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "empty runtime, empty volOptions",
+			default_runtime_class: "",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "invalid runtime, empty volOptions",
+			default_runtime_class: "invalid",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "default rund, empty volOptions",
+			default_runtime_class: "rund",
+			wantDirectAssigned:    true,
+		},
+		{
+			name:                  "default runc, empty volOptions",
+			default_runtime_class: "runc",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "empty runtime, direct true",
+			default_runtime_class: "",
+			val_direct_assigned:   "true",
+			wantDirectAssigned:    true,
+		},
+		{
+			name:                  "empty runtime, direct false",
+			default_runtime_class: "",
+			val_direct_assigned:   "false",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "invalid runtime, direct false",
+			default_runtime_class: "invalid",
+			val_direct_assigned:   "false",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "default rund, direct invalid (fallback to default)",
+			default_runtime_class: "rund",
+			val_direct_assigned:   "invalid",
+			wantDirectAssigned:    true,
+		},
+		{
+			name:                  "default runc, direct invalid (fallback to default)",
+			default_runtime_class: "runc",
+			val_direct_assigned:   "invalid",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "default runc, direct true",
+			default_runtime_class: "runc",
+			val_direct_assigned:   "true",
+			wantDirectAssigned:    true,
+		},
+		{
+			name:                  "empty runtime, runtimeclass rund",
+			default_runtime_class: "",
+			val_runtime_class:     "rund",
+			wantDirectAssigned:    true,
+		},
+		{
+			name:                  "empty runtime, runtimeclass runc",
+			default_runtime_class: "",
+			val_runtime_class:     "runc",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "default runc, runtimeclass rund",
+			default_runtime_class: "runc",
+			val_runtime_class:     "rund",
+			wantDirectAssigned:    true,
+		},
+		{
+			name:                  "default rund, runtimeclass runc",
+			default_runtime_class: "rund",
+			val_runtime_class:     "runc",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "default runc, runtimeclass runc",
+			default_runtime_class: "runc",
+			val_runtime_class:     "runc",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "default rund, runtimeclass rund",
+			default_runtime_class: "rund",
+			val_runtime_class:     "rund",
+			wantDirectAssigned:    true,
+		},
+		{
+			name:                  "default runc, runtimeclass rund, direct true",
+			default_runtime_class: "runc",
+			val_runtime_class:     "rund",
+			val_direct_assigned:   "true",
+			wantDirectAssigned:    true,
+		},
+		{
+			name:                  "default rund, runtimeclass rund, direct false",
+			default_runtime_class: "rund",
+			val_runtime_class:     "rund",
+			val_direct_assigned:   "false",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "default rund, runtimeclass runc, direct invalid (fallback to runtimeclass)",
+			default_runtime_class: "rund",
+			val_runtime_class:     "runc",
+			val_direct_assigned:   "invalid",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "default rund, runtimeclass invalid, direct invalid (fallback to runtimeclass result which is false)",
+			default_runtime_class: "rund",
+			val_runtime_class:     "invalid",
+			val_direct_assigned:   "invalid",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "default runc, runtimeclass invalid, direct invalid (fallback to runtimeclass result which is false)",
+			default_runtime_class: "runc",
+			val_runtime_class:     "invalid",
+			val_direct_assigned:   "invalid",
+			wantDirectAssigned:    false,
+		},
+		{
+			name:                  "case insensitive runtimeclass",
+			default_runtime_class: "runc",
+			val_runtime_class:     "rund",
+			wantDirectAssigned:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("DEFAULT_RUNTIME_CLASS", tt.default_runtime_class)
+			result := parseDirectAssigned(tt.val_runtime_class, tt.val_direct_assigned)
+			assert.Equal(t, tt.wantDirectAssigned, result)
 		})
 	}
 }
