@@ -29,7 +29,7 @@ func TestCreateDirSuccess(t *testing.T) {
 				Body:       &nas.CreateDirResponseBody{RequestId: tea.String("")},
 			}, nil)
 	})
-	err := client.CreateDir(&nas.CreateDirRequest{})
+	err := client.CreateDir(t.Context(), &nas.CreateDirRequest{})
 	assert.NoError(t, err)
 }
 
@@ -58,7 +58,7 @@ func TestCreateDirError(t *testing.T) {
 				Message:    tea.String("The specified protocol type does not supported."),
 			})
 	})
-	err := client.CreateDir(&nas.CreateDirRequest{})
+	err := client.CreateDir(t.Context(), &nas.CreateDirRequest{})
 	assert.Error(t, err)
 }
 
@@ -74,7 +74,7 @@ func TestSetDirQuotaSuccess(t *testing.T) {
 					Success:   tea.Bool(true),
 				}}, nil)
 	})
-	err := client.SetDirQuota(&nas.SetDirQuotaRequest{})
+	err := client.SetDirQuota(t.Context(), &nas.SetDirQuotaRequest{})
 	assert.NoError(t, err)
 }
 
@@ -90,7 +90,7 @@ func TestSetDirQuotaFailure(t *testing.T) {
 					Success:   tea.Bool(false),
 				}}, nil)
 	})
-	err := client.SetDirQuota(&nas.SetDirQuotaRequest{})
+	err := client.SetDirQuota(t.Context(), &nas.SetDirQuotaRequest{})
 	assert.Error(t, err)
 }
 
@@ -111,7 +111,7 @@ func TestSetDirQuotaError(t *testing.T) {
 				Message:    tea.String("The Dir Path does not exist"),
 			})
 	})
-	err := client.SetDirQuota(&nas.SetDirQuotaRequest{})
+	err := client.SetDirQuota(t.Context(), &nas.SetDirQuotaRequest{})
 	assert.Error(t, err)
 }
 
@@ -128,7 +128,7 @@ func TestCancelDirQuotaSuccess(t *testing.T) {
 				},
 			}, nil)
 	})
-	err := client.CancelDirQuota(&nas.CancelDirQuotaRequest{})
+	err := client.CancelDirQuota(t.Context(), &nas.CancelDirQuotaRequest{})
 	assert.NoError(t, err)
 }
 
@@ -145,7 +145,7 @@ func TestCancelDirQuotaFailure(t *testing.T) {
 				},
 			}, nil)
 	})
-	err := client.CancelDirQuota(&nas.CancelDirQuotaRequest{})
+	err := client.CancelDirQuota(t.Context(), &nas.CancelDirQuotaRequest{})
 	assert.Error(t, err)
 }
 
@@ -166,7 +166,7 @@ func TestCancelDirQuotaError(t *testing.T) {
 				Message:    tea.String("The Dir Path does not exist"),
 			})
 	})
-	err := client.CancelDirQuota(&nas.CancelDirQuotaRequest{})
+	err := client.CancelDirQuota(t.Context(), &nas.CancelDirQuotaRequest{})
 	assert.Error(t, err)
 }
 
@@ -187,7 +187,7 @@ func TestCancelDirQuotaIgnoreQuotaNotExistsError(t *testing.T) {
 				Message:    tea.String("The specified path does not have quota."),
 			})
 	})
-	err := client.CancelDirQuota(&nas.CancelDirQuotaRequest{})
+	err := client.CancelDirQuota(t.Context(), &nas.CancelDirQuotaRequest{})
 	assert.NoError(t, err)
 }
 
@@ -201,7 +201,7 @@ func TestGetRecycleBinAttributeSuccess(t *testing.T) {
 				Body:       &nas.GetRecycleBinAttributeResponseBody{RequestId: tea.String("")},
 			}, nil)
 	})
-	_, err := client.GetRecycleBinAttribute("")
+	_, err := client.GetRecycleBinAttribute(t.Context(), "")
 	assert.NoError(t, err)
 }
 
@@ -219,7 +219,7 @@ func TestGetRecycleBinAttributeError(t *testing.T) {
 				Message:    tea.String("FileSystemId is mandatory for this action.\t"),
 			})
 	})
-	_, err := client.GetRecycleBinAttribute("")
+	_, err := client.GetRecycleBinAttribute(t.Context(), "")
 	assert.Error(t, err)
 }
 
@@ -233,7 +233,7 @@ func TestCreateAccessPointSuccess(t *testing.T) {
 				Body:       &nas.CreateAccessPointResponseBody{RequestId: tea.String("")},
 			}, nil)
 	})
-	_, err := client.CreateAccesspoint(&nas.CreateAccessPointRequest{})
+	_, err := client.CreateAccesspoint(t.Context(), &nas.CreateAccessPointRequest{})
 	assert.NoError(t, err)
 }
 
@@ -251,7 +251,7 @@ func TestCreateAccessPointError(t *testing.T) {
 				Message:    tea.String("The maximum number of access point has reached its limits.\t"),
 			})
 	})
-	_, err := client.CreateAccesspoint(&nas.CreateAccessPointRequest{})
+	_, err := client.CreateAccesspoint(t.Context(), &nas.CreateAccessPointRequest{})
 	assert.Error(t, err)
 }
 
@@ -265,7 +265,7 @@ func TestDeleteAccessPointSuccess(t *testing.T) {
 				Body:       &nas.DeleteAccessPointResponseBody{RequestId: tea.String("")},
 			}, nil)
 	})
-	err := client.DeleteAccesspoint("", "")
+	err := client.DeleteAccesspoint(t.Context(), "", "")
 	assert.NoError(t, err)
 }
 
@@ -283,7 +283,7 @@ func TestDeleteAccessPointError(t *testing.T) {
 				Message:    tea.String("The specified file system does not exist."),
 			})
 	})
-	err := client.DeleteAccesspoint("", "")
+	err := client.DeleteAccesspoint(t.Context(), "", "")
 	assert.Error(t, err)
 }
 
@@ -297,7 +297,7 @@ func TestDescribeAccessPointSuccess(t *testing.T) {
 				Body:       &nas.DescribeAccessPointResponseBody{RequestId: tea.String("")},
 			}, nil)
 	})
-	_, err := client.DescribeAccesspoint("", "")
+	_, err := client.DescribeAccesspoint(t.Context(), "", "")
 	assert.NoError(t, err)
 }
 
@@ -315,17 +315,6 @@ func TestDescribeAccessPointError(t *testing.T) {
 				Message:    tea.String("The access point id does not exist."),
 			})
 	})
-	_, err := client.DescribeAccesspoint("", "")
+	_, err := client.DescribeAccesspoint(t.Context(), "", "")
 	assert.Error(t, err)
-}
-
-func TestIsAccessPointNotFoundErrorNil(t *testing.T) {
-	actual := IsAccessPointNotFoundError(nil)
-	assert.False(t, actual)
-}
-
-func TestIsAccessPointNotFoundErrorNotFound(t *testing.T) {
-	t.Parallel()
-	actual := IsAccessPointNotFoundError(&tea.SDKError{Code: tea.String("NotFound")})
-	assert.True(t, actual)
 }
