@@ -28,12 +28,10 @@ func NewOssCmdMounter(execPath, volumeID string, inner mount.Interface) Mounter 
 	}
 }
 
-func (m *OssCmdMounter) ExtendedMount(_ context.Context, op *MountOperation) error {
+func (m *OssCmdMounter) ExtendedMount(ctx context.Context, op *MountOperation) error {
 	if op == nil {
 		return nil
 	}
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
-	defer cancel()
 
 	cmd := exec.CommandContext(ctx, m.execPath, getArgs(op)...)
 	cmd.Stdout = os.Stdout

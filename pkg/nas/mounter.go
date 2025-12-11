@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
@@ -47,7 +48,7 @@ func newNasMounter(agentMode bool, socketPath string) mounter.Mounter {
 	case !agentMode: // normal case, use connector mounter to ensure backward compatibility
 		m.alinasMounter = mounter.NewConnectorMounter(inner, "")
 	default:
-		m.alinasMounter = mounter.NewAdaptorMounter(inner)
+		m.alinasMounter = mounter.NewForMounter(mounter.NewAdaptorMounter(inner), interceptors.AlinasSecretInterceptor)
 	}
 	return m
 }

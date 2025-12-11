@@ -32,7 +32,7 @@ func ossfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, han
 	}
 	if passwdFile != "" {
 		if fuseType == "ossfs" {
-			op.Args = append(op.Args, "passwd_file="+passwdFile)
+			op.Options = append(op.Options, "passwd_file="+passwdFile)
 		} else {
 			op.Args = append(op.Args, []string{"-c", passwdFile}...)
 		}

@@ -45,7 +45,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			name:    "ni mount result",
+			name:    "nil mount result",
 			handler: successMountHandler,
 			op: &mounter.MountOperation{
 				FsType: "ossfs",
@@ -82,10 +82,10 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 				return
 			}
 
-			assert.Len(t, tt.op.Args, 1)
-			assert.Contains(t, tt.op.Args[0], "passwd_file=")
+			assert.Len(t, tt.op.Options, 1)
+			assert.Contains(t, tt.op.Options[0], "passwd_file=")
 
-			filePath := tt.op.Args[0][len("passwd_file="):]
+			filePath := tt.op.Options[0][len("passwd_file="):]
 			if tt.expectFile {
 				assert.FileExists(t, filePath)
 			} else {
@@ -106,10 +106,10 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 	result := op.MountResult.(server.OssfsMountResult)
 	<-result.ExitChan
 
-	assert.Len(t, op.Args, 1)
-	assert.Contains(t, op.Args[0], "passwd_file=")
+	assert.Len(t, op.Options, 1)
+	assert.Contains(t, op.Options[0], "passwd_file=")
 	time.Sleep(500 * time.Millisecond) // Wait for ossfs monitor interceptor to cleanup the credential file
-	assert.NoFileExists(t, op.Args[0][len("passwd_file="):])
+	assert.NoFileExists(t, op.Options[0][len("passwd_file="):])
 }
 
 func TestOssfs2SecretInterceptor(t *testing.T) {
