@@ -50,6 +50,28 @@ const (
 	VolumeAsSubpath VolumeAsType = "subpath"
 )
 
+const (
+	// AkID and AkSecret are the key names we have always supported.
+	// For compatibility with standard naming conventions, we also support customers configuring `accessKeyID` and `accessKeySecret`
+	AkID     = "akId"
+	AkSecret = "akSecret"
+	// AccessKeyID and AccessKeySecret are provided for compatibility with standard naming conventions.
+	AccessKeyID     = "accessKeyId"
+	AccessKeySecret = "accessKeySecret"
+)
+
+// parseCredentialsFromSecret retrieves long-term credentials from the `Secret` field in request.
+// It prioritizes obtaining the credentials from `AkID` and `AkSecret`
+func parseCredentialsFromSecret(secrets map[string]string) (akID, akSecret string) {
+	akID = strings.TrimSpace(secrets[AkID])
+	akSecret = strings.TrimSpace(secrets[AkSecret])
+	if akID == "" && akSecret == "" {
+		akID = strings.TrimSpace(secrets[AccessKeyID])
+		akSecret = strings.TrimSpace(secrets[AccessKeySecret])
+	}
+	return
+}
+
 // get Options for CreateVolume and PublishVolume
 // volOptions: CreateVolumeRequest.GetParameters, PublishVolumeRequest.GetVolumeContext
 // secrets: CreateVolumeRequest / PublishVolumeRequest.GetSecrets
@@ -68,11 +90,13 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		secrets = map[string]string{}
 	}
 
+	// credientials
+	akId, akSecret := parseCredentialsFromSecret(secrets)
 	opts := &ossfpm.Options{
 		UseSharedPath: true,
 		Path:          "/",
-		AkID:          strings.TrimSpace(secrets[AkID]),
-		AkSecret:      strings.TrimSpace(secrets[AkSecret]),
+		AkID:          akId,
+		AkSecret:      akSecret,
 	}
 
 	var volumeAsSubpath bool
@@ -90,10 +114,6 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			opts.URL = value
 		case "otheropts":
 			opts.OtherOpts = value
-		case "akid":
-			opts.AkID = value
-		case "aksecret":
-			opts.AkSecret = value
 		case "secretref":
 			opts.SecretRef = value
 		case "path":
@@ -160,6 +180,11 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			}
 		case "runtimeclass":
 			runtimeClassValue = value
+		// deprecated:
+		case "akid":
+			opts.AkID = value
+		case "aksecret":
+			opts.AkSecret = value
 		}
 	}
 
