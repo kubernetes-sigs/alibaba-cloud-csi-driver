@@ -102,13 +102,13 @@ func (m *MockFileSetManager) DescribeFileset(ctx context.Context, fsID, fileSetI
 // Create a test controller server with mock file set manager
 func createTestControllerServer() *controllerServer {
 	return &controllerServer{
-		filsetManager: &MockFileSetManager{},
+		filesetManager: &MockFileSetManager{},
 	}
 }
 
 func TestControllerServer_DeleteVolume_Success(t *testing.T) {
 	cs := createTestControllerServer()
-	mockManager := cs.filsetManager.(*MockFileSetManager)
+	mockManager := cs.filesetManager.(*MockFileSetManager)
 
 	ctx := context.Background()
 	req := &csi.DeleteVolumeRequest{
@@ -176,7 +176,7 @@ func TestControllerServer_DeleteVolume_EmptyVolumeId(t *testing.T) {
 
 func TestControllerServer_DeleteVolume_FilesetNotFound(t *testing.T) {
 	cs := createTestControllerServer()
-	mockManager := cs.filsetManager.(*MockFileSetManager)
+	mockManager := cs.filesetManager.(*MockFileSetManager)
 
 	ctx := context.Background()
 	req := &csi.DeleteVolumeRequest{
@@ -202,7 +202,7 @@ func TestControllerServer_DeleteVolume_FilesetNotFound(t *testing.T) {
 
 func TestControllerServer_DeleteVolume_DeleteFileSetError(t *testing.T) {
 	cs := createTestControllerServer()
-	mockManager := cs.filsetManager.(*MockFileSetManager)
+	mockManager := cs.filesetManager.(*MockFileSetManager)
 
 	ctx := context.Background()
 	req := &csi.DeleteVolumeRequest{

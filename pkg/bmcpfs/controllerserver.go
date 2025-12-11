@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
@@ -42,17 +43,20 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/util/wait"
 	informerv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
 
+const FILESET_DESCRIBE_TIMEOUT = 5 * time.Minute
+
 type controllerServer struct {
 	common.GenericControllerServer
 	vscManager     *internal.PrimaryVscManagerWithCache
 	attachDetacher internal.CPFSAttachDetacher
-	filsetManager  internal.CPFSFileSetManager
+	filesetManager internal.CPFSFileSetManager
 	kubeClient     kubernetes.Interface
 	nasClient      *nasclient.Client
 	nodeInformer   cache.SharedIndexInformer
@@ -125,7 +129,7 @@ func newControllerServer(region string) (*controllerServer, error) {
 	return &controllerServer{
 		vscManager:     internal.NewPrimaryVscManagerWithCache(efloClient),
 		attachDetacher: internal.NewCPFSAttachDetacher(nasClient),
-		filsetManager:  internal.NewCPFSFileSetManager(nasClient),
+		filesetManager: internal.NewCPFSFileSetManager(nasClient),
 		nasClient:      nasClient,
 		kubeClient:     kubeclient,
 		nodeInformer:   nodeInformer,
@@ -155,10 +159,23 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 
 	// Create fileset
-	fileSetID, err := cs.filsetManager.CreateFileSet(ctx, bmcpfsID, req.Name, fullPath, 1000000, volSizeBytes, false)
+	fileSetID, err := cs.filesetManager.CreateFileSet(ctx, bmcpfsID, req.Name, fullPath, 1000000, volSizeBytes, false)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	err = wait.PollUntilContextTimeout(ctx, time.Second*5, FILESET_DESCRIBE_TIMEOUT, true, func(ctx context.Context) (bool, error) {
+		var err error
+		resp, err := cs.filesetManager.DescribeFileset(ctx, bmcpfsID, fileSetID)
+		if err == nil {
+			if resp.Status != nil && *resp.Status == "CREATED" {
+				klog.InfoS("CreateVolume: fileset created successfully", "filesetID", fileSetID, "filesystemID", bmcpfsID)
+				return true, nil
+			}
+			klog.InfoS("CreateVolume: fileset status incorrected", "filesetID", fileSetID, "filesystemID", bmcpfsID, "status", *resp.Status)
+			return false, nil
+		}
+		return false, err
+	})
 
 	// Prepare volume context
 	volumeContext := req.GetParameters()
@@ -188,7 +205,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	klog.Infof("DeleteVolume: deleting fileset %s from filesystem %s", fileSetID, fsID)
 
 	// Check if fileset exists before attempting to delete
-	_, err = cs.filsetManager.DescribeFileset(ctx, fsID, fileSetID)
+	_, err = cs.filesetManager.DescribeFileset(ctx, fsID, fileSetID)
 	if err != nil {
 		// If fileset doesn't exist, consider it already deleted
 		klog.V(2).Infof("DeleteVolume: fileset %s not found in filesystem %s, considering it already deleted", fileSetID, fsID)
@@ -196,7 +213,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	// Delete the fileset
-	err = cs.filsetManager.DeleteFileSet(ctx, fsID, fileSetID)
+	err = cs.filesetManager.DeleteFileSet(ctx, fsID, fileSetID)
 	if err != nil {
 		klog.Errorf("DeleteVolume: failed to delete fileset %s from filesystem %s: %v", fileSetID, fsID, err)
 		return nil, status.Error(codes.Internal, err.Error())
