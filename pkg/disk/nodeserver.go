@@ -1168,9 +1168,9 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 
 		var d Driver
 		if ns.kataBMIOType == DFBus {
-			d, _ = NewDeviceDriver("", "", mountInfo.Source, DFBus, nil)
+			d, _ = NewDeviceDriver("", "", mountInfo.Source, DFBus)
 		} else {
-			d, _ = NewDeviceDriver("", "", mountInfo.Source, BDF, nil)
+			d, _ = NewDeviceDriver("", "", mountInfo.Source, BDF)
 		}
 		cDriver, err := d.CurrentDriver()
 		if err != nil {
@@ -1306,7 +1306,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 		}
 
 		klog.InfoS("mountRunDVolumes: ", "deviceName", deviceName, "deviceNumber", deviceNumber)
-		driver, err := NewDeviceDriver(volumeId, deviceName, deviceNumber, ns.kataBMIOType, map[string]string{})
+		driver, err := NewDeviceDriver(volumeId, deviceName, deviceNumber, ns.kataBMIOType)
 		if err != nil {
 			klog.Errorf("NodePublishVolume(rund3.0): can't get bdf number of volume:  %s: err: %v", volumeId, err)
 			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get bdf number of volume: "+volumeId)
@@ -1481,7 +1481,7 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) boo
 		klog.Warningf("NodeStageVolume: GetVolumeDeviceName failed: %s", err.Error())
 	}
 
-	d, err := NewDeviceDriver(volumeId, device, "", ns.kataBMIOType, nil)
+	d, err := NewDeviceDriver(volumeId, device, "", ns.kataBMIOType)
 	if err != nil {
 		klog.ErrorS(err, "NodeStageVolume:  Failed to get bdf number", "volumeId", volumeId)
 		return false
