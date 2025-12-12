@@ -76,6 +76,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	}
 
 	var volumeAsSubpath bool
+	var runtimeClassValue, directAssignedValue string
 	for k, v := range volOptions {
 		key := strings.TrimSpace(strings.ToLower(k))
 		value := strings.TrimSpace(v)
@@ -122,11 +123,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		case "containernetworkfilesystem":
 			opts.CNFSName = value
 		case optDirectAssigned:
-			if res, err := strconv.ParseBool(value); err == nil {
-				opts.DirectAssigned = res
-			} else {
-				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
-			}
+			directAssignedValue = value
 		case "encrypted":
 			opts.Encrypted = strings.ToLower(value)
 		case "kmskeyid":
@@ -161,8 +158,13 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support %v, %v, %v",
 					v, k, corev1.DNSClusterFirst, corev1.DNSClusterFirstWithHostNet, corev1.DNSDefault).Error())
 			}
+		case "runtimeclass":
+			runtimeClassValue = value
 		}
 	}
+
+	opts.DirectAssigned = parseDirectAssigned(runtimeClassValue, directAssignedValue)
+
 	for _, c := range volCaps {
 		switch c.AccessMode.GetMode() {
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY, csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
@@ -443,4 +445,50 @@ func makeMountOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m meta
 	}
 	mountOptions = append(mountOptions, ops...)
 	return
+}
+
+// parseDirectAssigned parses the DirectAssigned value from volOptions with the following priority:
+// 1. If both optDirectAssigned and "runtimeclass" are not set, use DEFAULT_RUNTIME_CLASS from env
+// 2. If "runtimeclass" is set, use getDirectAssignedValue to get DirectAssigned (can override 1)
+// 3. If optDirectAssigned is set, directly override 1 and 2; but if error, fallback to 1 or 2
+func parseDirectAssigned(runtimeClassValue, directAssignedValue string) bool {
+	// Priority 1 & 2: default from env, or from runtimeclass if set
+	result := getDirectAssignedValue(runtimeClassValue)
+
+	// Priority 3: if optDirectAssigned is set, try to parse and override (if error, keep previous value)
+	if directAssignedValue != "" {
+		if res, err := strconv.ParseBool(directAssignedValue); err == nil {
+			result = res
+		} else {
+			klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, fallback to previous value", directAssignedValue, optDirectAssigned).Error())
+		}
+	}
+
+	return result
+}
+
+// getDirectAssignedValue returns the default value for DirectAssigned option based on the runtime class.
+// The function reads DEFAULT_RUNTIME_CLASS environment variable and determines the appropriate default value:
+// - For "rund" runtime, returns true (direct assignment enabled by default)
+// - For "runc" runtime or empty value, returns false (direct assignment disabled by default)
+// - For any other value, logs a warning and returns false
+func getDirectAssignedValue(runtimeClass string) bool {
+	// Get runtime class from environment variable
+	if runtimeClass == "" {
+		runtimeClass = os.Getenv("DEFAULT_RUNTIME_CLASS")
+	}
+
+	// Validate runtime class, only allow "runc", "rund" or empty (treated as "runc")
+	// Note: Do not consider the confidential container scenario (coco),
+	//  because in this scenario, PV.attributes must explicitly specify whether directAssigned
+	switch strings.ToLower(runtimeClass) {
+	case strings.ToLower(utils.RundRunTimeTag):
+		return true
+	case strings.ToLower(utils.RuncRunTimeTag), "":
+		return false
+	default:
+		// Invalid runtime class, see as runc and return error
+		klog.Warningf("invalid runtimeClass value: %q, only %s and %s are allowed", runtimeClass, utils.RuncRunTimeTag, utils.RundRunTimeTag)
+		return false
+	}
 }

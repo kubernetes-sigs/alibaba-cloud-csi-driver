@@ -122,6 +122,10 @@ func (cs *controllerServer) hasLegacyPods(ctx context.Context, loc podLoc) (bool
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	klog.Infof("ControllerUnpublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
+	// Note: For scenarios with mixed deployment of rund/coco and runc,
+	//  since we cannot determine by req parameters,
+	//  all need to attempt pod deletion for compatibility
+
 	// To maintain the compatibility, all kinds of fuseType Pod share the same globalmount path as ossfs.
 	if err := cs.fusePodManagers[unifiedFsType].Delete(&fpm.FusePodContext{
 		Context:   ctx,
@@ -165,6 +169,14 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	if err := setCNFSOptions(ctx, cs.cnfsGetter, opts); err != nil {
 		return nil, err
 	}
+
+	// Note: Skip controller publish for direct=true.
+	//   The actual mounting of these volumes will be handled by rund/coco.
+	if opts.DirectAssigned {
+		klog.Infof("ControllerPublishVolume: skip DirectVolume: %s", req.VolumeId)
+		return &csi.ControllerPublishVolumeResponse{}, nil
+	}
+
 	// options validation
 	if err := checkOssOptions(opts, cs.fusePodManagers[opts.FuseType]); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -176,12 +188,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 	// make pod template config
 	ptCfg := makePodTemplateConfig(opts)
-	// Skip controller publish for PVs with attribute direct=true.
-	// The actual mounting of these volumes will be handled by rund.
-	if opts.DirectAssigned {
-		klog.Infof("ControllerPublishVolume: skip DirectVolume: %s", req.VolumeId)
-		return &csi.ControllerPublishVolumeResponse{}, nil
-	}
 	// make mount options
 	controllerPublishPath := mounterutils.GetAttachPath(req.VolumeId)
 
