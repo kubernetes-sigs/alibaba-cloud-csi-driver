@@ -86,6 +86,18 @@ func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 	return nil
 }
 
+// Runtime types when using csi-agent: rund & ECI
+// Runtime types when using proxy mounter: runc & rund
+// Runtime types when using cmd mounter: ECI
+//
+// opts.DirectAssigned is configured via PV attributes to declare whether skipAttach is needed. true: COCO or rund
+// Explanation: opts.DirectAssigned was originally used to declare COCO, and later extended to distinguish
+//   runc&rund mixed deployment scenarios, where true means rund, false means runc
+// Note: opts.DirectAssigned defaults to false, and only has meaning when true. When false, it may represent
+//   various runtime types other than COCO depending on different runtime environments
+// ns.skipAttach: nodeserver configuration exclusive to csi-agent binary. true: rund or ECI
+// socketPath: socket path used to communicate with proxy mounter. non-empty: runc or rund
+
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.Infof("NodePublishVolume:: Starting Mount volume: %s", req.VolumeId)
 	if !ns.locks.TryAcquire(req.VolumeId) {
@@ -128,15 +140,24 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	socketPath := req.PublishContext[mountProxySocket]
+
+	// Determine runtime type based on directAssigned, socketPath, and skipAttach
+	// See DetermineRuntimeType for the support matrix.
+	runtimeType, err := DetermineRuntimeType(opts.DirectAssigned, socketPath, ns.skipAttach)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "failed to determine runtime type: %v", err)
+	}
+	klog.V(4).InfoS("Determined runtime type", "runtimeType", runtimeType, "directAssigned", opts.DirectAssigned, "hasSocketPath", socketPath != "", "skipAttach", ns.skipAttach)
+
 	// check and make auth config
 	authCfg, err := makeAuthConfig(opts, ns.fusePodManagers[opts.FuseType], ns.metadata, true)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// Note: In non-csi-agent environment (!ns.skipAttach),
-	//   if DirectAssigned is True, it's a confidential container scenario (coco)
-	if opts.DirectAssigned && !ns.skipAttach {
+	// Handle COCO scenario: directAssigned=true, skipAttach=false
+	if runtimeType == RuntimeTypeCOCO {
 		return ns.publishDirectVolume(ctx, req, opts)
 	}
 
@@ -149,26 +170,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	mountOptions = ns.fusePodManagers[opts.FuseType].AddDefaultMountOptions(mountOptions)
 
-	// get mount proxy socket path
-	socketPath := req.PublishContext[mountProxySocket]
-	if socketPath == "" && !ns.skipAttach {
-		return nil, status.Errorf(codes.InvalidArgument, "%s not found in publishContext", mountProxySocket)
-	}
-
 	// Note: In ACK and ACS GPU scenarios, the socket path is provided by publishContext.
 	var ossfsMounter mounter.Mounter
-	if socketPath == "" {
+	if runtimeType == RuntimeTypeECI {
 		mountOptions, err = ossfpm.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		ossfsMounter = mounter.NewOssCmdMounter(ns.ossfsPaths[opts.FuseType], req.VolumeId, ns.rawMounter)
 	} else {
+		// runtimeType == RuntimeTypeRunD || runtimeType == RuntimeTypeRunC
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
 	}
 
 	// When work as csi-agent, directly mount on the target path.
-	if ns.skipAttach {
+	if runtimeType == RuntimeTypeRunD || runtimeType == RuntimeTypeECI {
 		metricsPath := utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.Bucket)
 		err := ossfsMounter.ExtendedMount(
 			mountSource, targetPath, opts.FuseType,
@@ -181,7 +197,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		klog.Infof("NodePublishVolume(csi-agent): successfully mounted %s on %s", mountSource, targetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
-	}
+	} // else: runtimeType == RuntimeTypeRunC
 
 	// When work as csi nodeserver, mount on the attach path under /run/fuse.ossfs and then perform the bind mount.
 	// check whether the attach path is mounted

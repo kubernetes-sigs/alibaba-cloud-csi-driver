@@ -467,6 +467,85 @@ func parseDirectAssigned(runtimeClassValue, directAssignedValue string) bool {
 	return result
 }
 
+// RuntimeType represents the container runtime type
+type RuntimeType string
+
+const (
+	RuntimeTypeCOCO    RuntimeType = "coco"
+	RuntimeTypeRunD    RuntimeType = "rund"
+	RuntimeTypeRunC    RuntimeType = "runc"
+	RuntimeTypeECI     RuntimeType = "eci"
+	RuntimeTypeUnknown RuntimeType = "unknown"
+)
+
+// DetermineRuntimeType determines the container runtime type based on directAssigned, socketPath, and skipAttach.
+//
+// Support matrix:
+//   - directAssigned=true, socketPath=true, skipAttach=true: RunD
+//   - directAssigned=true, socketPath=true, skipAttach=false: error (should not occur, controller ensures empty socketPath for COCO)
+//   - directAssigned=true, socketPath=false, skipAttach=true: ECI (directAssigned not effective)
+//   - directAssigned=true, socketPath=false, skipAttach=false: COCO
+//   - directAssigned=false, socketPath=true, skipAttach=true: RunD (pure rund cluster, no need to specify directAssigned)
+//   - directAssigned=false, socketPath=true, skipAttach=false: RunC
+//   - directAssigned=false, socketPath=false, skipAttach=true: ECI
+//   - directAssigned=false, socketPath=false, skipAttach=false: error (should not occur)
+//
+// Returns:
+//   - RuntimeType: the determined runtime type
+//   - error: if the combination is invalid (should not occur scenarios)
+func DetermineRuntimeType(directAssigned bool, socketPath string, skipAttach bool) (RuntimeType, error) {
+	hasSocketPath := socketPath != ""
+
+	// Decision tree based on support matrix:
+	// First level: directAssigned
+	// Second level: socketPath (hasSocketPath)
+	// Third level: skipAttach
+
+	if directAssigned {
+		// directAssigned = true
+		if hasSocketPath {
+			// directAssigned=true, socketPath=true
+			if skipAttach {
+				// directAssigned=true, socketPath=true, skipAttach=true: RunD
+				return RuntimeTypeRunD, nil
+			} else {
+				// directAssigned=true, socketPath=true, skipAttach=false: error (should not occur)
+				return RuntimeTypeUnknown, fmt.Errorf("invalid combination: directAssigned=true, socketPath=true, skipAttach=false (should not occur)")
+			}
+		} else {
+			// directAssigned=true, socketPath=false
+			if skipAttach {
+				// directAssigned=true, socketPath=false, skipAttach=true: ECI (directAssigned not effective)
+				return RuntimeTypeECI, nil
+			} else {
+				// directAssigned=true, socketPath=false, skipAttach=false: COCO
+				return RuntimeTypeCOCO, nil
+			}
+		}
+	} else {
+		// directAssigned = false
+		if hasSocketPath {
+			// directAssigned=false, socketPath=true
+			if skipAttach {
+				// directAssigned=false, socketPath=true, skipAttach=true: RunD (pure rund cluster, no need to specify directAssigned)
+				return RuntimeTypeRunD, nil
+			} else {
+				// directAssigned=false, socketPath=true, skipAttach=false: RunC
+				return RuntimeTypeRunC, nil
+			}
+		} else {
+			// directAssigned=false, socketPath=false
+			if skipAttach {
+				// directAssigned=false, socketPath=false, skipAttach=true: ECI
+				return RuntimeTypeECI, nil
+			} else {
+				// directAssigned=false, socketPath=false, skipAttach=false: error (should not occur)
+				return RuntimeTypeUnknown, fmt.Errorf("invalid combination: directAssigned=false, socketPath=false, skipAttach=false (should not occur)")
+			}
+		}
+	}
+}
+
 // getDirectAssignedValue returns the default value for DirectAssigned option based on the runtime class.
 // The function reads DEFAULT_RUNTIME_CLASS environment variable and determines the appropriate default value:
 // - For "rund" runtime, returns true (direct assignment enabled by default)
