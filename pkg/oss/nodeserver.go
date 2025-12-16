@@ -86,16 +86,16 @@ func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 	return nil
 }
 
-// Runtime types when using csi-agent: rund & ECI
+// Runtime types when using csi-agent: rund & MicroVM
 // Runtime types when using proxy mounter: runc & rund
-// Runtime types when using cmd mounter: ECI
+// Runtime types when using cmd mounter: MicroVM
 //
 // opts.DirectAssigned is configured via PV attributes to declare whether skipAttach is needed. true: COCO or rund
 // Explanation: opts.DirectAssigned was originally used to declare COCO, and later extended to distinguish
 //   runc&rund mixed deployment scenarios, where true means rund, false means runc
 // Note: opts.DirectAssigned defaults to false, and only has meaning when true. When false, it may represent
 //   various runtime types other than COCO depending on different runtime environments
-// ns.skipAttach: nodeserver configuration exclusive to csi-agent binary. true: rund or ECI
+// ns.skipAttach: nodeserver configuration exclusive to csi-agent binary. true: rund or MicroVM
 // socketPath: socket path used to communicate with proxy mounter. non-empty: runc or rund
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -172,7 +172,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Note: In ACK and ACS GPU scenarios, the socket path is provided by publishContext.
 	var ossfsMounter mounter.Mounter
-	if runtimeType == RuntimeTypeECI {
+	if runtimeType == RuntimeTypeMicroVM {
 		mountOptions, err = ossfpm.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -184,7 +184,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// When work as csi-agent, directly mount on the target path.
-	if runtimeType == RuntimeTypeRunD || runtimeType == RuntimeTypeECI {
+	if runtimeType == RuntimeTypeRunD || runtimeType == RuntimeTypeMicroVM {
 		metricsPath := utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.Bucket)
 		err := ossfsMounter.ExtendedMount(
 			mountSource, targetPath, opts.FuseType,

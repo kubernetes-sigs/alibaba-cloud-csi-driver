@@ -1163,19 +1163,19 @@ func TestDetermineRuntimeType(t *testing.T) {
 			wantError:       false,
 		},
 		{
-			name:            "ECI: directAssigned=true, socketPath=empty, skipAttach=true",
+			name:            "MicroVM: directAssigned=true, socketPath=empty, skipAttach=true",
 			directAssigned:  true,
 			socketPath:      "",
 			skipAttach:      true,
-			wantRuntimeType: RuntimeTypeECI,
+			wantRuntimeType: RuntimeTypeMicroVM,
 			wantError:       false,
 		},
 		{
-			name:            "ECI: directAssigned=false, socketPath=empty, skipAttach=true",
+			name:            "MicroVM: directAssigned=false, socketPath=empty, skipAttach=true",
 			directAssigned:  false,
 			socketPath:      "",
 			skipAttach:      true,
-			wantRuntimeType: RuntimeTypeECI,
+			wantRuntimeType: RuntimeTypeMicroVM,
 			wantError:       false,
 		},
 		{

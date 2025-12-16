@@ -474,7 +474,7 @@ const (
 	RuntimeTypeCOCO    RuntimeType = "coco"
 	RuntimeTypeRunD    RuntimeType = "rund"
 	RuntimeTypeRunC    RuntimeType = "runc"
-	RuntimeTypeECI     RuntimeType = "eci"
+	RuntimeTypeMicroVM RuntimeType = "eci"
 	RuntimeTypeUnknown RuntimeType = "unknown"
 )
 
@@ -483,11 +483,11 @@ const (
 // Support matrix:
 //   - directAssigned=true, socketPath=true, skipAttach=true: RunD
 //   - directAssigned=true, socketPath=true, skipAttach=false: error (should not occur, controller ensures empty socketPath for COCO)
-//   - directAssigned=true, socketPath=false, skipAttach=true: ECI (directAssigned not effective)
+//   - directAssigned=true, socketPath=false, skipAttach=true: MicroVM (directAssigned not effective)
 //   - directAssigned=true, socketPath=false, skipAttach=false: COCO
 //   - directAssigned=false, socketPath=true, skipAttach=true: RunD (pure rund cluster, no need to specify directAssigned)
 //   - directAssigned=false, socketPath=true, skipAttach=false: RunC
-//   - directAssigned=false, socketPath=false, skipAttach=true: ECI
+//   - directAssigned=false, socketPath=false, skipAttach=true: MicroVM
 //   - directAssigned=false, socketPath=false, skipAttach=false: error (should not occur)
 //
 // Returns:
@@ -515,8 +515,8 @@ func DetermineRuntimeType(directAssigned bool, socketPath string, skipAttach boo
 		} else {
 			// directAssigned=true, socketPath=false
 			if skipAttach {
-				// directAssigned=true, socketPath=false, skipAttach=true: ECI (directAssigned not effective)
-				return RuntimeTypeECI, nil
+				// directAssigned=true, socketPath=false, skipAttach=true: MicroVM (directAssigned not effective)
+				return RuntimeTypeMicroVM, nil
 			} else {
 				// directAssigned=true, socketPath=false, skipAttach=false: COCO
 				return RuntimeTypeCOCO, nil
@@ -536,8 +536,8 @@ func DetermineRuntimeType(directAssigned bool, socketPath string, skipAttach boo
 		} else {
 			// directAssigned=false, socketPath=false
 			if skipAttach {
-				// directAssigned=false, socketPath=false, skipAttach=true: ECI
-				return RuntimeTypeECI, nil
+				// directAssigned=false, socketPath=false, skipAttach=true: MicroVM
+				return RuntimeTypeMicroVM, nil
 			} else {
 				// directAssigned=false, socketPath=false, skipAttach=false: error (should not occur)
 				return RuntimeTypeUnknown, fmt.Errorf("invalid combination: directAssigned=false, socketPath=false, skipAttach=false (should not occur)")
