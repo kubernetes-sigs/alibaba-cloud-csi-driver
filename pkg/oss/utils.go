@@ -492,6 +492,97 @@ func parseDirectAssigned(runtimeClassValue, directAssignedValue string) bool {
 	return result
 }
 
+// RuntimeType represents the container runtime type
+type RuntimeType string
+
+const (
+	RuntimeTypeCOCO    RuntimeType = "coco"
+	RuntimeTypeRunD    RuntimeType = "rund"
+	RuntimeTypeRunC    RuntimeType = "runc"
+	RuntimeTypeMicroVM RuntimeType = "eci"
+	RuntimeTypeUnknown RuntimeType = "unknown"
+)
+
+// runtimeTypeResult represents the result of runtime type determination
+type runtimeTypeResult struct {
+	runtimeType RuntimeType
+	err         error
+}
+
+// runtimeTypeLookupTable is a lookup table for all 8 possible combinations of
+// (directAssigned, hasSocketPath, skipAttach).
+// Index calculation: index = (directAssigned ? 4 : 0) + (hasSocketPath ? 2 : 0) + (skipAttach ? 1 : 0)å
+var runtimeTypeLookupTable = [8]runtimeTypeResult{
+	// Index 0: directAssigned=false, hasSocketPath=false, skipAttach=false -> error (should not occur)
+	{
+		runtimeType: RuntimeTypeUnknown,
+		err:         fmt.Errorf("socket path is empty in non csi-agent mode (should not occur)"),
+	},
+	// Index 1: directAssigned=false, hasSocketPath=false, skipAttach=true -> MicroVM
+	{
+		runtimeType: RuntimeTypeMicroVM,
+		err:         nil,
+	},
+	// Index 2: directAssigned=false, hasSocketPath=true, skipAttach=false -> RunC
+	{
+		runtimeType: RuntimeTypeRunC,
+		err:         nil,
+	},
+	// Index 3: directAssigned=false, hasSocketPath=true, skipAttach=true -> RunD (pure rund cluster, no need to specify directAssigned)
+	{
+		runtimeType: RuntimeTypeRunD,
+		err:         nil,
+	},
+	// Index 4: directAssigned=true, hasSocketPath=false, skipAttach=false -> COCO
+	{
+		runtimeType: RuntimeTypeCOCO,
+		err:         nil,
+	},
+	// Index 5: directAssigned=true, hasSocketPath=false, skipAttach=true -> MicroVM (directAssigned not effective)
+	{
+		runtimeType: RuntimeTypeMicroVM,
+		err:         nil,
+	},
+	// Index 6: directAssigned=true, hasSocketPath=true, skipAttach=false -> error (should not occur, controller ensures empty socketPath for COCO)
+	{
+		runtimeType: RuntimeTypeUnknown,
+		err:         fmt.Errorf("rund cannot be used in non csi-agent mode (should not occur)"),
+	},
+	// Index 7: directAssigned=true, hasSocketPath=true, skipAttach=true -> RunD
+	{
+		runtimeType: RuntimeTypeRunD,
+		err:         nil,
+	},
+}
+
+// DetermineRuntimeType determines the container runtime type based on directAssigned, socketPath, and skipAttach.
+//
+// This function uses a table-driven approach with a 3-bit index calculated from the three boolean parameters.
+// The lookup table contains all 8 possible combinations, providing O(1) lookup performance.
+//
+// Returns:
+//   - RuntimeType: the determined runtime type
+//   - error: if the combination is invalid (should not occur scenarios)
+func DetermineRuntimeType(directAssigned bool, socketPath string, skipAttach bool) (RuntimeType, error) {
+	hasSocketPath := socketPath != ""
+
+	// Calculate index: (directAssigned ? 4 : 0) + (hasSocketPath ? 2 : 0) + (skipAttach ? 1 : 0)
+	index := 0
+	if directAssigned {
+		index += 4
+	}
+	if hasSocketPath {
+		index += 2
+	}
+	if skipAttach {
+		index += 1
+	}
+
+	// Lookup result from table
+	result := runtimeTypeLookupTable[index]
+	return result.runtimeType, result.err
+}
+
 // getDirectAssignedValue returns the default value for DirectAssigned option based on the runtime class.
 // The function reads DEFAULT_RUNTIME_CLASS environment variable and determines the appropriate default value:
 // - For "rund" runtime, returns true (direct assignment enabled by default)
