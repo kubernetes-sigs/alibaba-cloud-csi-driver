@@ -50,10 +50,6 @@ type nodeServer struct {
 }
 
 const (
-	// AkID is Ak ID
-	AkID = "akId"
-	// AkSecret is Ak Secret
-	AkSecret = "akSecret"
 	// OssFsType is the oss filesystem type
 	OssFsType = "ossfs"
 	// OssFs2Type is the ossfs2 filesystem type

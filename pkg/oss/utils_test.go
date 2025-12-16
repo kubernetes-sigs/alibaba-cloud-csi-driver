@@ -40,6 +40,194 @@ var m = metadata.FakeProvider{
 	},
 }
 
+func TestParseCredentialsFromSecret(t *testing.T) {
+	tests := []struct {
+		name     string
+		secrets  map[string]string
+		expected struct {
+			akID     string
+			akSecret string
+		}
+	}{
+		{
+			name: "Case 1: AkID and AkSecret have valid values",
+			secrets: map[string]string{
+				AkID:     " validAkID ",
+				AkSecret: " validAkSecret ",
+			},
+			expected: struct {
+				akID     string
+				akSecret string
+			}{
+				akID:     "validAkID",
+				akSecret: "validAkSecret",
+			},
+		},
+		{
+			name: "Case 2: AkID and AkSecret are empty, but AccessKeyID and AccessKeySecret have valid values",
+			secrets: map[string]string{
+				AkID:            "",
+				AkSecret:        "",
+				AccessKeyID:     " validAccessKeyID ",
+				AccessKeySecret: " validAccessKeySecret ",
+			},
+			expected: struct {
+				akID     string
+				akSecret string
+			}{
+				akID:     "validAccessKeyID",
+				akSecret: "validAccessKeySecret",
+			},
+		},
+		{
+			name: "Case 3: AkSecret is empty, but AccessKeyID and AccessKeySecret have valid values",
+			secrets: map[string]string{
+				AkID:            "",
+				AkSecret:        "AkSecret",
+				AccessKeyID:     " validAccessKeyID ",
+				AccessKeySecret: " validAccessKeySecret ",
+			},
+			expected: struct {
+				akID     string
+				akSecret string
+			}{
+				akID:     "",
+				akSecret: "AkSecret",
+			},
+		},
+		{
+			name: "Case 4: All fields are set, but AccessKeyID and AccessKeySecret have valid values",
+			secrets: map[string]string{
+				AkID:            "AkID",
+				AkSecret:        "AkSecret",
+				AccessKeyID:     " validAccessKeyID ",
+				AccessKeySecret: " validAccessKeySecret ",
+			},
+			expected: struct {
+				akID     string
+				akSecret string
+			}{
+				akID:     "AkID",
+				akSecret: "AkSecret",
+			},
+		},
+		{
+			name: "Case 5: All keys have empty values",
+			secrets: map[string]string{
+				AkID:            "",
+				AkSecret:        "",
+				AccessKeyID:     "",
+				AccessKeySecret: "",
+			},
+			expected: struct {
+				akID     string
+				akSecret string
+			}{
+				akID:     "",
+				akSecret: "",
+			},
+		},
+		{
+			name: "Case 6: Missing some keys, but others have valid values",
+			secrets: map[string]string{
+				AccessKeyID:     " validAccessKeyID ",
+				AccessKeySecret: " validAccessKeySecret ",
+			},
+			expected: struct {
+				akID     string
+				akSecret string
+			}{
+				akID:     "validAccessKeyID",
+				akSecret: "validAccessKeySecret",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			akID, akSecret := parseCredentialsFromSecret(tt.secrets)
+			assert.Equal(t, tt.expected.akID, akID)
+			assert.Equal(t, tt.expected.akSecret, akSecret)
+		})
+	}
+}
+
+func TestParseOptions_credentialsCompatibility(t *testing.T) {
+	tests := []struct {
+		name     string
+		options  map[string]string
+		secrets  map[string]string
+		akID     string
+		akSecret string
+	}{
+		{
+			name: "allows obtaining the credentials with the former way",
+			secrets: map[string]string{
+				AkID:     "validAkID",
+				AkSecret: "validAkSecret",
+			},
+			akID:     "validAkID",
+			akSecret: "validAkSecret",
+		},
+		{
+			name: "allows the secret is empty",
+		},
+		{
+			name: "prioritizes obtaining the credentials with the former way",
+			secrets: map[string]string{
+				AkID:            "validAkID",
+				AkSecret:        "validAkSecret",
+				AccessKeyID:     "validAccessKeyID",
+				AccessKeySecret: "validAccessKeySecret",
+			},
+			akID:     "validAkID",
+			akSecret: "validAkSecret",
+		},
+		{
+			name: "allows obtaining the credentials with the latter way",
+			secrets: map[string]string{
+				AccessKeyID:     "validAccessKeyID",
+				AccessKeySecret: "validAccessKeySecret",
+			},
+			akID:     "validAccessKeyID",
+			akSecret: "validAccessKeySecret",
+		},
+		{
+			name: "ignore invalid credentials",
+			secrets: map[string]string{
+				AkID:            "validAkID",
+				AccessKeySecret: "validAccessKeySecret",
+			},
+			akID:     "validAkID",
+			akSecret: "",
+		},
+		{
+			name: "options overwrite the credentials",
+			secrets: map[string]string{
+				AkID:            "validAkID",
+				AkSecret:        "validAkSecret",
+				AccessKeyID:     "validAccessKeyID",
+				AccessKeySecret: "validAccessKeySecret",
+			},
+			options: map[string]string{
+				AkID:     "optionsAkID",
+				AkSecret: "optionsAkSecret",
+			},
+			akID:     "optionsAkID",
+			akSecret: "optionsAkSecret",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotOptions := parseOptions(tt.options,
+				tt.secrets, []*csi.VolumeCapability{},
+				false, "", false, m)
+			assert.Equal(t, tt.akID, gotOptions.AkID)
+			assert.Equal(t, tt.akSecret, gotOptions.AkSecret)
+		})
+	}
+}
+
 func Test_parseOptions(t *testing.T) {
 	t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
 
