@@ -29,7 +29,6 @@ import (
 
 	sts20150401 "github.com/alibabacloud-go/sts-20150401/v2/client"
 	alicred_old "github.com/aliyun/credentials-go/credentials"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -213,13 +212,8 @@ func main() {
 				driver := ens.NewDriver(*nodeID, endpoint, serviceType)
 				driver.Run()
 			}(endPointName)
-		// TODO: remove entire rund-csi protocol 1.0
 		case ExtenderAgent:
-			go func() {
-				defer wg.Done()
-				queryServer := agent.NewAgent()
-				queryServer.RunAgent()
-			}()
+			klog.Fatalf("rund-csi protocol 1.0 is no longer supported.")
 		case TypePluginPOV:
 			go func(endPoint string) {
 				defer wg.Done()
