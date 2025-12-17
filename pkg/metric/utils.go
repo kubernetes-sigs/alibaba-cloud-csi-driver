@@ -120,7 +120,7 @@ func listDirectory(rootPath string) ([]string, error) {
 	return fileLists, nil
 }
 
-func parseLantencyThreshold(s string, defaults float64) (float64, error) {
+func parseLatencyThreshold(s string, defaults float64) (float64, error) {
 	var thresholdNum int
 	var thresholdUnit string
 	_, err := fmt.Sscanf(s, "%d%s", &thresholdNum, &thresholdUnit)

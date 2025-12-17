@@ -277,7 +277,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: Cannot remove targetPath %s: %v", targetPath, err)
 	}
 
-	// below directory can not be umounted by kubelet in ack
+	// below directory can not be unmounted by kubelet in ack
 	if err := ns.unmountDuplicateMountPoint(targetPath); err != nil {
 		klog.Errorf("NodeUnpublishVolume: umount duplicate mountpoint %s with error: %v", targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())

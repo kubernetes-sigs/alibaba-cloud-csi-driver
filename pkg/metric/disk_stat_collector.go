@@ -102,7 +102,7 @@ func init() {
 func getDiskLatencyThreshold() float64 {
 	latencyStr := strings.ToLower(strings.Trim(os.Getenv("DISK_LATENCY_THRESHOLD"), " "))
 	if len(latencyStr) != 0 {
-		latency, _ := parseLantencyThreshold(latencyStr, diskDefaultsLantencyThreshold)
+		latency, _ := parseLatencyThreshold(latencyStr, diskDefaultsLatencyThreshold)
 		return latency
 	}
 	return 0

@@ -205,7 +205,7 @@ func (h *Driver) Terminate() {
 		if err != nil {
 			klog.ErrorS(err, "Failed to terminate ossfs", "pid", key)
 		}
-		klog.V(4).InfoS("Sended sigterm", "pid", key)
+		klog.V(4).InfoS("Sent sigterm", "pid", key)
 		return true
 	})
 

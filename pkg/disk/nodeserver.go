@@ -339,7 +339,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		return &csi.NodePublishVolumeResponse{}, nil
 	case utils.RundRunTimeTag:
-		klog.Infof("NodePublishVolume: TargetPath: %s is umounted, start mount in kata mode", req.TargetPath)
+		klog.Infof("NodePublishVolume: TargetPath: %s is unmounted, start mount in kata mode", req.TargetPath)
 		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
 		pvName := utils.GetPvNameFormPodMnt(targetPath)
 		returned, err := ns.mountRunDVolumes(req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, false, mountFlags)
@@ -509,7 +509,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: Cannot remove targetPath %s: %v", targetPath, err)
 	}
 
-	// below directory can not be umounted by kubelet in ack
+	// below directory can not be unmounted by kubelet in ack
 	if err := ns.unmountDuplicateMountPoint(targetPath, req.VolumeId); err != nil {
 		klog.Errorf("NodeUnpublishVolume: umount duplicate mountpoint %s with error: %v", targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
