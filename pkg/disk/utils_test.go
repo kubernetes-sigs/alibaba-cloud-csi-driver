@@ -389,6 +389,91 @@ func TestGetAvailableDiskCountFromAnnotation(t *testing.T) {
 	}
 }
 
+func TestGetAvailableDiskCountFromOpenAPI(t *testing.T) {
+	// Create DescribeInstanceTypes response once
+	resp := ecs.CreateDescribeInstanceTypesResponse()
+	cloud.UnmarshalAcsResponse([]byte(DescribeInstanceTypesResponse), resp)
+
+	tests := []struct {
+		name          string
+		setupMock     func(*cloud.MockECSInterface)
+		expectedCount int
+		expectError   bool
+	}{
+		{
+			name: "success",
+			setupMock: func(mockECSClient *cloud.MockECSInterface) {
+				mockECSClient.EXPECT().
+					DescribeInstanceTypes(gomock.Any()).
+					Return(resp, nil)
+			},
+			expectedCount: 9, // From the fixture data
+			expectError:   false,
+		},
+		{
+			name: "api_error",
+			setupMock: func(mockECSClient *cloud.MockECSInterface) {
+				mockECSClient.EXPECT().
+					DescribeInstanceTypes(gomock.Any()).
+					Return(nil, errors.New("API error"))
+			},
+			expectedCount: 0,
+			expectError:   true,
+		},
+		{
+			name: "no_matching_instance_type",
+			setupMock: func(mockECSClient *cloud.MockECSInterface) {
+				// 创建一个没有匹配实例类型的响应
+				noMatchResp := ecs.CreateDescribeInstanceTypesResponse()
+				jsonStr := `{
+					"InstanceTypes": {
+						"InstanceType": [
+							{
+								"InstanceTypeId": "ecs.different.type",
+								"DiskQuantity": 5
+							}
+						]
+					}
+				}`
+				cloud.UnmarshalAcsResponse([]byte(jsonStr), noMatchResp)
+
+				mockECSClient.EXPECT().
+					DescribeInstanceTypes(gomock.Any()).
+					Return(noMatchResp, nil)
+			},
+			expectedCount: 0,
+			expectError:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Setup mock behavior
+			ctrl := gomock.NewController(t)
+
+			mockECSClient := cloud.NewMockECSInterface(ctrl)
+			mockMetadata := metadata.FakeProvider{
+				Values: map[metadata.MetadataKey]string{
+					metadata.RegionID:     "cn-beijing",
+					metadata.InstanceType: "ecs.u1-c1m4.xlarge",
+				},
+			}
+
+			tc.setupMock(mockECSClient)
+
+			count, err := getAvailableDiskCountFromOpenAPI(mockECSClient, mockMetadata)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Equal(t, 0, count)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedCount, count)
+			}
+		})
+	}
+}
+
 func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 	orgiDiskXattrName := DiskXattrName
 	DiskXattrName = "user.testing-csi-managed-disk"
@@ -1096,26 +1181,124 @@ func TestGetLingjunNodeID(t *testing.T) {
 	}
 }
 
+func TestGetLingjunAvailableDiskCount(t *testing.T) {
+	tests := []struct {
+		name          string
+		lingjunID     string
+		setupMocks    func(mockEFLOClient *cloud.MockEFLOInterface)
+		expectedCount int
+		expectError   bool
+	}{
+		{
+			name:      "success",
+			lingjunID: "node-123",
+			setupMocks: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// 第一次调用获取NodeType
+				lingjunNodeResp := &eflo.DescribeNodeResponse{
+					Body: &eflo.DescribeNodeResponseBody{
+						NodeType: ptr.To("ebmgvn"),
+					},
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(lingjunNodeResp, nil)
+
+				// 第二次调用获取磁盘数量
+				lingjunNodeTypeResp := &eflo.DescribeNodeTypeResponse{
+					Body: &eflo.DescribeNodeTypeResponseBody{
+						DiskQuantity: ptr.To(int32(12)),
+					},
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNodeType(gomock.Any()).
+					Return(lingjunNodeTypeResp, nil)
+			},
+			expectedCount: 12,
+			expectError:   false,
+		},
+		{
+			name:      "get_node_type_api_error",
+			lingjunID: "node-123",
+			setupMocks: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(nil, errors.New("API error"))
+			},
+			expectedCount: 0,
+			expectError:   true,
+		},
+		{
+			name:      "get_node_type_returns_empty",
+			lingjunID: "node-123",
+			setupMocks: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				emptyNodeType := ""
+				emptyResp := &eflo.DescribeNodeResponse{
+					Body: &eflo.DescribeNodeResponseBody{
+						NodeType: &emptyNodeType,
+					},
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(emptyResp, nil)
+			},
+			expectedCount: 0,
+			expectError:   false,
+		},
+		{
+			name:      "get_available_count_api_error",
+			lingjunID: "node-123",
+			setupMocks: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				lingjunNodeResp := &eflo.DescribeNodeResponse{
+					Body: &eflo.DescribeNodeResponseBody{
+						NodeType: ptr.To("ebmgvn"),
+					},
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(lingjunNodeResp, nil)
+				mockEFLOClient.EXPECT().
+					DescribeNodeType(gomock.Any()).
+					Return(nil, errors.New("API error"))
+			},
+			expectedCount: 0,
+			expectError:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Setup mock behavior
+			ctrl := gomock.NewController(t)
+
+			mockEFLOClient := cloud.NewMockEFLOInterface(ctrl)
+			tc.setupMocks(mockEFLOClient)
+
+			count, err := getLingjunAvailableDiskCount(mockEFLOClient, tc.lingjunID)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Equal(t, 0, count)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedCount, count)
+			}
+		})
+	}
+}
+
 func TestGetAvailableCountFromEFLOOpenAPI(t *testing.T) {
-	// 创建gomock控制器
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	// 创建mock的EFLO客户端
-	mockEFLOClient := cloud.NewMockEFLOInterface(ctrl)
-
 	tests := []struct {
 		name          string
 		nodeType      string
-		setupMock     func()
+		setupMock     func(mockEFLOClient *cloud.MockEFLOInterface)
 		expectedCount int
 		expectError   bool
 	}{
 		{
 			name:     "success",
 			nodeType: "ebmgvn",
-			setupMock: func() {
-				// 设置mock期望返回值
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Setup mock to return expected value
 				resp := &eflo.DescribeNodeTypeResponse{
 					Body: &eflo.DescribeNodeTypeResponseBody{
 						DiskQuantity: ptr.To[int32](10),
@@ -1131,11 +1314,55 @@ func TestGetAvailableCountFromEFLOOpenAPI(t *testing.T) {
 		{
 			name:     "api_error",
 			nodeType: "ebmgvn",
-			setupMock: func() {
-				// 模拟API调用失败
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Simulate API call failure
 				mockEFLOClient.EXPECT().
 					DescribeNodeType(gomock.Any()).
 					Return(nil, errors.New("API error"))
+			},
+			expectedCount: 0,
+			expectError:   true,
+		},
+		{
+			name:     "nil_response",
+			nodeType: "ebmgvn",
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Simulate returning nil response
+				mockEFLOClient.EXPECT().
+					DescribeNodeType(gomock.Any()).
+					Return(nil, nil)
+			},
+			expectedCount: 0,
+			expectError:   true,
+		},
+		{
+			name:     "nil_body",
+			nodeType: "ebmgvn",
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Simulate returning nil body
+				resp := &eflo.DescribeNodeTypeResponse{
+					Body: nil,
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNodeType(gomock.Any()).
+					Return(resp, nil)
+			},
+			expectedCount: 0,
+			expectError:   true,
+		},
+		{
+			name:     "nil_disk_quantity",
+			nodeType: "ebmgvn",
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Simulate returning nil DiskQuantity
+				resp := &eflo.DescribeNodeTypeResponse{
+					Body: &eflo.DescribeNodeTypeResponseBody{
+						DiskQuantity: nil,
+					},
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNodeType(gomock.Any()).
+					Return(resp, nil)
 			},
 			expectedCount: 0,
 			expectError:   true,
@@ -1144,13 +1371,16 @@ func TestGetAvailableCountFromEFLOOpenAPI(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// 设置mock行为
-			tc.setupMock()
+			// Setup mock behavior
+			ctrl := gomock.NewController(t)
 
-			// 调用被测试函数
+			mockEFLOClient := cloud.NewMockEFLOInterface(ctrl)
+			tc.setupMock(mockEFLOClient)
+
+			// Call the function under test
 			count, err := getAvailableCountFromEFLOOpenAPI(mockEFLOClient, tc.nodeType)
 
-			// 验证结果
+			// Verify results
 			if tc.expectError {
 				assert.Error(t, err)
 				assert.Equal(t, 0, count)
@@ -1163,23 +1393,19 @@ func TestGetAvailableCountFromEFLOOpenAPI(t *testing.T) {
 }
 
 func TestGetNodeTypeFromEFLOOpenAPI(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockEFLOClient := cloud.NewMockEFLOInterface(ctrl)
 
 	tests := []struct {
 		name         string
 		lingjunID    string
-		setupMock    func()
+		setupMock    func(mockEFLOClient *cloud.MockEFLOInterface)
 		expectedType string
 		expectError  bool
 	}{
 		{
 			name:      "success",
 			lingjunID: "node-123",
-			setupMock: func() {
-				// 设置mock期望返回值
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Setup mock to return expected value
 				nodeType := "ebmgvn"
 				resp := &eflo.DescribeNodeResponse{
 					Body: &eflo.DescribeNodeResponseBody{
@@ -1196,8 +1422,8 @@ func TestGetNodeTypeFromEFLOOpenAPI(t *testing.T) {
 		{
 			name:      "api_error",
 			lingjunID: "node-123",
-			setupMock: func() {
-				// 模拟API调用失败
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Simulate API call failure
 				mockEFLOClient.EXPECT().
 					DescribeNode(gomock.Any()).
 					Return(nil, errors.New("API error"))
@@ -1206,10 +1432,37 @@ func TestGetNodeTypeFromEFLOOpenAPI(t *testing.T) {
 			expectError:  true,
 		},
 		{
+			name:      "nil_response",
+			lingjunID: "node-123",
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Simulate returning nil response
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(nil, nil)
+			},
+			expectedType: "",
+			expectError:  true,
+		},
+		{
+			name:      "nil_body",
+			lingjunID: "node-123",
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Simulate returning nil Body
+				resp := &eflo.DescribeNodeResponse{
+					Body: nil,
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(resp, nil)
+			},
+			expectedType: "",
+			expectError:  true,
+		},
+		{
 			name:      "nil_node_type",
 			lingjunID: "node-123",
-			setupMock: func() {
-				// 模拟返回的 NodeType 为 nil
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Simulate returning nil NodeType
 				resp := &eflo.DescribeNodeResponse{
 					Body: &eflo.DescribeNodeResponseBody{
 						NodeType: nil,
@@ -1220,19 +1473,55 @@ func TestGetNodeTypeFromEFLOOpenAPI(t *testing.T) {
 					Return(resp, nil)
 			},
 			expectedType: "",
-			expectError:  true,
+			expectError:  false,
+		},
+		{
+			name:      "empty_node_type",
+			lingjunID: "node-123",
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Simulate returning empty string NodeType
+				nodeType := ""
+				resp := &eflo.DescribeNodeResponse{
+					Body: &eflo.DescribeNodeResponseBody{
+						NodeType: &nodeType,
+					},
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(resp, nil)
+			},
+			expectedType: "",
+			expectError:  false,
+		},
+		{
+			name:      "missing_node_type_field",
+			lingjunID: "node-123",
+			setupMock: func(mockEFLOClient *cloud.MockEFLOInterface) {
+				// Simulate response body without NodeType field (zero value)
+				resp := &eflo.DescribeNodeResponse{
+					Body: &eflo.DescribeNodeResponseBody{},
+				}
+				mockEFLOClient.EXPECT().
+					DescribeNode(gomock.Any()).
+					Return(resp, nil)
+			},
+			expectedType: "",
+			expectError:  false,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// 设置mock行为
-			tc.setupMock()
+			// Setup mock behavior
+			ctrl := gomock.NewController(t)
 
-			// 调用被测试函数
+			mockEFLOClient := cloud.NewMockEFLOInterface(ctrl)
+			tc.setupMock(mockEFLOClient)
+
+			// Call the function under test
 			nodeType, err := getNodeTypeFromEFLOOpenAPI(mockEFLOClient, tc.lingjunID)
 
-			// 验证结果
+			// Verify results
 			if tc.expectError {
 				assert.Error(t, err)
 				assert.Equal(t, "", nodeType)

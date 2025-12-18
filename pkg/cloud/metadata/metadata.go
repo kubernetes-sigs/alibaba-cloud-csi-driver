@@ -29,6 +29,8 @@ const (
 	RRSATokenFile
 )
 
+const LingjunConfigFile = "/host/etc/eflo_config/lingjun_config"
+
 func (k MetadataKey) String() string {
 	switch k {
 	case RegionID:
@@ -136,11 +138,19 @@ func newImmutableProvider(provider MetadataProvider, name string) *immutableProv
 }
 
 func NewMetadata() *Metadata {
-	return &Metadata{
+	defaultMetadata := &Metadata{
 		providers: []MetadataProvider{
 			newImmutableProvider(&ENVMetadata{}, "env"),
 		},
 	}
+	lm, err := NewLingJunMetadata(LingjunConfigFile)
+	if err != nil {
+		return defaultMetadata
+	}
+	if lm != nil {
+		defaultMetadata.providers = append(defaultMetadata.providers, newImmutableProvider(lm, "lingjun"))
+	}
+	return defaultMetadata
 }
 
 func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
@@ -151,7 +161,6 @@ func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
 	m.providers = append(m.providers, &lazyInitProvider{
 		fetcher: &EcsFetcher{httpRT: httpRT},
 	}, NewEcsDynamic(httpRT))
-
 }
 
 func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
