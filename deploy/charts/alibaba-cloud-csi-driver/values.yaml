@@ -55,6 +55,9 @@ nodePools:
 defaultStorageClass:
   enabled: true
 
+defaultVolumeSnapshotClass:
+  enabled: true
+
 volumeSnapshot:
   # These are shared by all CSI drivers that support snapshots.
   # Disable if you manage them elsewhere.
