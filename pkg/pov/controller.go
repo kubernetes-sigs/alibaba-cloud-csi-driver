@@ -166,7 +166,7 @@ func (d *controllerService) getMountPointWithFileSystemID(ctx context.Context, r
 
 func (d *controllerService) getDefaultMountPoint(ctx context.Context, fsId string) string {
 
-	vmp, err := d.cloud.DescribeVscMountPoints(ctx, fsId, "")
+	vmp, err := d.cloud.DescribeVscMountPoints(ctx, fsId, "", "")
 	if err != nil {
 		klog.Errorf("getDefaultMountPoint: describe vsc mountpoint failed, fsId: %s err: %v", fsId, err)
 		return ""
@@ -287,7 +287,7 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 VSCREADY:
 	for i := 0; i < d.attachDescribeTimes && vscId == ""; i++ {
 		time.Sleep(4 * time.Second)
-		vmp, err := d.cloud.DescribeVscMountPoints(ctx, fsId, req.GetVolumeId())
+		vmp, err := d.cloud.DescribeVscMountPoints(ctx, fsId, req.GetVolumeId(), req.GetNodeId())
 		if err != nil {
 			return nil, err
 		}
