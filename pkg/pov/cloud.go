@@ -28,7 +28,7 @@ type Cloud interface {
 	DeleteVolume(ctx context.Context, volumeName string) (requestID string, err error)
 	CreateVolumeMountPoint(ctx context.Context, filesystemID string) (mpId string, err error)
 	AttachVscMountPoint(ctx context.Context, mpId, fsId, instanceID string) (requestID string, err error)
-	DescribeVscMountPoints(ctx context.Context, fsId, mpId string) (dvmpr *dfs.DescribeVscMountPointsResponse, err error)
+	DescribeVscMountPoints(ctx context.Context, fsId, mpId, instanceID string) (dvmpr *dfs.DescribeVscMountPointsResponse, err error)
 	DetachVscMountPoint(ctx context.Context, mpId, filesystemID, instanceID string) (requestID string, err error)
 }
 
@@ -181,13 +181,14 @@ func (c *cloud) DetachVscMountPoint(ctx context.Context, mpId, filesystemID, ins
 	return resp.RequestId, nil
 }
 
-func (c *cloud) DescribeVscMountPoints(ctx context.Context, fsId, mpId string) (*dfs.DescribeVscMountPointsResponse, error) {
+func (c *cloud) DescribeVscMountPoints(ctx context.Context, fsId, mpId, instanceID string) (*dfs.DescribeVscMountPointsResponse, error) {
 
 	dvmp := dfs.CreateDescribeVscMountPointsRequest()
 	dvmp.InputRegionId = GlobalConfigVar.regionID
 	dvmp.FileSystemId = fsId
 	if mpId != "" {
 		dvmp.MountPointId = mpId
+		dvmp.InstanceId = instanceID
 	}
 
 	resp, err := c.dbfc.DescribeVscMountPoints(dvmp)
