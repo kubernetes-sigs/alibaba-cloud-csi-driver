@@ -1,6 +1,7 @@
 package mounter
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -14,6 +15,8 @@ type ProxyMounter struct {
 	mountutils.Interface
 }
 
+var _ Mounter = &ProxyMounter{}
+
 func NewProxyMounter(socketPath string, inner mountutils.Interface) Mounter {
 	return &ProxyMounter{
 		socketPath: socketPath,
@@ -21,20 +24,19 @@ func NewProxyMounter(socketPath string, inner mountutils.Interface) Mounter {
 	}
 }
 
-func (m *ProxyMounter) ExtendedMount(source, target, fstype string, options []string, params *ExtendedMountParams) error {
-	// Parameters in ExtendedMountParams are optional
-	if params == nil {
-		params = &ExtendedMountParams{}
+func (m *ProxyMounter) ExtendedMount(ctx context.Context, op *MountOperation) error {
+	if op == nil {
+		return nil
 	}
-
 	dclient := client.NewClient(m.socketPath)
 	resp, err := dclient.Mount(&proxy.MountRequest{
-		Source:      source,
-		Target:      target,
-		Fstype:      fstype,
-		Options:     options,
-		Secrets:     params.Secrets,
-		MetricsPath: params.MetricsPath,
+		Source:      op.Source,
+		Target:      op.Target,
+		Fstype:      op.FsType,
+		Options:     op.Options,
+		Secrets:     op.Secrets,
+		MetricsPath: op.MetricsPath,
+		VolumeID:    op.VolumeID,
 	})
 	if err != nil {
 		return fmt.Errorf("call mounter daemon: %w", err)
@@ -43,7 +45,7 @@ func (m *ProxyMounter) ExtendedMount(source, target, fstype string, options []st
 	if err != nil {
 		return fmt.Errorf("failed to mount: %w", err)
 	}
-	notMnt, err := m.IsLikelyNotMountPoint(target)
+	notMnt, err := m.IsLikelyNotMountPoint(op.Target)
 	if err != nil {
 		return err
 	}
@@ -54,5 +56,10 @@ func (m *ProxyMounter) ExtendedMount(source, target, fstype string, options []st
 }
 
 func (m *ProxyMounter) Mount(source string, target string, fstype string, options []string) error {
-	return m.ExtendedMount(source, target, fstype, options, nil)
+	return m.ExtendedMount(context.Background(), &MountOperation{
+		Source:  source,
+		Target:  target,
+		FsType:  fstype,
+		Options: options,
+	})
 }

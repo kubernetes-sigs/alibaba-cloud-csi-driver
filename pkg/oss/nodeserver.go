@@ -18,6 +18,7 @@ package oss
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -173,21 +174,30 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		ossfsMounter = mounter.NewOssCmdMounter(ns.ossfsPaths[opts.FuseType], req.VolumeId, ns.rawMounter)
+		interceptors, ok := ossfpm.GetFuseMountInterceptors(opts.FuseType)
+		if !ok {
+			klog.ErrorS(errors.New("error getting fuse mount interceptors"), "no interceptors found", "fuseType", opts.FuseType)
+		}
+		ossfsMounter = mounter.NewForMounter(
+			mounter.NewOssCmdMounter(ns.ossfsPaths[opts.FuseType], req.VolumeId, ns.rawMounter),
+			interceptors...,
+		)
 	} else {
 		// runtimeType == RuntimeTypeRunD || runtimeType == RuntimeTypeRunC
-		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
+		ossfsMounter = mounter.NewForMounter(mounter.NewProxyMounter(socketPath, ns.rawMounter))
 	}
 
 	// When work as csi-agent, directly mount on the target path.
 	if runtimeType == RuntimeTypeRunD || runtimeType == RuntimeTypeMicroVM {
 		metricsPath := utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.Bucket)
-		err := ossfsMounter.ExtendedMount(
-			mountSource, targetPath, opts.FuseType,
-			mountOptions, &mounter.ExtendedMountParams{
-				Secrets:     authCfg.Secrets,
-				MetricsPath: metricsPath,
-			})
+		err := ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
+			Source:      mountSource,
+			Target:      targetPath,
+			FsType:      opts.FuseType,
+			Options:     mountOptions,
+			Secrets:     authCfg.Secrets,
+			MetricsPath: metricsPath,
+		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -204,12 +214,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if notMnt {
 		metricsPath := utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opts.FuseType, "oss", opts.Bucket, attachPath)
-		err := ossfsMounter.ExtendedMount(
-			mountSource, attachPath, opts.FuseType,
-			mountOptions, &mounter.ExtendedMountParams{
-				Secrets:     authCfg.Secrets,
-				MetricsPath: metricsPath,
-			})
+		err := ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
+			Source:      mountSource,
+			Target:      attachPath,
+			FsType:      opts.FuseType,
+			Options:     mountOptions,
+			Secrets:     authCfg.Secrets,
+			MetricsPath: metricsPath,
+		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

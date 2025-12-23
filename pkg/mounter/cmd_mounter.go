@@ -7,41 +7,33 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/mount-utils"
 )
 
 const timeout = time.Second * 10
 
 type OssCmdMounter struct {
-	mount.Interface
-	volumeId string
 	execPath string
+	volumeID string
+	mount.Interface
 }
 
-func NewOssCmdMounter(execPath, volumeId string, inner mount.Interface) Mounter {
+var _ Mounter = &OssCmdMounter{}
+
+func NewOssCmdMounter(execPath, volumeID string, inner mount.Interface) Mounter {
 	return &OssCmdMounter{
 		execPath:  execPath,
-		volumeId:  volumeId,
+		volumeID:  volumeID,
 		Interface: inner,
 	}
 }
 
-func (m *OssCmdMounter) ExtendedMount(source, target, fstype string, options []string, params *ExtendedMountParams) error {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
-	defer cancel()
-
-	// Parameters in ExtendedMountParams are optional
-	if params == nil {
-		params = &ExtendedMountParams{}
-	}
-	passwd, err := utils.SaveOssSecretsToFile(params.Secrets, fstype)
-	if err != nil {
-		return err
+func (m *OssCmdMounter) ExtendedMount(ctx context.Context, op *MountOperation) error {
+	if op == nil {
+		return nil
 	}
 
-	args := getArgs(source, target, fstype, passwd, options)
-	cmd := exec.CommandContext(ctx, m.execPath, args...)
+	cmd := exec.CommandContext(ctx, m.execPath, getArgs(op)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -51,20 +43,21 @@ func (m *OssCmdMounter) ExtendedMount(source, target, fstype string, options []s
 	return nil
 }
 
-func getArgs(source, target, fstype, passwdFile string, options []string) []string {
-	if fstype == "ossfs" {
-		if passwdFile != "" {
-			options = append(options, "passwd_file="+passwdFile)
+func getArgs(op *MountOperation) []string {
+	if op == nil {
+		return nil
+	}
+	switch op.FsType {
+	case "ossfs":
+		return mount.MakeMountArgs(op.Source, op.Target, "", op.Options)
+	case "ossfs2":
+		args := []string{"mount", op.Target}
+		args = append(args, op.Args...)
+		for _, o := range op.Options {
+			args = append(args, fmt.Sprintf("--%s", o))
 		}
-		return mount.MakeMountArgs(source, target, "", options)
+		return args
+	default:
+		return nil
 	}
-	// ossfs2
-	args := []string{"mount", target}
-	if passwdFile != "" {
-		args = append(args, []string{"-c", passwdFile}...)
-	}
-	for _, o := range options {
-		args = append(args, fmt.Sprintf("--%s", o))
-	}
-	return args
 }
