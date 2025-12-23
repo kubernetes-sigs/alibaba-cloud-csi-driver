@@ -1221,9 +1221,8 @@ func getLingjunAvailableDiskCount(efloClient cloud.EFLOInterface, lingjunID stri
 	if err != nil {
 		return 0, err
 	}
-	klog.InfoS("getLingjunAvailableDiskCount: ", "nodeType", nodeType)
 	if nodeType == "" {
-		return 0, fmt.Errorf("cannot get node type for lingjun %s", lingjunID)
+		return 0, nil
 	}
 	return getAvailableCountFromEFLOOpenAPI(efloClient, nodeType)
 }
@@ -1235,6 +1234,9 @@ func getAvailableCountFromEFLOOpenAPI(efloClient cloud.EFLOInterface, nodeType s
 	resp, err := efloClient.DescribeNodeType(req)
 	if err != nil {
 		return 0, fmt.Errorf("DescribeNodeType failed: %w", err)
+	}
+	if resp == nil || resp.Body == nil || resp.Body.DiskQuantity == nil {
+		return 0, fmt.Errorf("DescribeNodeType returned invalid response: %+v", resp)
 	}
 	klog.InfoS("getAvailableCountFromEFLOOpenAPI: ", "resp", resp)
 	return int(*resp.Body.DiskQuantity), nil
@@ -1248,8 +1250,12 @@ func getNodeTypeFromEFLOOpenAPI(efloClient cloud.EFLOInterface, lingjunID string
 	if err != nil {
 		return "", fmt.Errorf("DescribeNode failed: %w", err)
 	}
-	if resp == nil || resp.Body == nil || resp.Body.NodeType == nil {
-		return "", fmt.Errorf("DescribeNode returned nil NodeType")
+	if resp == nil || resp.Body == nil {
+		return "", fmt.Errorf("DescribeNode returned nil response, resp: %v", resp)
+	}
+	if resp.Body.NodeType == nil {
+		klog.InfoS("DescribeNode response has nil NodeType", "resp", resp)
+		return "", nil
 	}
 	return *resp.Body.NodeType, nil
 }
