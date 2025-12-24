@@ -116,6 +116,7 @@ var ecsOpenAPITransport = http.Transport{
 	ForceAttemptHTTP2:     true,
 	MaxIdleConns:          100,
 	MaxIdleConnsPerHost:   100, // Set this equal to MaxIdleConns as we should only talk to one endpoint with this Transport instance.
+	MaxConnsPerHost:       500, // Protect our backend. Should be large enough to handle any workload.
 	IdleConnTimeout:       90 * time.Second,
 	TLSHandshakeTimeout:   10 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,
