@@ -341,7 +341,7 @@ type fuseInfo struct {
 }
 
 // getCommonLabels returns the common label values for metrics
-func (p *usFsStatCollector) getCommonLabels(fsClientInfo *fuseInfo, fileName, exitResaon string) []string {
+func (p *usFsStatCollector) getCommonLabels(fsClientInfo *fuseInfo, fileName, exitReason string) []string {
 	return []string{
 		fsClientInfo.ClientName,
 		fsClientInfo.BackendStorage,
@@ -351,7 +351,7 @@ func (p *usFsStatCollector) getCommonLabels(fsClientInfo *fuseInfo, fileName, ex
 		fsClientInfo.PvName,
 		fsClientInfo.MountPoint,
 		fileName,
-		exitResaon,
+		exitReason,
 	}
 }
 
@@ -557,7 +557,7 @@ func (p *usFsStatCollector) postHotTopFileMetrics(hotSpotType string, fsClientIn
 		case "hot_spot_head_file_top":
 			ch <- prometheus.MustNewConstMetric(p.hotSpotHeadFileTop, prometheus.GaugeValue, valueFloat64, labels...)
 		default:
-			klog.Errorf("Unknow hotSpotType:%s", hotSpotType)
+			klog.Errorf("Unknown hotSpotType:%s", hotSpotType)
 		}
 	}
 }
@@ -615,7 +615,7 @@ func (p *usFsStatCollector) postCounterMetrics(counterType string, fsClientInfo 
 			}
 			ch <- p.ossObjectCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		default:
-			klog.Errorf("Unknow counterType:%s", counterType)
+			klog.Errorf("Unknown counterType:%s", counterType)
 		}
 	}
 }
@@ -658,7 +658,7 @@ func (p *usFsStatCollector) postBackendCounterMetrics(counterType string, fsClie
 			}
 			ch <- p.backendThroughputBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
 		default:
-			klog.Errorf("Unknow counterType:%s", counterType)
+			klog.Errorf("Unknown counterType:%s", counterType)
 		}
 	}
 }

@@ -38,7 +38,7 @@ const (
 	scrapeSubsystem                         = "scrape"
 	volumeSubsystem                         = "volume"
 	diskSectorSize                          = 512
-	diskDefaultsLantencyThreshold           = 10
+	diskDefaultsLatencyThreshold            = 10
 	diskDefaultsCapacityPercentageThreshold = 85
 	nfsDefaultsCapacityPercentageThreshold  = 85
 	nfsStatsFileName                        = "/proc/self/mountstats"
