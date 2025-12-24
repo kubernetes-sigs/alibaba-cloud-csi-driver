@@ -76,11 +76,13 @@ cd /src
 SOURCE_DATE_EPOCH=$(stat -c %Y /src.tar.xz)
 export SOURCE_DATE_EPOCH
 echo "util-linux released at $(date --date "@$SOURCE_DATE_EPOCH" --iso-8601=seconds)"
-./configure --disable-all-programs --enable-blkid --enable-libblkid --prefix=/usr/local \
+./configure --disable-all-programs --enable-blkid --enable-libblkid --libdir=\${prefix}/lib/$HOST \
     --disable-nls --disable-bash-completion --disable-asciidoc --disable-dependency-tracking --disable-static --host=$HOST
 make -j
-make install-strip DESTDIR=/out
-cd /out/usr/local && rm -r include share lib/pkgconfig
+make install-strip DESTDIR=/install
+mkdir -p /out
+cd /install
+cp -dp --parents usr/lib/*/libblkid*.so.* sbin/blkid /out
 EOF
 
 COPY <<"EOT" /out/usr/local/share/sbom/blkid.spdx.json
@@ -146,5 +148,7 @@ FROM csi-base as csi-controller
 USER nonroot
 
 FROM csi-base
-COPY --link --from=build-util-linux /out /
 COPY --link --from=debian /staging-node /
+
+# overwrites libblkid from debian
+COPY --link --from=build-util-linux /out /
