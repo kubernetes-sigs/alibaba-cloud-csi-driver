@@ -9,11 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	mountutils "k8s.io/mount-utils"
 )
 
 const (
@@ -239,4 +243,25 @@ func WaitFdReadable(fd int, timeout time.Duration) error {
 		return fmt.Errorf("unexpected select result: %d", n)
 	}
 	return nil
+}
+
+func IsNotMountPoint(mounter mountutils.Interface, target string) (notMnt bool, err error) {
+	notMnt, err = mounter.IsLikelyNotMountPoint(target)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(target, os.ModePerm); err != nil {
+				return false, status.Errorf(codes.Internal, "mkdir: %v", err)
+			}
+			return true, nil
+		} else if mountutils.IsCorruptedMnt(err) {
+			klog.Warningf("Umount corrupted mountpoint %s", target)
+			err := mounter.Unmount(target)
+			if err != nil {
+				return false, status.Errorf(codes.Internal, "umount corrupted mountpoint %s: %v", target, err)
+			}
+			return true, nil
+		}
+		return false, status.Errorf(codes.Internal, "check mountpoint: %v", err)
+	}
+	return notMnt, nil
 }

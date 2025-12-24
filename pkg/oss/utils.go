@@ -36,7 +36,6 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
-	mountutils "k8s.io/mount-utils"
 )
 
 // VolumeAs determines the mounting target path in OSS
@@ -362,27 +361,6 @@ func parseOtherOpts(otherOpts string) (mountOptions []string, err error) {
 		}
 	}
 	return mountOptions, nil
-}
-
-func isNotMountPoint(mounter mountutils.Interface, target string) (notMnt bool, err error) {
-	notMnt, err = mounter.IsLikelyNotMountPoint(target)
-	if err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(target, os.ModePerm); err != nil {
-				return false, status.Errorf(codes.Internal, "mkdir: %v", err)
-			}
-			return true, nil
-		} else if mountutils.IsCorruptedMnt(err) {
-			klog.Warningf("Umount corrupted mountpoint %s", target)
-			err := mounter.Unmount(target)
-			if err != nil {
-				return false, status.Errorf(codes.Internal, "umount corrupted mountpoint %s: %v", target, err)
-			}
-			return true, nil
-		}
-		return false, status.Errorf(codes.Internal, "check mountpoint: %v", err)
-	}
-	return notMnt, nil
 }
 
 func setNetworkType(originURL, regionID string) (URL string, modified bool) {

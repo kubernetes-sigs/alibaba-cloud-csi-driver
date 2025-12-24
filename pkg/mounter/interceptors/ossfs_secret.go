@@ -12,9 +12,16 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/klog/v2"
+	mountutils "k8s.io/mount-utils"
 )
 
 var _ mounter.MountInterceptor = OssfsSecretInterceptor
+
+// rawMounter is a shared mount.Interface instance for checking mount points.
+// It's safe to reuse because mount.Interface implementations are stateless.
+// We use a separate instance from ossfs_monitor.go to avoid import cycles,
+// but both are created the same way and can be used interchangeably.
+var rawMounter = mountutils.NewWithoutSystemd("")
 
 func OssfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
 	return ossfsSecretInterceptor(ctx, op, handler, mounterutils.OssFsType)
@@ -25,6 +32,12 @@ func Ossfs2SecretInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 }
 
 func ossfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler, fuseType string) error {
+	return ossfsSecretInterceptorWithMounter(ctx, op, handler, fuseType, rawMounter)
+}
+
+// ossfsSecretInterceptorWithMounter is the internal implementation that accepts a mounter parameter.
+// This allows tests to inject a fake mounter to simulate different mount point states.
+func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler, fuseType string, mountInterface mountutils.Interface) error {
 	if op == nil || op.Secrets == nil {
 		return handler(ctx, op)
 	}
@@ -44,6 +57,26 @@ func ossfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, han
 		}
 	}
 	if tokenDir != "" {
+		// Check if mount point already exists for token rotation scenario.
+		// In token rotation (republish), we only need to update the token files,
+		// and the running ossfs client will automatically reload the new token.
+		// We skip the mount operation to avoid creating duplicate mount points.
+		//
+		// Note: IsNotMountPoint handles path not existing by creating the directory
+		// and returning (true, nil). If it returns an error, it's a real error
+		// (e.g., permission denied, mkdir failed, unmount failed) that should be returned.
+		notMnt, err := mounterutils.IsNotMountPoint(mountInterface, op.Target)
+		if err != nil {
+			return fmt.Errorf("failed to check if target %s is a mountpoint: %w", op.Target, err)
+		}
+		if !notMnt {
+			// Mount point already exists, this is a token rotation scenario.
+			// Token files have already been updated by rotateTokenFiles above.
+			// Skip mount operation and let the existing ossfs client reload the new token.
+			klog.V(4).InfoS("mount point already exists, skipping mount for token rotation", "target", op.Target)
+			return mounter.ErrSkipMount
+		}
+
 		klog.V(4).InfoS("created ossfs token directory", "dir", tokenDir)
 		if fuseType == mounterutils.OssFsType {
 			op.Options = append(op.Options, "passwd_file="+tokenDir)
