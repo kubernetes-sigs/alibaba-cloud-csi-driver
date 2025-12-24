@@ -1489,3 +1489,116 @@ func TestDetermineRuntimeType(t *testing.T) {
 		})
 	}
 }
+
+func TestNeedRotateToken(t *testing.T) {
+	tests := []struct {
+		name           string
+		fuseType       string
+		secrets        map[string]string
+		expectedResult bool
+	}{
+		{
+			name:           "empty secrets",
+			fuseType:       mounterutils.OssFsType,
+			secrets:        map[string]string{},
+			expectedResult: false,
+		},
+		{
+			name:           "nil secrets",
+			fuseType:       mounterutils.OssFsType,
+			secrets:        nil,
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs with fixed AKSK (passwd-ossfs)",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				"passwd-ossfs": "akid:aksecret",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs with token (no fixed AKSK)",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				mounterutils.KeySecurityToken:   "test-token",
+				mounterutils.KeyAccessKeyId:     "test-akid",
+				mounterutils.KeyAccessKeySecret: "test-aksecret",
+			},
+			expectedResult: true,
+		},
+		{
+			name:     "ossfs with both fixed AKSK and token (should not rotate)",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				"passwd-ossfs":                  "akid:aksecret",
+				mounterutils.KeySecurityToken:   "test-token",
+				mounterutils.KeyAccessKeyId:     "test-akid",
+				mounterutils.KeyAccessKeySecret: "test-aksecret",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs2 with fixed AKSK (passwd-ossfs2)",
+			fuseType: mounterutils.OssFs2Type,
+			secrets: map[string]string{
+				"passwd-ossfs2": "akid:aksecret",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs2 with token (no fixed AKSK)",
+			fuseType: mounterutils.OssFs2Type,
+			secrets: map[string]string{
+				mounterutils.KeySecurityToken:   "test-token",
+				mounterutils.KeyAccessKeyId:     "test-akid",
+				mounterutils.KeyAccessKeySecret: "test-aksecret",
+			},
+			expectedResult: true,
+		},
+		{
+			name:     "ossfs2 with both fixed AKSK and token (should not rotate)",
+			fuseType: mounterutils.OssFs2Type,
+			secrets: map[string]string{
+				"passwd-ossfs2":                 "akid:aksecret",
+				mounterutils.KeySecurityToken:   "test-token",
+				mounterutils.KeyAccessKeyId:     "test-akid",
+				mounterutils.KeyAccessKeySecret: "test-aksecret",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs with token but empty SecurityToken",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				mounterutils.KeySecurityToken:   "",
+				mounterutils.KeyAccessKeyId:     "test-akid",
+				mounterutils.KeyAccessKeySecret: "test-aksecret",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs with only SecurityToken (no access keys)",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				mounterutils.KeySecurityToken: "test-token",
+			},
+			expectedResult: true,
+		},
+		{
+			name:     "ossfs with other secrets but no token or fixed AKSK",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				"other-key": "other-value",
+			},
+			expectedResult: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := needRotateToken(tt.fuseType, tt.secrets)
+			assert.Equal(t, tt.expectedResult, result, "needRotateToken(%q, %v) = %v, want %v", tt.fuseType, tt.secrets, result, tt.expectedResult)
+		})
+	}
+}

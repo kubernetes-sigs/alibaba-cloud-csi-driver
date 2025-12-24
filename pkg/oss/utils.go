@@ -648,3 +648,16 @@ func getDirectAssignedValue(runtimeClass string) bool {
 		return false
 	}
 }
+
+func needRotateToken(fuseType string, secrets map[string]string) (needRotate bool) {
+	if len(secrets) == 0 {
+		return false
+	}
+	// TODO: Remove this check if when ossfs support rotate fixed AKSK.
+	ak := secrets[mounterutils.GetPasswdFileName(fuseType)]
+	token := secrets[mounterutils.KeySecurityToken]
+	if ak == "" && token != "" {
+		needRotate = true
+	}
+	return
+}
