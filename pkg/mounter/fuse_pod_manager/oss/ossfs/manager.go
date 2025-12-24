@@ -95,7 +95,13 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 			return nil
 		}
-		if o.SecretRef != "" {
+		// conflict by secret-volume and republish-token-rotate
+		sv := o.SecretRef != ""
+		rtr := o.SecurityToken != ""
+		if sv && rtr {
+			return fmt.Errorf("Token and secretRef cannot be set at the same time")
+		}
+		if sv || rtr {
 			if o.AkID != "" || o.AkSecret != "" {
 				return fmt.Errorf("AK and secretRef cannot be set at the same time")
 			}
@@ -127,12 +133,26 @@ func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvide
 	case ossfpm.AuthTypeSTS:
 		authCfg.RoleName = o.RoleName
 	default:
-		if o.SecretRef != "" {
-			authCfg.SecretRef = o.SecretRef
-		} else {
+		// fixed credentials
+		if o.AkID != "" && o.AkSecret != "" {
 			authCfg.Secrets = map[string]string{
 				mounterutils.GetPasswdFileName(f.Name()): fmt.Sprintf("%s:%s:%s", o.Bucket, o.AkID, o.AkSecret),
 			}
+			return authCfg, nil
+		}
+
+		// secret volume for STS.Token
+		if o.SecretRef != "" {
+			authCfg.SecretRef = o.SecretRef
+			return authCfg, nil
+		}
+
+		// republish token retoate for STS.Token
+		authCfg.Secrets = map[string]string{
+			ossfpm.KeyAccessKeyId:     o.AccessKeyId,
+			ossfpm.KeyAccessKeySecret: o.AccessKeySecret,
+			ossfpm.KeySecurityToken:   o.SecurityToken,
+			ossfpm.KeyExpiration:      o.Expiration,
 		}
 	}
 	return authCfg, nil
@@ -303,11 +323,22 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	default:
+		// fixed credentials
+		if o.AkID != "" && o.AkSecret != "" {
+			// it will make passwd_file option in mount-proxy server as it's under a tempdir
+			return
+		}
+
+		// secret volume for STS.Token
 		if o.SecretRef != "" {
 			mountOptions = append(mountOptions, fmt.Sprintf("passwd_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType))))
-			mountOptions = append(mountOptions, "use_session_token")
 		}
-		// publishSecretRef will make option in mount-proxy server
+
+		// republish token retoate for STS.Token
+		// it will make passwd_file option in mount-proxy server as it's under a tempdir
+
+		// for both STS.Token
+		mountOptions = append(mountOptions, "use_session_token")
 	}
 	return
 }

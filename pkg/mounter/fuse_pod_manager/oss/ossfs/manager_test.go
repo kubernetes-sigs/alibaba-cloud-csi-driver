@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -120,11 +121,13 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 		{
 			name: "success with accessKey",
 			opts: &ossfpm.Options{
-				URL:      "1.1.1.1",
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				FuseType: ossfpm.OssFsType,
 			},
 			wantErr: false,
@@ -147,8 +150,10 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 				Bucket:    "aliyun",
 				Path:      "/path",
 				SecretRef: "secret",
-				AkID:      "11111",
-				FuseType:  ossfpm.OssFsType,
+				AccessKey: ossfpm.AccessKey{
+					AkID: "11111",
+				},
+				FuseType: ossfpm.OssFsType,
 			},
 			wantErr: true,
 		},
@@ -166,11 +171,13 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 		{
 			name: "use assumeRole with non-RRSA authType",
 			opts: &ossfpm.Options{
-				URL:           "1.1.1.1",
-				Bucket:        "aliyun",
-				Path:          "/path",
-				SecretRef:     "secret",
-				AkID:          "11111",
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				SecretRef: "secret",
+				AccessKey: ossfpm.AccessKey{
+					AkID: "11111",
+				},
 				AssumeRoleArn: "test-assume-role-arn",
 				FuseType:      ossfpm.OssFsType,
 			},
@@ -233,9 +240,69 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "conflict between SecurityToken and SecretRef",
+			opts: &ossfpm.Options{
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				TokenSecret: ossfpm.TokenSecret{
+					SecurityToken: "token",
+				},
+				SecretRef: "secret",
+				FuseType:  ossfpm.OssFsType,
+			},
+			wantErr: true,
+		},
+		{
+			name: "conflict between SecurityToken and AccessKey",
+			opts: &ossfpm.Options{
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: ossfpm.AccessKey{
+					AkID: "11111",
+				},
+				TokenSecret: ossfpm.TokenSecret{
+					SecurityToken: "token",
+				},
+				FuseType: ossfpm.OssFsType,
+			},
+			wantErr: true,
+		},
+		{
+			name: "success with SecurityToken only",
+			opts: &ossfpm.Options{
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				TokenSecret: ossfpm.TokenSecret{
+					AccessKeyId:     "akid",
+					AccessKeySecret: "aksecret",
+					SecurityToken:   "token",
+				},
+				FuseType: ossfpm.OssFsType,
+			},
+			wantErr: false,
+		},
+		{
+			name: "success with RundCSIProtocol3 enabled",
+			opts: &ossfpm.Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				FuseType: ossfpm.OssFsType,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Enable RundCSIProtocol3 for the specific test case
+			if tt.name == "success with RundCSIProtocol3 enabled" {
+				features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=true", features.RundCSIProtocol3))
+				defer features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=false", features.RundCSIProtocol3))
+			}
 			err := fakeOssfs.PrecheckAuthConfig(tt.opts, true)
 			assert.Equal(t, tt.wantErr, err != nil)
 		})
@@ -323,14 +390,38 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 			options: &ossfpm.Options{
 				AuthType: "",
 				Bucket:   "bucket",
-				AkID:     "ak-id",
-				AkSecret: "ak-secret",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 				FuseType: ossfpm.OssFsType,
 			},
 			expectedConfig: &fpm.AuthConfig{
 				AuthType: "",
 				Secrets: map[string]string{
-					mounterutils.GetPasswdFileName(ossfpm.OssFsType): "bucket:ak-id:ak-secret",
+					mounterutils.GetPasswdFileName(ossfpm.OssFsType): "bucket:test-ak:test-ak-secret",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "OtherAuthType_TokenSecret_republish_token_rotate",
+			options: &ossfpm.Options{
+				AuthType: "",
+				TokenSecret: ossfpm.TokenSecret{
+					AccessKeyId:     "test-akid",
+					AccessKeySecret: "test-aksecret",
+					SecurityToken:   "test-token",
+					Expiration:      "2024-01-01T00:00:00Z",
+				},
+			},
+			expectedConfig: &fpm.AuthConfig{
+				AuthType: "",
+				Secrets: map[string]string{
+					ossfpm.KeyAccessKeyId:     "test-akid",
+					ossfpm.KeyAccessKeySecret: "test-aksecret",
+					ossfpm.KeySecurityToken:   "test-token",
+					ossfpm.KeyExpiration:      "2024-01-01T00:00:00Z",
 				},
 			},
 			expectedError: nil,
@@ -363,6 +454,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			name: "Basic Options",
 			opts: &ossfpm.Options{
 				URL: "oss://bucket",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 			},
 			expected: []string{
 				"url=oss://bucket",
@@ -373,6 +468,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			opts: &ossfpm.Options{
 				URL:      "oss://bucket",
 				ReadOnly: true,
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 			},
 			expected: []string{
 				"url=oss://bucket",
@@ -384,6 +483,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			opts: &ossfpm.Options{
 				URL:       "oss://bucket",
 				Encrypted: ossfpm.EncryptedTypeAes256,
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 			},
 			expected: []string{
 				"url=oss://bucket",
@@ -396,6 +499,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 				URL:       "oss://bucket",
 				Encrypted: ossfpm.EncryptedTypeKms,
 				KmsKeyId:  "1234",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 			},
 			expected: []string{
 				"url=oss://bucket",
@@ -424,6 +531,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			opts: &ossfpm.Options{
 				URL:        "oss://bucket",
 				SigVersion: ossfpm.SigV4,
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 			},
 			region: "us-east-1",
 			expected: []string{
@@ -563,6 +674,25 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 			name: "aksk",
 			opts: &ossfpm.Options{
 				FuseType: "ossfs",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
+			},
+		},
+		{
+			name: "TokenSecret_republish_token_rotate",
+			opts: &ossfpm.Options{
+				FuseType: "ossfs",
+				TokenSecret: ossfpm.TokenSecret{
+					AccessKeyId:     "test-akid",
+					AccessKeySecret: "test-aksecret",
+					SecurityToken:   "test-token",
+					Expiration:      "2024-01-01T00:00:00Z",
+				},
+			},
+			wantOptions: []string{
+				"use_session_token",
 			},
 		},
 	}

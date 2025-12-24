@@ -74,7 +74,13 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 			return nil
 		}
-		if o.SecretRef != "" {
+		// conflict by secret-volume and republish-token-rotate
+		sv := o.SecretRef != ""
+		rtr := o.SecurityToken != ""
+		if sv && rtr {
+			return fmt.Errorf("Token and secretRef cannot be set at the same time")
+		}
+		if sv || rtr {
 			if o.AkID != "" || o.AkSecret != "" {
 				return fmt.Errorf("AK and secretRef cannot be set at the same time")
 			}
@@ -105,12 +111,26 @@ func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvide
 	case ossfpm.AuthTypeSTS:
 		authCfg.RoleName = o.RoleName
 	case "":
+		// fixed credentials
+		if o.AkID != "" && o.AkSecret != "" {
+			authCfg.Secrets = map[string]string{
+				mounterutils.GetPasswdFileName(f.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", o.AkID, o.AkSecret),
+			}
+			return authCfg, nil
+		}
+
+		// secret volume for STS.Token
 		if o.SecretRef != "" {
 			authCfg.SecretRef = o.SecretRef
-			return
+			return authCfg, nil
 		}
+
+		// republish token retoate for STS.Token
 		authCfg.Secrets = map[string]string{
-			mounterutils.GetPasswdFileName(f.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", o.AkID, o.AkSecret),
+			ossfpm.KeyAccessKeyId:     o.AccessKeyId,
+			ossfpm.KeyAccessKeySecret: o.AccessKeySecret,
+			ossfpm.KeySecurityToken:   o.SecurityToken,
+			ossfpm.KeyExpiration:      o.Expiration, // not in use for ossfs2 now
 		}
 	default:
 		return nil, fmt.Errorf("%s do not support authType: %s", f.Name(), o.AuthType)
@@ -177,6 +197,13 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	case "":
+		// fixed credentials
+		if o.AkID != "" && o.AkSecret != "" {
+			// it will make passwd_file option in mount-proxy server as it's under a tempdir
+			return
+		}
+
+		// secret volume for STS.Token
 		if o.SecretRef != "" {
 			mountOptions = append(mountOptions,
 				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), ossfpm.KeyAccessKeyId)),
@@ -184,7 +211,9 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 				fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), ossfpm.KeySecurityToken)),
 			)
 		}
-		// publishSecretRef will make option in mount-proxy server
+
+		// republish token retoate for STS.Token
+		// it will make passwd_file option in mount-proxy server as it's under a tempdir
 	default:
 		return nil
 	}
