@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"time"
 
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/mount-utils"
 )
 
@@ -48,9 +49,9 @@ func getArgs(op *MountOperation) []string {
 		return nil
 	}
 	switch op.FsType {
-	case "ossfs":
+	case mounterutils.OssFsType:
 		return mount.MakeMountArgs(op.Source, op.Target, "", op.Options)
-	case "ossfs2":
+	case mounterutils.OssFs2Type:
 		args := []string{"mount", op.Target}
 		args = append(args, op.Args...)
 		for _, o := range op.Options {

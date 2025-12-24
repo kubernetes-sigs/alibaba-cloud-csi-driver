@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -28,6 +27,14 @@ import (
 const (
 	OssFsType  = "ossfs"
 	OssFs2Type = "ossfs2"
+)
+
+// keys for STS token
+const (
+	KeyAccessKeyId     = "AccessKeyId"
+	KeyAccessKeySecret = "AccessKeySecret"
+	KeyExpiration      = "Expiration"
+	KeySecurityToken   = "SecurityToken"
 )
 
 const LegacyFusePodNamespace = "kube-system" // deprecated
@@ -211,6 +218,10 @@ func GetPasswdFileName(fuseType string) string {
 	return fmt.Sprintf("passwd-%s", fuseType)
 }
 
+func GetPasswdHashDir(target string) string {
+	return filepath.Join("/tmp", ComputeMountPathHash(target))
+}
+
 func WaitFdReadable(fd int, timeout time.Duration) error {
 	tv := unix.Timeval{
 		Sec: int64(timeout.Seconds()),
@@ -228,22 +239,4 @@ func WaitFdReadable(fd int, timeout time.Duration) error {
 		return fmt.Errorf("unexpected select result: %d", n)
 	}
 	return nil
-}
-
-func SaveOssSecretsToFile(secrets map[string]string, fuseType string) (filePath string, err error) {
-	passwd := secrets[GetPasswdFileName(fuseType)]
-	if passwd == "" {
-		return
-	}
-
-	tmpDir, err := os.MkdirTemp("", fuseType+"-")
-	if err != nil {
-		return "", err
-	}
-	filePath = filepath.Join(tmpDir, "passwd")
-	if err = os.WriteFile(filePath, []byte(passwd), 0o600); err != nil {
-		return "", err
-	}
-	klog.V(4).InfoS(fmt.Sprintf("created %s passwd file", fuseType), "path", filePath)
-	return
 }

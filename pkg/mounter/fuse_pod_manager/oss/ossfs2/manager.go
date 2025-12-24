@@ -23,9 +23,9 @@ import (
 )
 
 func init() {
-	ossfpm.RegisterFuseMounter(ossfpm.OssFs2Type, NewFuseOssfs)
-	ossfpm.RegisterFuseMounterPath(ossfpm.OssFs2Type, "/usr/local/bin/ossfs2")
-	ossfpm.RegisterFuseInterceptors(ossfpm.OssFs2Type, []mounter.MountInterceptor{interceptors.Ossfs2SecretInterceptor})
+	ossfpm.RegisterFuseMounter(mounterutils.OssFs2Type, NewFuseOssfs)
+	ossfpm.RegisterFuseMounterPath(mounterutils.OssFs2Type, "/usr/local/bin/ossfs2")
+	ossfpm.RegisterFuseInterceptors(mounterutils.OssFs2Type, []mounter.MountInterceptor{interceptors.Ossfs2SecretInterceptor})
 }
 
 var defaultOssfs2Dbglevel = fpm.DebugLevelInfo
@@ -40,9 +40,9 @@ var ossfs2Dbglevels = map[string]string{
 }
 
 func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) ossfpm.OSSFuseMounterType {
-	config := fpm.ExtractFuseContainerConfig(configmap, ossfpm.OssFs2Type)
+	config := fpm.ExtractFuseContainerConfig(configmap, mounterutils.OssFs2Type)
 	// set default image
-	ossfpm.SetDefaultImage(ossfpm.OssFs2Type, m, &config)
+	ossfpm.SetDefaultImage(mounterutils.OssFs2Type, m, &config)
 	// set default memory request
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
 		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
@@ -52,7 +52,7 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) ossf
 }
 
 func (f *fuseOssfs) Name() string {
-	return ossfpm.OssFs2Type
+	return mounterutils.OssFs2Type
 }
 func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 
@@ -84,7 +84,7 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 			if o.AkID != "" || o.AkSecret != "" {
 				return fmt.Errorf("AK and secretRef cannot be set at the same time")
 			}
-			if o.SecretRef == mounterutils.GetCredientialsSecretName(ossfpm.OssFsType) {
+			if o.SecretRef == mounterutils.GetCredientialsSecretName(mounterutils.OssFsType) {
 				return fmt.Errorf("invalid SecretRef name")
 			}
 			return nil
@@ -127,10 +127,10 @@ func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvide
 
 		// republish token retoate for STS.Token
 		authCfg.Secrets = map[string]string{
-			ossfpm.KeyAccessKeyId:     o.AccessKeyId,
-			ossfpm.KeyAccessKeySecret: o.AccessKeySecret,
-			ossfpm.KeySecurityToken:   o.SecurityToken,
-			ossfpm.KeyExpiration:      o.Expiration, // not in use for ossfs2 now
+			mounterutils.KeyAccessKeyId:     o.AccessKeyId,
+			mounterutils.KeyAccessKeySecret: o.AccessKeySecret,
+			mounterutils.KeySecurityToken:   o.SecurityToken,
+			mounterutils.KeyExpiration:      o.Expiration, // not in use for ossfs2 now
 		}
 	default:
 		return nil, fmt.Errorf("%s do not support authType: %s", f.Name(), o.AuthType)
@@ -206,9 +206,9 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 		// secret volume for STS.Token
 		if o.SecretRef != "" {
 			mountOptions = append(mountOptions,
-				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), ossfpm.KeyAccessKeyId)),
-				fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), ossfpm.KeyAccessKeySecret)),
-				fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), ossfpm.KeySecurityToken)),
+				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), mounterutils.KeyAccessKeyId)),
+				fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), mounterutils.KeyAccessKeySecret)),
+				fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType), mounterutils.KeySecurityToken)),
 			)
 		}
 

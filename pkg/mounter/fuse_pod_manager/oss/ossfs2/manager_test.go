@@ -244,10 +244,10 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 			},
 			&fpm.AuthConfig{
 				Secrets: map[string]string{
-					ossfpm.KeyAccessKeyId:     "test-akid",
-					ossfpm.KeyAccessKeySecret: "test-aksecret",
-					ossfpm.KeySecurityToken:   "test-token",
-					ossfpm.KeyExpiration:      "2024-01-01T00:00:00Z",
+					mounterutils.KeyAccessKeyId:     "test-akid",
+					mounterutils.KeyAccessKeySecret: "test-aksecret",
+					mounterutils.KeySecurityToken:   "test-token",
+					mounterutils.KeyExpiration:      "2024-01-01T00:00:00Z",
 				},
 			},
 			false,
@@ -594,7 +594,7 @@ func TestBuildAuthSpec_ossfs2(t *testing.T) {
 		NodeName:   nodeName,
 		VolumeId:   volumeId,
 		AuthConfig: authCfg,
-		FuseType:   ossfpm.OssFsType,
+		FuseType:   mounterutils.OssFsType,
 	}, "target", &spec, &container)
 
 	assert.Equal(t, "rrsa-oidc-token", spec.Volumes[len(spec.Volumes)-1].Name)

@@ -30,6 +30,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -103,13 +104,13 @@ func parseCredentialsFromSecret(secrets map[string]string) (ossfpm.AccessKey, os
 		}
 		// Can be either fixed credentials or rotating STS token
 		switch key {
-		case strings.ToLower(ossfpm.KeyAccessKeyId):
+		case strings.ToLower(mounterutils.KeyAccessKeyId):
 			akID = value
-		case strings.ToLower(ossfpm.KeyAccessKeySecret):
+		case strings.ToLower(mounterutils.KeyAccessKeySecret):
 			akSecret = value
-		case strings.ToLower(ossfpm.KeySecurityToken):
+		case strings.ToLower(mounterutils.KeySecurityToken):
 			token = value
-		case strings.ToLower(ossfpm.KeyExpiration):
+		case strings.ToLower(mounterutils.KeyExpiration):
 			expiration = value
 		}
 	}
@@ -267,7 +268,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 
 	// default fuseType is ossfs
 	if opts.FuseType == "" {
-		opts.FuseType = OssFsType
+		opts.FuseType = mounterutils.OssFsType
 	}
 
 	url := opts.URL
@@ -474,7 +475,7 @@ func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
 	// TODO: ossfs2 should matain compatibility with ossfs on encryption,
 	// then remove this `switch`
 	switch opt.FuseType {
-	case OssFsType:
+	case mounterutils.OssFsType:
 		if !strings.HasPrefix(opt.Path, "/") {
 			return WrapOssError(PathError, "start with %s, should start with /", opt.Path)
 		}
@@ -483,7 +484,7 @@ func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
 			return WrapOssError(EncryptError, "invalid SSE encrypted type")
 		}
 
-	case OssFs2Type:
+	case mounterutils.OssFs2Type:
 		if opt.Encrypted != "" {
 			return WrapOssError(EncryptError, "ossfs2 does not support encryption")
 		}
@@ -518,7 +519,7 @@ func makeMountOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m meta
 
 	// TODO: currently the common options for fuse like kernel_cache set on mountOptions will be ignored.
 	if volumeCapability != nil && volumeCapability.GetMount() != nil && volumeCapability.GetMount().MountFlags != nil {
-		if opt.FuseType == OssFs2Type {
+		if opt.FuseType == mounterutils.OssFs2Type {
 			klog.Warningf("NodePublishVolume: ossfs2 does not support mountOptions, only support volumeAttributes")
 		} else {
 			mountOptions = append(mountOptions, volumeCapability.GetMount().MountFlags...)

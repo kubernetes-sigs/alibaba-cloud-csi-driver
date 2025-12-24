@@ -29,6 +29,7 @@ import (
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs2"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -309,10 +310,10 @@ func Test_parseOptions(t *testing.T) {
 		"url":    "oss-cn-hangzhou.aliyuncs.com",
 	}
 	Secrets := map[string]string{
-		ossfpm.KeyAccessKeyId:     "test-akid",
-		ossfpm.KeyAccessKeySecret: "test-aksecret",
-		ossfpm.KeySecurityToken:   "test-token",
-		ossfpm.KeyExpiration:      "2024-01-01T00:00:00Z",
+		mounterutils.KeyAccessKeyId:     "test-akid",
+		mounterutils.KeyAccessKeySecret: "test-aksecret",
+		mounterutils.KeySecurityToken:   "test-token",
+		mounterutils.KeyExpiration:      "2024-01-01T00:00:00Z",
 	}
 	expectedOptions = &ossfpm.Options{
 		Bucket: "test-bucket",
@@ -774,11 +775,11 @@ func TestSetFsType(t *testing.T) {
 
 func Test_checkOssOptions(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	ossfs, _ := ossfpm.GetFuseMounter(ossfpm.OssFsType, nil, fakeMeta)
-	ossfs2, _ := ossfpm.GetFuseMounter(ossfpm.OssFs2Type, nil, fakeMeta)
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, nil, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, nil, fakeMeta)
 	fusePodManagers := map[string]*ossfpm.OSSFusePodManager{
-		OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil),
-		OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil),
+		mounterutils.OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil),
+		mounterutils.OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil),
 	}
 
 	tests := []struct {
@@ -819,7 +820,7 @@ func Test_checkOssOptions(t *testing.T) {
 					AkID:     "11111",
 					AkSecret: "22222",
 				},
-				FuseType: OssFsType,
+				FuseType: mounterutils.OssFsType,
 			},
 			errType: PathError,
 		},
@@ -832,7 +833,7 @@ func Test_checkOssOptions(t *testing.T) {
 					AkID:     "11111",
 					AkSecret: "22222",
 				},
-				FuseType: OssFsType,
+				FuseType: mounterutils.OssFsType,
 			},
 			errType: ParamError,
 		},
@@ -847,7 +848,7 @@ func Test_checkOssOptions(t *testing.T) {
 					AkSecret: "22222",
 				},
 				Encrypted: "invalid",
-				FuseType:  OssFsType,
+				FuseType:  mounterutils.OssFsType,
 			},
 			errType: EncryptError,
 		},
@@ -862,7 +863,7 @@ func Test_checkOssOptions(t *testing.T) {
 					AkSecret: "22222",
 				},
 				Encrypted: ossfpm.EncryptedTypeKms,
-				FuseType:  OssFsType,
+				FuseType:  mounterutils.OssFsType,
 			},
 			errType: nil,
 		},
@@ -876,7 +877,7 @@ func Test_checkOssOptions(t *testing.T) {
 					AkID:     "11111",
 					AkSecret: "22222",
 				},
-				FuseType: OssFsType,
+				FuseType: mounterutils.OssFsType,
 			},
 			errType: UrlError,
 		},
@@ -886,7 +887,7 @@ func Test_checkOssOptions(t *testing.T) {
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "/path",
-				FuseType: OssFsType,
+				FuseType: mounterutils.OssFsType,
 				AuthType: ossfpm.AuthTypePublic,
 			},
 			errType: nil,
@@ -902,7 +903,7 @@ func Test_checkOssOptions(t *testing.T) {
 
 func TestMakeAuthConfig(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	ossfs, _ := ossfpm.GetFuseMounter(ossfpm.OssFsType, nil, fakeMeta)
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, nil, fakeMeta)
 	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil)
 	opt := &ossfpm.Options{
 		URL:    "1.1.1.1",
@@ -912,18 +913,18 @@ func TestMakeAuthConfig(t *testing.T) {
 			AkID:     "11111",
 			AkSecret: "22222",
 		},
-		FuseType: OssFsType,
+		FuseType: mounterutils.OssFsType,
 	}
 	want := &fpm.AuthConfig{
 		Secrets: map[string]string{
-			utils.GetPasswdFileName(OssFsType): fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
+			utils.GetPasswdFileName(mounterutils.OssFsType): fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
 		},
 	}
 	authCfg, err := makeAuthConfig(opt, ossfsFpm, fakeMeta, true)
 	assert.NoError(t, err)
 	assert.Equal(t, want, authCfg)
 
-	ossfs2, _ := ossfpm.GetFuseMounter(ossfpm.OssFs2Type, nil, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, nil, fakeMeta)
 	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil)
 	opt2 := &ossfpm.Options{
 		URL:    "1.1.1.1",
@@ -933,11 +934,11 @@ func TestMakeAuthConfig(t *testing.T) {
 			AkID:     "11111",
 			AkSecret: "22222",
 		},
-		FuseType: OssFs2Type,
+		FuseType: mounterutils.OssFs2Type,
 	}
 	want2 := &fpm.AuthConfig{
 		Secrets: map[string]string{
-			utils.GetPasswdFileName(OssFs2Type): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", opt.AkID, opt.AkSecret),
+			utils.GetPasswdFileName(mounterutils.OssFs2Type): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", opt.AkID, opt.AkSecret),
 		},
 	}
 	authCfg2, err := makeAuthConfig(opt2, ossfs2Fpm, fakeMeta, true)
@@ -948,7 +949,7 @@ func TestMakeAuthConfig(t *testing.T) {
 func TestMakeMountOptions(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-beijing")
 	fakeMeta := metadata.NewMetadata()
-	ossfs, _ := ossfpm.GetFuseMounter(ossfpm.OssFsType, nil, fakeMeta)
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, nil, fakeMeta)
 	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil)
 	opt := &ossfpm.Options{
 		URL:    "1.1.1.1",
@@ -958,7 +959,7 @@ func TestMakeMountOptions(t *testing.T) {
 			AkID:     "11111",
 			AkSecret: "22222",
 		},
-		FuseType:   OssFsType,
+		FuseType:   mounterutils.OssFsType,
 		OtherOpts:  "-o allow_other -o max_stat_cache_size=0",
 		SigVersion: "v4",
 		Encrypted:  ossfpm.EncryptedTypeKms,
@@ -983,7 +984,7 @@ func TestMakeMountOptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, want, got)
 
-	ossfs2, _ := ossfpm.GetFuseMounter(ossfpm.OssFs2Type, nil, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, nil, fakeMeta)
 	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil)
 	opt2 := &ossfpm.Options{
 		URL:    "1.1.1.1",
@@ -993,7 +994,7 @@ func TestMakeMountOptions(t *testing.T) {
 			AkID:     "11111",
 			AkSecret: "22222",
 		},
-		FuseType:   OssFs2Type,
+		FuseType:   mounterutils.OssFs2Type,
 		OtherOpts:  "-o attr_timeout=60",
 		SigVersion: "v4",
 	}

@@ -24,9 +24,9 @@ import (
 )
 
 func init() {
-	ossfpm.RegisterFuseMounter(ossfpm.OssFsType, NewFuseOssfs)
-	ossfpm.RegisterFuseMounterPath(ossfpm.OssFsType, "/usr/local/bin/ossfs")
-	ossfpm.RegisterFuseInterceptors(ossfpm.OssFsType, []mounter.MountInterceptor{interceptors.OssfsSecretInterceptor})
+	ossfpm.RegisterFuseMounter(mounterutils.OssFsType, NewFuseOssfs)
+	ossfpm.RegisterFuseMounterPath(mounterutils.OssFsType, "/usr/local/bin/ossfs")
+	ossfpm.RegisterFuseInterceptors(mounterutils.OssFsType, []mounter.MountInterceptor{interceptors.OssfsSecretInterceptor})
 }
 
 var defaultOssfsDbglevel = fpm.DebugLevelWarn
@@ -54,10 +54,10 @@ var ossfsDbglevels = map[string]string{
 }
 
 func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) ossfpm.OSSFuseMounterType {
-	config := fpm.ExtractFuseContainerConfig(configmap, ossfpm.OssFsType)
+	config := fpm.ExtractFuseContainerConfig(configmap, mounterutils.OssFsType)
 
 	// set default image
-	ossfpm.SetDefaultImage(ossfpm.OssFsType, m, &config)
+	ossfpm.SetDefaultImage(mounterutils.OssFsType, m, &config)
 	// set default memory request
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
 		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
@@ -67,7 +67,7 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) ossf
 }
 
 func (f *fuseOssfs) Name() string {
-	return ossfpm.OssFsType
+	return mounterutils.OssFsType
 }
 
 func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
@@ -105,7 +105,7 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 			if o.AkID != "" || o.AkSecret != "" {
 				return fmt.Errorf("AK and secretRef cannot be set at the same time")
 			}
-			if o.SecretRef == mounterutils.GetCredientialsSecretName(ossfpm.OssFsType) {
+			if o.SecretRef == mounterutils.GetCredientialsSecretName(mounterutils.OssFsType) {
 				return fmt.Errorf("invalid SecretRef name")
 			}
 			return nil
@@ -149,10 +149,10 @@ func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvide
 
 		// republish token retoate for STS.Token
 		authCfg.Secrets = map[string]string{
-			ossfpm.KeyAccessKeyId:     o.AccessKeyId,
-			ossfpm.KeyAccessKeySecret: o.AccessKeySecret,
-			ossfpm.KeySecurityToken:   o.SecurityToken,
-			ossfpm.KeyExpiration:      o.Expiration,
+			mounterutils.KeyAccessKeyId:     o.AccessKeyId,
+			mounterutils.KeyAccessKeySecret: o.AccessKeySecret,
+			mounterutils.KeySecurityToken:   o.SecurityToken,
+			mounterutils.KeyExpiration:      o.Expiration,
 		}
 	}
 	return authCfg, nil
