@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,34 +141,47 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 				return
 			}
 
-			assert.Len(t, tt.op.Options, 1)
-			assert.Contains(t, tt.op.Options[0], "passwd_file=")
+			// Only check Options if secrets are provided
+			if len(tt.op.Secrets) > 0 {
+				if tt.expectFile || tt.expectDir {
+					assert.GreaterOrEqual(t, len(tt.op.Options), 1, "Options should contain passwd_file")
+					found := false
+					for _, opt := range tt.op.Options {
+						if strings.Contains(opt, "passwd_file=") {
+							found = true
+							break
+						}
+					}
+					assert.True(t, found, "should have passwd_file option")
+				}
+			}
 
-			filePath := tt.op.Options[0][len("passwd_file="):]
 			if tt.expectFile {
 				found := false
-				for _, arg := range tt.op.Args {
-					if len(arg) > len("passwd_file=") && arg[:len("passwd_file=")] == "passwd_file=" {
-						filePath := arg[len("passwd_file="):]
+				// For ossfs, passwd_file is in Options, not Args
+				for _, opt := range tt.op.Options {
+					if strings.HasPrefix(opt, "passwd_file=") {
+						filePath := opt[len("passwd_file="):]
 						assert.FileExists(t, filePath)
 						found = true
 						break
 					}
 				}
-				assert.True(t, found, "should have passwd_file argument")
+				assert.True(t, found, "should have passwd_file option")
 			}
 
 			if tt.expectToken {
 				found := false
-				for _, arg := range tt.op.Args {
-					if len(arg) > len("passwd_file=") && arg[:len("passwd_file=")] == "passwd_file=" {
-						dirPath := arg[len("passwd_file="):]
+				// For ossfs, passwd_file is in Options, not Args
+				for _, opt := range tt.op.Options {
+					if strings.HasPrefix(opt, "passwd_file=") {
+						dirPath := opt[len("passwd_file="):]
 						assert.DirExists(t, dirPath)
 						found = true
 						break
 					}
 				}
-				assert.True(t, found, "should have passwd_file argument for token dir")
+				assert.True(t, found, "should have passwd_file option for token dir")
 			}
 		})
 	}
@@ -301,11 +315,11 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 
 			if tt.expectToken {
 				// ossfs2 token should have 3 file path arguments
-				assert.GreaterOrEqual(t, len(tt.op.Args), 3)
+				assert.GreaterOrEqual(t, len(tt.op.Options), 3)
 				foundAK := false
 				foundSK := false
 				foundToken := false
-				for _, arg := range tt.op.Args {
+				for _, arg := range tt.op.Options {
 					if len(arg) > len("oss_sts_multi_conf_ak_file=") && arg[:len("oss_sts_multi_conf_ak_file=")] == "oss_sts_multi_conf_ak_file=" {
 						filePath := arg[len("oss_sts_multi_conf_ak_file="):]
 						assert.FileExists(t, filePath)
@@ -465,7 +479,8 @@ func TestRotateTokenFiles(t *testing.T) {
 		secrets     map[string]string
 		wantErr     bool
 		wantRotated bool
-		checkFiles  func(t *testing.T, dir string)
+		checkFiles  func(t *testing.T, dir string, setup bool)
+		setupFiles  bool // Whether to setup existing files before calling rotateTokenFiles
 	}{
 		{
 			name: "missing AccessKeyId",
@@ -503,7 +518,8 @@ func TestRotateTokenFiles(t *testing.T) {
 			},
 			wantErr:     false,
 			wantRotated: true,
-			checkFiles: func(t *testing.T, dir string) {
+			setupFiles:  false,
+			checkFiles: func(t *testing.T, dir string, setup bool) {
 				ak, _ := os.ReadFile(filepath.Join(dir, mounterutils.KeyAccessKeyId))
 				assert.Equal(t, "testAKID", string(ak))
 				sk, _ := os.ReadFile(filepath.Join(dir, mounterutils.KeyAccessKeySecret))
@@ -525,7 +541,8 @@ func TestRotateTokenFiles(t *testing.T) {
 			},
 			wantErr:     false,
 			wantRotated: true,
-			checkFiles: func(t *testing.T, dir string) {
+			setupFiles:  false,
+			checkFiles: func(t *testing.T, dir string, setup bool) {
 				ak, _ := os.ReadFile(filepath.Join(dir, mounterutils.KeyAccessKeyId))
 				assert.Equal(t, "testAKID", string(ak))
 				sk, _ := os.ReadFile(filepath.Join(dir, mounterutils.KeyAccessKeySecret))
@@ -546,7 +563,8 @@ func TestRotateTokenFiles(t *testing.T) {
 			},
 			wantErr:     false,
 			wantRotated: true,
-			checkFiles: func(t *testing.T, dir string) {
+			setupFiles:  false,
+			checkFiles: func(t *testing.T, dir string, setup bool) {
 				ak, _ := os.ReadFile(filepath.Join(dir, mounterutils.KeyAccessKeyId))
 				assert.Equal(t, "newAKID", string(ak))
 				sk, _ := os.ReadFile(filepath.Join(dir, mounterutils.KeyAccessKeySecret))
@@ -566,13 +584,135 @@ func TestRotateTokenFiles(t *testing.T) {
 			},
 			wantErr:     false,
 			wantRotated: true,
-			checkFiles: func(t *testing.T, dir string) {
+			setupFiles:  false,
+			checkFiles: func(t *testing.T, dir string, setup bool) {
 				ak, _ := os.ReadFile(filepath.Join(dir, mounterutils.KeyAccessKeyId))
 				assert.Equal(t, "newAKID2", string(ak))
 				sk, _ := os.ReadFile(filepath.Join(dir, mounterutils.KeyAccessKeySecret))
 				assert.Equal(t, "newAKSecret2", string(sk))
 				st, _ := os.ReadFile(filepath.Join(dir, mounterutils.KeySecurityToken))
 				assert.Equal(t, "newSecurityToken2", string(st))
+			},
+		},
+		{
+			name: "no update needed - all files exist with same content",
+			secrets: map[string]string{
+				mounterutils.KeyAccessKeyId:     "existingAKID",
+				mounterutils.KeyAccessKeySecret: "existingAKSecret",
+				mounterutils.KeySecurityToken:   "existingToken",
+			},
+			wantErr:     false,
+			wantRotated: false, // No update needed, should return false
+			setupFiles:  true,
+			checkFiles: func(t *testing.T, dir string, setup bool) {
+				akFile := filepath.Join(dir, mounterutils.KeyAccessKeyId)
+				skFile := filepath.Join(dir, mounterutils.KeyAccessKeySecret)
+				tokenFile := filepath.Join(dir, mounterutils.KeySecurityToken)
+				if setup {
+					// Create existing files with same content before calling rotateTokenFiles
+					os.WriteFile(akFile, []byte("existingAKID"), 0o600)
+					os.WriteFile(skFile, []byte("existingAKSecret"), 0o600)
+					os.WriteFile(tokenFile, []byte("existingToken"), 0o600)
+				} else {
+					// Verify files still have same content after rotation (no update should occur)
+					ak, _ := os.ReadFile(akFile)
+					assert.Equal(t, "existingAKID", string(ak))
+					sk, _ := os.ReadFile(skFile)
+					assert.Equal(t, "existingAKSecret", string(sk))
+					st, _ := os.ReadFile(tokenFile)
+					assert.Equal(t, "existingToken", string(st))
+				}
+			},
+		},
+		{
+			name: "no update needed - all files exist with same content including expiration",
+			secrets: map[string]string{
+				mounterutils.KeyAccessKeyId:     "existingAKID",
+				mounterutils.KeyAccessKeySecret: "existingAKSecret",
+				mounterutils.KeySecurityToken:   "existingToken",
+				mounterutils.KeyExpiration:      "existingExpiration",
+			},
+			wantErr:     false,
+			wantRotated: false, // No update needed, should return false
+			setupFiles:  true,
+			checkFiles: func(t *testing.T, dir string, setup bool) {
+				akFile := filepath.Join(dir, mounterutils.KeyAccessKeyId)
+				skFile := filepath.Join(dir, mounterutils.KeyAccessKeySecret)
+				tokenFile := filepath.Join(dir, mounterutils.KeySecurityToken)
+				expFile := filepath.Join(dir, mounterutils.KeyExpiration)
+				if setup {
+					// Create existing files with same content before calling rotateTokenFiles
+					os.WriteFile(akFile, []byte("existingAKID"), 0o600)
+					os.WriteFile(skFile, []byte("existingAKSecret"), 0o600)
+					os.WriteFile(tokenFile, []byte("existingToken"), 0o600)
+					os.WriteFile(expFile, []byte("existingExpiration"), 0o600)
+				} else {
+					// Verify files still have same content after rotation (no update should occur)
+					ak, _ := os.ReadFile(akFile)
+					assert.Equal(t, "existingAKID", string(ak))
+					sk, _ := os.ReadFile(skFile)
+					assert.Equal(t, "existingAKSecret", string(sk))
+					st, _ := os.ReadFile(tokenFile)
+					assert.Equal(t, "existingToken", string(st))
+					exp, _ := os.ReadFile(expFile)
+					assert.Equal(t, "existingExpiration", string(exp))
+				}
+			},
+		},
+		{
+			name: "partial update needed - one file content differs",
+			secrets: map[string]string{
+				mounterutils.KeyAccessKeyId:     "existingAKID",
+				mounterutils.KeyAccessKeySecret: "newAKSecret",
+				mounterutils.KeySecurityToken:   "existingToken",
+			},
+			wantErr:     false,
+			wantRotated: true, // Update needed because one file differs
+			checkFiles: func(t *testing.T, dir string, setup bool) {
+				akFile := filepath.Join(dir, mounterutils.KeyAccessKeyId)
+				skFile := filepath.Join(dir, mounterutils.KeyAccessKeySecret)
+				tokenFile := filepath.Join(dir, mounterutils.KeySecurityToken)
+				if setup {
+					// Create existing files before calling rotateTokenFiles
+					os.WriteFile(akFile, []byte("existingAKID"), 0o600)
+					os.WriteFile(skFile, []byte("oldAKSecret"), 0o600) // Different content
+					os.WriteFile(tokenFile, []byte("existingToken"), 0o600)
+				} else {
+					// Verify all files are updated after calling rotateTokenFiles
+					ak, _ := os.ReadFile(akFile)
+					assert.Equal(t, "existingAKID", string(ak))
+					sk, _ := os.ReadFile(skFile)
+					assert.Equal(t, "newAKSecret", string(sk)) // Should be updated
+					st, _ := os.ReadFile(tokenFile)
+					assert.Equal(t, "existingToken", string(st))
+				}
+			},
+		},
+		{
+			name: "update needed - file missing",
+			secrets: map[string]string{
+				mounterutils.KeyAccessKeyId:     "newAKID",
+				mounterutils.KeyAccessKeySecret: "newAKSecret",
+				mounterutils.KeySecurityToken:   "newToken",
+			},
+			wantErr:     false,
+			wantRotated: true, // Update needed because file is missing
+			setupFiles:  false,
+			checkFiles: func(t *testing.T, dir string, setup bool) {
+				// Verify all files are created
+				akFile := filepath.Join(dir, mounterutils.KeyAccessKeyId)
+				skFile := filepath.Join(dir, mounterutils.KeyAccessKeySecret)
+				tokenFile := filepath.Join(dir, mounterutils.KeySecurityToken)
+				assert.FileExists(t, akFile)
+				assert.FileExists(t, skFile)
+				assert.FileExists(t, tokenFile)
+
+				ak, _ := os.ReadFile(akFile)
+				assert.Equal(t, "newAKID", string(ak))
+				sk, _ := os.ReadFile(skFile)
+				assert.Equal(t, "newAKSecret", string(sk))
+				st, _ := os.ReadFile(tokenFile)
+				assert.Equal(t, "newToken", string(st))
 			},
 		},
 	}
@@ -588,12 +728,19 @@ func TestRotateTokenFiles(t *testing.T) {
 			require.NoError(t, err)
 			defer os.RemoveAll(hashDir) // Cleanup after test
 
+			// Setup existing files if needed
+			if tt.setupFiles && tt.checkFiles != nil {
+				tt.checkFiles(t, hashDir, true)
+			}
+
+			// Call rotateTokenFiles
 			rotated, err := rotateTokenFiles(hashDir, tt.secrets)
 			assert.Equal(t, tt.wantErr, err != nil, "error mismatch")
 			assert.Equal(t, tt.wantRotated, rotated, "rotated mismatch")
 
+			// Verify final state
 			if tt.checkFiles != nil && !tt.wantErr {
-				tt.checkFiles(t, hashDir)
+				tt.checkFiles(t, hashDir, false)
 			}
 		})
 	}

@@ -293,10 +293,12 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	switch opts.AuthType {
 	case "":
 		// try to get ak/sk from env
-		if opts.SecretRef == "" && opts.SecurityToken == "" && (opts.AkID == "" || opts.AkSecret == "") {
+		if opts.SecretRef == "" &&
+			(opts.AccessKey.AkID == "" && opts.AccessKey.AkSecret == "") &&
+			(opts.TokenSecret.AccessKeyId == "" && opts.TokenSecret.AccessKeySecret == "" && opts.TokenSecret.SecurityToken == "") {
 			ac := utils.GetEnvAK()
-			opts.AkID = ac.AccessKeyID
-			opts.AccessKeySecret = ac.AccessKeySecret
+			opts.AccessKey.AkID = ac.AccessKeyID
+			opts.AccessKey.AkSecret = ac.AccessKeySecret
 		}
 
 	case ossfpm.AuthTypeSTS:

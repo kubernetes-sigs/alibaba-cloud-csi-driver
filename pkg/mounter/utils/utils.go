@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -42,6 +43,29 @@ const (
 )
 
 const LegacyFusePodNamespace = "kube-system" // deprecated
+
+// fuseAttachBaseDir is the base directory for fuse attach paths.
+// Default is "/run", but can be overridden for testing.
+var (
+	fuseAttachBaseDir     = "/run"
+	fuseAttachBaseDirLock sync.RWMutex
+)
+
+// SetFuseAttachBaseDir sets the base directory for fuse attach paths.
+// This is primarily used for testing to avoid /run permission issues.
+// It should be called before any calls to GetFuseAttachDir() or GetAttachPath().
+func SetFuseAttachBaseDir(dir string) {
+	fuseAttachBaseDirLock.Lock()
+	defer fuseAttachBaseDirLock.Unlock()
+	fuseAttachBaseDir = dir
+}
+
+// GetFuseAttachBaseDir returns the current base directory for fuse attach paths.
+func GetFuseAttachBaseDir() string {
+	fuseAttachBaseDirLock.RLock()
+	defer fuseAttachBaseDirLock.RUnlock()
+	return fuseAttachBaseDir
+}
 
 func ComputeMountPathHash(target string) string {
 	hasher := fnv.New32a()
@@ -159,7 +183,8 @@ func GetFuseAttachDir() string {
 	// so all kinds of fuseTypes share this unified mount dir.
 	// A volumeId should only belong to one kind of fuseType, and mounted ONCE.
 	fuseType := OssFsType
-	return fmt.Sprintf("/run/fuse.%s", fuseType)
+	baseDir := GetFuseAttachBaseDir()
+	return filepath.Join(baseDir, fmt.Sprintf("fuse.%s", fuseType))
 }
 
 func GetAttachPath(volumeId string) string {

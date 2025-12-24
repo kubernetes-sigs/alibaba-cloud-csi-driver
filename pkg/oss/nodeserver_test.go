@@ -57,7 +57,7 @@ func createMountPoint(path string) mountutils.MountPoint {
 }
 
 func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
-	// Test matrix: 3 * 2 (COCO, RunD, ECI in scenario 1 & 3) + 1 * 3 (RunC in scenario 1, 2, 3)
+	// Test matrix: 3 * 2 (COCO, RunD, MicroVM in scenario 1 & 3) + 1 * 3 (RunC in scenario 1, 2, 3)
 	// Scenario 1: targetPath mounted (token rotation or already mounted return)
 	// Scenario 2: targetPath not mounted, but attachPath mounted (RunC only, bind mount only)
 	// Scenario 3: both targetPath and attachPath not mounted (new mount)
@@ -186,10 +186,10 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			expectExtendedMount: true,
 		},
 
-		// ECI scenarios (scenario 1 & 3)
+		// MicroVM scenarios (scenario 1 & 3)
 		{
-			name:                "ECI scenario 1: token rotation",
-			runtimeType:         RuntimeTypeECI,
+			name:                "MicroVM scenario 1: token rotation",
+			runtimeType:         RuntimeTypeMicroVM,
 			directAssigned:      false,
 			socketPath:          "",
 			skipAttach:          true,
@@ -200,8 +200,8 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			expectExtendedMount: true, // Called for token rotation (interceptor skips)
 		},
 		{
-			name:                "ECI scenario 1: already mounted (no token)",
-			runtimeType:         RuntimeTypeECI,
+			name:                "MicroVM scenario 1: already mounted (no token)",
+			runtimeType:         RuntimeTypeMicroVM,
 			directAssigned:      false,
 			socketPath:          "",
 			skipAttach:          true,
@@ -210,8 +210,8 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			expectExtendedMount: false, // Early return
 		},
 		{
-			name:                "ECI scenario 3: new mount",
-			runtimeType:         RuntimeTypeECI,
+			name:                "MicroVM scenario 3: new mount",
+			runtimeType:         RuntimeTypeMicroVM,
 			directAssigned:      false,
 			socketPath:          "",
 			skipAttach:          true,
@@ -236,16 +236,29 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 
 			baseDir := t.TempDir()
 			targetPath := filepath.Join(baseDir, "target")
-			// Use temp directory for attachPath to avoid /run permission issues in tests
-			var attachPath string
+			// Set fuse attach base dir to temp directory to avoid /run permission issues in tests
+			// This must be done before any calls to GetAttachPath()
 			if tt.runtimeType == RuntimeTypeRunC {
-				attachPath = filepath.Join(baseDir, "attach")
+				mounterutils.SetFuseAttachBaseDir(baseDir)
+				defer func() {
+					// Reset to default after test
+					mounterutils.SetFuseAttachBaseDir("/run")
+				}()
 			}
 
 			// Create directories
 			require.NoError(t, os.MkdirAll(targetPath, 0o755))
+			// Get attachPath after setting fuse attach base dir
+			var attachPath string
 			if tt.runtimeType == RuntimeTypeRunC {
-				require.NoError(t, os.MkdirAll(attachPath, 0o755))
+				attachPath = mounterutils.GetAttachPath("test-volume-id")
+				// Create parent directories for attachPath
+				require.NoError(t, os.MkdirAll(filepath.Dir(attachPath), 0o755))
+				// If attachPath should be mounted, create the attachPath directory itself
+				// so that IsNotMountPoint can properly detect it as a mount point
+				if tt.attachMounted {
+					require.NoError(t, os.MkdirAll(attachPath, 0o755))
+				}
 			}
 
 			// Setup mount points
@@ -347,6 +360,11 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			}
 
 			if tt.runtimeType == RuntimeTypeRunC && tt.attachMounted {
+				// Skip verification if code returned early (already mounted, no token rotation)
+				if !tt.expectExtendedMount && !tt.expectTokenRotate && !tt.expectBindMountOnly {
+					// Code returned early, attachPath was never checked, skip verification
+					return
+				}
 				notMnt, err := fakeMounter.IsLikelyNotMountPoint(attachPath)
 				assert.NoError(t, err)
 				assert.False(t, notMnt, "attachPath should be mounted")
@@ -390,8 +408,8 @@ func TestNodePublishVolume_TokenRotation(t *testing.T) {
 			expectRotate:  true,
 		},
 		{
-			name:          "ECI token rotation",
-			runtimeType:   RuntimeTypeECI,
+			name:          "MicroVM token rotation",
+			runtimeType:   RuntimeTypeMicroVM,
 			targetMounted: true,
 			hasToken:      true,
 			hasFixedAKSK:  false,

@@ -47,24 +47,16 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 		return fmt.Errorf("prepare credential files failed: %w", err)
 	}
 
-	if passwdFile != "" {
-		klog.V(4).InfoS("created ossfs passwd file", "path", passwdFile)
-		if fuseType == mounterutils.OssFsType {
-			op.Options = append(op.Options, "passwd_file="+passwdFile)
-		} else {
-			// ossfs2
-			op.Args = append(op.Args, []string{"-c", passwdFile}...)
-		}
-	}
-	if tokenDir != "" {
-		// Check if mount point already exists for token rotation scenario.
-		// In token rotation (republish), we only need to update the token files,
-		// and the running ossfs client will automatically reload the new token.
-		// We skip the mount operation to avoid creating duplicate mount points.
-		//
-		// Note: IsNotMountPoint handles path not existing by creating the directory
-		// and returning (true, nil). If it returns an error, it's a real error
-		// (e.g., permission denied, mkdir failed, unmount failed) that should be returned.
+	// Check if mount point already exists for token rotation scenario.
+	// In token rotation (republish), we only need to update the token files,
+	// and the running ossfs client will automatically reload the new token.
+	// We skip the mount operation to avoid creating duplicate mount points.
+	//
+	// Note: IsNotMountPoint handles path not existing by creating the directory
+	// and returning (true, nil). If it returns an error, it's a real error
+	// (e.g., permission denied, mkdir failed, unmount failed) that should be returned.
+	// Only check mount point if mountInterface is available (not nil).
+	if mountInterface != nil {
 		notMnt, err := mounterutils.IsNotMountPoint(mountInterface, op.Target)
 		if err != nil {
 			return fmt.Errorf("failed to check if target %s is a mountpoint: %w", op.Target, err)
@@ -76,12 +68,24 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 			klog.V(4).InfoS("mount point already exists, skipping mount for token rotation", "target", op.Target)
 			return mounter.ErrSkipMount
 		}
+	}
 
+	if passwdFile != "" {
+		klog.V(4).InfoS("created ossfs passwd file", "path", passwdFile)
+		if fuseType == mounterutils.OssFsType {
+			op.Options = append(op.Options, "passwd_file="+passwdFile)
+		} else {
+			// ossfs2
+			op.Args = append(op.Args, []string{"-c", passwdFile}...)
+		}
+	}
+	if tokenDir != "" {
 		klog.V(4).InfoS("created ossfs token directory", "dir", tokenDir)
 		if fuseType == mounterutils.OssFsType {
 			op.Options = append(op.Options, "passwd_file="+tokenDir)
 		} else {
 			// ossfs2
+			// For ossfs2, file-path is a common option configuration after -o, so append to op.Options
 			op.Options = append(op.Options,
 				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(tokenDir, mounterutils.KeyAccessKeyId)),
 				fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", filepath.Join(tokenDir, mounterutils.KeyAccessKeySecret)),
@@ -118,10 +122,10 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 // rotateTokenFiles rotates (or initializes) token files
 // This function assumes that token rotation is required when executed
 func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err error) {
-	var fileUpdate bool
 	// Currently, for ossfs2, expiration is not required.
 	// But we still manage it (if offered) for the feature.
 	tokenKey := []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration}
+	// Check nil value in advanced.
 	for _, key := range tokenKey {
 		val := secrets[key]
 		if val == "" {
@@ -130,7 +134,44 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 			}
 			err = fmt.Errorf("invalid authorization. %s is empty", key)
 			klog.Error(err)
-			return
+			// Return false for rotated when error occurs
+			return false, err
+		}
+	}
+
+	// Check if any file needs update before writing
+	// If all files exist and have the same content, skip all write operations
+	anyNeedsUpdate := false
+	for _, key := range tokenKey {
+		val := secrets[key]
+		if val == "" {
+			continue
+		}
+		filePath := filepath.Join(dir, key)
+		existingData, readErr := os.ReadFile(filePath)
+		if readErr != nil {
+			// File doesn't exist, needs to be created
+			anyNeedsUpdate = true
+			break
+		}
+		if string(existingData) != val {
+			// File exists but content is different, needs update
+			anyNeedsUpdate = true
+			break
+		}
+	}
+
+	// If no files need update, return early
+	if !anyNeedsUpdate {
+		return false, nil
+	}
+
+	// Write files that need update
+	var fileUpdate bool
+	for _, key := range tokenKey {
+		val := secrets[key]
+		if val == "" {
+			continue
 		}
 		fileUpdate, err = utils.WriteFileWithLock(filepath.Join(dir, key), []byte(val), 0o600)
 		if err != nil {
@@ -151,7 +192,7 @@ func prepareCredentialFiles(fuseType, target string, secrets map[string]string) 
 	hashDir := utils.GetPasswdHashDir(target)
 
 	if passwd := secrets[utils.GetPasswdFileName(fuseType)]; passwd != "" {
-		err = os.MkdirAll(hashDir, 0o644)
+		err = os.MkdirAll(hashDir, 0o755)
 		if err != nil {
 			klog.Errorf("mkdirall hashdir failed %v", err)
 			return
@@ -167,7 +208,7 @@ func prepareCredentialFiles(fuseType, target string, secrets map[string]string) 
 	// token
 	if token := secrets[mounterutils.KeySecurityToken]; token != "" {
 		tokenDir := filepath.Join(hashDir, utils.GetPasswdFileName(fuseType))
-		err = os.MkdirAll(tokenDir, 0o644)
+		err = os.MkdirAll(tokenDir, 0o755)
 		if err != nil {
 			klog.Errorf("mkdirall tokenDir failed %v", err)
 			return
