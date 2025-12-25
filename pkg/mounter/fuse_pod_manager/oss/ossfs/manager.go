@@ -99,7 +99,7 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 		sv := o.SecretRef != ""
 		rtr := o.SecurityToken != ""
 		if sv && rtr {
-			return fmt.Errorf("Token and secretRef cannot be set at the same time")
+			return fmt.Errorf("token and secretRef cannot be set at the same time")
 		}
 		if sv || rtr {
 			if o.AkID != "" || o.AkSecret != "" {

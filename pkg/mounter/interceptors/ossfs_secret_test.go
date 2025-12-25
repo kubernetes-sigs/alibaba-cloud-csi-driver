@@ -2,6 +2,7 @@ package interceptors
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,12 +11,23 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
+
+// removeAllIgnoreNotExist removes a path and all its children, ignoring "not exist" errors.
+// Other errors are logged but not returned. This is useful for cleanup operations
+// where the path may or may not exist.
+func removeAllIgnoreNotExist(path string) {
+	if err := os.RemoveAll(path); err != nil {
+		if !os.IsNotExist(err) {
+			klog.V(4).Infof("failed to remove %s: %v", path, err)
+		}
+	}
+}
 
 var mockOssfsHandler = func(ctx context.Context, op *mounter.MountOperation) error {
 	result := server.OssfsMountResult{
@@ -124,10 +136,10 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 			// Setup cleanup
 			var hashDir string
 			if tt.op != nil && tt.op.Target != "" {
-				hash := utils.ComputeMountPathHash(tt.op.Target)
+				hash := mounterutils.ComputeMountPathHash(tt.op.Target)
 				hashDir = filepath.Join("/tmp", hash)
-				os.RemoveAll(hashDir)       // Cleanup before test
-				defer os.RemoveAll(hashDir) // Cleanup after test
+				removeAllIgnoreNotExist(hashDir)       // Cleanup before test
+				defer removeAllIgnoreNotExist(hashDir) // Cleanup after test
 			}
 
 			err := OssfsSecretInterceptor(context.Background(), tt.op, tt.handler)
@@ -188,10 +200,10 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 
 	// Test cleanup of passwd file after mount
 	target := "/mnt/target_cleanup"
-	hash := utils.ComputeMountPathHash(target)
+	hash := mounterutils.ComputeMountPathHash(target)
 	hashDir := filepath.Join("/tmp", hash)
-	os.RemoveAll(hashDir)       // Cleanup before test
-	defer os.RemoveAll(hashDir) // Cleanup after test
+	removeAllIgnoreNotExist(hashDir)       // Cleanup before test
+	defer removeAllIgnoreNotExist(hashDir) // Cleanup after test
 
 	op := &mounter.MountOperation{
 		Target: target,
@@ -290,10 +302,10 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 			// Setup cleanup
 			var hashDir string
 			if tt.op != nil && tt.op.Target != "" {
-				hash := utils.ComputeMountPathHash(tt.op.Target)
+				hash := mounterutils.ComputeMountPathHash(tt.op.Target)
 				hashDir = filepath.Join("/tmp", hash)
-				os.RemoveAll(hashDir)       // Cleanup before test
-				defer os.RemoveAll(hashDir) // Cleanup after test
+				removeAllIgnoreNotExist(hashDir)       // Cleanup before test
+				defer removeAllIgnoreNotExist(hashDir) // Cleanup after test
 			}
 
 			err := Ossfs2SecretInterceptor(context.Background(), tt.op, tt.handler)
@@ -345,8 +357,8 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 }
 
 var (
-	OssfsPasswdFile  = utils.GetPasswdFileName("ossfs")
-	Ossfs2PasswdFile = utils.GetPasswdFileName("ossfs2")
+	OssfsPasswdFile  = mounterutils.GetPasswdFileName("ossfs")
+	Ossfs2PasswdFile = mounterutils.GetPasswdFileName("ossfs2")
 )
 
 func TestPrepareCredentialFiles(t *testing.T) {
@@ -454,10 +466,10 @@ func TestPrepareCredentialFiles(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hash := utils.ComputeMountPathHash(tt.target)
+			hash := mounterutils.ComputeMountPathHash(tt.target)
 			hashDir := filepath.Join("/tmp", hash)
-			os.RemoveAll(hashDir)       // Cleanup before test
-			defer os.RemoveAll(hashDir) // Cleanup after test
+			removeAllIgnoreNotExist(hashDir)       // Cleanup before test
+			defer removeAllIgnoreNotExist(hashDir) // Cleanup after test
 
 			file, dir, err := prepareCredentialFiles(tt.fuseType, tt.target, tt.secrets)
 			assert.Equal(t, tt.wantErr, err != nil, "error mismatch")
@@ -610,9 +622,9 @@ func TestRotateTokenFiles(t *testing.T) {
 				tokenFile := filepath.Join(dir, mounterutils.KeySecurityToken)
 				if setup {
 					// Create existing files with same content before calling rotateTokenFiles
-					os.WriteFile(akFile, []byte("existingAKID"), 0o600)
-					os.WriteFile(skFile, []byte("existingAKSecret"), 0o600)
-					os.WriteFile(tokenFile, []byte("existingToken"), 0o600)
+					require.NoError(t, os.WriteFile(akFile, []byte("existingAKID"), 0o600))
+					require.NoError(t, os.WriteFile(skFile, []byte("existingAKSecret"), 0o600))
+					require.NoError(t, os.WriteFile(tokenFile, []byte("existingToken"), 0o600))
 				} else {
 					// Verify files still have same content after rotation (no update should occur)
 					ak, _ := os.ReadFile(akFile)
@@ -642,10 +654,10 @@ func TestRotateTokenFiles(t *testing.T) {
 				expFile := filepath.Join(dir, mounterutils.KeyExpiration)
 				if setup {
 					// Create existing files with same content before calling rotateTokenFiles
-					os.WriteFile(akFile, []byte("existingAKID"), 0o600)
-					os.WriteFile(skFile, []byte("existingAKSecret"), 0o600)
-					os.WriteFile(tokenFile, []byte("existingToken"), 0o600)
-					os.WriteFile(expFile, []byte("existingExpiration"), 0o600)
+					require.NoError(t, os.WriteFile(akFile, []byte("existingAKID"), 0o600))
+					require.NoError(t, os.WriteFile(skFile, []byte("existingAKSecret"), 0o600))
+					require.NoError(t, os.WriteFile(tokenFile, []byte("existingToken"), 0o600))
+					require.NoError(t, os.WriteFile(expFile, []byte("existingExpiration"), 0o600))
 				} else {
 					// Verify files still have same content after rotation (no update should occur)
 					ak, _ := os.ReadFile(akFile)
@@ -674,9 +686,9 @@ func TestRotateTokenFiles(t *testing.T) {
 				tokenFile := filepath.Join(dir, mounterutils.KeySecurityToken)
 				if setup {
 					// Create existing files before calling rotateTokenFiles
-					os.WriteFile(akFile, []byte("existingAKID"), 0o600)
-					os.WriteFile(skFile, []byte("oldAKSecret"), 0o600) // Different content
-					os.WriteFile(tokenFile, []byte("existingToken"), 0o600)
+					require.NoError(t, os.WriteFile(akFile, []byte("existingAKID"), 0o600))
+					require.NoError(t, os.WriteFile(skFile, []byte("oldAKSecret"), 0o600)) // Different content
+					require.NoError(t, os.WriteFile(tokenFile, []byte("existingToken"), 0o600))
 				} else {
 					// Verify all files are updated after calling rotateTokenFiles
 					ak, _ := os.ReadFile(akFile)
@@ -718,19 +730,38 @@ func TestRotateTokenFiles(t *testing.T) {
 	}
 
 	mountPath := "/mnt/target2"
-	hash := utils.ComputeMountPathHash(mountPath)
+	hash := mounterutils.ComputeMountPathHash(mountPath)
 	hashDir := filepath.Join("/tmp", hash)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.RemoveAll(hashDir) // Cleanup before test
+			removeAllIgnoreNotExist(hashDir) // Cleanup before test
 			err := os.MkdirAll(hashDir, 0o755)
 			require.NoError(t, err)
-			defer os.RemoveAll(hashDir) // Cleanup after test
+			defer removeAllIgnoreNotExist(hashDir) // Cleanup after test
 
 			// Setup existing files if needed
+			// For symlink-based implementation, we need to create the symlink structure
 			if tt.setupFiles && tt.checkFiles != nil {
-				tt.checkFiles(t, hashDir, true)
+				// First create the data directory structure
+				dataDir := filepath.Join(hashDir, "..data_tmp_initial")
+				err := os.MkdirAll(dataDir, 0o755)
+				require.NoError(t, err)
+
+				// Create files in data directory
+				tt.checkFiles(t, dataDir, true)
+
+				// Create ..data symlink
+				dataLinkPath := filepath.Join(hashDir, "..data")
+				err = os.Symlink("..data_tmp_initial", dataLinkPath)
+				require.NoError(t, err)
+
+				// Create file-level symlinks
+				for _, key := range []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration} {
+					fileLinkPath := filepath.Join(hashDir, key)
+					linkTarget := fmt.Sprintf("..data/%s", key)
+					require.NoError(t, os.Symlink(linkTarget, fileLinkPath))
+				}
 			}
 
 			// Call rotateTokenFiles
@@ -792,12 +823,12 @@ func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 			// Use a unique target path for each test
 			baseDir := t.TempDir()
 			target := filepath.Join(baseDir, "target")
-			hash := utils.ComputeMountPathHash(target)
+			hash := mounterutils.ComputeMountPathHash(target)
 			hashDir := filepath.Join("/tmp", hash)
 
 			// Clean up any existing directory
-			os.RemoveAll(hashDir)
-			defer os.RemoveAll(hashDir)
+			removeAllIgnoreNotExist(hashDir)
+			defer removeAllIgnoreNotExist(hashDir)
 
 			// Create target directory (required for FakeMounter to check mount points)
 			err := os.MkdirAll(target, 0o755)
@@ -806,7 +837,7 @@ func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 			// For token rotation scenario, create token directory in advance
 			// (in real scenarios, it would already exist from previous mount)
 			if tt.mountPoint != "" {
-				tokenDir := filepath.Join(hashDir, utils.GetPasswdFileName(tt.fuseType))
+				tokenDir := filepath.Join(hashDir, mounterutils.GetPasswdFileName(tt.fuseType))
 				err = os.MkdirAll(tokenDir, 0o755)
 				require.NoError(t, err)
 			}
@@ -872,7 +903,7 @@ func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 
 			// Verify token files were created/updated
 			if tt.expectTokenDir {
-				tokenDir := filepath.Join(hashDir, utils.GetPasswdFileName(tt.fuseType))
+				tokenDir := filepath.Join(hashDir, mounterutils.GetPasswdFileName(tt.fuseType))
 				// For token rotation, files should exist even if mount was skipped
 				// For first-time mount, files should be created
 				if tt.expectSkip {
@@ -918,4 +949,259 @@ func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestRotateTokenFiles_SymlinkAtomicUpdate tests the symlink-based atomic update mechanism
+func TestRotateTokenFiles_SymlinkAtomicUpdate(t *testing.T) {
+	t.Run("verify symlink structure after initial creation", func(t *testing.T) {
+		dir := t.TempDir()
+		secrets := map[string]string{
+			mounterutils.KeyAccessKeyId:     "akid1",
+			mounterutils.KeyAccessKeySecret: "aksecret1",
+			mounterutils.KeySecurityToken:   "token1",
+			mounterutils.KeyExpiration:      "exp1",
+		}
+
+		rotated, err := rotateTokenFiles(dir, secrets)
+		require.NoError(t, err)
+		assert.True(t, rotated)
+
+		// Verify ..data symlink exists and points to a data directory
+		dataLinkPath := filepath.Join(dir, "..data")
+		dataLinkTarget, err := os.Readlink(dataLinkPath)
+		require.NoError(t, err)
+		assert.Contains(t, dataLinkTarget, "..data_tmp_")
+
+		// Verify data directory exists and contains all files
+		dataDir := filepath.Join(dir, dataLinkTarget)
+		assert.DirExists(t, dataDir)
+		for _, key := range []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration} {
+			filePath := filepath.Join(dataDir, key)
+			assert.FileExists(t, filePath)
+		}
+
+		// Verify file-level symlinks exist and point to ..data/<filename>
+		for _, key := range []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration} {
+			fileLinkPath := filepath.Join(dir, key)
+			linkTarget, err := os.Readlink(fileLinkPath)
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("..data/%s", key), linkTarget)
+
+			// Verify we can read the file through the symlink
+			content, err := os.ReadFile(fileLinkPath)
+			require.NoError(t, err)
+			assert.Equal(t, secrets[key], string(content))
+		}
+	})
+
+	t.Run("verify atomic update - all files update together", func(t *testing.T) {
+		dir := t.TempDir()
+
+		// Initial creation
+		secrets1 := map[string]string{
+			mounterutils.KeyAccessKeyId:     "akid1",
+			mounterutils.KeyAccessKeySecret: "aksecret1",
+			mounterutils.KeySecurityToken:   "token1",
+			mounterutils.KeyExpiration:      "exp1",
+		}
+		_, err := rotateTokenFiles(dir, secrets1)
+		require.NoError(t, err)
+
+		// Get initial data directory
+		dataLinkPath := filepath.Join(dir, "..data")
+		initialDataLinkTarget, _ := os.Readlink(dataLinkPath)
+		initialDataDir := filepath.Join(dir, initialDataLinkTarget)
+
+		// Update with new values
+		secrets2 := map[string]string{
+			mounterutils.KeyAccessKeyId:     "akid2",
+			mounterutils.KeyAccessKeySecret: "aksecret2",
+			mounterutils.KeySecurityToken:   "token2",
+			mounterutils.KeyExpiration:      "exp2",
+		}
+		rotated, err := rotateTokenFiles(dir, secrets2)
+		require.NoError(t, err)
+		assert.True(t, rotated)
+
+		// Verify ..data symlink now points to a new directory
+		newDataLinkTarget, err := os.Readlink(dataLinkPath)
+		require.NoError(t, err)
+		assert.NotEqual(t, initialDataLinkTarget, newDataLinkTarget)
+		assert.Contains(t, newDataLinkTarget, "..data_tmp_")
+
+		// Verify all files through symlinks show new values (atomic consistency)
+		for _, key := range []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration} {
+			fileLinkPath := filepath.Join(dir, key)
+			content, err := os.ReadFile(fileLinkPath)
+			require.NoError(t, err)
+			assert.Equal(t, secrets2[key], string(content), "file %s should have new value", key)
+		}
+
+		// Verify old data directory (will be cleaned up asynchronously)
+		// Since cleanup is async, the directory may or may not exist at this point
+		// If it exists, verify it contains old values; if not, cleanup has completed (also acceptable)
+		if _, err := os.Stat(initialDataDir); err == nil {
+			// Old directory still exists, verify it contains old values
+			for _, key := range []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration} {
+				filePath := filepath.Join(initialDataDir, key)
+				content, err := os.ReadFile(filePath)
+				if err == nil {
+					assert.Equal(t, secrets1[key], string(content), "old directory file %s should have old value", key)
+				}
+			}
+		}
+		// If directory doesn't exist, cleanup has completed (acceptable)
+	})
+
+	t.Run("verify file-level symlink atomic replacement", func(t *testing.T) {
+		dir := t.TempDir()
+
+		// Initial creation
+		secrets1 := map[string]string{
+			mounterutils.KeyAccessKeyId:     "akid1",
+			mounterutils.KeyAccessKeySecret: "aksecret1",
+			mounterutils.KeySecurityToken:   "token1",
+		}
+		_, err := rotateTokenFiles(dir, secrets1)
+		require.NoError(t, err)
+
+		// Verify file symlink exists
+		akFileLink := filepath.Join(dir, mounterutils.KeyAccessKeyId)
+		initialLinkTarget, err := os.Readlink(akFileLink)
+		require.NoError(t, err)
+		assert.Equal(t, fmt.Sprintf("..data/%s", mounterutils.KeyAccessKeyId), initialLinkTarget)
+
+		// Update
+		secrets2 := map[string]string{
+			mounterutils.KeyAccessKeyId:     "akid2",
+			mounterutils.KeyAccessKeySecret: "aksecret2",
+			mounterutils.KeySecurityToken:   "token2",
+		}
+		_, err = rotateTokenFiles(dir, secrets2)
+		require.NoError(t, err)
+
+		// Verify file symlink still exists and points to same relative path
+		// (the symlink itself is replaced atomically, but target path is the same)
+		newLinkTarget, err := os.Readlink(akFileLink)
+		require.NoError(t, err)
+		assert.Equal(t, fmt.Sprintf("..data/%s", mounterutils.KeyAccessKeyId), newLinkTarget)
+
+		// Verify we can read new value through the symlink
+		content, err := os.ReadFile(akFileLink)
+		require.NoError(t, err)
+		assert.Equal(t, "akid2", string(content))
+	})
+
+	t.Run("verify consistency during concurrent reads", func(t *testing.T) {
+		dir := t.TempDir()
+
+		// Initial creation
+		secrets1 := map[string]string{
+			mounterutils.KeyAccessKeyId:     "akid1",
+			mounterutils.KeyAccessKeySecret: "aksecret1",
+			mounterutils.KeySecurityToken:   "token1",
+			mounterutils.KeyExpiration:      "exp1",
+		}
+		_, err := rotateTokenFiles(dir, secrets1)
+		require.NoError(t, err)
+
+		// Simulate concurrent reads during update
+		readChan := make(chan map[string]string, 10)
+		updateDone := make(chan bool)
+
+		// Start concurrent readers
+		for i := 0; i < 10; i++ {
+			go func() {
+				values := make(map[string]string)
+				for _, key := range []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration} {
+					filePath := filepath.Join(dir, key)
+					content, err := os.ReadFile(filePath)
+					if err == nil {
+						values[key] = string(content)
+					}
+				}
+				readChan <- values
+			}()
+		}
+
+		// Start update
+		go func() {
+			secrets2 := map[string]string{
+				mounterutils.KeyAccessKeyId:     "akid2",
+				mounterutils.KeyAccessKeySecret: "aksecret2",
+				mounterutils.KeySecurityToken:   "token2",
+				mounterutils.KeyExpiration:      "exp2",
+			}
+			_, _ = rotateTokenFiles(dir, secrets2)
+			updateDone <- true
+		}()
+
+		// Collect all reads
+		allReads := make([]map[string]string, 0, 10)
+		for i := 0; i < 10; i++ {
+			select {
+			case values := <-readChan:
+				allReads = append(allReads, values)
+			case <-time.After(5 * time.Second):
+				t.Fatal("timeout waiting for reads")
+			}
+		}
+		<-updateDone
+
+		// Verify all reads are consistent (either all old or all new)
+		// Each read should have all files from the same version
+		for _, read := range allReads {
+			if len(read) == 0 {
+				continue // Skip failed reads
+			}
+			// Check if this read is from old version or new version
+			isOldVersion := read[mounterutils.KeyAccessKeyId] == "akid1"
+			isNewVersion := read[mounterutils.KeyAccessKeyId] == "akid2"
+			assert.True(t, isOldVersion || isNewVersion, "read should be from either old or new version")
+
+			if isOldVersion {
+				assert.Equal(t, "aksecret1", read[mounterutils.KeyAccessKeySecret])
+				assert.Equal(t, "token1", read[mounterutils.KeySecurityToken])
+				assert.Equal(t, "exp1", read[mounterutils.KeyExpiration])
+			} else if isNewVersion {
+				assert.Equal(t, "aksecret2", read[mounterutils.KeyAccessKeySecret])
+				assert.Equal(t, "token2", read[mounterutils.KeySecurityToken])
+				assert.Equal(t, "exp2", read[mounterutils.KeyExpiration])
+			}
+		}
+	})
+
+	t.Run("verify multiple sequential updates", func(t *testing.T) {
+		dir := t.TempDir()
+
+		// Perform multiple updates
+		for i := 1; i <= 5; i++ {
+			secrets := map[string]string{
+				mounterutils.KeyAccessKeyId:     fmt.Sprintf("akid%d", i),
+				mounterutils.KeyAccessKeySecret: fmt.Sprintf("aksecret%d", i),
+				mounterutils.KeySecurityToken:   fmt.Sprintf("token%d", i),
+			}
+			rotated, err := rotateTokenFiles(dir, secrets)
+			require.NoError(t, err)
+			if i == 1 {
+				assert.True(t, rotated) // First update should rotate
+			} else {
+				assert.True(t, rotated) // Subsequent updates should also rotate
+			}
+
+			// Verify current values
+			for _, key := range []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken} {
+				filePath := filepath.Join(dir, key)
+				content, err := os.ReadFile(filePath)
+				require.NoError(t, err)
+				expectedValue := secrets[key]
+				assert.Equal(t, expectedValue, string(content), "iteration %d, key %s", i, key)
+			}
+
+			// Verify ..data symlink exists
+			dataLinkPath := filepath.Join(dir, "..data")
+			_, err = os.Readlink(dataLinkPath)
+			require.NoError(t, err)
+		}
+	})
 }

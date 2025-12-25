@@ -12,6 +12,7 @@ import (
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 )
@@ -138,8 +139,11 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Enable RundCSIProtocol3 for the specific test case
 			if tt.name == "success with RundCSIProtocol3 enabled" {
-				features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=true", features.RundCSIProtocol3))
-				defer features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=false", features.RundCSIProtocol3))
+				err := features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=true", features.RundCSIProtocol3))
+				require.NoError(t, err)
+				defer func() {
+					_ = features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=false", features.RundCSIProtocol3))
+				}()
 			}
 			err := fakeOssfs.PrecheckAuthConfig(tt.opts, true)
 			assert.Equal(t, tt.wantErr, err != nil)

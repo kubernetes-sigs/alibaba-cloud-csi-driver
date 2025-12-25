@@ -28,7 +28,6 @@ import (
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs2"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -917,7 +916,7 @@ func TestMakeAuthConfig(t *testing.T) {
 	}
 	want := &fpm.AuthConfig{
 		Secrets: map[string]string{
-			utils.GetPasswdFileName(mounterutils.OssFsType): fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
+			mounterutils.GetPasswdFileName(mounterutils.OssFsType): fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
 		},
 	}
 	authCfg, err := makeAuthConfig(opt, ossfsFpm, fakeMeta, true)
@@ -938,7 +937,7 @@ func TestMakeAuthConfig(t *testing.T) {
 	}
 	want2 := &fpm.AuthConfig{
 		Secrets: map[string]string{
-			utils.GetPasswdFileName(mounterutils.OssFs2Type): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", opt.AkID, opt.AkSecret),
+			mounterutils.GetPasswdFileName(mounterutils.OssFs2Type): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", opt.AkID, opt.AkSecret),
 		},
 	}
 	authCfg2, err := makeAuthConfig(opt2, ossfs2Fpm, fakeMeta, true)

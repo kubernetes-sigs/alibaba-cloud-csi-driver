@@ -360,11 +360,6 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			}
 
 			if tt.runtimeType == RuntimeTypeRunC && tt.attachMounted {
-				// Skip verification if code returned early (already mounted, no token rotation)
-				if !tt.expectExtendedMount && !tt.expectTokenRotate && !tt.expectBindMountOnly {
-					// Code returned early, attachPath was never checked, skip verification
-					return
-				}
 				notMnt, err := fakeMounter.IsLikelyNotMountPoint(attachPath)
 				assert.NoError(t, err)
 				assert.False(t, notMnt, "attachPath should be mounted")

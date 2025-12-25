@@ -300,8 +300,11 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Enable RundCSIProtocol3 for the specific test case
 			if tt.name == "success with RundCSIProtocol3 enabled" {
-				features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=true", features.RundCSIProtocol3))
-				defer features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=false", features.RundCSIProtocol3))
+				err := features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=true", features.RundCSIProtocol3))
+				require.NoError(t, err)
+				defer func() {
+					_ = features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=false", features.RundCSIProtocol3))
+				}()
 			}
 			err := fakeOssfs.PrecheckAuthConfig(tt.opts, true)
 			assert.Equal(t, tt.wantErr, err != nil)
