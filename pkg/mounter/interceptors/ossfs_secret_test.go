@@ -1149,24 +1149,30 @@ func TestRotateTokenFiles_SymlinkAtomicUpdate(t *testing.T) {
 		<-updateDone
 
 		// Verify all reads are consistent (either all old or all new)
-		// Each read should have all files from the same version
+		// Each read should have all files from the same version.
+		// Once ..data symlink is switched, all file-level symlinks (which point to ..data/<filename>)
+		// will resolve to the new data directory, regardless of when the file-level symlinks are updated.
+		// So all files should be consistent - either all old (before ..data switch) or all new (after ..data switch).
 		for _, read := range allReads {
 			if len(read) == 0 {
 				continue // Skip failed reads
 			}
-			// Check if this read is from old version or new version
+			// Check if this read is from old version or new version based on AccessKeyId
 			isOldVersion := read[mounterutils.KeyAccessKeyId] == "akid1"
 			isNewVersion := read[mounterutils.KeyAccessKeyId] == "akid2"
-			assert.True(t, isOldVersion || isNewVersion, "read should be from either old or new version")
+			assert.True(t, isOldVersion || isNewVersion, "read should be from either old or new version, got: %v", read)
 
 			if isOldVersion {
-				assert.Equal(t, "aksecret1", read[mounterutils.KeyAccessKeySecret])
-				assert.Equal(t, "token1", read[mounterutils.KeySecurityToken])
-				assert.Equal(t, "exp1", read[mounterutils.KeyExpiration])
+				// All files should be from old version (read happened before ..data switch)
+				assert.Equal(t, "aksecret1", read[mounterutils.KeyAccessKeySecret], "AccessKeySecret should match old version")
+				assert.Equal(t, "token1", read[mounterutils.KeySecurityToken], "SecurityToken should match old version")
+				assert.Equal(t, "exp1", read[mounterutils.KeyExpiration], "Expiration should match old version")
 			} else if isNewVersion {
-				assert.Equal(t, "aksecret2", read[mounterutils.KeyAccessKeySecret])
-				assert.Equal(t, "token2", read[mounterutils.KeySecurityToken])
-				assert.Equal(t, "exp2", read[mounterutils.KeyExpiration])
+				// All files should be from new version (read happened after ..data switch)
+				// Since ..data symlink switch is atomic, all file-level symlinks will resolve to new data
+				assert.Equal(t, "aksecret2", read[mounterutils.KeyAccessKeySecret], "AccessKeySecret should match new version")
+				assert.Equal(t, "token2", read[mounterutils.KeySecurityToken], "SecurityToken should match new version")
+				assert.Equal(t, "exp2", read[mounterutils.KeyExpiration], "Expiration should match new version")
 			}
 		}
 	})
@@ -1203,5 +1209,340 @@ func TestRotateTokenFiles_SymlinkAtomicUpdate(t *testing.T) {
 			_, err = os.Readlink(dataLinkPath)
 			require.NoError(t, err)
 		}
+	})
+}
+
+func TestCheckFileContent(t *testing.T) {
+	tests := []struct {
+		name         string
+		setupFile    bool
+		fileContent  string
+		checkContent string
+		expectExists bool
+		expectSame   bool
+		expectErr    bool
+		expectErrMsg string
+	}{
+		{
+			name:         "file does not exist",
+			setupFile:    false,
+			checkContent: "test content",
+			expectExists: false,
+			expectSame:   false,
+			expectErr:    false,
+		},
+		{
+			name:         "file exists with same content",
+			setupFile:    true,
+			fileContent:  "test content",
+			checkContent: "test content",
+			expectExists: true,
+			expectSame:   true,
+			expectErr:    false,
+		},
+		{
+			name:         "file exists with different content",
+			setupFile:    true,
+			fileContent:  "old content",
+			checkContent: "new content",
+			expectExists: true,
+			expectSame:   false,
+			expectErr:    false,
+		},
+		{
+			name:         "file exists but empty, checking empty",
+			setupFile:    true,
+			fileContent:  "",
+			checkContent: "",
+			expectExists: true,
+			expectSame:   true,
+			expectErr:    false,
+		},
+		{
+			name:         "file exists but empty, checking non-empty",
+			setupFile:    true,
+			fileContent:  "",
+			checkContent: "non-empty",
+			expectExists: true,
+			expectSame:   false,
+			expectErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			baseDir := t.TempDir()
+			filePath := filepath.Join(baseDir, "testfile")
+
+			if tt.setupFile {
+				err := os.WriteFile(filePath, []byte(tt.fileContent), 0o600)
+				require.NoError(t, err)
+			}
+
+			exists, sameContent, err := checkFileContent(filePath, []byte(tt.checkContent))
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				if tt.expectErrMsg != "" {
+					assert.Contains(t, err.Error(), tt.expectErrMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectExists, exists, "exists should match")
+				assert.Equal(t, tt.expectSame, sameContent, "sameContent should match")
+			}
+		})
+	}
+}
+
+func TestWriteFileAtomically(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupFile      bool
+		initialContent string
+		writeContent   string
+		expectDone     bool
+		expectErr      bool
+		expectErrMsg   string
+		verifyContent  string
+	}{
+		{
+			name:          "write to non-existent file",
+			setupFile:     false,
+			writeContent:  "new content",
+			expectDone:    true,
+			expectErr:     false,
+			verifyContent: "new content",
+		},
+		{
+			name:           "write to existing file with same content - no update",
+			setupFile:      true,
+			initialContent: "same content",
+			writeContent:   "same content",
+			expectDone:     false, // No write needed
+			expectErr:      false,
+			verifyContent:  "same content",
+		},
+		{
+			name:           "write to existing file with different content - update",
+			setupFile:      true,
+			initialContent: "old content",
+			writeContent:   "new content",
+			expectDone:     true,
+			expectErr:      false,
+			verifyContent:  "new content",
+		},
+		{
+			name:          "write empty content to non-existent file",
+			setupFile:     false,
+			writeContent:  "",
+			expectDone:    true,
+			expectErr:     false,
+			verifyContent: "",
+		},
+		{
+			name:           "write empty content to existing file with same empty content",
+			setupFile:      true,
+			initialContent: "",
+			writeContent:   "",
+			expectDone:     false,
+			expectErr:      false,
+			verifyContent:  "",
+		},
+		{
+			name:          "write to file in non-existent directory - should fail",
+			setupFile:     false,
+			writeContent:  "content",
+			expectDone:    false,
+			expectErr:     true,
+			expectErrMsg:  "failed to write temporary file",
+			verifyContent: "", // No content to verify on error
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			baseDir := t.TempDir()
+			filePath := filepath.Join(baseDir, "testfile")
+
+			// For the error case, use a path in a non-existent directory
+			if tt.name == "write to file in non-existent directory - should fail" {
+				filePath = filepath.Join(baseDir, "nonexistent", "testfile")
+			} else {
+				if tt.setupFile {
+					err := os.WriteFile(filePath, []byte(tt.initialContent), 0o600)
+					require.NoError(t, err)
+				}
+			}
+
+			done, err := writeFileAtomically(filePath, []byte(tt.writeContent), 0o600)
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				if tt.expectErrMsg != "" {
+					assert.Contains(t, err.Error(), tt.expectErrMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectDone, done, "done should match")
+
+				// Verify file content if not expecting error
+				if tt.verifyContent != "" {
+					actualContent, readErr := os.ReadFile(filePath)
+					require.NoError(t, readErr)
+					assert.Equal(t, tt.verifyContent, string(actualContent))
+				}
+
+				// Verify file permissions
+				if !tt.expectErr {
+					info, statErr := os.Stat(filePath)
+					require.NoError(t, statErr)
+					assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+				}
+			}
+		})
+	}
+
+	// Test concurrent writes
+	t.Run("concurrent writes", func(t *testing.T) {
+		baseDir := t.TempDir()
+		filePath := filepath.Join(baseDir, "concurrent")
+
+		// Write initial content
+		err := os.WriteFile(filePath, []byte("initial"), 0o600)
+		require.NoError(t, err)
+
+		// Perform multiple concurrent writes
+		const numWrites = 10
+		done := make(chan bool, numWrites)
+		errChan := make(chan error, numWrites)
+
+		for i := 0; i < numWrites; i++ {
+			go func(idx int) {
+				content := fmt.Sprintf("content-%d", idx)
+				d, e := writeFileAtomically(filePath, []byte(content), 0o600)
+				done <- d
+				if e != nil {
+					errChan <- e
+				}
+			}(i)
+		}
+
+		// Wait for all writes to complete
+		writeCount := 0
+		for i := 0; i < numWrites; i++ {
+			select {
+			case d := <-done:
+				if d {
+					writeCount++
+				}
+			case e := <-errChan:
+				t.Errorf("unexpected error: %v", e)
+			case <-time.After(5 * time.Second):
+				t.Fatal("timeout waiting for concurrent writes")
+			}
+		}
+
+		// At least one write should have succeeded
+		assert.Greater(t, writeCount, 0, "at least one write should have succeeded")
+
+		// Final content should be valid (one of the written contents)
+		finalContent, readErr := os.ReadFile(filePath)
+		require.NoError(t, readErr)
+		assert.NotEmpty(t, string(finalContent))
+	})
+}
+
+func TestRotatePasswdFile(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupFile      bool
+		initialContent string
+		rotateContent  string
+		expectRotated  bool
+		expectErr      bool
+		verifyContent  string
+	}{
+		{
+			name:          "rotate non-existent file",
+			setupFile:     false,
+			rotateContent: "new passwd",
+			expectRotated: true,
+			expectErr:     false,
+			verifyContent: "new passwd",
+		},
+		{
+			name:           "rotate existing file with same content - no rotation",
+			setupFile:      true,
+			initialContent: "same passwd",
+			rotateContent:  "same passwd",
+			expectRotated:  false, // No rotation needed
+			expectErr:      false,
+			verifyContent:  "same passwd",
+		},
+		{
+			name:           "rotate existing file with different content",
+			setupFile:      true,
+			initialContent: "old passwd",
+			rotateContent:  "new passwd",
+			expectRotated:  true,
+			expectErr:      false,
+			verifyContent:  "new passwd",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			baseDir := t.TempDir()
+			filePath := filepath.Join(baseDir, "passwd")
+
+			if tt.setupFile {
+				err := os.WriteFile(filePath, []byte(tt.initialContent), 0o600)
+				require.NoError(t, err)
+			}
+
+			rotated, err := rotatePasswdFile(filePath, []byte(tt.rotateContent), 0o600)
+
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectRotated, rotated, "rotated should match")
+
+				// Verify file content
+				if tt.verifyContent != "" {
+					actualContent, readErr := os.ReadFile(filePath)
+					require.NoError(t, readErr)
+					assert.Equal(t, tt.verifyContent, string(actualContent))
+				}
+
+				// Verify file permissions
+				info, statErr := os.Stat(filePath)
+				require.NoError(t, statErr)
+				assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+			}
+		})
+	}
+
+	// Test that rotatePasswdFile is equivalent to writeFileAtomically
+	t.Run("equivalent to writeFileAtomically", func(t *testing.T) {
+		baseDir := t.TempDir()
+		filePath1 := filepath.Join(baseDir, "passwd1")
+		filePath2 := filepath.Join(baseDir, "passwd2")
+		content := []byte("test passwd content")
+
+		rotated1, err1 := rotatePasswdFile(filePath1, content, 0o600)
+		done2, err2 := writeFileAtomically(filePath2, content, 0o600)
+
+		assert.NoError(t, err1)
+		assert.NoError(t, err2)
+		assert.Equal(t, done2, rotated1, "rotatePasswdFile should return same result as writeFileAtomically")
+
+		// Verify both files have same content
+		content1, readErr1 := os.ReadFile(filePath1)
+		content2, readErr2 := os.ReadFile(filePath2)
+		require.NoError(t, readErr1)
+		require.NoError(t, readErr2)
+		assert.Equal(t, content1, content2)
 	})
 }
