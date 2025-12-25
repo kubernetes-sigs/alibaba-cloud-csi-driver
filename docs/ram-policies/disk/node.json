@@ -4,7 +4,6 @@
         {
             "Action": [
                 "ecs:AddTags",
-                "ecs:AttachDisk",
                 "ecs:DeleteSnapshot",
                 "ecs:DescribeDisks",
                 "ecs:DescribeInstanceAttribute",
@@ -13,7 +12,6 @@
                 "ecs:DescribeSnapshots",
                 "ecs:DescribeTags",
                 "ecs:DescribeTaskAttribute",
-                "ecs:DetachDisk",
                 "ecs:ListTagResources",
                 "ecs:RemoveTags",
                 "ecs:TagResources",
