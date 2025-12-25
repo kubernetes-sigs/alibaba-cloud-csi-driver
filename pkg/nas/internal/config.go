@@ -126,12 +126,7 @@ func GetNodeConfig() (*NodeConfig, error) {
 		klog.Info("enabled nas volume stats")
 	}
 
-	// get node info
 	nodeName := os.Getenv("KUBE_NODE_NAME")
-	node, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
 	config.NodeName = nodeName
 
 	// check if losetup enabled
@@ -140,6 +135,11 @@ func GetNodeConfig() (*NodeConfig, error) {
 	}
 	if config.EnableLosetup {
 		klog.Info("enabled nas losetup mode")
+		node, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+
 		for _, addr := range node.Status.Addresses {
 			if addr.Type == corev1.NodeInternalIP {
 				config.NodeIP = addr.Address
