@@ -70,7 +70,16 @@ func (s *DescribeProtocolServiceResponseBody) SetRequestId(v string) *DescribePr
 }
 
 func (s *DescribeProtocolServiceResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.ProtocolServices != nil {
+		for _, item := range s.ProtocolServices {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeProtocolServiceResponseBodyProtocolServices struct {

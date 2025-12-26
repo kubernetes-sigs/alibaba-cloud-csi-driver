@@ -53,7 +53,12 @@ func (s *GetDirectoryOrFilePropertiesResponseBody) SetRequestId(v string) *GetDi
 }
 
 func (s *GetDirectoryOrFilePropertiesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Entry != nil {
+		if err := s.Entry.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type GetDirectoryOrFilePropertiesResponseBodyEntry struct {

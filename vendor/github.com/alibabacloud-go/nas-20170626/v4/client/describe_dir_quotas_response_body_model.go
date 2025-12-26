@@ -104,7 +104,16 @@ func (s *DescribeDirQuotasResponseBody) SetTotalCount(v int32) *DescribeDirQuota
 }
 
 func (s *DescribeDirQuotasResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.DirQuotaInfos != nil {
+		for _, item := range s.DirQuotaInfos {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDirQuotasResponseBodyDirQuotaInfos struct {
@@ -175,7 +184,16 @@ func (s *DescribeDirQuotasResponseBodyDirQuotaInfos) SetUserQuotaInfos(v []*Desc
 }
 
 func (s *DescribeDirQuotasResponseBodyDirQuotaInfos) Validate() error {
-	return dara.Validate(s)
+	if s.UserQuotaInfos != nil {
+		for _, item := range s.UserQuotaInfos {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDirQuotasResponseBodyDirQuotaInfosUserQuotaInfos struct {

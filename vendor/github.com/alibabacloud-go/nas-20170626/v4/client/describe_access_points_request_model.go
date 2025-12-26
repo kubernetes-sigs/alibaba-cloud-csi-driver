@@ -17,6 +17,8 @@ type iDescribeAccessPointsRequest interface {
 	GetMaxResults() *int32
 	SetNextToken(v string) *DescribeAccessPointsRequest
 	GetNextToken() *string
+	SetTag(v []*DescribeAccessPointsRequestTag) *DescribeAccessPointsRequest
+	GetTag() []*DescribeAccessPointsRequestTag
 }
 
 type DescribeAccessPointsRequest struct {
@@ -49,7 +51,8 @@ type DescribeAccessPointsRequest struct {
 	// example:
 	//
 	// MTY4NzcxOTcwMjAzMDk2Nzc0MyM4MDM4****
-	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	NextToken *string                           `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	Tag       []*DescribeAccessPointsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 }
 
 func (s DescribeAccessPointsRequest) String() string {
@@ -76,6 +79,10 @@ func (s *DescribeAccessPointsRequest) GetNextToken() *string {
 	return s.NextToken
 }
 
+func (s *DescribeAccessPointsRequest) GetTag() []*DescribeAccessPointsRequestTag {
+	return s.Tag
+}
+
 func (s *DescribeAccessPointsRequest) SetAccessGroup(v string) *DescribeAccessPointsRequest {
 	s.AccessGroup = &v
 	return s
@@ -96,6 +103,61 @@ func (s *DescribeAccessPointsRequest) SetNextToken(v string) *DescribeAccessPoin
 	return s
 }
 
+func (s *DescribeAccessPointsRequest) SetTag(v []*DescribeAccessPointsRequestTag) *DescribeAccessPointsRequest {
+	s.Tag = v
+	return s
+}
+
 func (s *DescribeAccessPointsRequest) Validate() error {
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+type DescribeAccessPointsRequestTag struct {
+	// example:
+	//
+	// TestKey
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// example:
+	//
+	// TestValue
+	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
+}
+
+func (s DescribeAccessPointsRequestTag) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeAccessPointsRequestTag) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeAccessPointsRequestTag) GetKey() *string {
+	return s.Key
+}
+
+func (s *DescribeAccessPointsRequestTag) GetValue() *string {
+	return s.Value
+}
+
+func (s *DescribeAccessPointsRequestTag) SetKey(v string) *DescribeAccessPointsRequestTag {
+	s.Key = &v
+	return s
+}
+
+func (s *DescribeAccessPointsRequestTag) SetValue(v string) *DescribeAccessPointsRequestTag {
+	s.Value = &v
+	return s
+}
+
+func (s *DescribeAccessPointsRequestTag) Validate() error {
 	return dara.Validate(s)
 }
