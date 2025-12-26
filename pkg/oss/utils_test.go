@@ -28,7 +28,7 @@ import (
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs2"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -42,112 +42,147 @@ var m = metadata.FakeProvider{
 
 func TestParseCredentialsFromSecret(t *testing.T) {
 	tests := []struct {
-		name     string
-		secrets  map[string]string
-		expected struct {
-			akID     string
-			akSecret string
-		}
+		name                string
+		secrets             map[string]string
+		expectedAccessKey   ossfpm.AccessKey
+		expectedTokenSecret ossfpm.TokenSecret
 	}{
 		{
-			name: "Case 1: AkID and AkSecret have valid values",
+			name: "Case 1: Legacy keys (AkID and AkSecret) have valid values",
 			secrets: map[string]string{
 				AkID:     " validAkID ",
 				AkSecret: " validAkSecret ",
 			},
-			expected: struct {
-				akID     string
-				akSecret string
-			}{
-				akID:     "validAkID",
-				akSecret: "validAkSecret",
+			expectedAccessKey: ossfpm.AccessKey{
+				AkID:     "validAkID",
+				AkSecret: "validAkSecret",
 			},
+			expectedTokenSecret: ossfpm.TokenSecret{},
 		},
 		{
-			name: "Case 2: AkID and AkSecret are empty, but AccessKeyID and AccessKeySecret have valid values",
+			name: "Case 2: Legacy keys empty, standard keys (AccessKeyId, AccessKeySecret) have valid values",
 			secrets: map[string]string{
-				AkID:            "",
-				AkSecret:        "",
-				AccessKeyID:     " validAccessKeyID ",
-				AccessKeySecret: " validAccessKeySecret ",
+				AkID:              "",
+				AkSecret:          "",
+				"AccessKeyId":     " validAccessKeyID ",
+				"AccessKeySecret": " validAccessKeySecret ",
 			},
-			expected: struct {
-				akID     string
-				akSecret string
-			}{
-				akID:     "validAccessKeyID",
-				akSecret: "validAccessKeySecret",
+			expectedAccessKey: ossfpm.AccessKey{
+				AkID:     "validAccessKeyID",
+				AkSecret: "validAccessKeySecret",
 			},
+			expectedTokenSecret: ossfpm.TokenSecret{},
 		},
 		{
-			name: "Case 3: AkSecret is empty, but AccessKeyID and AccessKeySecret have valid values",
+			name: "Case 3: Legacy AkSecret set, standard keys ignored",
 			secrets: map[string]string{
-				AkID:            "",
-				AkSecret:        "AkSecret",
-				AccessKeyID:     " validAccessKeyID ",
-				AccessKeySecret: " validAccessKeySecret ",
+				AkID:              "",
+				AkSecret:          "AkSecret",
+				"AccessKeyId":     " validAccessKeyID ",
+				"AccessKeySecret": " validAccessKeySecret ",
 			},
-			expected: struct {
-				akID     string
-				akSecret string
-			}{
-				akID:     "",
-				akSecret: "AkSecret",
-			},
+			expectedAccessKey:   ossfpm.AccessKey{},
+			expectedTokenSecret: ossfpm.TokenSecret{},
 		},
 		{
-			name: "Case 4: All fields are set, but AccessKeyID and AccessKeySecret have valid values",
+			name: "Case 4: Legacy keys set, standard keys ignored (priority test)",
 			secrets: map[string]string{
-				AkID:            "AkID",
-				AkSecret:        "AkSecret",
-				AccessKeyID:     " validAccessKeyID ",
-				AccessKeySecret: " validAccessKeySecret ",
+				AkID:              "AkID",
+				AkSecret:          "AkSecret",
+				"AccessKeyId":     " validAccessKeyID ",
+				"AccessKeySecret": " validAccessKeySecret ",
 			},
-			expected: struct {
-				akID     string
-				akSecret string
-			}{
-				akID:     "AkID",
-				akSecret: "AkSecret",
+			expectedAccessKey: ossfpm.AccessKey{
+				AkID:     "AkID",
+				AkSecret: "AkSecret",
 			},
+			expectedTokenSecret: ossfpm.TokenSecret{},
 		},
 		{
 			name: "Case 5: All keys have empty values",
 			secrets: map[string]string{
-				AkID:            "",
-				AkSecret:        "",
-				AccessKeyID:     "",
-				AccessKeySecret: "",
+				AkID:              "",
+				AkSecret:          "",
+				"AccessKeyId":     "",
+				"AccessKeySecret": "",
 			},
-			expected: struct {
-				akID     string
-				akSecret string
-			}{
-				akID:     "",
-				akSecret: "",
+			expectedAccessKey:   ossfpm.AccessKey{},
+			expectedTokenSecret: ossfpm.TokenSecret{},
+		},
+		{
+			name: "Case 6: Standard keys with case-insensitive matching",
+			secrets: map[string]string{
+				"accesskeyid":     " validAccessKeyID ",
+				"ACCESSKEYSECRET": " validAccessKeySecret ",
+			},
+			expectedAccessKey: ossfpm.AccessKey{
+				AkID:     "validAccessKeyID",
+				AkSecret: "validAccessKeySecret",
+			},
+			expectedTokenSecret: ossfpm.TokenSecret{},
+		},
+		{
+			name: "Case 7: Standard keys with SecurityToken and Expiration",
+			secrets: map[string]string{
+				"AccessKeyId":     " validAccessKeyID ",
+				"AccessKeySecret": " validAccessKeySecret ",
+				"SecurityToken":   " validToken ",
+				"Expiration":      " 2024-01-01T00:00:00Z ",
+			},
+			expectedAccessKey: ossfpm.AccessKey{},
+			expectedTokenSecret: ossfpm.TokenSecret{
+				AccessKeyId:     "validAccessKeyID",
+				AccessKeySecret: "validAccessKeySecret",
+				SecurityToken:   "validToken",
+				Expiration:      "2024-01-01T00:00:00Z",
 			},
 		},
 		{
-			name: "Case 6: Missing some keys, but others have valid values",
+			name: "Case 8: Standard keys with case-insensitive SecurityToken and Expiration",
 			secrets: map[string]string{
-				AccessKeyID:     " validAccessKeyID ",
-				AccessKeySecret: " validAccessKeySecret ",
+				"accesskeyid":     " validAccessKeyID ",
+				"accesskeysecret": " validAccessKeySecret ",
+				"securitytoken":   " validToken ",
+				"expiration":      " 2024-01-01T00:00:00Z ",
 			},
-			expected: struct {
-				akID     string
-				akSecret string
-			}{
-				akID:     "validAccessKeyID",
-				akSecret: "validAccessKeySecret",
+			expectedAccessKey: ossfpm.AccessKey{},
+			expectedTokenSecret: ossfpm.TokenSecret{
+				AccessKeyId:     "validAccessKeyID",
+				AccessKeySecret: "validAccessKeySecret",
+				SecurityToken:   "validToken",
+				Expiration:      "2024-01-01T00:00:00Z",
 			},
+		},
+		{
+			name: "Case 9: Legacy keys set, standard SecurityToken and Expiration ignored",
+			secrets: map[string]string{
+				AkID:            "AkID",
+				AkSecret:        "AkSecret",
+				"SecurityToken": " validToken ",
+				"Expiration":    " 2024-01-01T00:00:00Z ",
+			},
+			expectedAccessKey: ossfpm.AccessKey{
+				AkID:     "AkID",
+				AkSecret: "AkSecret",
+			},
+			expectedTokenSecret: ossfpm.TokenSecret{},
+		},
+		{
+			name: "Case 10: Only SecurityToken and Expiration (no access keys)",
+			secrets: map[string]string{
+				"SecurityToken": " validToken ",
+				"Expiration":    " 2024-01-01T00:00:00Z ",
+			},
+			expectedAccessKey:   ossfpm.AccessKey{},
+			expectedTokenSecret: ossfpm.TokenSecret{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			akID, akSecret := parseCredentialsFromSecret(tt.secrets)
-			assert.Equal(t, tt.expected.akID, akID)
-			assert.Equal(t, tt.expected.akSecret, akSecret)
+			accessKey, tokenSecret := parseCredentialsFromSecret(tt.secrets)
+			assert.Equal(t, tt.expectedAccessKey, accessKey)
+			assert.Equal(t, tt.expectedTokenSecret, tokenSecret)
 		})
 	}
 }
@@ -175,10 +210,10 @@ func TestParseOptions_credentialsCompatibility(t *testing.T) {
 		{
 			name: "prioritizes obtaining the credentials with the former way",
 			secrets: map[string]string{
-				AkID:            "validAkID",
-				AkSecret:        "validAkSecret",
-				AccessKeyID:     "validAccessKeyID",
-				AccessKeySecret: "validAccessKeySecret",
+				AkID:              "validAkID",
+				AkSecret:          "validAkSecret",
+				"AccessKeyId":     "validAccessKeyID",
+				"AccessKeySecret": "validAccessKeySecret",
 			},
 			akID:     "validAkID",
 			akSecret: "validAkSecret",
@@ -186,8 +221,8 @@ func TestParseOptions_credentialsCompatibility(t *testing.T) {
 		{
 			name: "allows obtaining the credentials with the latter way",
 			secrets: map[string]string{
-				AccessKeyID:     "validAccessKeyID",
-				AccessKeySecret: "validAccessKeySecret",
+				"AccessKeyId":     "validAccessKeyID",
+				"AccessKeySecret": "validAccessKeySecret",
 			},
 			akID:     "validAccessKeyID",
 			akSecret: "validAccessKeySecret",
@@ -195,19 +230,19 @@ func TestParseOptions_credentialsCompatibility(t *testing.T) {
 		{
 			name: "ignore invalid credentials",
 			secrets: map[string]string{
-				AkID:            "validAkID",
-				AccessKeySecret: "validAccessKeySecret",
+				AkID:              "validAkID",
+				"AccessKeySecret": "validAccessKeySecret",
 			},
-			akID:     "validAkID",
+			akID:     "",
 			akSecret: "",
 		},
 		{
 			name: "options overwrite the credentials",
 			secrets: map[string]string{
-				AkID:            "validAkID",
-				AkSecret:        "validAkSecret",
-				AccessKeyID:     "validAccessKeyID",
-				AccessKeySecret: "validAccessKeySecret",
+				AkID:              "validAkID",
+				AkSecret:          "validAkSecret",
+				"AccessKeyId":     "validAccessKeyID",
+				"AccessKeySecret": "validAccessKeySecret",
 			},
 			options: map[string]string{
 				AkID:     "optionsAkID",
@@ -253,10 +288,12 @@ func Test_parseOptions(t *testing.T) {
 		},
 	}
 	expectedOptions = &ossfpm.Options{
-		Bucket:        "test-bucket",
-		URL:           "https://oss-cn-hangzhou.aliyuncs.com",
-		AkID:          "test-akid",
-		AkSecret:      "test-aksecret",
+		Bucket: "test-bucket",
+		URL:    "https://oss-cn-hangzhou.aliyuncs.com",
+		AccessKey: ossfpm.AccessKey{
+			AkID:     "test-akid",
+			AkSecret: "test-aksecret",
+		},
 		FuseType:      "ossfs",
 		Path:          "/volume-id",
 		UseSharedPath: true,
@@ -264,6 +301,33 @@ func Test_parseOptions(t *testing.T) {
 	}
 	gotOptions = parseOptions(testCVReq.GetParameters(),
 		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "volume-id", false, m)
+	assert.Equal(t, expectedOptions, gotOptions)
+
+	// test STS.Token in secret
+	options := map[string]string{
+		"bucket": "test-bucket",
+		"url":    "oss-cn-hangzhou.aliyuncs.com",
+	}
+	Secrets := map[string]string{
+		mounterutils.KeyAccessKeyId:     "test-akid",
+		mounterutils.KeyAccessKeySecret: "test-aksecret",
+		mounterutils.KeySecurityToken:   "test-token",
+		mounterutils.KeyExpiration:      "2024-01-01T00:00:00Z",
+	}
+	expectedOptions = &ossfpm.Options{
+		Bucket: "test-bucket",
+		URL:    "https://oss-cn-hangzhou.aliyuncs.com",
+		TokenSecret: ossfpm.TokenSecret{
+			AccessKeyId:     "test-akid",
+			AccessKeySecret: "test-aksecret",
+			SecurityToken:   "test-token",
+			Expiration:      "2024-01-01T00:00:00Z",
+		},
+		Path:          "/",
+		FuseType:      "ossfs",
+		UseSharedPath: true,
+	}
+	gotOptions = parseOptions(options, Secrets, nil, false, "volume-id", false, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// ControllerPublishVolume
@@ -287,11 +351,13 @@ func Test_parseOptions(t *testing.T) {
 		},
 	}
 	expectedOptions = &ossfpm.Options{
-		Bucket:        "test-bucket",
-		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
-		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
-		AkID:          "test-akid",
-		AkSecret:      "test-aksecret",
+		Bucket:    "test-bucket",
+		URL:       "http://oss-cn-beijing-internal.aliyuncs.com",
+		OtherOpts: "-o max_stat_cache_size=0 -o allow_other",
+		AccessKey: ossfpm.AccessKey{
+			AkID:     "test-akid",
+			AkSecret: "test-aksecret",
+		},
 		UseSharedPath: true,
 		FuseType:      "ossfs",
 		Path:          "/test",
@@ -340,15 +406,17 @@ func Test_parseOptions(t *testing.T) {
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// test authtype
-	options := map[string]string{
+	options = map[string]string{
 		"url": "oss-cn-beijing.aliyuncs.com",
 	}
 	t.Setenv("ACCESS_KEY_ID", "test-akid")
 	t.Setenv("ACCESS_KEY_SECRET", "test-aksecret")
 	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
 	expectedOptions = &ossfpm.Options{
-		AkID:          "test-akid",
-		AkSecret:      "test-aksecret",
+		AccessKey: ossfpm.AccessKey{
+			AkID:     "test-akid",
+			AkSecret: "test-aksecret",
+		},
 		FuseType:      "ossfs",
 		Path:          "/",
 		UseSharedPath: true,
@@ -706,11 +774,11 @@ func TestSetFsType(t *testing.T) {
 
 func Test_checkOssOptions(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	ossfs, _ := ossfpm.GetFuseMounter(ossfpm.OssFsType, nil, fakeMeta)
-	ossfs2, _ := ossfpm.GetFuseMounter(ossfpm.OssFs2Type, nil, fakeMeta)
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, nil, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, nil, fakeMeta)
 	fusePodManagers := map[string]*ossfpm.OSSFusePodManager{
-		OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil),
-		OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil),
+		mounterutils.OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil),
+		mounterutils.OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil),
 	}
 
 	tests := []struct {
@@ -721,11 +789,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "empty fuse type",
 			opts: &ossfpm.Options{
-				URL:      "1.1.1.1",
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 			},
 			errType: ParamError,
 		},
@@ -742,61 +812,71 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "invalid path",
 			opts: &ossfpm.Options{
-				URL:      "1.1.1.1",
-				Bucket:   "aliyun",
-				Path:     "abc/",
-				AkID:     "11111",
-				AkSecret: "22222",
-				FuseType: OssFsType,
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "abc/",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
+				FuseType: mounterutils.OssFsType,
 			},
 			errType: PathError,
 		},
 		{
 			name: "empty URL",
 			opts: &ossfpm.Options{
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
-				FuseType: OssFsType,
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
+				FuseType: mounterutils.OssFsType,
 			},
 			errType: ParamError,
 		},
 		{
 			name: "invalid encrypted type",
 			opts: &ossfpm.Options{
-				URL:       "1.1.1.1",
-				Bucket:    "aliyun",
-				Path:      "/path",
-				AkID:      "11111",
-				AkSecret:  "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				Encrypted: "invalid",
-				FuseType:  OssFsType,
+				FuseType:  mounterutils.OssFsType,
 			},
 			errType: EncryptError,
 		},
 		{
 			name: "valid kms sse",
 			opts: &ossfpm.Options{
-				URL:       "1.1.1.1",
-				Bucket:    "aliyun",
-				Path:      "/path",
-				AkID:      "11111",
-				AkSecret:  "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				Encrypted: ossfpm.EncryptedTypeKms,
-				FuseType:  OssFsType,
+				FuseType:  mounterutils.OssFsType,
 			},
 			errType: nil,
 		},
 		{
 			name: "invalid url",
 			opts: &ossfpm.Options{
-				URL:      "aliyun.oss-cn-hangzhou.aliyuncs.com",
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
-				FuseType: OssFsType,
+				URL:    "aliyun.oss-cn-hangzhou.aliyuncs.com",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
+				FuseType: mounterutils.OssFsType,
 			},
 			errType: UrlError,
 		},
@@ -806,7 +886,7 @@ func Test_checkOssOptions(t *testing.T) {
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
 				Path:     "/path",
-				FuseType: OssFsType,
+				FuseType: mounterutils.OssFsType,
 				AuthType: ossfpm.AuthTypePublic,
 			},
 			errType: nil,
@@ -822,38 +902,42 @@ func Test_checkOssOptions(t *testing.T) {
 
 func TestMakeAuthConfig(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	ossfs, _ := ossfpm.GetFuseMounter(ossfpm.OssFsType, nil, fakeMeta)
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, nil, fakeMeta)
 	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil)
 	opt := &ossfpm.Options{
-		URL:      "1.1.1.1",
-		Bucket:   "aliyun",
-		Path:     "/path",
-		AkID:     "11111",
-		AkSecret: "22222",
-		FuseType: OssFsType,
+		URL:    "1.1.1.1",
+		Bucket: "aliyun",
+		Path:   "/path",
+		AccessKey: ossfpm.AccessKey{
+			AkID:     "11111",
+			AkSecret: "22222",
+		},
+		FuseType: mounterutils.OssFsType,
 	}
 	want := &fpm.AuthConfig{
 		Secrets: map[string]string{
-			utils.GetPasswdFileName(OssFsType): fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
+			mounterutils.GetPasswdFileName(mounterutils.OssFsType): fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
 		},
 	}
 	authCfg, err := makeAuthConfig(opt, ossfsFpm, fakeMeta, true)
 	assert.NoError(t, err)
 	assert.Equal(t, want, authCfg)
 
-	ossfs2, _ := ossfpm.GetFuseMounter(ossfpm.OssFs2Type, nil, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, nil, fakeMeta)
 	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil)
 	opt2 := &ossfpm.Options{
-		URL:      "1.1.1.1",
-		Bucket:   "aliyun",
-		Path:     "/path",
-		AkID:     "11111",
-		AkSecret: "22222",
-		FuseType: OssFs2Type,
+		URL:    "1.1.1.1",
+		Bucket: "aliyun",
+		Path:   "/path",
+		AccessKey: ossfpm.AccessKey{
+			AkID:     "11111",
+			AkSecret: "22222",
+		},
+		FuseType: mounterutils.OssFs2Type,
 	}
 	want2 := &fpm.AuthConfig{
 		Secrets: map[string]string{
-			utils.GetPasswdFileName(OssFs2Type): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", opt.AkID, opt.AkSecret),
+			mounterutils.GetPasswdFileName(mounterutils.OssFs2Type): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", opt.AkID, opt.AkSecret),
 		},
 	}
 	authCfg2, err := makeAuthConfig(opt2, ossfs2Fpm, fakeMeta, true)
@@ -864,15 +948,17 @@ func TestMakeAuthConfig(t *testing.T) {
 func TestMakeMountOptions(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-beijing")
 	fakeMeta := metadata.NewMetadata()
-	ossfs, _ := ossfpm.GetFuseMounter(ossfpm.OssFsType, nil, fakeMeta)
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, nil, fakeMeta)
 	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil)
 	opt := &ossfpm.Options{
-		URL:        "1.1.1.1",
-		Bucket:     "aliyun",
-		Path:       "/path",
-		AkID:       "11111",
-		AkSecret:   "22222",
-		FuseType:   OssFsType,
+		URL:    "1.1.1.1",
+		Bucket: "aliyun",
+		Path:   "/path",
+		AccessKey: ossfpm.AccessKey{
+			AkID:     "11111",
+			AkSecret: "22222",
+		},
+		FuseType:   mounterutils.OssFsType,
 		OtherOpts:  "-o allow_other -o max_stat_cache_size=0",
 		SigVersion: "v4",
 		Encrypted:  ossfpm.EncryptedTypeKms,
@@ -897,15 +983,17 @@ func TestMakeMountOptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, want, got)
 
-	ossfs2, _ := ossfpm.GetFuseMounter(ossfpm.OssFs2Type, nil, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, nil, fakeMeta)
 	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil)
 	opt2 := &ossfpm.Options{
-		URL:        "1.1.1.1",
-		Bucket:     "aliyun",
-		Path:       "/path",
-		AkID:       "11111",
-		AkSecret:   "22222",
-		FuseType:   OssFs2Type,
+		URL:    "1.1.1.1",
+		Bucket: "aliyun",
+		Path:   "/path",
+		AccessKey: ossfpm.AccessKey{
+			AkID:     "11111",
+			AkSecret: "22222",
+		},
+		FuseType:   mounterutils.OssFs2Type,
 		OtherOpts:  "-o attr_timeout=60",
 		SigVersion: "v4",
 	}
@@ -1397,6 +1485,119 @@ func TestDetermineRuntimeType(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.wantRuntimeType, gotRuntimeType)
 			}
+		})
+	}
+}
+
+func TestNeedRotateToken(t *testing.T) {
+	tests := []struct {
+		name           string
+		fuseType       string
+		secrets        map[string]string
+		expectedResult bool
+	}{
+		{
+			name:           "empty secrets",
+			fuseType:       mounterutils.OssFsType,
+			secrets:        map[string]string{},
+			expectedResult: false,
+		},
+		{
+			name:           "nil secrets",
+			fuseType:       mounterutils.OssFsType,
+			secrets:        nil,
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs with fixed AKSK (passwd-ossfs)",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				"passwd-ossfs": "akid:aksecret",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs with token (no fixed AKSK)",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				mounterutils.KeySecurityToken:   "test-token",
+				mounterutils.KeyAccessKeyId:     "test-akid",
+				mounterutils.KeyAccessKeySecret: "test-aksecret",
+			},
+			expectedResult: true,
+		},
+		{
+			name:     "ossfs with both fixed AKSK and token (should not rotate)",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				"passwd-ossfs":                  "akid:aksecret",
+				mounterutils.KeySecurityToken:   "test-token",
+				mounterutils.KeyAccessKeyId:     "test-akid",
+				mounterutils.KeyAccessKeySecret: "test-aksecret",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs2 with fixed AKSK (passwd-ossfs2)",
+			fuseType: mounterutils.OssFs2Type,
+			secrets: map[string]string{
+				"passwd-ossfs2": "akid:aksecret",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs2 with token (no fixed AKSK)",
+			fuseType: mounterutils.OssFs2Type,
+			secrets: map[string]string{
+				mounterutils.KeySecurityToken:   "test-token",
+				mounterutils.KeyAccessKeyId:     "test-akid",
+				mounterutils.KeyAccessKeySecret: "test-aksecret",
+			},
+			expectedResult: true,
+		},
+		{
+			name:     "ossfs2 with both fixed AKSK and token (should not rotate)",
+			fuseType: mounterutils.OssFs2Type,
+			secrets: map[string]string{
+				"passwd-ossfs2":                 "akid:aksecret",
+				mounterutils.KeySecurityToken:   "test-token",
+				mounterutils.KeyAccessKeyId:     "test-akid",
+				mounterutils.KeyAccessKeySecret: "test-aksecret",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs with token but empty SecurityToken",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				mounterutils.KeySecurityToken:   "",
+				mounterutils.KeyAccessKeyId:     "test-akid",
+				mounterutils.KeyAccessKeySecret: "test-aksecret",
+			},
+			expectedResult: false,
+		},
+		{
+			name:     "ossfs with only SecurityToken (no access keys)",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				mounterutils.KeySecurityToken: "test-token",
+			},
+			expectedResult: true,
+		},
+		{
+			name:     "ossfs with other secrets but no token or fixed AKSK",
+			fuseType: mounterutils.OssFsType,
+			secrets: map[string]string{
+				"other-key": "other-value",
+			},
+			expectedResult: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := needRotateToken(tt.fuseType, tt.secrets)
+			assert.Equal(t, tt.expectedResult, result, "needRotateToken(%q, %v) = %v, want %v", tt.fuseType, tt.secrets, result, tt.expectedResult)
 		})
 	}
 }

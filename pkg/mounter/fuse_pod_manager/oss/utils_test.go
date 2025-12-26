@@ -8,6 +8,7 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -27,7 +28,7 @@ func TestSetDefaultImage(t *testing.T) {
 	}{
 		{
 			name:     "ImageAlreadySet",
-			fuseType: OssFsType,
+			fuseType: mounterutils.OssFsType,
 			config: &fpm.FuseContainerConfig{
 				Image: "custom-image",
 			},
@@ -35,34 +36,34 @@ func TestSetDefaultImage(t *testing.T) {
 		},
 		{
 			name:             "PrefixSet",
-			fuseType:         OssFsType,
+			fuseType:         mounterutils.OssFsType,
 			config:           &fpm.FuseContainerConfig{},
 			repositoryPrefix: "custom-registry/ns",
 			expectedImage:    fmt.Sprintf("custom-registry/ns/csi-ossfs:%s", defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:          "RegistryAndRegionSet",
-			fuseType:      OssFsType,
+			fuseType:      mounterutils.OssFsType,
 			config:        &fpm.FuseContainerConfig{},
 			registryUrl:   "custom-registry",
 			expectedImage: fmt.Sprintf("custom-registry/%s/csi-ossfs:%s", utils.DefImageNamespace, defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:          "RegionSet",
-			fuseType:      OssFsType,
+			fuseType:      mounterutils.OssFsType,
 			config:        &fpm.FuseContainerConfig{},
 			region:        "cn-hangzhou",
 			expectedImage: fmt.Sprintf("registry-cn-hangzhou-vpc.ack.aliyuncs.com/%s/csi-ossfs:%s", utils.DefImageNamespace, defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:          "RegionNotSet",
-			fuseType:      OssFsType,
+			fuseType:      mounterutils.OssFsType,
 			config:        &fpm.FuseContainerConfig{},
 			expectedImage: fmt.Sprintf("%s/%s/csi-ossfs:%s", utils.DefImageRegistry, utils.DefImageNamespace, defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:             "PrefixAndUrlConflict",
-			fuseType:         OssFsType,
+			fuseType:         mounterutils.OssFsType,
 			config:           &fpm.FuseContainerConfig{},
 			registryUrl:      "custom-registry",
 			repositoryPrefix: "anotehr-registry/acs/",
@@ -70,7 +71,7 @@ func TestSetDefaultImage(t *testing.T) {
 		},
 		{
 			name:          "RegionAndUrlConflict",
-			fuseType:      OssFsType,
+			fuseType:      mounterutils.OssFsType,
 			config:        &fpm.FuseContainerConfig{},
 			region:        "cn-hangzhou",
 			registryUrl:   "registry-cn-beijing-vpc.ack.aliyuncs.com/",
