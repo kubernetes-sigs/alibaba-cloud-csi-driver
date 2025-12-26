@@ -306,44 +306,56 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 	tests := []struct {
 		name        string
 		options     []string
-		cfglevel    string
+		config      *fpm.FuseContainerConfig
 		defaultOpts string
 		want        []string
 	}{
 		{
 			name:    "empty option, empty config",
 			options: []string{"others"},
-			want:    []string{"others", "log_level=info", "log_dir=/dev/stdout"},
+			want:    []string{"others", "log_level=info", "log_dir=/dev/stdout", "use_metrics=true"},
 		},
 		{
 			name:    "set option",
-			options: []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others", "use_metrics=true"},
-			want:    []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others", "use_metrics=true"},
+			options: []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others", "use_metrics=false"},
+			want:    []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others", "use_metrics=false"},
 		},
 		{
-			name:     "set option, set config",
-			cfglevel: "info",
-			options:  []string{"others", "log_level=debug", "others"},
-			want:     []string{"others", "log_level=debug", "others", "log_dir=/dev/stdout"},
+			name: "set option, set config",
+			config: &fpm.FuseContainerConfig{
+				Dbglevel: fpm.DebugLevelInfo,
+			},
+			options: []string{"others", "log_level=debug", "others"},
+			want:    []string{"others", "log_level=debug", "others", "log_dir=/dev/stdout", "use_metrics=true"},
 		},
 		{
-			name:     "empty option, set config",
-			cfglevel: "debug",
-			options:  []string{"others"},
-			want:     []string{"others", "log_level=debug", "log_dir=/dev/stdout"},
+			name: "empty option, set config",
+			config: &fpm.FuseContainerConfig{
+				Dbglevel: fpm.DebugLevelDebug,
+			},
+			options: []string{"others"},
+			want:    []string{"others", "log_level=debug", "log_dir=/dev/stdout", "use_metrics=true"},
 		},
 		{
-			name:     "empty option, invalid config",
-			cfglevel: "invalid",
-			options:  []string{"others"},
-			want:     []string{"others", "log_level=info", "log_dir=/dev/stdout"},
+			name: "empty option, invalid config",
+			config: &fpm.FuseContainerConfig{
+				Dbglevel: "invalid",
+			},
+			options: []string{"others"},
+			want:    []string{"others", "log_level=info", "log_dir=/dev/stdout", "use_metrics=true"},
 		},
 		{
 			name:        "default options",
-			cfglevel:    "",
 			options:     nil,
 			defaultOpts: "others,log_dir=/tmp/ossfs2",
-			want:        []string{"others", "log_dir=/tmp/ossfs2", "log_level=info"},
+			want:        []string{"others", "log_dir=/tmp/ossfs2", "log_level=info", "use_metrics=true"},
+		},
+		{
+			name: "set metrics mode to disabled",
+			config: &fpm.FuseContainerConfig{
+				MetricsMode: fpm.MetricsModeDisabled,
+			},
+			want: []string{"log_level=info", "log_dir=/dev/stdout"},
 		},
 	}
 	for _, tt := range tests {
@@ -351,7 +363,9 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 			if tt.defaultOpts != "" {
 				t.Setenv("DEFAULT_OSSFS2_OPTIONS", tt.defaultOpts)
 			}
-			fakeOssfs.config.Dbglevel = tt.cfglevel
+			if tt.config != nil {
+				fakeOssfs.config = *tt.config
+			}
 			got := fakeOssfs.AddDefaultMountOptions(tt.options)
 			assert.Equal(t, tt.want, got)
 		})
