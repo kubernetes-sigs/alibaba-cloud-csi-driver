@@ -365,20 +365,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 // ControllerUnpublishVolume do detach
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	// Describe Disk Info
-	isMultiAttach, err := cs.ad.detachMultiAttachDisk(ctx, cs.ecs, req.VolumeId, req.NodeId)
-	if isMultiAttach && err != nil {
-		klog.Errorf("ControllerUnpublishVolume: detach multiAttach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
-		return nil, err
-	} else if isMultiAttach {
-		klog.Infof("ControllerUnpublishVolume: Successful detach multiAttach disk: %s from node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerUnpublishVolumeResponse{}, nil
-	}
-
-	if !GlobalConfigVar.ADControllerEnable {
-		klog.Infof("ControllerUnpublishVolume: ADController Disable to detach disk: %s from node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerUnpublishVolumeResponse{}, nil
-	}
 
 	// if DetachDisabled is set to true, return
 	if GlobalConfigVar.DetachDisabled {
@@ -387,7 +373,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 
 	klog.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
-	err = cs.ad.detachDisk(ctx, cs.ecs, req.VolumeId, req.NodeId, false)
+	err := cs.ad.detachDisk(ctx, cs.ecs, req.VolumeId, req.NodeId, false)
 	if err != nil {
 		klog.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
