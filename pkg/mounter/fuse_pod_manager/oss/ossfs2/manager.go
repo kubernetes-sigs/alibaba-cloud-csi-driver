@@ -308,10 +308,7 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 
 	// set use_metrics to enabled monitoring by default
 	if _, ok := tm["use_metrics"]; !ok {
-		// TODO: After stabilization, change the default value to true
-		// Currently, metrics collection is controlled by the MetricsMode configuration
-		// Once the feature is stable, we should enable metrics by default
-		if f.config.MetricsMode == fpm.MetricsModeEnabled {
+		if f.config.MetricsMode != fpm.MetricsModeDisabled {
 			options = append(options, "use_metrics=true")
 		}
 	}
