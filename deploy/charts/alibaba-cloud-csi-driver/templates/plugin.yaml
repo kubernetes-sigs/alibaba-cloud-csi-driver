@@ -10,9 +10,11 @@ metadata:
   namespace: {{ $.Release.Namespace }}
   labels:
     app.kubernetes.io/name: csi-plugin
+{{- if $nodePool.csi.oss.enabled }}
   annotations:
     csi.alibabacloud.com/default-ossfs-tag: {{ $nodePool.images.ossfs.tag }}
     csi.alibabacloud.com/default-ossfs2-tag: {{ $nodePool.images.ossfs2.tag }}
+{{- end }}
 spec:
   selector:
     matchLabels:
