@@ -4,9 +4,11 @@ apiVersion: apps/v1
 metadata:
   name: csi-provisioner
   namespace: {{ .Release.Namespace }}
+{{- if .Values.csi.oss.enabled }}
   annotations:
     csi.alibabacloud.com/default-ossfs-tag: {{ .Values.images.ossfs.tag }}
     csi.alibabacloud.com/default-ossfs2-tag: {{ .Values.images.ossfs2.tag }}
+{{- end }}
 spec:
   selector:
     matchLabels:
