@@ -76,7 +76,6 @@ local nodePool = {
         }
     ],
     cluster_spec: "ack.pro.small",
-    load_balancer_spec: "slb.s1.small",
     charge_type: "PostPaid",
     vpcid: std.extVar("vpc_id"),
     container_cidr: "10.236.0.0/16",
