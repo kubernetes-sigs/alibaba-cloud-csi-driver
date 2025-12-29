@@ -292,6 +292,14 @@ func GetStsConfig(regionID string) *openapi.Config {
 	return config
 }
 
+func GetEcsConfig(regionID string) *openapi.Config {
+	config := getOpenAPIConfig(regionID)
+	if e := os.Getenv("ECS_ENDPOINT"); e != "" {
+		config.Endpoint = &e
+	}
+	return config
+}
+
 // IsDir check file is directory
 func IsDir(path string) bool {
 	s, err := os.Stat(path)
