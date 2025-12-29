@@ -2,6 +2,8 @@ package oss
 
 import (
 	"context"
+	"os"
+	"strconv"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -24,9 +26,12 @@ func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
 		metadata:        m,
 		locks:           utils.NewVolumeLocks(),
 		rawMounter:      mountutils.NewWithoutSystemd(""),
-		skipAttach:      true, // label for csi-agent environment
+		skipGlobalMount: true, // label for csi-agent environment
 		fusePodManagers: ossfpm.GetAllOSSFusePodManagers(utils.Config{}, m, nil),
 		ossfsPaths:      ossfpm.GetAllFuseMounterPaths(),
+	}
+	if value := os.Getenv("OSS_SKIP_GLOBAL_MOUNT"); value != "" {
+		ns.skipGlobalMount, _ = strconv.ParseBool(value)
 	}
 	return &CSIAgent{
 		ns:         ns,

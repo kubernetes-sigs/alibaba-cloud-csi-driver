@@ -552,52 +552,52 @@ type runtimeTypeResult struct {
 }
 
 // runtimeTypeLookupTable is a lookup table for all 8 possible combinations of
-// (directAssigned, hasSocketPath, skipAttach).
-// Index calculation: index = (directAssigned ? 4 : 0) + (hasSocketPath ? 2 : 0) + (skipAttach ? 1 : 0)å
+// (directAssigned, hasSocketPath, skipGlobalMount).
+// Index calculation: index = (directAssigned ? 4 : 0) + (hasSocketPath ? 2 : 0) + (skipGlobalMount ? 1 : 0)å
 var runtimeTypeLookupTable = [8]runtimeTypeResult{
-	// Index 0: directAssigned=false, hasSocketPath=false, skipAttach=false -> error (should not occur)
+	// Index 0: directAssigned=false, hasSocketPath=false, skipGlobalMount=false -> error (should not occur)
 	{
 		runtimeType: RuntimeTypeUnknown,
 		err:         fmt.Errorf("socket path is empty in non csi-agent mode (should not occur)"),
 	},
-	// Index 1: directAssigned=false, hasSocketPath=false, skipAttach=true -> MicroVM
+	// Index 1: directAssigned=false, hasSocketPath=false, skipGlobalMount=true -> MicroVM
 	{
 		runtimeType: RuntimeTypeMicroVM,
 		err:         nil,
 	},
-	// Index 2: directAssigned=false, hasSocketPath=true, skipAttach=false -> RunC
+	// Index 2: directAssigned=false, hasSocketPath=true, skipGlobalMount=false -> RunC
 	{
 		runtimeType: RuntimeTypeRunC,
 		err:         nil,
 	},
-	// Index 3: directAssigned=false, hasSocketPath=true, skipAttach=true -> RunD (pure rund cluster, no need to specify directAssigned)
+	// Index 3: directAssigned=false, hasSocketPath=true, skipGlobalMount=true -> RunD (pure rund cluster, no need to specify directAssigned)
 	{
 		runtimeType: RuntimeTypeRunD,
 		err:         nil,
 	},
-	// Index 4: directAssigned=true, hasSocketPath=false, skipAttach=false -> COCO
+	// Index 4: directAssigned=true, hasSocketPath=false, skipGlobalMount=false -> COCO
 	{
 		runtimeType: RuntimeTypeCOCO,
 		err:         nil,
 	},
-	// Index 5: directAssigned=true, hasSocketPath=false, skipAttach=true -> MicroVM (directAssigned not effective)
+	// Index 5: directAssigned=true, hasSocketPath=false, skipGlobalMount=true -> MicroVM (directAssigned not effective)
 	{
 		runtimeType: RuntimeTypeMicroVM,
 		err:         nil,
 	},
-	// Index 6: directAssigned=true, hasSocketPath=true, skipAttach=false -> error (should not occur, controller ensures empty socketPath for COCO)
+	// Index 6: directAssigned=true, hasSocketPath=true, skipGlobalMount=false -> error (should not occur, controller ensures empty socketPath for COCO)
 	{
 		runtimeType: RuntimeTypeUnknown,
 		err:         fmt.Errorf("rund cannot be used in non csi-agent mode (should not occur)"),
 	},
-	// Index 7: directAssigned=true, hasSocketPath=true, skipAttach=true -> RunD
+	// Index 7: directAssigned=true, hasSocketPath=true, skipGlobalMount=true -> RunD
 	{
 		runtimeType: RuntimeTypeRunD,
 		err:         nil,
 	},
 }
 
-// DetermineRuntimeType determines the container runtime type based on directAssigned, socketPath, and skipAttach.
+// DetermineRuntimeType determines the container runtime type based on directAssigned, socketPath, and skipGlobalMount.
 //
 // This function uses a table-driven approach with a 3-bit index calculated from the three boolean parameters.
 // The lookup table contains all 8 possible combinations, providing O(1) lookup performance.
@@ -605,10 +605,10 @@ var runtimeTypeLookupTable = [8]runtimeTypeResult{
 // Returns:
 //   - RuntimeType: the determined runtime type
 //   - error: if the combination is invalid (should not occur scenarios)
-func DetermineRuntimeType(directAssigned bool, socketPath string, skipAttach bool) (RuntimeType, error) {
+func DetermineRuntimeType(directAssigned bool, socketPath string, skipGlobalMount bool) (RuntimeType, error) {
 	hasSocketPath := socketPath != ""
 
-	// Calculate index: (directAssigned ? 4 : 0) + (hasSocketPath ? 2 : 0) + (skipAttach ? 1 : 0)
+	// Calculate index: (directAssigned ? 4 : 0) + (hasSocketPath ? 2 : 0) + (skipGlobalMount ? 1 : 0)
 	index := 0
 	if directAssigned {
 		index += 4
@@ -616,7 +616,7 @@ func DetermineRuntimeType(directAssigned bool, socketPath string, skipAttach boo
 	if hasSocketPath {
 		index += 2
 	}
-	if skipAttach {
+	if skipGlobalMount {
 		index += 1
 	}
 
