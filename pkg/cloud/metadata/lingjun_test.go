@@ -149,7 +149,7 @@ func TestLingjunMetaData_Get(t *testing.T) {
 	tests := []struct {
 		name        string
 		key         MetadataKey
-		expectedVal string
+		expectedVal any
 		expectErr   bool
 	}{
 		{
@@ -177,6 +177,12 @@ func TestLingjunMetaData_Get(t *testing.T) {
 			expectErr:   false,
 		},
 		{
+			name:        "machine kind",
+			key:         machineKind,
+			expectedVal: MachineKindLingjun,
+			expectErr:   false,
+		},
+		{
 			name:        "get unknown key",
 			key:         AccountID,
 			expectedVal: "",
@@ -186,7 +192,7 @@ func TestLingjunMetaData_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			value, err := metaData.Get(tt.key)
+			value, err := metaData.GetAny(tt.key)
 			if tt.expectErr {
 				assert.Error(t, err)
 				assert.Equal(t, "", value)
