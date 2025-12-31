@@ -11,7 +11,7 @@ var MetadataEnv = map[MetadataKey]string{
 	RRSATokenFile: "RRSA_TOKEN_FILE",
 }
 
-func (m *ENVMetadata) Get(key MetadataKey) (string, error) {
+func (m ENVMetadata) Get(key MetadataKey) (string, error) {
 	if v, ok := MetadataEnv[key]; ok {
 		if value, ok := os.LookupEnv(v); ok {
 			return value, nil
