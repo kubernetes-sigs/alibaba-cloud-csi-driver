@@ -92,7 +92,7 @@ type KubernetesNodeMetadataFetcher struct {
 	nodeName string
 }
 
-func (f *KubernetesNodeMetadataFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
+func (f *KubernetesNodeMetadataFetcher) FetchFor(key MetadataKey) (middleware, error) {
 	_, ok := MetadataLabels[key]
 	if !ok {
 		return nil, ErrUnknownMetadataKey
@@ -101,5 +101,5 @@ func (f *KubernetesNodeMetadataFetcher) FetchFor(key MetadataKey) (MetadataProvi
 	if err != nil {
 		return nil, err
 	}
-	return newImmutableProvider(p, "Kubernetes"), nil
+	return newImmutable(strProvider{p}, "Kubernetes"), nil
 }

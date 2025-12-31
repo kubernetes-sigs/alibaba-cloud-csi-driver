@@ -70,7 +70,7 @@ type EcsFetcher struct {
 	httpRT http.RoundTripper
 }
 
-func (f *EcsFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
+func (f *EcsFetcher) FetchFor(key MetadataKey) (middleware, error) {
 	switch key {
 	case RegionID, ZoneID, InstanceID, InstanceType, AccountID:
 	default:
@@ -85,5 +85,5 @@ func (f *EcsFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 		}
 		return nil, err
 	}
-	return newImmutableProvider(ecs, "ECS"), nil
+	return newImmutable(strProvider{ecs}, "ECS"), nil
 }
