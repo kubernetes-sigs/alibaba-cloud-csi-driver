@@ -65,7 +65,7 @@ type OpenAPIFetcher struct {
 
 func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (middleware, error) {
 	switch key {
-	case InstanceID, ZoneID, InstanceType, AccountID:
+	case InstanceID, ZoneID, InstanceType, machineKind:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
@@ -88,5 +88,5 @@ func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (middleware, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newImmutable(strProvider{p}, "OpenAPI"), nil
+	return newImmutable(inferMachineKind{strProvider{p}}, "OpenAPI"), nil
 }

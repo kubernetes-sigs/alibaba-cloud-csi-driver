@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
@@ -27,6 +28,9 @@ const (
 	DataPlaneZoneID
 	RAMRoleName
 	RRSATokenFile
+
+	// non-string metadata, not public, can only access with corresponding methods
+	machineKind
 )
 
 const LingjunConfigFile = "/host/etc/eflo_config/lingjun_config"
@@ -53,9 +57,38 @@ func (k MetadataKey) String() string {
 		return "RAMRoleName"
 	case RRSATokenFile:
 		return "RRSATokenFile"
+	case machineKind:
+		return "MachineKind"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}
+}
+
+type MachineKind int
+
+const (
+	MachineKindUnknown MachineKind = iota
+	MachineKindECS
+	MachineKindLingjun
+)
+
+// returns MachineKindECS if instance type starts with "ecs."
+type inferMachineKind struct {
+	next middleware
+}
+
+func (p inferMachineKind) GetAny(key MetadataKey) (any, error) {
+	v, err := p.next.GetAny(key)
+	if key == machineKind && err == ErrUnknownMetadataKey {
+		t, err := p.next.GetAny(InstanceType)
+		if err != nil {
+			return nil, err
+		}
+		if strings.HasPrefix(t.(string), "ecs.") {
+			return MachineKindECS, nil
+		}
+	}
+	return v, err
 }
 
 var ErrUnknownMetadataKey = errors.New("unknown metadata key")
@@ -63,21 +96,30 @@ var ErrUnknownMetadataKey = errors.New("unknown metadata key")
 const DISABLE_ECS_ENV = "ALIBABA_CLOUD_NO_ECS_METADATA"
 const KUBE_NODE_NAME_ENV = "KUBE_NODE_NAME"
 
-type MetadataProvider interface {
+type strMetadataProvider interface {
 	Get(key MetadataKey) (string, error)
+}
+
+type MetadataProvider interface {
+	strMetadataProvider
+	MachineKind() (MachineKind, error)
 }
 
 type Metadata struct {
 	providers multi
 }
 
-func (m *Metadata) Get(key MetadataKey) (string, error) {
+func getT[T any](m *Metadata, key MetadataKey) (T, error) {
 	v, err := m.providers.GetAny(key)
 	if err != nil {
-		return "", err
+		var zero T
+		return zero, err
 	}
-	return v.(string), nil
+	return v.(T), nil
 }
+
+func (m *Metadata) Get(key MetadataKey) (string, error) { return getT[string](m, key) }
+func (m *Metadata) MachineKind() (MachineKind, error)   { return getT[MachineKind](m, machineKind) }
 
 type fetcher interface {
 	FetchFor(key MetadataKey) (middleware, error)
@@ -150,9 +192,7 @@ func newImmutable(next middleware, name string) *immutable {
 }
 
 type strProvider struct {
-	p interface {
-		Get(key MetadataKey) (string, error)
-	}
+	p strMetadataProvider
 }
 
 func (p strProvider) GetAny(key MetadataKey) (any, error) {
@@ -165,7 +205,7 @@ func NewMetadata() *Metadata {
 	}
 	lm, _ := NewLingJunMetadata(LingjunConfigFile)
 	if lm != nil { // error is already logged
-		providers = append(providers, newImmutable(strProvider{lm}, "lingjun"))
+		providers = append(providers, newImmutable(lm, "lingjun"))
 	}
 	return &Metadata{providers}
 }
@@ -241,7 +281,7 @@ func (m multi) GetAny(key MetadataKey) (any, error) {
 	return nil, utilerrors.NewAggregate(errors)
 }
 
-func MustGet(m MetadataProvider, key MetadataKey) string {
+func MustGet(m strMetadataProvider, key MetadataKey) string {
 	value, err := m.Get(key)
 	if err != nil {
 		err = fmt.Errorf("failed to get metadata %s: %w", key, err)
@@ -269,6 +309,9 @@ func GetFallbackZoneID(m MetadataProvider) (string, error) {
 // FakeProvider is a fake metadata provider for testing
 type FakeProvider struct {
 	Values map[MetadataKey]string
+	V      struct {
+		MachineKind MachineKind
+	}
 }
 
 func (p FakeProvider) Get(key MetadataKey) (string, error) {
@@ -276,4 +319,8 @@ func (p FakeProvider) Get(key MetadataKey) (string, error) {
 		return v, nil
 	}
 	return "", ErrUnknownMetadataKey
+}
+
+func (p FakeProvider) MachineKind() (MachineKind, error) {
+	return p.V.MachineKind, nil
 }

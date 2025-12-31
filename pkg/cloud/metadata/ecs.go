@@ -72,7 +72,7 @@ type EcsFetcher struct {
 
 func (f *EcsFetcher) FetchFor(key MetadataKey) (middleware, error) {
 	switch key {
-	case RegionID, ZoneID, InstanceID, InstanceType, AccountID:
+	case RegionID, ZoneID, InstanceID, InstanceType, AccountID, machineKind:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
@@ -85,5 +85,5 @@ func (f *EcsFetcher) FetchFor(key MetadataKey) (middleware, error) {
 		}
 		return nil, err
 	}
-	return newImmutable(strProvider{ecs}, "ECS"), nil
+	return newImmutable(inferMachineKind{strProvider{ecs}}, "ECS"), nil
 }
