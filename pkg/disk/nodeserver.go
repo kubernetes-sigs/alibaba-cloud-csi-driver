@@ -32,6 +32,7 @@ import (
 	"strings"
 	"syscall"
 
+	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -808,12 +809,18 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		return node, err
 	}
 
-	lingjunID := getLingjunNodeID()
+	machineKind, err := ns.metadata.MachineKind()
+	if err != nil && !errors.Is(err, metadata.ErrUnknownMetadataKey) {
+		return nil, status.Errorf(codes.Internal, "cannot determine current machine kind: %v", err)
+	}
 
 	c := GlobalConfigVar.EcsClient
-	efloc := GlobalConfigVar.EfloClient
+	var efloc *efloclient.Client
+	if machineKind == metadata.MachineKindLingjun {
+		efloc = GlobalConfigVar.EfloClient
+	}
 	if maxVolumesNum == 0 {
-		maxVolumesNum, err = getVolumeCountFromOpenAPI(getNode, c, efloc, ns.metadata, utilsio.RealDevTmpFS{}, lingjunID)
+		maxVolumesNum, err = getVolumeCountFromOpenAPI(getNode, c, efloc, ns.metadata, utilsio.RealDevTmpFS{})
 	} else {
 		node, err = getNode()
 	}
@@ -824,8 +831,8 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	var diskTypes []string
 	if !GlobalConfigVar.DiskAllowAllType {
 		// If it's a Lingjun node, reuse Lingjun detection and report configured supported types
-		if lingjunID != "" {
-			logger.V(2).Info("lingjun node detected", "lingjunID", lingjunID)
+		if machineKind == metadata.MachineKindLingjun {
+			logger.V(2).Info("lingjun node detected")
 			ebsCategory := os.Getenv("EBS_CATEGORY_LINGJUN_SUPPORTED")
 			// Prefer values parsed from kube-system/csi-plugin configmap
 			diskTypes = parseLingjunNodeDiskTypes(ebsCategory)
