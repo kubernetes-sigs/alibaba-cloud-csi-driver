@@ -300,10 +300,10 @@ func TestGetAvailableDiskCount(t *testing.T) {
 	efloClient.EXPECT().DescribeNodeType(gomock.Any()).Return(lingjunNodeTypeResp, nil).AnyTimes()
 
 	tests := []struct {
-		name          string
-		node          *corev1.Node
-		lingjunNodeId string
-		expected      int
+		name     string
+		node     *corev1.Node
+		eflo     bool
+		expected int
 	}{
 		{
 			name:     "Get from OpenAPI",
@@ -322,16 +322,20 @@ func TestGetAvailableDiskCount(t *testing.T) {
 			expected: 8,
 		},
 		{
-			name:          "Get from EFL OpenAPI for Lingjun node",
-			node:          &corev1.Node{},
-			lingjunNodeId: "lingjun-node-123",
-			expected:      12,
+			name:     "Get from EFLO OpenAPI for Lingjun node",
+			node:     &corev1.Node{},
+			eflo:     true,
+			expected: 12,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual, _ := getAvailableDiskCount(tt.node, ecsClient, efloClient, testMetadata, tt.lingjunNodeId)
+			var efloC cloud.EFLOInterface
+			if tt.eflo {
+				efloC = efloClient
+			}
+			actual, _ := getAvailableDiskCount(tt.node, ecsClient, efloC, testMetadata)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
@@ -481,7 +485,6 @@ func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	c := cloud.NewMockECSInterface(ctrl)
-	efloc := cloud.NewMockEFLOInterface(ctrl)
 
 	describeDisksResponse := ecs.CreateDescribeDisksResponse()
 	cloud.UnmarshalAcsResponse([]byte(DescribeDisksResponse), describeDisksResponse)
@@ -502,7 +505,7 @@ func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 	dev.AddDisk(t, "node-for-testinglocaldisk", []byte(longDiskID))
 
 	getNode := func() (*corev1.Node, error) { return testNode(), nil }
-	count, err := getVolumeCountFromOpenAPI(getNode, c, efloc, testMetadata, &dev, "")
+	count, err := getVolumeCountFromOpenAPI(getNode, c, nil, testMetadata, &dev)
 	assert.NoError(t, err)
 	assert.Equal(t, 7, count) // 7 = 9 available disks - 1 system disk (d-2ze49fivxwkwxl36o1d3) - 1 manually attached (d-2zeh74nnxxrobxz49eug)
 }
@@ -1097,84 +1100,6 @@ func TestGetZone(t *testing.T) {
 				assert.Equal(t, tc.event, <-recorder.Events)
 			}
 			assert.Empty(t, recorder.Events)
-		})
-	}
-}
-
-func TestGetLingjunNodeID(t *testing.T) {
-
-	// Save the original LingjunConfigFile value
-	originalLingjunConfigFile := LingjunConfigFile
-
-	// Restore the original values after tests complete
-	defer func() {
-		LingjunConfigFile = originalLingjunConfigFile
-	}()
-
-	tests := []struct {
-		name          string
-		nodeNameEnv   string
-		configContent string
-		configError   bool
-		expectedID    string
-		expectedBool  bool
-	}{
-		{
-			name:       "nil node with no config file",
-			expectedID: "",
-		},
-		{
-			name:          "config file exists with valid NodeId",
-			configContent: `{"NodeId": "node-123"}`,
-			expectedID:    "node-123",
-		},
-		{
-			name:          "config file exists with empty NodeId",
-			configContent: `{"NodeId": ""}`,
-			expectedID:    "",
-		},
-		{
-			name:        "config file does not exist",
-			configError: true, // Indicates we should not create the file
-			expectedID:  "",
-		},
-		{
-			name:          "config file with invalid json",
-			configContent: `{"NodeId": `,
-			expectedID:    "",
-		},
-		{
-			name:          "config file exists with valid NodeId and node has lingjun label",
-			configContent: `{"NodeId": "node-123"}`,
-			expectedID:    "node-123",
-		},
-		{
-			name:          "local node with matching name and valid config",
-			nodeNameEnv:   "test-node",
-			configContent: `{"NodeId": "node-456"}`,
-			expectedID:    "node-456",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set KUBE_NODE_NAME environment variable
-			if tt.nodeNameEnv != "" {
-				t.Setenv("KUBE_NODE_NAME", tt.nodeNameEnv)
-			}
-			// Create a temporary directory for our test files
-			tempDir := t.TempDir()
-			// Set LingjunConfigFile to a temporary path for testing
-			LingjunConfigFile = filepath.Join(tempDir, "lingjun_config")
-			// Setup config file if needed
-			if !tt.configError {
-				if tt.configContent != "" {
-					assert.NoError(t, os.WriteFile(LingjunConfigFile, []byte(tt.configContent), 0644))
-				}
-			}
-			// Run the test
-			id := getLingjunNodeID()
-			assert.Equal(t, tt.expectedID, id)
 		})
 	}
 }

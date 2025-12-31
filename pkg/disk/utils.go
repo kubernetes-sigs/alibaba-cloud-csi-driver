@@ -75,9 +75,6 @@ const (
 	instanceTypeInfoAnnotation = "alibabacloud.com/instance-type-info"
 )
 
-// LingjunConfigFile is used to detect Lingjun node on the node side
-var LingjunConfigFile = "/host/etc/eflo_config/lingjun_config"
-
 // DefaultOptions is the struct for access key
 type DefaultOptions struct {
 	Global struct {
@@ -1090,12 +1087,16 @@ func getAttachedCloudDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProv
 	return diskIds, nil
 }
 
-func getAvailableDiskCount(node *v1.Node, ecsClient cloud.ECSInterface, efloC cloud.EFLOInterface, m metadata.MetadataProvider, lingjunNodeId string) (int, error) {
+func getAvailableDiskCount(node *v1.Node, ecsClient cloud.ECSInterface, efloC cloud.EFLOInterface, m metadata.MetadataProvider) (int, error) {
 	if count, err := getAvailableDiskCountFromAnnotation(node); err == nil {
 		return count, nil
 	}
-	if lingjunNodeId != "" {
-		return getLingjunAvailableDiskCount(efloC, lingjunNodeId)
+	if efloC != nil {
+		lingjunID, err := m.Get(metadata.InstanceID)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get LingJun instance ID")
+		}
+		return getLingjunAvailableDiskCount(efloC, lingjunID)
 	} else {
 		return getAvailableDiskCountFromOpenAPI(ecsClient, m)
 	}
@@ -1178,7 +1179,7 @@ func getNodeTypeFromEFLOOpenAPI(efloClient cloud.EFLOInterface, lingjunID string
 	return *resp.Body.NodeType, nil
 }
 
-func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInterface, efloC cloud.EFLOInterface, m metadata.MetadataProvider, dev utilsio.DiskLister, lingjunID string) (int, error) {
+func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInterface, efloC cloud.EFLOInterface, m metadata.MetadataProvider, dev utilsio.DiskLister) (int, error) {
 	// An attached disk is not managed by us if:
 	// 1. it is not in node.Status.VolumesInUse or node.Status.VolumesAttached; and
 	// 2. it does not have the xattr set.
@@ -1210,7 +1211,7 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 		return 0, err
 	}
 
-	availableCount, err := getAvailableDiskCount(node, c, efloC, m, lingjunID)
+	availableCount, err := getAvailableDiskCount(node, c, efloC, m)
 	if err != nil {
 		return 0, err
 	}
@@ -1412,17 +1413,4 @@ func (d DiskSize) String() string {
 		return fmt.Sprintf("%d GiB", d.Bytes/GBSIZE)
 	}
 	return fmt.Sprintf("%.3f GiB (0x%X)", float64(d.Bytes)/GBSIZE, d.Bytes)
-}
-
-// getLingjunNodeID get lingjun node id from configuration file
-func getLingjunNodeID() string {
-	if data, err := os.ReadFile(LingjunConfigFile); err == nil {
-		var cfg struct {
-			NodeId string `json:"NodeId"`
-		}
-		if json.Unmarshal(data, &cfg) == nil && cfg.NodeId != "" {
-			return cfg.NodeId
-		}
-	}
-	return ""
 }
