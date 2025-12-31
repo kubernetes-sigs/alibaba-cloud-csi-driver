@@ -16,6 +16,54 @@ import (
 	fake "k8s.io/client-go/kubernetes/fake"
 )
 
+func TestInferMachineType(t *testing.T) {
+	cases := []struct {
+		name     string
+		values   fakeMiddleware
+		expected MachineKind
+	}{
+		{
+			name: "passthrough",
+			values: fakeMiddleware{
+				machineKind: MachineKindLingjun,
+			},
+			expected: MachineKindLingjun,
+		},
+		{
+			name: "ecs",
+			values: fakeMiddleware{
+				InstanceType: "ecs.g8i.large",
+			},
+			expected: MachineKindECS,
+		},
+		{
+			name: "unknown",
+			values: fakeMiddleware{
+				InstanceType: "unknown",
+			},
+			expected: MachineKindUnknown,
+		},
+		{
+			name:     "empty",
+			expected: MachineKindUnknown,
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			m := inferMachineKind{next: c.values}
+			kind, err := m.GetAny(machineKind)
+			if c.expected == MachineKindUnknown {
+				assert.Nil(t, kind)
+				assert.ErrorIs(t, err, ErrUnknownMetadataKey)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, c.expected, kind)
+			}
+		})
+	}
+}
+
 func TestEcsUnreachable(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		trans := httpmock.NewMockTransport()
@@ -124,8 +172,11 @@ func TestCreateOpenAPI(t *testing.T) {
 			if c.available {
 				assert.Equal(t, "cn-beijing-k", zone)
 				assert.NoError(t, err)
+				kind, err := m.MachineKind()
+				assert.NoError(t, err)
+				assert.Equal(t, MachineKindECS, kind)
 			} else {
-				assert.True(t, errors.Is(err, ErrUnknownMetadataKey))
+				assert.ErrorIs(t, err, ErrUnknownMetadataKey)
 			}
 		})
 	}
@@ -182,6 +233,10 @@ func TestCreateEcs(t *testing.T) {
 	roleName, err := m.Get(RAMRoleName)
 	assert.NoError(t, err)
 	assert.Equal(t, "testRoleName", roleName)
+
+	kind, err := m.MachineKind()
+	assert.NoError(t, err)
+	assert.Equal(t, MachineKindECS, kind)
 }
 
 func TestGetUnknownKey(t *testing.T) {

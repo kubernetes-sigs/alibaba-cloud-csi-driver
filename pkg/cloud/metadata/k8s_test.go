@@ -106,13 +106,60 @@ func TestGetK8s(t *testing.T) {
 
 			for k, v := range expectedValues {
 				t.Log(k, v)
-				value, err := m.Get(k)
+				value, err := m.GetAny(k)
 				if c.NotFound[k] {
 					assert.Equal(t, ErrUnknownMetadataKey, err)
 				} else {
 					assert.NoError(t, err, k)
 					assert.Equal(t, v, value)
 				}
+			}
+		})
+	}
+}
+
+func TestGetK8sKind(t *testing.T) {
+	cases := []struct {
+		name   string
+		Labels map[string]string
+		kind   MachineKind
+	}{
+		{
+			name: "ecs",
+			Labels: map[string]string{
+				"node.kubernetes.io/instance-type": "ecs.g7.xlarge",
+			},
+			kind: MachineKindECS,
+		},
+		{
+			name: "lingjun",
+			Labels: map[string]string{
+				"alibabacloud.com/lingjun-worker": "true",
+			},
+			kind: MachineKindLingjun,
+		},
+		{
+			name: "strange-label",
+			Labels: map[string]string{
+				"alibabacloud.com/lingjun-worker": "false",
+			},
+			kind: MachineKindUnknown,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			node := testNode.DeepCopy()
+			node.Labels = c.Labels
+
+			m := Metadata{}
+			m.enableKubernetesNode(fake.NewSimpleClientset(node), node.Name)
+			kind, err := m.MachineKind()
+
+			assert.Equal(t, c.kind, kind)
+			if c.kind == MachineKindUnknown {
+				assert.ErrorIs(t, err, ErrUnknownMetadataKey)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

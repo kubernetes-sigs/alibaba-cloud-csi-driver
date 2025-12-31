@@ -48,6 +48,7 @@ var MetadataLabels = map[MetadataKey][]string{
 	InstanceType: InstanceTypeLabels,
 	InstanceID:   InstanceIdLabels,
 	VmocType:     VmocLabels,
+	machineKind:  {"alibabacloud.com/lingjun-worker"},
 }
 
 func init() {
@@ -66,11 +67,18 @@ func NewKubernetesNodeMetadata(nodeName string, nodeClient corev1.NodeInterface)
 	return &KubernetesNodeMetadata{node: node}, nil
 }
 
-func (m *KubernetesNodeMetadata) Get(key MetadataKey) (string, error) {
+func (m *KubernetesNodeMetadata) GetAny(key MetadataKey) (any, error) {
 	labels := MetadataLabels[key]
 	for _, label := range labels {
 		if value := m.node.Labels[label]; value != "" {
-			return value, nil
+			switch key {
+			case machineKind:
+				if value == "true" {
+					return MachineKindLingjun, nil
+				}
+			default:
+				return value, nil
+			}
 		}
 	}
 
@@ -101,5 +109,5 @@ func (f *KubernetesNodeMetadataFetcher) FetchFor(key MetadataKey) (middleware, e
 	if err != nil {
 		return nil, err
 	}
-	return newImmutable(strProvider{p}, "Kubernetes"), nil
+	return newImmutable(p, "Kubernetes"), nil
 }

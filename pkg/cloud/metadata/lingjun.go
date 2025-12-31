@@ -34,17 +34,18 @@ func NewLingJunMetadata(lingjunConfigFile string) (*LingjunMetaData, error) {
 	return &lm, nil
 }
 
-func (m *LingjunMetaData) Get(key MetadataKey) (string, error) {
-
-	switch key.String() {
-	case "RegionID":
+func (m *LingjunMetaData) GetAny(key MetadataKey) (any, error) {
+	switch key {
+	case RegionID:
 		return m.RegionId, nil
-	case "ZoneID":
+	case ZoneID:
 		return m.ZoneId, nil
-	case "InstanceID":
+	case InstanceID:
 		return m.NodeId, nil
-	case "InstanceType":
+	case InstanceType:
 		return m.InstanceType, nil
+	case machineKind:
+		return MachineKindLingjun, nil
 	default:
 		return "", ErrUnknownMetadataKey
 	}
