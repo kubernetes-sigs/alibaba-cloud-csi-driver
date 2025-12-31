@@ -85,12 +85,12 @@ func TestCreateOpenAPI(t *testing.T) {
 
 	cases := []struct {
 		name      string
-		values    map[MetadataKey]string
+		values    fakeMiddleware
 		available bool
 	}{
 		{
 			name: "ok",
-			values: map[MetadataKey]string{
+			values: fakeMiddleware{
 				RegionID:   "cn-beijing",
 				InstanceID: "i-2zec1slzwdzrwmvlr4w2",
 			},
@@ -98,7 +98,7 @@ func TestCreateOpenAPI(t *testing.T) {
 		},
 		{
 			name: "no instance",
-			values: map[MetadataKey]string{
+			values: fakeMiddleware{
 				RegionID: "cn-beijing",
 			},
 			available: false,
@@ -117,7 +117,7 @@ func TestCreateOpenAPI(t *testing.T) {
 			}
 
 			m := NewMetadata()
-			m.providers = append(m.providers, FakeProvider{Values: c.values})
+			m.providers = append(m.providers, c.values)
 
 			m.EnableOpenAPI(ecsClient)
 			zone, err := m.Get(ZoneID)
@@ -192,31 +192,36 @@ func TestGetUnknownKey(t *testing.T) {
 	assert.Equal(t, ErrUnknownMetadataKey, err)
 }
 
+type fakeMiddleware map[MetadataKey]any
+
+func (m fakeMiddleware) GetAny(key MetadataKey) (any, error) {
+	if v, ok := m[key]; ok {
+		return v, nil
+	}
+	return nil, ErrUnknownMetadataKey
+}
+
 type noopFetcher struct{}
 
-func (f *noopFetcher) FetchFor(MetadataKey) (MetadataProvider, error) {
+func (f *noopFetcher) FetchFor(MetadataKey) (middleware, error) {
 	time.Sleep(10 * time.Millisecond)
-	return FakeProvider{
-		Values: map[MetadataKey]string{
-			RegionID: "cn-beijing",
-		},
+	return fakeMiddleware{
+		RegionID: "cn-beijing",
 	}, nil
 }
 
 // Run this with "-race"
 func TestParallelLazyInit(t *testing.T) {
 	t.Parallel()
-	m := lazyInitProvider{fetcher: &noopFetcher{}}
+	m := lazyInit{fetcher: &noopFetcher{}}
 
 	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			region, err := m.Get(RegionID)
+	for range 10 {
+		wg.Go(func() {
+			region, err := m.GetAny(RegionID)
 			assert.NoError(t, err)
 			assert.Equal(t, "cn-beijing", region)
-			wg.Done()
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -224,21 +229,17 @@ func TestParallelLazyInit(t *testing.T) {
 // Run this with "-race"
 func TestParallelImmutableProvider(t *testing.T) {
 	t.Parallel()
-	m := newImmutableProvider(FakeProvider{
-		Values: map[MetadataKey]string{
-			RegionID: "cn-beijing",
-		},
+	m := newImmutable(fakeMiddleware{
+		RegionID: "cn-beijing",
 	}, "fake")
 
 	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			region, err := m.Get(RegionID)
+	for range 10 {
+		wg.Go(func() {
+			region, err := m.GetAny(RegionID)
 			assert.NoError(t, err)
 			assert.Equal(t, "cn-beijing", region)
-			wg.Done()
-		}()
+		})
 	}
 	wg.Wait()
 }

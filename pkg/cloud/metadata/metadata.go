@@ -68,27 +68,39 @@ type MetadataProvider interface {
 }
 
 type Metadata struct {
-	providers []MetadataProvider
+	providers multi
 }
 
-type MetadataFetcher interface {
-	FetchFor(key MetadataKey) (MetadataProvider, error)
+func (m *Metadata) Get(key MetadataKey) (string, error) {
+	v, err := m.providers.GetAny(key)
+	if err != nil {
+		return "", err
+	}
+	return v.(string), nil
 }
 
-type lazyInitProvider struct {
-	provider MetadataProvider
-	err      error
-	initMu   sync.Mutex
-	fetcher  MetadataFetcher
+type fetcher interface {
+	FetchFor(key MetadataKey) (middleware, error)
 }
 
-func (p *lazyInitProvider) Get(key MetadataKey) (string, error) {
+type middleware interface {
+	GetAny(key MetadataKey) (any, error)
+}
+
+type lazyInit struct {
+	next    middleware
+	err     error
+	initMu  sync.Mutex
+	fetcher fetcher
+}
+
+func (p *lazyInit) GetAny(key MetadataKey) (any, error) {
 	p.initMu.Lock()
-	if p.provider == nil && p.err == nil {
-		provider, err := p.fetcher.FetchFor(key)
+	if p.next == nil && p.err == nil {
+		next, err := p.fetcher.FetchFor(key)
 		if err == ErrUnknownMetadataKey {
 			p.initMu.Unlock()
-			return "", err
+			return nil, err
 		}
 		if err != nil {
 			err = fmt.Errorf("%T failed: %w", p.fetcher, err)
@@ -97,30 +109,30 @@ func (p *lazyInitProvider) Get(key MetadataKey) (string, error) {
 			klog.Warning(err)
 		}
 		p.fetcher = nil
-		p.provider = provider
+		p.next = next
 		p.err = err
 	}
 	p.initMu.Unlock()
 	if p.err != nil {
-		return "", p.err
+		return nil, p.err
 	}
-	return p.provider.Get(key)
+	return p.next.GetAny(key)
 }
 
-type immutableProvider struct {
-	provider MetadataProvider
-	name     string
-	mu       sync.Mutex
-	values   map[MetadataKey]string
+type immutable struct {
+	next   middleware
+	name   string
+	mu     sync.Mutex
+	values map[MetadataKey]any
 }
 
-func (p *immutableProvider) Get(key MetadataKey) (string, error) {
+func (p *immutable) GetAny(key MetadataKey) (any, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if v, ok := p.values[key]; ok {
 		return v, nil
 	}
-	v, err := p.provider.Get(key)
+	v, err := p.next.GetAny(key)
 	if err != nil {
 		return "", err
 	}
@@ -129,28 +141,33 @@ func (p *immutableProvider) Get(key MetadataKey) (string, error) {
 	return v, nil
 }
 
-func newImmutableProvider(provider MetadataProvider, name string) *immutableProvider {
-	return &immutableProvider{
-		provider: provider,
-		name:     name,
-		values:   map[MetadataKey]string{},
+func newImmutable(next middleware, name string) *immutable {
+	return &immutable{
+		next:   next,
+		name:   name,
+		values: map[MetadataKey]any{},
 	}
 }
 
+type strProvider struct {
+	p interface {
+		Get(key MetadataKey) (string, error)
+	}
+}
+
+func (p strProvider) GetAny(key MetadataKey) (any, error) {
+	return p.p.Get(key)
+}
+
 func NewMetadata() *Metadata {
-	defaultMetadata := &Metadata{
-		providers: []MetadataProvider{
-			newImmutableProvider(&ENVMetadata{}, "env"),
-		},
+	providers := multi{
+		newImmutable(strProvider{ENVMetadata{}}, "env"),
 	}
-	lm, err := NewLingJunMetadata(LingjunConfigFile)
-	if err != nil {
-		return defaultMetadata
+	lm, _ := NewLingJunMetadata(LingjunConfigFile)
+	if lm != nil { // error is already logged
+		providers = append(providers, newImmutable(strProvider{lm}, "lingjun"))
 	}
-	if lm != nil {
-		defaultMetadata.providers = append(defaultMetadata.providers, newImmutableProvider(lm, "lingjun"))
-	}
-	return defaultMetadata
+	return &Metadata{providers}
 }
 
 func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
@@ -158,9 +175,9 @@ func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
 		klog.Infof("ECS metadata is disabled by environment variable %s", DISABLE_ECS_ENV)
 		return
 	}
-	m.providers = append(m.providers, &lazyInitProvider{
+	m.providers = append(m.providers, &lazyInit{
 		fetcher: &EcsFetcher{httpRT: httpRT},
-	}, NewEcsDynamic(httpRT))
+	}, strProvider{NewEcsDynamic(httpRT)})
 }
 
 func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
@@ -168,14 +185,14 @@ func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
 	if nodeName == "" {
 		klog.Warningf("%s environment variable is not set, skipping Kubernetes Node metadata", KUBE_NODE_NAME_ENV)
 	} else {
-		m.providers = append(m.providers, &lazyInitProvider{
+		m.providers = append(m.providers, &lazyInit{
 			fetcher: &KubernetesNodeMetadataFetcher{
 				client:   client.CoreV1().Nodes(),
 				nodeName: nodeName,
 			},
 		})
 	}
-	m.providers = append(m.providers, &lazyInitProvider{
+	m.providers = append(m.providers, &lazyInit{
 		fetcher: &ProfileFetcher{
 			client: client,
 		},
@@ -188,7 +205,7 @@ func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSv2Interface) {
 		// do not recurse into ourselves
 		providers: m.providers,
 	}
-	m.providers = append(m.providers, &lazyInitProvider{
+	m.providers = append(m.providers, &lazyInit{
 		fetcher: &OpenAPIFetcher{
 			ecsClient: ecsClient,
 			mPre:      &mPre,
@@ -197,17 +214,19 @@ func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSv2Interface) {
 }
 
 func (m *Metadata) EnableSts(stsClient cloud.STSInterface) {
-	m.providers = append(m.providers, &lazyInitProvider{
+	m.providers = append(m.providers, &lazyInit{
 		fetcher: &StsFetcher{
 			stsClient: stsClient,
 		},
 	})
 }
 
-func (m *Metadata) Get(key MetadataKey) (string, error) {
+type multi []middleware
+
+func (m multi) GetAny(key MetadataKey) (any, error) {
 	errors := []error{}
-	for _, p := range m.providers {
-		v, err := p.Get(key)
+	for _, p := range m {
+		v, err := p.GetAny(key)
 		if err == nil {
 			return v, nil
 		}
@@ -217,9 +236,9 @@ func (m *Metadata) Get(key MetadataKey) (string, error) {
 		errors = append(errors, err)
 	}
 	if len(errors) == 0 {
-		return "", ErrUnknownMetadataKey
+		return nil, ErrUnknownMetadataKey
 	}
-	return "", utilerrors.NewAggregate(errors)
+	return nil, utilerrors.NewAggregate(errors)
 }
 
 func MustGet(m MetadataProvider, key MetadataKey) string {

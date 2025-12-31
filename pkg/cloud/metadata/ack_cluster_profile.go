@@ -47,7 +47,7 @@ type ProfileFetcher struct {
 	client kubernetes.Interface
 }
 
-func (f *ProfileFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
+func (f *ProfileFetcher) FetchFor(key MetadataKey) (middleware, error) {
 	switch key {
 	case DataPlaneZoneID: // supported
 	default:
@@ -60,5 +60,5 @@ func (f *ProfileFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newImmutableProvider(p, "ClusterProfile"), nil
+	return newImmutable(strProvider{p}, "ClusterProfile"), nil
 }

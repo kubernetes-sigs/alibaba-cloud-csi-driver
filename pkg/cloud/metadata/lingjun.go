@@ -16,18 +16,19 @@ type LingjunMetaData struct {
 }
 
 func NewLingJunMetadata(lingjunConfigFile string) (*LingjunMetaData, error) {
-	lm := LingjunMetaData{}
 	data, err := os.ReadFile(lingjunConfigFile)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			klog.V(3).InfoS("lingjun metadata file does not exist, use env metadata only", "file", lingjunConfigFile)
 		} else {
-			klog.ErrorS(err, "Failed to read lingjun metadatafile", "file", lingjunConfigFile)
+			klog.ErrorS(err, "Failed to read lingjun metadata file", "file", lingjunConfigFile)
 		}
 		return nil, err
 	}
+	var lm LingjunMetaData
 	err = json.Unmarshal(data, &lm)
 	if err != nil {
+		klog.ErrorS(err, "Failed to parse lingjun metadata file", "file", lingjunConfigFile)
 		return nil, err
 	}
 	return &lm, nil
