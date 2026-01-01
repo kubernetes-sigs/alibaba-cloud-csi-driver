@@ -7,17 +7,17 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata/imds"
 )
 
-type ECSDynamic struct {
+type IMDSDynamic struct {
 	client imds.Client
 }
 
-func NewEcsDynamic(httpRT http.RoundTripper) *ECSDynamic {
-	return &ECSDynamic{
+func NewIMDSDynamic(httpRT http.RoundTripper) *IMDSDynamic {
+	return &IMDSDynamic{
 		client: *imds.NewClient(httpRT),
 	}
 }
 
-func (m *ECSDynamic) fetch(path string) (string, error) {
+func (m *IMDSDynamic) fetch(path string) (string, error) {
 	data, err := m.client.Fetch(context.TODO(), path)
 	if err != nil {
 		return "", err
@@ -25,7 +25,7 @@ func (m *ECSDynamic) fetch(path string) (string, error) {
 	return string(data), nil
 }
 
-func (m *ECSDynamic) Get(key MetadataKey) (string, error) {
+func (m *IMDSDynamic) Get(key MetadataKey) (string, error) {
 	switch key {
 	case RAMRoleName:
 		return m.fetch("meta-data/ram/security-credentials/")
