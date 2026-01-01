@@ -64,14 +64,14 @@ func TestInferMachineType(t *testing.T) {
 	}
 }
 
-func TestEcsUnreachable(t *testing.T) {
+func TestIMDSUnreachable(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		trans := httpmock.NewMockTransport()
 		trans.RegisterResponder("PUT", imds.ECSTokenEndpoint,
 			httpmock.NewErrorResponder(errors.New("what ever")).Delay(11*time.Second))
 		// Should print a suggestion about disabling ECS metadata
 		m := NewMetadata()
-		m.EnableEcs(trans)
+		m.EnableIMDS(trans)
 		_, err := m.Get(RegionID)
 		assert.ErrorIs(t, err, context.DeadlineExceeded)
 
@@ -79,11 +79,11 @@ func TestEcsUnreachable(t *testing.T) {
 	})
 }
 
-func TestEcsDisableByEnv(t *testing.T) {
-	t.Setenv(DISABLE_ECS_ENV, "true")
+func TestIMDSDisableByEnv(t *testing.T) {
+	t.Setenv(DISABLE_IMDS_ENV, "true")
 	m := NewMetadata()
 	c1 := len(m.providers)
-	m.EnableEcs(httpmock.NewMockTransport())
+	m.EnableIMDS(httpmock.NewMockTransport())
 	assert.Equal(t, c1, len(m.providers))
 }
 
@@ -219,11 +219,11 @@ func fakeMetadata(t *testing.T) *Metadata {
 	trans.RegisterResponder("GET", imds.ECSMetadataEndpoint+"meta-data/ram/security-credentials/", httpmock.NewStringResponder(200, "testRoleName"))
 
 	m := NewMetadata()
-	m.EnableEcs(trans)
+	m.EnableIMDS(trans)
 	return m
 }
 
-func TestCreateEcs(t *testing.T) {
+func TestCreateIMDS(t *testing.T) {
 	t.Parallel()
 	m := fakeMetadata(t)
 	region, err := m.Get(RegionID)

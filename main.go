@@ -146,7 +146,7 @@ func main() {
 
 	// initialize node metadata
 	meta := metadata.NewMetadata()
-	meta.EnableEcs(http.DefaultTransport)
+	meta.EnableIMDS(http.DefaultTransport)
 
 	cfg, err := options.GetRestConfig()
 	if err != nil {
