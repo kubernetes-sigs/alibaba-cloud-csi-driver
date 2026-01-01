@@ -1,0 +1,64 @@
+package metadata
+
+import (
+	"fmt"
+
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	"k8s.io/utils/ptr"
+)
+
+type ECSInstanceTypeMetadata struct {
+	t *ecs20140526.DescribeInstanceTypesResponseBodyInstanceTypesInstanceType
+}
+
+func NewEcsInstanceTypeMetadata(c cloud.ECSv2Interface, instanceType string) (*ECSInstanceTypeMetadata, error) {
+	req := ecs20140526.DescribeInstanceTypesRequest{
+		InstanceTypes: []*string{ptr.To(instanceType)},
+	}
+	resp, err := c.DescribeInstanceTypes(&req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe instance type %s: %w", instanceType, err)
+	}
+	if resp.Body == nil || resp.Body.InstanceTypes == nil {
+		return nil, fmt.Errorf("no instance types field: %s", instanceType)
+	}
+	types := resp.Body.InstanceTypes.InstanceType
+	if len(types) != 1 || types[0] == nil {
+		return nil, fmt.Errorf("unexpected instance type count %d for %s", len(types), instanceType)
+	}
+	return &ECSInstanceTypeMetadata{t: types[0]}, nil
+}
+
+func (m *ECSInstanceTypeMetadata) GetAny(key MetadataKey) (any, error) {
+	switch key {
+	case diskQuantity:
+		if m.t.DiskQuantity != nil {
+			return *m.t.DiskQuantity, nil
+		}
+	}
+	return nil, ErrUnknownMetadataKey
+}
+
+type ECSInstanceTypeFetcher struct {
+	ecsClient cloud.ECSv2Interface
+	mPre      MetadataProvider
+}
+
+func (f *ECSInstanceTypeFetcher) FetchFor(key MetadataKey) (middleware, error) {
+	switch key {
+	case diskQuantity:
+	default:
+		return nil, ErrUnknownMetadataKey
+	}
+
+	t, err := f.mPre.Get(InstanceType)
+	if err != nil {
+		return nil, fmt.Errorf("instance type is not available: %w", err)
+	}
+	p, err := NewEcsInstanceTypeMetadata(f.ecsClient, t)
+	if err != nil {
+		return nil, err
+	}
+	return newImmutable(p, "ECS_Instance_Type"), nil
+}
