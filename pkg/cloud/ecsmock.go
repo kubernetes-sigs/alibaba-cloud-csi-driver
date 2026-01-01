@@ -238,6 +238,21 @@ func (m *MockECSv2Interface) EXPECT() *MockECSv2InterfaceMockRecorder {
 	return m.recorder
 }
 
+// DescribeInstanceTypes mocks base method.
+func (m *MockECSv2Interface) DescribeInstanceTypes(request *client.DescribeInstanceTypesRequest) (*client.DescribeInstanceTypesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeInstanceTypes", request)
+	ret0, _ := ret[0].(*client.DescribeInstanceTypesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeInstanceTypes indicates an expected call of DescribeInstanceTypes.
+func (mr *MockECSv2InterfaceMockRecorder) DescribeInstanceTypes(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstanceTypes", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeInstanceTypes), request)
+}
+
 // DescribeInstances mocks base method.
 func (m *MockECSv2Interface) DescribeInstances(request *client.DescribeInstancesRequest) (*client.DescribeInstancesResponse, error) {
 	m.ctrl.T.Helper()

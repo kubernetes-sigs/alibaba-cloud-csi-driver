@@ -31,6 +31,7 @@ const (
 
 	// non-string metadata, not public, can only access with corresponding methods
 	machineKind
+	diskQuantity // int32
 )
 
 const LingjunConfigFile = "/host/etc/eflo_config/lingjun_config"
@@ -59,6 +60,8 @@ func (k MetadataKey) String() string {
 		return "RRSATokenFile"
 	case machineKind:
 		return "MachineKind"
+	case diskQuantity:
+		return "DiskQuantity"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}
@@ -105,6 +108,7 @@ type strMetadataProvider interface {
 type MetadataProvider interface {
 	strMetadataProvider
 	MachineKind() (MachineKind, error)
+	DiskQuantity() (int32, error)
 }
 
 type Metadata struct {
@@ -122,6 +126,7 @@ func getT[T any](m *Metadata, key MetadataKey) (T, error) {
 
 func (m *Metadata) Get(key MetadataKey) (string, error) { return getT[string](m, key) }
 func (m *Metadata) MachineKind() (MachineKind, error)   { return getT[MachineKind](m, machineKind) }
+func (m *Metadata) DiskQuantity() (int32, error)        { return getT[int32](m, diskQuantity) }
 
 type fetcher interface {
 	FetchFor(key MetadataKey) (middleware, error)
@@ -257,12 +262,35 @@ func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSv2Interface) {
 			mPre:      &mPre,
 		},
 	}})
+	mPre2 := Metadata{
+		providers: m.providers, // be sure to include OpenAPIFetcher for instance type
+	}
+	m.providers = append(m.providers, &lazyInit{
+		fetcher: &ECSInstanceTypeFetcher{
+			ecsClient: ecsClient,
+			mPre:      &mPre2,
+		},
+	})
 }
 
 func (m *Metadata) EnableSts(stsClient cloud.STSInterface) {
 	m.providers = append(m.providers, &lazyInit{
 		fetcher: &StsFetcher{
 			stsClient: stsClient,
+		},
+	})
+}
+
+func (m *Metadata) EnableEFLO(efloClient cloud.EFLOInterface) {
+	mPre := Metadata{
+		// use the previous providers to get instance id,
+		// do not recurse into ourselves
+		providers: m.providers,
+	}
+	m.providers = append(m.providers, &lazyInit{
+		fetcher: &EfloFetcher{
+			efloClient: efloClient,
+			mPre:       &mPre,
 		},
 	})
 }
@@ -316,17 +344,22 @@ func GetFallbackZoneID(m MetadataProvider) (string, error) {
 type FakeProvider struct {
 	Values map[MetadataKey]string
 	V      struct {
-		MachineKind MachineKind
+		MachineKind  MachineKind
+		DiskQuantity int32
 	}
 }
 
-func (p FakeProvider) Get(key MetadataKey) (string, error) {
+func (p *FakeProvider) Get(key MetadataKey) (string, error) {
 	if v, ok := p.Values[key]; ok {
 		return v, nil
 	}
 	return "", ErrUnknownMetadataKey
 }
 
-func (p FakeProvider) MachineKind() (MachineKind, error) {
+func (p *FakeProvider) MachineKind() (MachineKind, error) {
 	return p.V.MachineKind, nil
+}
+
+func (p *FakeProvider) DiskQuantity() (int32, error) {
+	return p.V.DiskQuantity, nil
 }
