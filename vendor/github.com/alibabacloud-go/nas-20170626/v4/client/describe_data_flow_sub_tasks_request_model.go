@@ -96,7 +96,16 @@ func (s *DescribeDataFlowSubTasksRequest) SetNextToken(v string) *DescribeDataFl
 }
 
 func (s *DescribeDataFlowSubTasksRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Filters != nil {
+		for _, item := range s.Filters {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowSubTasksRequestFilters struct {

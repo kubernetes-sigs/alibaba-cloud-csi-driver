@@ -117,7 +117,17 @@ func (s *DescribeFileSystemStatisticsResponseBody) SetTotalCount(v int32) *Descr
 }
 
 func (s *DescribeFileSystemStatisticsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.FileSystemStatistics != nil {
+		if err := s.FileSystemStatistics.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.FileSystems != nil {
+		if err := s.FileSystems.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemStatisticsResponseBodyFileSystemStatistics struct {
@@ -142,7 +152,16 @@ func (s *DescribeFileSystemStatisticsResponseBodyFileSystemStatistics) SetFileSy
 }
 
 func (s *DescribeFileSystemStatisticsResponseBodyFileSystemStatistics) Validate() error {
-	return dara.Validate(s)
+	if s.FileSystemStatistic != nil {
+		for _, item := range s.FileSystemStatistic {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemStatisticsResponseBodyFileSystemStatisticsFileSystemStatistic struct {
@@ -263,7 +282,16 @@ func (s *DescribeFileSystemStatisticsResponseBodyFileSystems) SetFileSystem(v []
 }
 
 func (s *DescribeFileSystemStatisticsResponseBodyFileSystems) Validate() error {
-	return dara.Validate(s)
+	if s.FileSystem != nil {
+		for _, item := range s.FileSystem {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystem struct {
@@ -551,7 +579,12 @@ func (s *DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystem) SetZoneI
 }
 
 func (s *DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystem) Validate() error {
-	return dara.Validate(s)
+	if s.Packages != nil {
+		if err := s.Packages.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystemPackages struct {
@@ -576,7 +609,16 @@ func (s *DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystemPackages) 
 }
 
 func (s *DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystemPackages) Validate() error {
-	return dara.Validate(s)
+	if s.Package != nil {
+		for _, item := range s.Package {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystemPackagesPackage struct {

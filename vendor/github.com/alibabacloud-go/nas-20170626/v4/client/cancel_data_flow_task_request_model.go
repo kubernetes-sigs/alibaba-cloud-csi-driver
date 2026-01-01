@@ -32,7 +32,7 @@ type CancelDataFlowTaskRequest struct {
 	//
 	// 123e4567-e89b-12d3-a456-42665544****
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// The dataflow ID.
+	// The ID of the dataflow.
 	//
 	// This parameter is required.
 	//
@@ -59,8 +59,6 @@ type CancelDataFlowTaskRequest struct {
 	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-125487\\*\\*\\*\\*.
 	//
 	// 	- The IDs of CPFS for LINGJUN file systems must start with `bmcpfs-`. Example: bmcpfs-0015\\*\\*\\*\\*.
-	//
-	// >  CPFS is not supported on the international site.
 	//
 	// This parameter is required.
 	//

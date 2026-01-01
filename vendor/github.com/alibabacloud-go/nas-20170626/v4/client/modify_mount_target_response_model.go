@@ -59,5 +59,10 @@ func (s *ModifyMountTargetResponse) SetBody(v *ModifyMountTargetResponseBody) *M
 }
 
 func (s *ModifyMountTargetResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -22,7 +22,7 @@ type CreateFilesetResponseBody struct {
 	//
 	// fset-1902718ea0ae****
 	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
-	// The request ID.
+	// Request ID.
 	//
 	// example:
 	//

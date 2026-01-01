@@ -70,7 +70,12 @@ func (s *CreateMountTargetResponseBody) SetRequestId(v string) *CreateMountTarge
 }
 
 func (s *CreateMountTargetResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.MountTargetExtra != nil {
+		if err := s.MountTargetExtra.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateMountTargetResponseBodyMountTargetExtra struct {

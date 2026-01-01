@@ -59,5 +59,10 @@ func (s *GetRecycleBinAttributeResponse) SetBody(v *GetRecycleBinAttributeRespon
 }
 
 func (s *GetRecycleBinAttributeResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

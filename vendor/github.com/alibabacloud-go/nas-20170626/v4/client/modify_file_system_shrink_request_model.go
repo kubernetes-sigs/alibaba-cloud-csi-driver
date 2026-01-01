@@ -40,8 +40,6 @@ type ModifyFileSystemShrinkRequest struct {
 	//
 	// 	- The IDs of Cloud Paralleled File System (CPFS) file systems must start with `cpfs-`. Example: `cpfs-125487****`.
 	//
-	// >CPFS file systems are available only on the China site (aliyun.com).
-	//
 	// This parameter is required.
 	//
 	// example:

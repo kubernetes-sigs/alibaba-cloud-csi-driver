@@ -104,7 +104,12 @@ func (s *DescribeFileSystemsResponseBody) SetTotalCount(v int32) *DescribeFileSy
 }
 
 func (s *DescribeFileSystemsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.FileSystems != nil {
+		if err := s.FileSystems.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystems struct {
@@ -129,7 +134,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystems) SetFileSystem(v []*Describe
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystems) Validate() error {
-	return dara.Validate(s)
+	if s.FileSystem != nil {
+		for _, item := range s.FileSystem {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
@@ -215,15 +229,13 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The file system type.
 	//
-	// Valid values:
+	// The following information is displayed:
 	//
 	// 	- standard: General-purpose NAS file system.
 	//
 	// 	- extreme: Extreme NAS file system.
 	//
 	// 	- cpfs: CPFS file system.
-	//
-	// >  CPFS file systems are available only on the China site (aliyun.com).
 	//
 	// example:
 	//
@@ -271,15 +283,13 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	Packages *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackages `json:"Packages,omitempty" xml:"Packages,omitempty" type:"Struct"`
 	// The protocol type of the file system.
 	//
-	// Valid values:
+	// The following information is displayed:
 	//
 	// 	- NFS: Network File System.
 	//
 	// 	- SMB: Server Message Block.
 	//
 	// 	- cpfs: The protocol type supported by the CPFS file system.
-	//
-	// >  CPFS file systems are available only on the China site (aliyun.com).
 	//
 	// example:
 	//
@@ -291,6 +301,11 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	//
 	// vsw-2ze37k6jh8ums2fw2****
 	QuorumVswId *string `json:"QuorumVswId,omitempty" xml:"QuorumVswId,omitempty"`
+	// example:
+	//
+	// LRS
+	RedundancyType       *string                                                                   `json:"RedundancyType,omitempty" xml:"RedundancyType,omitempty"`
+	RedundancyVSwitchIds *DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds `json:"RedundancyVSwitchIds,omitempty" xml:"RedundancyVSwitchIds,omitempty" type:"Struct"`
 	// The region ID.
 	//
 	// example:
@@ -321,17 +336,15 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	//
 	// Pending
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The storage type.
+	// The type of the storage.
 	//
-	// Valid values:
+	// The following information is displayed:
 	//
-	// - Valid values for General-purpose NAS file systems: Capacity,Premium and Performance.
+	// 	- Valid values for General-purpose NAS file systems: Capacity, Performance, and Premium
 	//
-	// - Valid values for Extreme NAS file systems: standard and advance.
+	// 	- Valid values for Extreme NAS file systems: standard and advance
 	//
-	// - Valid values for CPFS file systems: advance_100 (100 MB/s/TiB baseline) and advance_200 (200 MB/s/TiB baseline).
-	//
-	//  > CPFS file systems are available only on the China site (aliyun.com).
+	// 	- Valid values for Cloud Parallel File Storage (CPFS) file systems: advance_100 (100 MB/s/TiB baseline) and advance_200 (200 MB/s/TiB baseline)
 	//
 	// example:
 	//
@@ -461,6 +474,14 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) GetProtocolType()
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) GetQuorumVswId() *string {
 	return s.QuorumVswId
+}
+
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) GetRedundancyType() *string {
+	return s.RedundancyType
+}
+
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) GetRedundancyVSwitchIds() *DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds {
+	return s.RedundancyVSwitchIds
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) GetRegionId() *string {
@@ -612,6 +633,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetQuorumVswId(v 
 	return s
 }
 
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetRedundancyType(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
+	s.RedundancyType = &v
+	return s
+}
+
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetRedundancyVSwitchIds(v *DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
+	s.RedundancyVSwitchIds = v
+	return s
+}
+
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetRegionId(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
 	s.RegionId = &v
 	return s
@@ -668,7 +699,47 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetZoneId(v strin
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) Validate() error {
-	return dara.Validate(s)
+	if s.Ldap != nil {
+		if err := s.Ldap.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.MountTargets != nil {
+		if err := s.MountTargets.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Options != nil {
+		if err := s.Options.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Packages != nil {
+		if err := s.Packages.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.RedundancyVSwitchIds != nil {
+		if err := s.RedundancyVSwitchIds.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.SupportedFeatures != nil {
+		if err := s.SupportedFeatures.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Tags != nil {
+		if err := s.Tags.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.VswIds != nil {
+		if err := s.VswIds.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemLdap struct {
@@ -753,7 +824,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargets) SetMo
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargets) Validate() error {
-	return dara.Validate(s)
+	if s.MountTarget != nil {
+		for _, item := range s.MountTarget {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget struct {
@@ -913,7 +993,17 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget) Validate() error {
-	return dara.Validate(s)
+	if s.ClientMasterNodes != nil {
+		if err := s.ClientMasterNodes.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Tags != nil {
+		if err := s.Tags.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetClientMasterNodes struct {
@@ -938,7 +1028,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetClientMasterNodes) Validate() error {
-	return dara.Validate(s)
+	if s.ClientMasterNode != nil {
+		for _, item := range s.ClientMasterNode {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetClientMasterNodesClientMasterNode struct {
@@ -1023,7 +1122,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetTags) Validate() error {
-	return dara.Validate(s)
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetTagsTag struct {
@@ -1129,7 +1237,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackages) SetPackag
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackages) Validate() error {
-	return dara.Validate(s)
+	if s.Package != nil {
+		for _, item := range s.Package {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemPackagesPackage struct {
@@ -1228,6 +1345,31 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackagesPackage) Va
 	return dara.Validate(s)
 }
 
+type DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds struct {
+	RedundancyVSwitchId []*string `json:"RedundancyVSwitchId,omitempty" xml:"RedundancyVSwitchId,omitempty" type:"Repeated"`
+}
+
+func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds) GetRedundancyVSwitchId() []*string {
+	return s.RedundancyVSwitchId
+}
+
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds) SetRedundancyVSwitchId(v []*string) *DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds {
+	s.RedundancyVSwitchId = v
+	return s
+}
+
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds) Validate() error {
+	return dara.Validate(s)
+}
+
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemSupportedFeatures struct {
 	SupportedFeature []*string `json:"SupportedFeature,omitempty" xml:"SupportedFeature,omitempty" type:"Repeated"`
 }
@@ -1275,7 +1417,16 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemTags) SetTag(v []*D
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemTags) Validate() error {
-	return dara.Validate(s)
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemTagsTag struct {
