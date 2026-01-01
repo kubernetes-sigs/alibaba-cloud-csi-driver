@@ -2,19 +2,36 @@ package metadata
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	"github.com/golang/mock/gomock"
 	"github.com/jarcoal/httpmock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata/imds"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	fake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/klog/v2/ktesting"
 )
+
+func testMContext(t *testing.T) *mcontext {
+	logger, ctx := ktesting.NewTestContext(t)
+	return &mcontext{Context: ctx, logger: logger, errors: &[numFetchers]error{}}
+}
+
+func testMetadata(t *testing.T, values middleware) *Metadata {
+	_, ctx := ktesting.NewTestContext(t)
+	return &Metadata{
+		ctx:       ctx,
+		providers: multi{values},
+	}
+}
 
 func TestInferMachineType(t *testing.T) {
 	cases := []struct {
@@ -52,7 +69,7 @@ func TestInferMachineType(t *testing.T) {
 		c := c
 		t.Run(c.name, func(t *testing.T) {
 			m := inferMachineKind{next: c.values}
-			kind, err := m.GetAny(machineKind)
+			kind, err := m.GetAny(testMContext(t), machineKind)
 			if c.expected == MachineKindUnknown {
 				assert.Nil(t, kind)
 				assert.ErrorIs(t, err, ErrUnknownMetadataKey)
@@ -62,6 +79,52 @@ func TestInferMachineType(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInMemoryFirst(t *testing.T) {
+	m := testMetadata(t, fakeMiddleware{InstanceID: "i-xxxx"})
+	m.EnableOpenAPI(testEcsClient(t))
+	m.providers = append(m.providers, fakeMiddleware{InstanceType: "ecs.in-memory.data"})
+
+	it, err := m.Get(InstanceType)
+	assert.NoError(t, err)
+	assert.Equal(t, "ecs.in-memory.data", it)
+
+	zone, err := m.Get(ZoneID) // fetch from OpenAPI
+	assert.NoError(t, err)
+	assert.Equal(t, "cn-beijing-k", zone)
+}
+
+func TestSessionClearError(t *testing.T) {
+	res := &ecs20140526.DescribeInstancesResponse{}
+	require.NoError(t, json.Unmarshal([]byte(describeInstanceRespJson), &res.Body))
+
+	ctrl := gomock.NewController(t)
+	ecsClient := cloud.NewMockECSv2Interface(ctrl)
+	fakeErr := errors.New("whatever")
+	ecsClient.EXPECT().DescribeInstances(gomock.Any()).Return(nil, fakeErr)
+	ecsClient.EXPECT().DescribeInstances(gomock.Any()).Return(res, nil)
+
+	m := testMetadata(t, fakeMiddleware{InstanceID: "i-xxxx"})
+	m.EnableOpenAPI(ecsClient)
+
+	_, err := m.Get(InstanceType)
+	assert.ErrorIs(t, err, fakeErr)
+
+	// error is persistent
+	_, err = m.Get(InstanceType)
+	assert.ErrorIs(t, err, fakeErr)
+
+	// but cleared in new session
+	s := m.WithSession(t.Context())
+	it, err := s.Get(InstanceType)
+	assert.NoError(t, err)
+	assert.Equal(t, "ecs.g7.xlarge", it)
+
+	// old session can also see the successful fetch
+	it, err = m.Get(InstanceType)
+	assert.NoError(t, err)
+	assert.Equal(t, "ecs.g7.xlarge", it)
 }
 
 func TestIMDSUnreachable(t *testing.T) {
@@ -248,7 +311,7 @@ func TestGetUnknownKey(t *testing.T) {
 
 type fakeMiddleware map[MetadataKey]any
 
-func (m fakeMiddleware) GetAny(key MetadataKey) (any, error) {
+func (m fakeMiddleware) GetAny(_ *mcontext, key MetadataKey) (any, error) {
 	if v, ok := m[key]; ok {
 		return v, nil
 	}
@@ -257,7 +320,11 @@ func (m fakeMiddleware) GetAny(key MetadataKey) (any, error) {
 
 type noopFetcher struct{}
 
-func (f *noopFetcher) FetchFor(MetadataKey) (middleware, error) {
+func (f *noopFetcher) ID() fetcherID {
+	return 0 // This fetcher do not return error, so anything is OK.
+}
+
+func (f *noopFetcher) FetchFor(*mcontext, MetadataKey) (middleware, error) {
 	time.Sleep(10 * time.Millisecond)
 	return fakeMiddleware{
 		RegionID: "cn-beijing",
@@ -270,9 +337,10 @@ func TestParallelLazyInit(t *testing.T) {
 	m := lazyInit{fetcher: &noopFetcher{}}
 
 	wg := sync.WaitGroup{}
+	ctx := testMContext(t)
 	for range 10 {
 		wg.Go(func() {
-			region, err := m.GetAny(RegionID)
+			region, err := m.GetAny(ctx, RegionID)
 			assert.NoError(t, err)
 			assert.Equal(t, "cn-beijing", region)
 		})
@@ -288,9 +356,10 @@ func TestParallelImmutableProvider(t *testing.T) {
 	}, "fake")
 
 	wg := sync.WaitGroup{}
+	ctx := testMContext(t)
 	for range 10 {
 		wg.Go(func() {
-			region, err := m.GetAny(RegionID)
+			region, err := m.GetAny(ctx, RegionID)
 			assert.NoError(t, err)
 			assert.Equal(t, "cn-beijing", region)
 		})

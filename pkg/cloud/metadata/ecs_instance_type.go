@@ -30,7 +30,7 @@ func NewEcsInstanceTypeMetadata(c cloud.ECSv2Interface, instanceType string) (*E
 	return &ECSInstanceTypeMetadata{t: types[0]}, nil
 }
 
-func (m *ECSInstanceTypeMetadata) GetAny(key MetadataKey) (any, error) {
+func (m *ECSInstanceTypeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
 	switch key {
 	case diskQuantity:
 		if m.t.DiskQuantity != nil {
@@ -42,21 +42,23 @@ func (m *ECSInstanceTypeMetadata) GetAny(key MetadataKey) (any, error) {
 
 type ECSInstanceTypeFetcher struct {
 	ecsClient cloud.ECSv2Interface
-	mPre      MetadataProvider
+	mPre      middleware
 }
 
-func (f *ECSInstanceTypeFetcher) FetchFor(key MetadataKey) (middleware, error) {
+func (f *ECSInstanceTypeFetcher) ID() fetcherID { return ecsInstanceTypeFetcherID }
+
+func (f *ECSInstanceTypeFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
 	case diskQuantity:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
 
-	t, err := f.mPre.Get(InstanceType)
+	t, err := f.mPre.GetAny(ctx, InstanceType)
 	if err != nil {
 		return nil, fmt.Errorf("instance type is not available: %w", err)
 	}
-	p, err := NewEcsInstanceTypeMetadata(f.ecsClient, t)
+	p, err := NewEcsInstanceTypeMetadata(f.ecsClient, t.(string))
 	if err != nil {
 		return nil, err
 	}

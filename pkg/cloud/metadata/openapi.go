@@ -60,17 +60,19 @@ func (m *OpenAPIMetadata) Get(key MetadataKey) (string, error) {
 
 type OpenAPIFetcher struct {
 	ecsClient cloud.ECSv2Interface
-	mPre      MetadataProvider
+	mPre      middleware
 }
 
-func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (middleware, error) {
+func (f *OpenAPIFetcher) ID() fetcherID { return openAPIFetcherID }
+
+func (f *OpenAPIFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
 	case InstanceID, ZoneID, InstanceType:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
 
-	instanceId, err := f.mPre.Get(InstanceID)
+	instanceId, err := f.mPre.GetAny(ctx, InstanceID)
 	if err != nil {
 		if err == ErrUnknownMetadataKey {
 			nodeName := os.Getenv(KUBE_NODE_NAME_ENV)
@@ -84,7 +86,7 @@ func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (middleware, error) {
 	if err != nil {
 		return nil, fmt.Errorf("instance ID is not available: %w", err)
 	}
-	p, err := NewOpenAPIMetadata(f.ecsClient, instanceId)
+	p, err := NewOpenAPIMetadata(f.ecsClient, instanceId.(string))
 	if err != nil {
 		return nil, err
 	}
