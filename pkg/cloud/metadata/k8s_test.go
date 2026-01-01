@@ -101,12 +101,12 @@ func TestGetK8s(t *testing.T) {
 			node.Labels = c.Labels
 
 			client := fake.NewSimpleClientset(node).CoreV1().Nodes()
-			m, err := NewKubernetesNodeMetadata(node.Name, client)
+			m, err := NewKubernetesNodeMetadata(testMContext(t), node.Name, client)
 			assert.NoError(t, err)
 
 			for k, v := range expectedValues {
 				t.Log(k, v)
-				value, err := m.GetAny(k)
+				value, err := m.GetAny(testMContext(t), k)
 				if c.NotFound[k] {
 					assert.Equal(t, ErrUnknownMetadataKey, err)
 				} else {
@@ -155,10 +155,10 @@ func TestGetK8sKind(t *testing.T) {
 				client:   fake.NewSimpleClientset(node).CoreV1().Nodes(),
 				nodeName: node.Name,
 			}
-			m, err := fetcher.FetchFor(machineKind)
+			m, err := fetcher.FetchFor(testMContext(t), machineKind)
 			assert.NoError(t, err)
 
-			full := Metadata{providers: multi{m}}
+			full := testMetadata(t, m)
 			kind, err := full.MachineKind()
 			assert.Equal(t, c.kind, kind)
 			if c.kind == MachineKindUnknown {
@@ -208,10 +208,10 @@ func TestGetK8sDiskQuantity(t *testing.T) {
 				client:   fake.NewSimpleClientset(node).CoreV1().Nodes(),
 				nodeName: node.Name,
 			}
-			m, err := fetcher.FetchFor(diskQuantity)
+			m, err := fetcher.FetchFor(testMContext(t), diskQuantity)
 			assert.NoError(t, err)
 
-			full := Metadata{providers: multi{m}}
+			full := testMetadata(t, m)
 			quantity, err := full.DiskQuantity()
 			assert.Equal(t, c.quantity, quantity)
 			c.err(t, err)

@@ -86,7 +86,7 @@ func TestGetEcsInstanceType(t *testing.T) {
 		client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(res, nil)
 	}
 
-	m := Metadata{multi{fakeMiddleware{InstanceID: "i-xxxx"}}}
+	m := testMetadata(t, fakeMiddleware{InstanceID: "i-xxxx"})
 	m.EnableOpenAPI(client)
 
 	result, err := m.DiskQuantity()
@@ -146,18 +146,12 @@ func TestGetEcsInstanceTypeError(t *testing.T) {
 			client := cloud.NewMockECSv2Interface(ctrl)
 			c.configClient(client)
 
-			mPre := Metadata{
-				providers: multi{fakeMiddleware{
-					InstanceType: "ecs.g7.xlarge",
-				}},
-			}
-
 			fetcher := &ECSInstanceTypeFetcher{
 				ecsClient: client,
-				mPre:      &mPre,
+				mPre:      fakeMiddleware{InstanceType: "ecs.g7.xlarge"},
 			}
 
-			_, err := fetcher.FetchFor(diskQuantity)
+			_, err := fetcher.FetchFor(testMContext(t), diskQuantity)
 			assert.Error(t, err)
 		})
 	}
@@ -170,7 +164,7 @@ func TestGetEcsInstanceTypeNoDiskQuantity(t *testing.T) {
 			// No DiskQuantity field
 		},
 	}
-	_, err := m.GetAny(diskQuantity)
+	_, err := m.GetAny(testMContext(t), diskQuantity)
 	assert.ErrorIs(t, err, ErrUnknownMetadataKey)
 }
 
@@ -179,7 +173,7 @@ func TestGetEcsInstanceTypeUnknownInstanceType(t *testing.T) {
 	client := cloud.NewMockECSv2Interface(ctrl)
 
 	// No InstanceType/InstanceID provided
-	m := Metadata{}
+	m := testMetadata(t, fakeMiddleware{})
 	m.EnableOpenAPI(client)
 
 	_, err := m.DiskQuantity()

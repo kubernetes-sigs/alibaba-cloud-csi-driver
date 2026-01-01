@@ -82,9 +82,7 @@ func testEfloClient(t *testing.T) cloud.EFLOInterface {
 func TestGetEFLO(t *testing.T) {
 	client := testEfloClient(t)
 
-	m := Metadata{
-		multi{fakeMiddleware{InstanceID: "e01-cn-xxxxxxxx"}},
-	}
+	m := testMetadata(t, fakeMiddleware{InstanceID: "e01-cn-xxxxxxxx"})
 	m.EnableEFLO(client)
 
 	_, err := m.Get(999)
@@ -145,13 +143,11 @@ func TestGetEFLOError(t *testing.T) {
 
 			m := EfloFetcher{
 				efloClient: client,
-				mPre: FakeProvider{
-					Values: map[MetadataKey]string{
-						InstanceID: "e01-cn-xxxxxxxx",
-					},
+				mPre: fakeMiddleware{
+					InstanceID: "e01-cn-xxxxxxxx",
 				},
 			}
-			_, err := m.FetchFor(diskQuantity)
+			_, err := m.FetchFor(testMContext(t), diskQuantity)
 			assert.Error(t, err)
 		})
 	}
@@ -191,9 +187,7 @@ func TestGetEFLOUnknownDiskQuantity(t *testing.T) {
 			client := cloud.NewMockEFLOInterface(ctrl)
 			c.configClient(client)
 
-			m := Metadata{
-				multi{fakeMiddleware{InstanceID: "e01-cn-xxxxxxxx"}},
-			}
+			m := testMetadata(t, fakeMiddleware{InstanceID: "e01-cn-xxxxxxxx"})
 			m.EnableEFLO(client)
 
 			q, err := m.DiskQuantity()
