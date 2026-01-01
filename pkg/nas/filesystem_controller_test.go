@@ -29,7 +29,7 @@ const (
 	fileSystemControllerTestMasterUrl = "https://api-server-host:6443"
 )
 
-var testMetadata = metadata.FakeProvider{
+var testMetadata = &metadata.FakeProvider{
 	Values: map[metadata.MetadataKey]string{
 		metadata.RegionID:  "cn-hangzhou",
 		metadata.ZoneID:    "cn-hangzhou-a",

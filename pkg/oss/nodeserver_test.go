@@ -20,7 +20,7 @@ import (
 
 // setupTestNodeServer creates a test nodeServer with minimal required fields
 func setupTestNodeServer(t *testing.T, mounter mountutils.Interface, skipAttach bool) *nodeServer {
-	fakeMeta := metadata.FakeProvider{
+	fakeMeta := &metadata.FakeProvider{
 		Values: map[metadata.MetadataKey]string{
 			metadata.RegionID:    "cn-beijing",
 			metadata.RAMRoleName: "worker-role",

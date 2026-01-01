@@ -129,7 +129,7 @@ func testNode() *corev1.Node {
 	return n
 }
 
-var testMetadata = metadata.FakeProvider{
+var testMetadata = &metadata.FakeProvider{
 	Values: map[metadata.MetadataKey]string{
 		metadata.RegionID:        "cn-beijing",
 		metadata.ZoneID:          "cn-beijing-g",

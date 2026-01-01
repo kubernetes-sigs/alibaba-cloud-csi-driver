@@ -164,3 +164,52 @@ func TestGetK8sKind(t *testing.T) {
 		})
 	}
 }
+
+func TestGetK8sDiskQuantity(t *testing.T) {
+	cases := []struct {
+		name        string
+		Annotations map[string]string
+		quantity    int32
+		err         assert.ErrorAssertionFunc
+	}{
+		{
+			name: "ok",
+			Annotations: map[string]string{
+				"alibabacloud.com/instance-type-info": `{"DiskQuantity":8}`,
+			},
+			quantity: 8,
+			err:      assert.NoError,
+		},
+		{
+			name: "invalid",
+			Annotations: map[string]string{
+				"alibabacloud.com/instance-type-info": `{`,
+			},
+			err: assert.Error,
+		},
+		{
+			name: "not_found",
+			err: func(tt assert.TestingT, err error, i ...interface{}) bool {
+				return assert.ErrorIs(tt, err, ErrUnknownMetadataKey, i...)
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			node := testNode.DeepCopy()
+			node.Annotations = c.Annotations
+
+			fetcher := KubernetesNodeMetadataFetcher{
+				client:   fake.NewSimpleClientset(node).CoreV1().Nodes(),
+				nodeName: node.Name,
+			}
+			m, err := fetcher.FetchFor(diskQuantity)
+			assert.NoError(t, err)
+
+			full := Metadata{providers: multi{m}}
+			quantity, err := full.DiskQuantity()
+			assert.Equal(t, c.quantity, quantity)
+			c.err(t, err)
+		})
+	}
+}

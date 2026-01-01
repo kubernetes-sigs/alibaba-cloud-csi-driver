@@ -156,11 +156,11 @@ func TestCreateOpenAPI(t *testing.T) {
 		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			ctrl := gomock.NewController(t)
 			var ecsClient cloud.ECSv2Interface
 			if c.available {
-				ecsClient = testEcsClient(ctrl)
+				ecsClient = testEcsClient(t)
 			} else {
+				ctrl := gomock.NewController(t)
 				ecsClient = cloud.NewMockECSv2Interface(ctrl)
 			}
 
@@ -185,8 +185,7 @@ func TestCreateOpenAPI(t *testing.T) {
 func TestCreateOpenAPIFromEnv(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-beijing")
 	t.Setenv("KUBE_NODE_NAME", "i-2zec1slzwdzrwmvlr4w2")
-	ctrl := gomock.NewController(t)
-	ecsClient := testEcsClient(ctrl)
+	ecsClient := testEcsClient(t)
 
 	m := NewMetadata()
 	m.EnableOpenAPI(ecsClient)
