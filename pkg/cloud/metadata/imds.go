@@ -24,14 +24,14 @@ type InstanceIdentityDocument struct {
 	OwnerAccountID string `json:"owner-account-id"`
 }
 
-type ECSMetadata struct {
+type IMDSMetadata struct {
 	idDoc InstanceIdentityDocument
 }
 
 var ErrInvalidIdentityDoc = errors.New("invalid ECS instance identity document")
 
-func NewECSMetadata(httpRT http.RoundTripper) (*ECSMetadata, error) {
-	m := &ECSMetadata{}
+func NewECSMetadata(httpRT http.RoundTripper) (*IMDSMetadata, error) {
+	m := &IMDSMetadata{}
 
 	imdsClient := imds.NewClient(httpRT)
 
@@ -49,7 +49,7 @@ func NewECSMetadata(httpRT http.RoundTripper) (*ECSMetadata, error) {
 	return m, nil
 }
 
-func (m *ECSMetadata) Get(key MetadataKey) (string, error) {
+func (m *IMDSMetadata) Get(key MetadataKey) (string, error) {
 	switch key {
 	case RegionID:
 		return m.idDoc.RegionID, nil
@@ -66,11 +66,11 @@ func (m *ECSMetadata) Get(key MetadataKey) (string, error) {
 	}
 }
 
-type EcsFetcher struct {
+type IMDSFetcer struct {
 	httpRT http.RoundTripper
 }
 
-func (f *EcsFetcher) FetchFor(key MetadataKey) (middleware, error) {
+func (f *IMDSFetcer) FetchFor(key MetadataKey) (middleware, error) {
 	switch key {
 	case RegionID, ZoneID, InstanceID, InstanceType, AccountID:
 	default:
@@ -81,9 +81,9 @@ func (f *EcsFetcher) FetchFor(key MetadataKey) (middleware, error) {
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			klog.Warningf("Hint: ECS metadata is only available when running on Alibaba Cloud ECS. "+
-				"Set %s environment variable to disable ECS metadata for faster initialization.", DISABLE_ECS_ENV)
+				"Set %s environment variable to disable ECS metadata for faster initialization.", DISABLE_IMDS_ENV)
 		}
 		return nil, err
 	}
-	return newImmutable(strProvider{ecs}, "ECS"), nil
+	return newImmutable(strProvider{ecs}, "IMDS"), nil
 }

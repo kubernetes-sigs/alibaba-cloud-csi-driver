@@ -95,7 +95,7 @@ func (p inferMachineKind) GetAny(key MetadataKey) (any, error) {
 
 var ErrUnknownMetadataKey = errors.New("unknown metadata key")
 
-const DISABLE_ECS_ENV = "ALIBABA_CLOUD_NO_ECS_METADATA"
+const DISABLE_IMDS_ENV = "ALIBABA_CLOUD_NO_ECS_METADATA"
 const KUBE_NODE_NAME_ENV = "KUBE_NODE_NAME"
 
 type strMetadataProvider interface {
@@ -212,14 +212,14 @@ func NewMetadata() *Metadata {
 	return &Metadata{providers}
 }
 
-func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
-	if os.Getenv(DISABLE_ECS_ENV) != "" {
-		klog.Infof("ECS metadata is disabled by environment variable %s", DISABLE_ECS_ENV)
+func (m *Metadata) EnableIMDS(httpRT http.RoundTripper) {
+	if os.Getenv(DISABLE_IMDS_ENV) != "" {
+		klog.Infof("ECS metadata is disabled by environment variable %s", DISABLE_IMDS_ENV)
 		return
 	}
 	m.providers = append(m.providers, inferMachineKind{&lazyInit{
-		fetcher: &EcsFetcher{httpRT: httpRT},
-	}}, strProvider{NewEcsDynamic(httpRT)})
+		fetcher: &IMDSFetcer{httpRT: httpRT},
+	}}, strProvider{NewIMDSDynamic(httpRT)})
 }
 
 func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
