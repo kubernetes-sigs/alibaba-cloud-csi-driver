@@ -9,6 +9,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // It is too long, only show some fields
@@ -46,21 +47,18 @@ const describeInstanceRespJson = `{
 	"TotalCount": 1
 }`
 
-func testEcsClient(ctrl *gomock.Controller) cloud.ECSv2Interface {
+func testEcsClient(t *testing.T) *cloud.MockECSv2Interface {
 	res := &ecs20140526.DescribeInstancesResponse{}
-	err := json.Unmarshal([]byte(describeInstanceRespJson), &res.Body)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(describeInstanceRespJson), &res.Body))
 
+	ctrl := gomock.NewController(t)
 	ecsClient := cloud.NewMockECSv2Interface(ctrl)
 	ecsClient.EXPECT().DescribeInstances(gomock.Any()).Return(res, nil)
 	return ecsClient
 }
 
 func TestGetOpenAPI(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	ecsClient := testEcsClient(ctrl)
+	ecsClient := testEcsClient(t)
 
 	m, err := NewOpenAPIMetadata(ecsClient, "i-2zec1slzwdzrwmvlr4w2")
 	assert.NoError(t, err)
