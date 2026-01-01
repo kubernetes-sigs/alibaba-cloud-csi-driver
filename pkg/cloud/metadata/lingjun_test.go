@@ -192,7 +192,7 @@ func TestLingjunMetaData_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			value, err := metaData.GetAny(tt.key)
+			value, err := metaData.GetAny(testMContext(t), tt.key)
 			if tt.expectErr {
 				assert.Error(t, err)
 				assert.Equal(t, "", value)

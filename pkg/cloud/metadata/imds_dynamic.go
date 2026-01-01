@@ -17,19 +17,19 @@ func NewIMDSDynamic(httpRT http.RoundTripper) *IMDSDynamic {
 	}
 }
 
-func (m *IMDSDynamic) fetch(path string) (string, error) {
-	data, err := m.client.Fetch(context.TODO(), path)
+func (m *IMDSDynamic) fetch(ctx context.Context, path string) (string, error) {
+	data, err := m.client.Fetch(ctx, path)
 	if err != nil {
 		return "", err
 	}
 	return string(data), nil
 }
 
-func (m *IMDSDynamic) Get(key MetadataKey) (string, error) {
+func (m *IMDSDynamic) GetAny(ctx *mcontext, key MetadataKey) (any, error) {
 	switch key {
 	case RAMRoleName:
-		return m.fetch("meta-data/ram/security-credentials/")
+		return m.fetch(ctx, "meta-data/ram/security-credentials/")
 	default:
-		return "", ErrUnknownMetadataKey
+		return nil, ErrUnknownMetadataKey
 	}
 }
