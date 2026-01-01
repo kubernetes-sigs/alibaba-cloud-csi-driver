@@ -467,7 +467,7 @@ func TestGetAvailableDiskCountFromOpenAPI(t *testing.T) {
 
 			tc.setupMock(mockECSClient)
 
-			count, err := getAvailableDiskCountFromOpenAPI(mockECSClient, mockMetadata)
+			count, err := getAvailableDiskCountFromOpenAPI(mockECSClient, &mockMetadata)
 
 			if tc.expectError {
 				assert.Error(t, err)

@@ -107,13 +107,9 @@ func TestGetOpenAPIError(t *testing.T) {
 
 			m := OpenAPIFetcher{
 				ecsClient: ecsClient,
-				mPre: FakeProvider{
-					Values: map[MetadataKey]string{
-						InstanceID: "i-2zec1slzwdzrwmvlr4w2",
-					},
-				},
+				mPre:      fakeMiddleware{InstanceID: "i-2zec1slzwdzrwmvlr4w2"},
 			}
-			_, err := m.FetchFor(InstanceType)
+			_, err := m.FetchFor(testMContext(t), InstanceType)
 			assert.Error(t, err)
 		})
 	}

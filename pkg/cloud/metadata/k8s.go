@@ -69,8 +69,8 @@ func init() {
 	}
 }
 
-func NewKubernetesNodeMetadata(nodeName string, nodeClient corev1.NodeInterface) (*KubernetesNodeMetadata, error) {
-	node, err := nodeClient.Get(context.Background(), nodeName, metav1.GetOptions{})
+func NewKubernetesNodeMetadata(ctx context.Context, nodeName string, nodeClient corev1.NodeInterface) (*KubernetesNodeMetadata, error) {
+	node, err := nodeClient.Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func NewKubernetesNodeMetadata(nodeName string, nodeClient corev1.NodeInterface)
 	return &KubernetesNodeMetadata{node: node, instanceType: instanceType}, nil
 }
 
-func (m *KubernetesNodeMetadata) GetAny(key MetadataKey) (any, error) {
+func (m *KubernetesNodeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
 	labels := MetadataLabels[key]
 	for _, label := range labels {
 		if value := m.node.Labels[label]; value != "" {
@@ -130,7 +130,9 @@ type KubernetesNodeMetadataFetcher struct {
 	nodeName string
 }
 
-func (f *KubernetesNodeMetadataFetcher) FetchFor(key MetadataKey) (middleware, error) {
+func (f *KubernetesNodeMetadataFetcher) ID() fetcherID { return kubernetesNodeMetadataFetcherID }
+
+func (f *KubernetesNodeMetadataFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	_, ok := MetadataLabels[key]
 	if !ok {
 		switch key {
@@ -139,7 +141,7 @@ func (f *KubernetesNodeMetadataFetcher) FetchFor(key MetadataKey) (middleware, e
 			return nil, ErrUnknownMetadataKey
 		}
 	}
-	p, err := NewKubernetesNodeMetadata(f.nodeName, f.client)
+	p, err := NewKubernetesNodeMetadata(ctx, f.nodeName, f.client)
 	if err != nil {
 		return nil, err
 	}

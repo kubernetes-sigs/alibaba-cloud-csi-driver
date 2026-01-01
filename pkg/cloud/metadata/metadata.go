@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -85,10 +86,10 @@ type inferMachineKind struct {
 	next middleware
 }
 
-func (p inferMachineKind) GetAny(key MetadataKey) (any, error) {
-	v, err := p.next.GetAny(key)
+func (p inferMachineKind) GetAny(ctx *mcontext, key MetadataKey) (any, error) {
+	v, err := p.next.GetAny(ctx, key)
 	if key == machineKind && err == ErrUnknownMetadataKey {
-		t, err := p.next.GetAny(InstanceType)
+		t, err := p.next.GetAny(ctx, InstanceType)
 		if err != nil {
 			return nil, err
 		}
@@ -112,14 +113,62 @@ type MetadataProvider interface {
 	strMetadataProvider
 	MachineKind() (MachineKind, error)
 	DiskQuantity() (int32, error)
+	WithSession(ctx context.Context) MetadataProvider
 }
+
+type fetcherID uint
+
+const (
+	imdsFetcherID fetcherID = iota
+	efloFetcherID
+	kubernetesNodeMetadataFetcherID
+	profileFetcherID
+	openAPIFetcherID
+	ecsInstanceTypeFetcherID
+	stsFetcherID
+
+	numFetchers
+)
 
 type Metadata struct {
 	providers multi
+	ctx       context.Context
+	errors    [numFetchers]error
+}
+
+type mcontext struct {
+	context.Context
+	inMemory bool
+	logger   klog.Logger
+	errors   *[numFetchers]error
+}
+
+func (m *Metadata) WithSession(ctx context.Context) MetadataProvider {
+	return &Metadata{
+		providers: m.providers,
+		ctx:       ctx,
+	}
+}
+
+func get(m *Metadata, key MetadataKey) (any, error) {
+	ctx := mcontext{
+		Context: m.ctx,
+		logger:  klog.FromContext(m.ctx),
+		errors:  &m.errors,
+		// Try inMemory first.
+		// If the data is already in memory, we don't need to make network requests.
+		inMemory: true,
+	}
+	v, err := m.providers.GetAny(&ctx, key)
+	if errors.Is(err, ErrUnknownMetadataKey) {
+		ctx.inMemory = false // if not found, allow fetch from remote
+		v, err = m.providers.GetAny(&ctx, key)
+	}
+	return v, err
 }
 
 func getT[T any](m *Metadata, key MetadataKey) (T, error) {
-	v, err := m.providers.GetAny(key)
+	v, err := get(m, key)
 	if err != nil {
 		var zero T
 		return zero, err
@@ -132,44 +181,59 @@ func (m *Metadata) MachineKind() (MachineKind, error)   { return getT[MachineKin
 func (m *Metadata) DiskQuantity() (int32, error)        { return getT[int32](m, diskQuantity) }
 
 type fetcher interface {
-	FetchFor(key MetadataKey) (middleware, error)
+	// FetchFor should return [ErrUnknownMetadataKey] if the key is not supported
+	// All other errors will be cached in the ctx.
+	FetchFor(ctx *mcontext, key MetadataKey) (middleware, error)
+	ID() fetcherID
 }
 
 type middleware interface {
-	GetAny(key MetadataKey) (any, error)
+	GetAny(ctx *mcontext, key MetadataKey) (any, error)
 }
 
 // lazyInit init next from fetcher when accessed for the first time
 type lazyInit struct {
 	next    middleware
-	err     error
 	initMu  sync.Mutex
 	fetcher fetcher
 }
 
-func (p *lazyInit) GetAny(key MetadataKey) (any, error) {
+func (p *lazyInit) init(ctx *mcontext, key MetadataKey) error {
 	p.initMu.Lock()
-	if p.next == nil && p.err == nil {
-		next, err := p.fetcher.FetchFor(key)
-		if err == ErrUnknownMetadataKey {
-			p.initMu.Unlock()
-			return nil, err
-		}
-		if err != nil {
-			err = fmt.Errorf("%T failed: %w", p.fetcher, err)
-			// print a warning if we failed to get a value,
-			// because the error is hide if other providers succeed
-			klog.Warning(err)
-		}
+	defer p.initMu.Unlock()
+
+	if p.next != nil {
+		return nil // already initialized
+	}
+	if ctx.inMemory { // not allowed to fetch
+		return ErrUnknownMetadataKey
+	}
+
+	ctxErr := &ctx.errors[p.fetcher.ID()]
+	if *ctxErr != nil {
+		return *ctxErr // last attempt failed
+	}
+
+	next, err := p.fetcher.FetchFor(ctx, key)
+	if err == ErrUnknownMetadataKey {
+		return err
+	} else if err != nil {
+		err = fmt.Errorf("%T failed: %w", p.fetcher, err)
+		*ctxErr = err
+		return err
+	} else {
 		p.fetcher = nil
 		p.next = next
-		p.err = err
+		return nil
 	}
-	p.initMu.Unlock()
-	if p.err != nil {
-		return nil, p.err
+}
+
+func (p *lazyInit) GetAny(ctx *mcontext, key MetadataKey) (any, error) {
+	err := p.init(ctx, key)
+	if err != nil {
+		return nil, err
 	}
-	return p.next.GetAny(key)
+	return p.next.GetAny(ctx, key)
 }
 
 // immutable fetches metadata from next only once and caches the result.
@@ -181,17 +245,17 @@ type immutable struct {
 	values map[MetadataKey]any
 }
 
-func (p *immutable) GetAny(key MetadataKey) (any, error) {
+func (p *immutable) GetAny(ctx *mcontext, key MetadataKey) (any, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if v, ok := p.values[key]; ok {
 		return v, nil
 	}
-	v, err := p.next.GetAny(key)
+	v, err := p.next.GetAny(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-	klog.V(2).InfoS("retrieved metadata", "provider", p.name, "key", key, "value", v)
+	ctx.logger.V(2).Info("retrieved metadata", "provider", p.name, "key", key, "value", v)
 	p.values[key] = v
 	return v, nil
 }
@@ -208,7 +272,7 @@ type strProvider struct {
 	p strMetadataProvider
 }
 
-func (p strProvider) GetAny(key MetadataKey) (any, error) {
+func (p strProvider) GetAny(_ *mcontext, key MetadataKey) (any, error) {
 	return p.p.Get(key)
 }
 
@@ -220,7 +284,10 @@ func NewMetadata() *Metadata {
 	if lm != nil { // error is already logged
 		providers = append(providers, newImmutable(lm, "lingjun"))
 	}
-	return &Metadata{providers}
+	return &Metadata{
+		providers: providers,
+		ctx:       context.Background(),
+	}
 }
 
 func (m *Metadata) EnableIMDS(httpRT http.RoundTripper) {
@@ -230,7 +297,7 @@ func (m *Metadata) EnableIMDS(httpRT http.RoundTripper) {
 	}
 	m.providers = append(m.providers, inferMachineKind{&lazyInit{
 		fetcher: &IMDSFetcher{httpRT: httpRT},
-	}}, strProvider{NewIMDSDynamic(httpRT)})
+	}}, NewIMDSDynamic(httpRT))
 }
 
 func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
@@ -257,24 +324,20 @@ func (m *Metadata) enableKubernetesNode(client kubernetes.Interface, nodeName st
 }
 
 func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSv2Interface) {
-	mPre := Metadata{
-		// use the previous providers to get instance id,
-		// do not recurse into ourselves
-		providers: m.providers,
-	}
+	// use the previous providers to get instance id,
+	// do not recurse into ourselves
+	mPre := m.providers
 	m.providers = append(m.providers, inferMachineKind{&lazyInit{
 		fetcher: &OpenAPIFetcher{
 			ecsClient: ecsClient,
-			mPre:      &mPre,
+			mPre:      mPre,
 		},
 	}})
-	mPre2 := Metadata{
-		providers: m.providers, // be sure to include OpenAPIFetcher for instance type
-	}
+	mPre2 := m.providers // be sure to include OpenAPIFetcher for instance type
 	m.providers = append(m.providers, &lazyInit{
 		fetcher: &ECSInstanceTypeFetcher{
 			ecsClient: ecsClient,
-			mPre:      &mPre2,
+			mPre:      mPre2,
 		},
 	})
 }
@@ -288,31 +351,32 @@ func (m *Metadata) EnableSts(stsClient cloud.STSInterface) {
 }
 
 func (m *Metadata) EnableEFLO(efloClient cloud.EFLOInterface) {
-	mPre := Metadata{
-		// use the previous providers to get instance id,
-		// do not recurse into ourselves
-		providers: m.providers,
-	}
+	// use the previous providers to get instance id,
+	// do not recurse into ourselves
+	mPre := m.providers
 	m.providers = append(m.providers, &lazyInit{
 		fetcher: &EfloFetcher{
 			efloClient: efloClient,
-			mPre:       &mPre,
+			mPre:       mPre,
 		},
 	})
 }
 
 type multi []middleware
 
-func (m multi) GetAny(key MetadataKey) (any, error) {
+func (m multi) GetAny(ctx *mcontext, key MetadataKey) (any, error) {
 	errors := []error{}
 	for _, p := range m {
-		v, err := p.GetAny(key)
+		v, err := p.GetAny(ctx, key)
 		if err == nil {
 			return v, nil
 		}
 		if err == ErrUnknownMetadataKey {
 			continue
 		}
+		// print a warning if we failed to get a value,
+		// because the error is hidden if other providers succeed
+		ctx.logger.Error(err, "metadata provider failed", "key", key)
 		errors = append(errors, err)
 	}
 	if len(errors) == 0 {
@@ -368,4 +432,8 @@ func (p *FakeProvider) MachineKind() (MachineKind, error) {
 
 func (p *FakeProvider) DiskQuantity() (int32, error) {
 	return p.V.DiskQuantity, nil
+}
+
+func (p *FakeProvider) WithSession(ctx context.Context) MetadataProvider {
+	return p
 }

@@ -34,7 +34,7 @@ func NewLingJunMetadata(lingjunConfigFile string) (*LingjunMetaData, error) {
 	return &lm, nil
 }
 
-func (m *LingjunMetaData) GetAny(key MetadataKey) (any, error) {
+func (m *LingjunMetaData) GetAny(_ *mcontext, key MetadataKey) (any, error) {
 	switch key {
 	case RegionID:
 		return m.RegionId, nil

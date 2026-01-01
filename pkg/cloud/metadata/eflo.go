@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"context"
 	"fmt"
 
 	eflo_controller20221215 "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
@@ -13,7 +14,7 @@ type EfloMetadata struct {
 	nodeType *eflo_controller20221215.DescribeNodeTypeResponseBody
 }
 
-func getEfloNodeType(c cloud.EFLOInterface, nodeID string) (string, error) {
+func getEfloNodeType(logger klog.Logger, c cloud.EFLOInterface, nodeID string) (string, error) {
 	req := &eflo_controller20221215.DescribeNodeRequest{
 		NodeId: &nodeID,
 	}
@@ -25,16 +26,17 @@ func getEfloNodeType(c cloud.EFLOInterface, nodeID string) (string, error) {
 		return "", fmt.Errorf("DescribeNode returned nil response, resp: %v", resp)
 	}
 	if resp.Body.NodeType == nil {
-		klog.InfoS("DescribeNode response has nil NodeType", "resp", resp)
+		logger.Info("DescribeNode response has nil NodeType", "resp", resp)
 		return "", nil
 	}
 	nodeType := *resp.Body.NodeType
-	klog.V(1).InfoS("EFLO DescribeNode", "nodeType", nodeType, "requestID", ptr.Deref(resp.Body.RequestId, ""))
+	logger.V(1).Info("EFLO DescribeNode", "nodeType", nodeType, "requestID", ptr.Deref(resp.Body.RequestId, ""))
 	return nodeType, nil
 }
 
-func NewEfloMetadata(c cloud.EFLOInterface, nodeID string) (*EfloMetadata, error) {
-	nodeType, err := getEfloNodeType(c, nodeID)
+func NewEfloMetadata(ctx context.Context, c cloud.EFLOInterface, nodeID string) (*EfloMetadata, error) {
+	logger := klog.FromContext(ctx)
+	nodeType, err := getEfloNodeType(logger, c, nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +54,12 @@ func NewEfloMetadata(c cloud.EFLOInterface, nodeID string) (*EfloMetadata, error
 	if resp == nil || resp.Body == nil {
 		return nil, fmt.Errorf("DescribeNodeType returned invalid response: %+v", resp)
 	}
-	klog.V(1).InfoS("EFLO DescribeNodeType", "requestID", ptr.Deref(resp.Body.RequestId, ""))
+	logger.V(1).Info("EFLO DescribeNodeType", "requestID", ptr.Deref(resp.Body.RequestId, ""))
 	return &EfloMetadata{nodeType: resp.Body}, nil
 
 }
 
-func (m *EfloMetadata) GetAny(key MetadataKey) (any, error) {
+func (m *EfloMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
 	if m == nil {
 		return "", ErrUnknownMetadataKey
 	}
@@ -72,21 +74,23 @@ func (m *EfloMetadata) GetAny(key MetadataKey) (any, error) {
 
 type EfloFetcher struct {
 	efloClient cloud.EFLOInterface
-	mPre       MetadataProvider
+	mPre       middleware
 }
 
-func (f *EfloFetcher) FetchFor(key MetadataKey) (middleware, error) {
+func (f *EfloFetcher) ID() fetcherID { return efloFetcherID }
+
+func (f *EfloFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
 	case diskQuantity:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
-	instanceId, err := f.mPre.Get(InstanceID)
+	instanceId, err := f.mPre.GetAny(ctx, InstanceID)
 	if err != nil {
 		return nil, fmt.Errorf("instance ID is not available: %w", err)
 	}
 
-	p, err := NewEfloMetadata(f.efloClient, instanceId)
+	p, err := NewEfloMetadata(ctx, f.efloClient, instanceId.(string))
 	if err != nil {
 		return nil, err
 	}
