@@ -168,14 +168,35 @@ func TestGetEcsInstanceTypeNoDiskQuantity(t *testing.T) {
 	assert.ErrorIs(t, err, ErrUnknownMetadataKey)
 }
 
-func TestGetEcsInstanceTypeUnknownInstanceType(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	client := cloud.NewMockECSv2Interface(ctrl)
+func TestGetEcsInstanceTypeUnknown(t *testing.T) {
+	cases := []struct {
+		name   string
+		values middleware
+	}{
+		{
+			name:   "unknown_instance_type",
+			values: fakeMiddleware{},
+		},
+		{
+			name: "lingjun",
+			values: fakeMiddleware{
+				machineKind:  MachineKindLingjun,
+				InstanceType: "efg2.C48eNH3ebn",
+			},
+		},
+	}
 
-	// No InstanceType/InstanceID provided
-	m := testMetadata(t, fakeMiddleware{})
-	m.EnableOpenAPI(client)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			client := cloud.NewMockECSv2Interface(ctrl)
 
-	_, err := m.DiskQuantity()
-	assert.Error(t, err) // Expecting error because InstanceType is not available
+			m := testMetadata(t, c.values)
+			m.EnableOpenAPI(client)
+
+			_, err := m.DiskQuantity()
+			assert.ErrorIs(t, err, ErrUnknownMetadataKey)
+		})
+	}
+
 }

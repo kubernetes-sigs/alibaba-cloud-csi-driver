@@ -41,7 +41,7 @@ func NewEfloMetadata(ctx context.Context, c cloud.EFLOInterface, nodeID string) 
 		return nil, err
 	}
 	if nodeType == "" {
-		return nil, nil // Some LingJun instances don't have nodeType
+		return &EfloMetadata{}, nil // Some LingJun instances don't have nodeType
 	}
 
 	req := &eflo_controller20221215.DescribeNodeTypeRequest{
@@ -60,12 +60,11 @@ func NewEfloMetadata(ctx context.Context, c cloud.EFLOInterface, nodeID string) 
 }
 
 func (m *EfloMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
-	if m == nil {
-		return "", ErrUnknownMetadataKey
-	}
 	switch key {
+	case machineKind:
+		return MachineKindLingjun, nil
 	case diskQuantity:
-		if m.nodeType.DiskQuantity != nil {
+		if m.nodeType != nil && m.nodeType.DiskQuantity != nil {
 			return *m.nodeType.DiskQuantity, nil
 		}
 	}
@@ -81,9 +80,14 @@ func (f *EfloFetcher) ID() fetcherID { return efloFetcherID }
 
 func (f *EfloFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
-	case diskQuantity:
+	case diskQuantity, machineKind:
 	default:
 		return nil, ErrUnknownMetadataKey
+	}
+	kind, err := f.mPre.GetAny(ctx, machineKind)
+	if err == nil && kind != MachineKindLingjun { // skip for non-LingJun instances
+		ctx.logger.V(1).Info("skip EFLO metadata fetcher", "machineKind", kind)
+		return empty{}, nil
 	}
 	instanceId, err := f.mPre.GetAny(ctx, InstanceID)
 	if err != nil {

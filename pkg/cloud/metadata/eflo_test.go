@@ -92,8 +92,41 @@ func TestGetEFLO(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int32(17), q)
 
+	kind, err := m.MachineKind()
+	assert.NoError(t, err)
+	assert.Equal(t, MachineKindLingjun, kind)
+
 	_, err = m.Get(999)
 	assert.ErrorIs(t, err, ErrUnknownMetadataKey)
+}
+
+func TestGetEFLOUnknown(t *testing.T) {
+	cases := []struct {
+		name   string
+		values middleware
+	}{
+		{
+			name:   "unknown_instance_id",
+			values: fakeMiddleware{},
+		},
+		{
+			name: "ecs",
+			values: fakeMiddleware{
+				machineKind: MachineKindECS,
+				InstanceID:  "i-xxx",
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			m := testMetadata(t, c.values)
+
+			m.EnableEFLO(cloud.NewMockEFLOInterface(ctrl))
+			_, err := m.DiskQuantity()
+			assert.ErrorIs(t, err, ErrUnknownMetadataKey)
+		})
+	}
 }
 
 func TestGetEFLOError(t *testing.T) {
