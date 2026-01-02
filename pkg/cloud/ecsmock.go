@@ -140,21 +140,6 @@ func (mr *MockECSInterfaceMockRecorder) DescribeInstanceHistoryEvents(request in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstanceHistoryEvents", reflect.TypeOf((*MockECSInterface)(nil).DescribeInstanceHistoryEvents), request)
 }
 
-// DescribeInstanceTypes mocks base method.
-func (m *MockECSInterface) DescribeInstanceTypes(request *ecs.DescribeInstanceTypesRequest) (*ecs.DescribeInstanceTypesResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeInstanceTypes", request)
-	ret0, _ := ret[0].(*ecs.DescribeInstanceTypesResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DescribeInstanceTypes indicates an expected call of DescribeInstanceTypes.
-func (mr *MockECSInterfaceMockRecorder) DescribeInstanceTypes(request interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstanceTypes", reflect.TypeOf((*MockECSInterface)(nil).DescribeInstanceTypes), request)
-}
-
 // DescribeInstances mocks base method.
 func (m *MockECSInterface) DescribeInstances(request *ecs.DescribeInstancesRequest) (*ecs.DescribeInstancesResponse, error) {
 	m.ctrl.T.Helper()
