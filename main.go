@@ -29,6 +29,7 @@ import (
 	"time"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	eflo_controller20221215 "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	sts20150401 "github.com/alibabacloud-go/sts-20150401/v2/client"
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs"
@@ -171,10 +172,18 @@ func main() {
 		}
 		cred := alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider)
 
+		efloClient, err := eflo_controller20221215.NewClient(utils.GetEfloControllerConfig(regionID).SetCredential(cred))
+		if err != nil {
+			klog.ErrorS(err, "failed to get ecsClient for metadata")
+		} else {
+			meta.EnableEFLO(efloClient)
+		}
+
 		ecsClient, err := ecs20140526.NewClient(utils.GetEcsConfig(regionID).SetCredential(cred))
 		if err != nil {
 			klog.ErrorS(err, "failed to get ecsClient for metadata")
 		} else {
+			// Goes after EFLO, because if EFLO API confirms it's a lingjun instance, we can skip ECS API.
 			meta.EnableOpenAPI(ecsClient)
 		}
 
