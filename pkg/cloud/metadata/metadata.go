@@ -377,6 +377,10 @@ func (m multi) GetAny(ctx *mcontext, key MetadataKey) (any, error) {
 	return nil, utilerrors.NewAggregate(errors)
 }
 
+type empty struct{}
+
+func (empty) GetAny(*mcontext, MetadataKey) (any, error) { return nil, ErrUnknownMetadataKey }
+
 func MustGet(m strMetadataProvider, key MetadataKey) string {
 	value, err := m.Get(key)
 	if err != nil {
