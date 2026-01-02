@@ -34,14 +34,11 @@ import (
 	"sync"
 	"time"
 
-	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
-	eflo "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	v1_credentials "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/ttrpc"
 	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
@@ -49,7 +46,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
@@ -75,16 +71,6 @@ const (
 	instanceTypeInfoAnnotation = "alibabacloud.com/instance-type-info"
 )
 
-// DefaultOptions is the struct for access key
-type DefaultOptions struct {
-	Global struct {
-		KubernetesClusterTag string
-		AccessKeyID          string `json:"accessKeyID"`
-		AccessKeySecret      string `json:"accessKeySecret"`
-		Region               string `json:"region"`
-	}
-}
-
 // RoleAuth define STS Token Response
 type RoleAuth struct {
 	AccessKeyID     string
@@ -93,11 +79,6 @@ type RoleAuth struct {
 	SecurityToken   string
 	LastUpdated     time.Time
 	Code            string
-}
-
-// InstanceTypeInfo is the annotation value of "alibabacloud.com/instance-type-info"
-type InstanceTypeInfo struct {
-	DiskQuantity int
 }
 
 var ecsOpenAPIDialer = net.Dialer{
@@ -118,48 +99,6 @@ var ecsOpenAPITransport = http.Transport{
 }
 
 var ecsEndpointOnce sync.Once
-
-func newEfloClient(region string) (*eflo.Client, error) {
-	// lingjun region could be different from ack region
-	// use another environment variable EFLO_CONTROLLER_REGION for special lingjun pre regions
-	if r := os.Getenv("EFLO_CONTROLLER_REGION"); r != "" {
-		region = r
-	}
-	config := new(openapi.Config).
-		SetUserAgent(KubernetesAlicloudIdentity).
-		SetRegionId(region).
-		SetConnectTimeout(10).
-		SetGlobalParameters(&openapi.GlobalParameters{
-			Queries: map[string]*string{
-				"RegionId": &region,
-			},
-		})
-	// set credential
-	provider, err := credentials.NewProvider()
-	if err != nil {
-		return nil, fmt.Errorf("init credential: %w", err)
-	}
-	config = config.SetCredential(alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider))
-	// set endpoint
-	ep := os.Getenv("EFLO_CONTROLLER_ENDPOINT")
-	if ep != "" {
-		config = config.SetEndpoint(ep)
-	} else {
-		config = config.SetEndpoint(fmt.Sprintf("eflo-controller-vpc.%s.aliyuncs.com", region))
-	}
-	// set protocol
-	scheme := "HTTPS"
-	if strings.Contains(region, "test") {
-		// must use HTTP in lingjun test regions
-		scheme = "HTTP"
-	}
-	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
-		scheme = e
-	}
-	config = config.SetProtocol(scheme)
-	// init client
-	return eflo.NewClient(config)
-}
 
 func newEcsClient(regionID string, cred v1_credentials.CredentialsProvider) (ecsClient *ecs.Client) {
 	scheme := "HTTPS"
@@ -1087,99 +1026,7 @@ func getAttachedCloudDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProv
 	return diskIds, nil
 }
 
-func getAvailableDiskCount(node *v1.Node, ecsClient cloud.ECSInterface, efloC cloud.EFLOInterface, m metadata.MetadataProvider) (int, error) {
-	if count, err := getAvailableDiskCountFromAnnotation(node); err == nil {
-		return count, nil
-	}
-	if efloC != nil {
-		lingjunID, err := m.Get(metadata.InstanceID)
-		if err != nil {
-			return 0, fmt.Errorf("failed to get LingJun instance ID")
-		}
-		return getLingjunAvailableDiskCount(efloC, lingjunID)
-	} else {
-		return getAvailableDiskCountFromOpenAPI(ecsClient, m)
-	}
-}
-
-func getAvailableDiskCountFromAnnotation(node *v1.Node) (int, error) {
-	if node == nil || node.Annotations[instanceTypeInfoAnnotation] == "" {
-		err := fmt.Errorf("empty instance type info annotation")
-		klog.Info(err)
-		return 0, err
-	}
-	var typeInfo InstanceTypeInfo
-	if err := json.Unmarshal([]byte(node.Annotations[instanceTypeInfoAnnotation]), &typeInfo); err != nil {
-		klog.Errorf("error unmarshalling instance type info annotation: %v", err)
-		return 0, err
-	}
-	return typeInfo.DiskQuantity, nil
-}
-
-func getAvailableDiskCountFromOpenAPI(ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (int, error) {
-	req := ecs.CreateDescribeInstanceTypesRequest()
-	req.RegionId = metadata.MustGet(m, metadata.RegionID)
-	instanceType := metadata.MustGet(m, metadata.InstanceType)
-	req.InstanceTypes = &[]string{instanceType}
-	response, err := ecsClient.DescribeInstanceTypes(req)
-	if err != nil {
-		return 0, fmt.Errorf("DescribeInstanceTypes failed: %w", err)
-	}
-	for _, i := range response.InstanceTypes.InstanceType {
-		if i.InstanceTypeId != instanceType {
-			continue
-		}
-		return i.DiskQuantity, nil
-	}
-	return 0, fmt.Errorf("unexpected DescribeInstanceTypes response for %s: %s", instanceType, response.GetHttpContentString())
-}
-
-func getLingjunAvailableDiskCount(efloClient cloud.EFLOInterface, lingjunID string) (int, error) {
-
-	nodeType, err := getNodeTypeFromEFLOOpenAPI(efloClient, lingjunID)
-	if err != nil {
-		return 0, err
-	}
-	if nodeType == "" {
-		return 0, nil
-	}
-	return getAvailableCountFromEFLOOpenAPI(efloClient, nodeType)
-}
-
-func getAvailableCountFromEFLOOpenAPI(efloClient cloud.EFLOInterface, nodeType string) (int, error) {
-	req := &eflo.DescribeNodeTypeRequest{
-		NodeType: &nodeType,
-	}
-	resp, err := efloClient.DescribeNodeType(req)
-	if err != nil {
-		return 0, fmt.Errorf("DescribeNodeType failed: %w", err)
-	}
-	if resp == nil || resp.Body == nil || resp.Body.DiskQuantity == nil {
-		return 0, fmt.Errorf("DescribeNodeType returned invalid response: %+v", resp)
-	}
-	klog.InfoS("getAvailableCountFromEFLOOpenAPI: ", "resp", resp)
-	return int(*resp.Body.DiskQuantity), nil
-}
-
-func getNodeTypeFromEFLOOpenAPI(efloClient cloud.EFLOInterface, lingjunID string) (string, error) {
-	req := &eflo.DescribeNodeRequest{
-		NodeId: &lingjunID,
-	}
-	resp, err := efloClient.DescribeNode(req)
-	if err != nil {
-		return "", fmt.Errorf("DescribeNode failed: %w", err)
-	}
-	if resp == nil || resp.Body == nil {
-		return "", fmt.Errorf("DescribeNode returned nil response, resp: %v", resp)
-	}
-	if resp.Body.NodeType == nil {
-		klog.InfoS("DescribeNode response has nil NodeType", "resp", resp)
-		return "", nil
-	}
-	return *resp.Body.NodeType, nil
-}
-
-func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInterface, efloC cloud.EFLOInterface, m metadata.MetadataProvider, dev utilsio.DiskLister) (int, error) {
+func getUnmanagedDiskCount(getNode func() (*v1.Node, error), c cloud.ECSInterface, m metadata.MetadataProvider, dev utilsio.DiskLister) (int, error) {
 	// An attached disk is not managed by us if:
 	// 1. it is not in node.Status.VolumesInUse or node.Status.VolumesAttached; and
 	// 2. it does not have the xattr set.
@@ -1211,11 +1058,6 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 		return 0, err
 	}
 
-	availableCount, err := getAvailableDiskCount(node, c, efloC, m)
-	if err != nil {
-		return 0, err
-	}
-
 	prefix := fmt.Sprintf("kubernetes.io/csi/%s^", driverName)
 	getDiskId := func(n v1.UniqueVolumeName) string {
 		if strings.HasPrefix(string(n), prefix) {
@@ -1235,14 +1077,15 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 		}
 	}
 
+	unmanaged := 0
 	for _, disk := range attachedDisks {
 		if !managedDisks.Has(disk) {
 			klog.Infof("getVolumeCount: disk %s is not managed by us", disk)
-			availableCount--
+			unmanaged++
 		}
 	}
 
-	return availableCount, nil
+	return unmanaged, nil
 }
 
 // hasMountOption return boolean value indicating whether the slice contains a mount option

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	eflo_controller20221215 "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/ptr"
 )
@@ -76,4 +77,36 @@ func TestEcsEndpoint(t *testing.T) {
 			testEp(t, region, "ecs."+region+".aliyuncs.com")
 		}
 	})
+}
+
+func TestEfloControllerConfig(t *testing.T) {
+	cases := []struct {
+		network  string
+		endpoint string
+	}{
+		{
+			network:  "",
+			endpoint: "eflo-controller.cn-hangzhou.aliyuncs.com",
+		},
+		{
+			network:  "public",
+			endpoint: "eflo-controller.cn-hangzhou.aliyuncs.com",
+		},
+		{
+			network:  "vpc",
+			endpoint: "eflo-controller-vpc.cn-hangzhou.aliyuncs.com",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.network, func(t *testing.T) {
+			t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", c.network)
+			cfg := GetEfloControllerConfig("cn-hangzhou")
+			cfg.AccessKeyId = ptr.To("foo")
+			cfg.AccessKeySecret = ptr.To("bar")
+
+			client, err := eflo_controller20221215.NewClient(cfg)
+			assert.NoError(t, err)
+			assert.Equal(t, c.endpoint, *client.Endpoint)
+		})
+	}
 }

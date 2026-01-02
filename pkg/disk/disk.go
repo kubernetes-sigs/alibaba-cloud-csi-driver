@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -69,7 +68,6 @@ type DISK struct {
 // GlobalConfig save global values for plugin
 type GlobalConfig struct {
 	EcsClient            *ecs.Client
-	EfloClient           *efloclient.Client
 	Region               string
 	NodeID               string
 	DiskTagEnable        bool
@@ -127,11 +125,6 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	}
 	client := newEcsClient(metadata.MustGet(m, metadata.RegionID), credentials.V1ProviderAdaptor(cred))
 	GlobalConfigVar.EcsClient = client
-	efloClient, err := newEfloClient(metadata.MustGet(m, metadata.RegionID))
-	if err != nil {
-		klog.Fatalf("Error building eflo client: %s", err.Error())
-	}
-	GlobalConfigVar.EfloClient = efloClient
 
 	// Create GRPC servers
 	var servers common.Servers
