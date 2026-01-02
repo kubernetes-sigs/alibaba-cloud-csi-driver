@@ -54,6 +54,11 @@ func (f *ECSInstanceTypeFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middl
 		return nil, ErrUnknownMetadataKey
 	}
 
+	kind, err := f.mPre.GetAny(ctx, machineKind)
+	if err == nil && kind != MachineKindECS { // skip for non-ECS instances
+		ctx.logger.V(1).Info("skip ECS DescribeInstanceTypes metadata fetcher", "machineKind", kind)
+		return empty{}, nil
+	}
 	t, err := f.mPre.GetAny(ctx, InstanceType)
 	if err != nil {
 		return nil, fmt.Errorf("instance type is not available: %w", err)

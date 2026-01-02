@@ -72,6 +72,11 @@ func (f *OpenAPIFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, e
 		return nil, ErrUnknownMetadataKey
 	}
 
+	kind, err := f.mPre.GetAny(ctx, machineKind)
+	if err == nil && kind != MachineKindECS { // skip for non-ECS instances
+		ctx.logger.V(1).Info("skip ECS DescribeInstances metadata fetcher", "machineKind", kind)
+		return empty{}, nil
+	}
 	instanceId, err := f.mPre.GetAny(ctx, InstanceID)
 	if err != nil {
 		if err == ErrUnknownMetadataKey {
