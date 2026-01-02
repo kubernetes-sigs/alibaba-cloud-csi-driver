@@ -213,6 +213,14 @@ func TestCreateOpenAPI(t *testing.T) {
 			},
 			available: false,
 		},
+		{
+			name: "lingjun",
+			values: fakeMiddleware{
+				machineKind: MachineKindLingjun,
+				InstanceID:  "e01-cn-xxxxxxxx",
+			},
+			available: false,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
