@@ -495,7 +495,7 @@ func getHttpTransport(req *Request, runtime *RuntimeObject) (*http.Transport, er
 					Password: password,
 				}
 			}
-			dialer, err := proxy.SOCKS5(strings.ToLower(StringValue(runtime.Socks5NetWork)), socks5Proxy.String(), auth,
+			dialer, err := proxy.SOCKS5(strings.ToLower(StringValue(runtime.Socks5NetWork)), socks5Proxy.Host, auth,
 				&net.Dialer{
 					Timeout:   time.Duration(IntValue(runtime.ConnectTimeout)) * time.Millisecond,
 					DualStack: true,
