@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/golang/mock/gomock"
@@ -16,15 +17,18 @@ import (
 )
 
 func TestEcsUnreachable(t *testing.T) {
-	t.Parallel()
-	trans := httpmock.NewMockTransport()
-	trans.RegisterResponder("PUT", imds.ECSTokenEndpoint,
-		httpmock.NewErrorResponder(errors.New("what ever")).Delay(11*time.Second))
-	// Should print a suggestion about disabling ECS metadata
-	m := NewMetadata()
-	m.EnableEcs(trans)
-	_, err := m.Get(RegionID)
-	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	synctest.Test(t, func(t *testing.T) {
+		trans := httpmock.NewMockTransport()
+		trans.RegisterResponder("PUT", imds.ECSTokenEndpoint,
+			httpmock.NewErrorResponder(errors.New("what ever")).Delay(11*time.Second))
+		// Should print a suggestion about disabling ECS metadata
+		m := NewMetadata()
+		m.EnableEcs(trans)
+		_, err := m.Get(RegionID)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+
+		time.Sleep(1 * time.Second) // wait for delayed response
+	})
 }
 
 func TestEcsDisableByEnv(t *testing.T) {
