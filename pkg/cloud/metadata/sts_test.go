@@ -32,17 +32,11 @@ func testStsClient(ctrl *gomock.Controller) cloud.STSInterface {
 	return stsClient
 }
 
-func testStsClientFactory(ctrl *gomock.Controller) func(string) (cloud.STSInterface, error) {
-	return func(regionID string) (cloud.STSInterface, error) {
-		return testStsClient(ctrl), nil
-	}
-}
-
 func TestGetSts(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	stsClient := testStsClient(ctrl)
 
-	m, err := NewStsMetadata(stsClient)
+	m, err := NewStsMetadata(testMContext(t), stsClient)
 	assert.NoError(t, err)
 	assert.Equal(t, "112233445566", MustGet(m, AccountID))
 }
@@ -57,7 +51,7 @@ func TestGetStsEmptyJson(t *testing.T) {
 	stsClient := cloud.NewMockSTSInterface(ctrl)
 	stsClient.EXPECT().GetCallerIdentity().Return(res, nil)
 
-	m, err := NewStsMetadata(stsClient)
+	m, err := NewStsMetadata(testMContext(t), stsClient)
 	require.NoError(t, err)
 	_, err = m.Get(AccountID)
 	assert.ErrorIs(t, err, ErrUnknownMetadataKey)
