@@ -7,6 +7,7 @@ package cloud
 import (
 	reflect "reflect"
 
+	client "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	ecs "github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -212,4 +213,42 @@ func (m *MockECSInterface) ResizeDisk(request *ecs.ResizeDiskRequest) (*ecs.Resi
 func (mr *MockECSInterfaceMockRecorder) ResizeDisk(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResizeDisk", reflect.TypeOf((*MockECSInterface)(nil).ResizeDisk), request)
+}
+
+// MockECSv2Interface is a mock of ECSv2Interface interface.
+type MockECSv2Interface struct {
+	ctrl     *gomock.Controller
+	recorder *MockECSv2InterfaceMockRecorder
+}
+
+// MockECSv2InterfaceMockRecorder is the mock recorder for MockECSv2Interface.
+type MockECSv2InterfaceMockRecorder struct {
+	mock *MockECSv2Interface
+}
+
+// NewMockECSv2Interface creates a new mock instance.
+func NewMockECSv2Interface(ctrl *gomock.Controller) *MockECSv2Interface {
+	mock := &MockECSv2Interface{ctrl: ctrl}
+	mock.recorder = &MockECSv2InterfaceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockECSv2Interface) EXPECT() *MockECSv2InterfaceMockRecorder {
+	return m.recorder
+}
+
+// DescribeInstances mocks base method.
+func (m *MockECSv2Interface) DescribeInstances(request *client.DescribeInstancesRequest) (*client.DescribeInstancesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeInstances", request)
+	ret0, _ := ret[0].(*client.DescribeInstancesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeInstances indicates an expected call of DescribeInstances.
+func (mr *MockECSv2InterfaceMockRecorder) DescribeInstances(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstances", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeInstances), request)
 }

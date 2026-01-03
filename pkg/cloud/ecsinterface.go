@@ -1,6 +1,9 @@
 package cloud
 
-import "github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+import (
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+)
 
 type ECSInterface interface {
 	CreateDisk(request *ecs.CreateDiskRequest) (response *ecs.CreateDiskResponse, err error)
@@ -15,4 +18,8 @@ type ECSInterface interface {
 	ResizeDisk(request *ecs.ResizeDiskRequest) (response *ecs.ResizeDiskResponse, err error)
 	CreateSnapshot(request *ecs.CreateSnapshotRequest) (response *ecs.CreateSnapshotResponse, err error)
 	DescribeSnapshots(request *ecs.DescribeSnapshotsRequest) (response *ecs.DescribeSnapshotsResponse, err error)
+}
+
+type ECSv2Interface interface {
+	DescribeInstances(request *ecs20140526.DescribeInstancesRequest) (response *ecs20140526.DescribeInstancesResponse, err error)
 }

@@ -33,8 +33,7 @@ func (m *StsMetadata) Get(key MetadataKey) (string, error) {
 }
 
 type StsFetcher struct {
-	stsClient func(regionID string) (cloud.STSInterface, error)
-	mPre      MetadataProvider
+	stsClient cloud.STSInterface
 }
 
 func (f *StsFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
@@ -44,15 +43,7 @@ func (f *StsFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 		return nil, ErrUnknownMetadataKey
 	}
 
-	regionId, err := f.mPre.Get(RegionID)
-	if err != nil {
-		return nil, fmt.Errorf("region ID is not available: %w", err)
-	}
-	client, err := f.stsClient(regionId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create STS client: %w", err)
-	}
-	p, err := NewStsMetadata(client)
+	p, err := NewStsMetadata(f.stsClient)
 	if err != nil {
 		return nil, err
 	}

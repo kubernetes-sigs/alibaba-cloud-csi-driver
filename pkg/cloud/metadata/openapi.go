@@ -6,48 +6,60 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	"k8s.io/utils/ptr"
 )
 
 type OpenAPIMetadata struct {
-	instance *ecs.Instance
+	instance *ecs20140526.DescribeInstancesResponseBodyInstancesInstance
 }
 
-func NewOpenAPIMetadata(c cloud.ECSInterface, regionId, instanceId string) (*OpenAPIMetadata, error) {
-	instanceRequest := ecs.CreateDescribeInstancesRequest()
-
-	instanceRequest.RegionId = regionId
+func NewOpenAPIMetadata(c cloud.ECSv2Interface, instanceId string) (*OpenAPIMetadata, error) {
 	ids, err := json.Marshal([]string{instanceId})
 	if err != nil {
 		panic(err)
 	}
-	instanceRequest.InstanceIds = string(ids)
+	instanceRequest := ecs20140526.DescribeInstancesRequest{
+		InstanceIds: ptr.To(string(ids)),
+	}
 
-	instanceResponse, err := c.DescribeInstances(instanceRequest)
+	instanceResponse, err := c.DescribeInstances(&instanceRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe instance %s: %w", instanceId, err)
 	}
-	if len(instanceResponse.Instances.Instance) != 1 {
-		return nil, fmt.Errorf("instance not found: %s", instanceId)
+	if instanceResponse.Body == nil || instanceResponse.Body.Instances == nil {
+		return nil, fmt.Errorf("no instances field: %s", instanceId)
 	}
-	return &OpenAPIMetadata{instance: &instanceResponse.Instances.Instance[0]}, nil
+	instances := instanceResponse.Body.Instances.Instance
+	if len(instances) != 1 || instances[0] == nil {
+		return nil, fmt.Errorf("unexpected instance count %d for %s", len(instances), instanceId)
+	}
+	return &OpenAPIMetadata{instance: instances[0]}, nil
+}
+
+func (m *OpenAPIMetadata) get(key MetadataKey) *string {
+	switch key {
+	case ZoneID:
+		return m.instance.ZoneId
+	case InstanceID:
+		return m.instance.InstanceId
+	case InstanceType:
+		return m.instance.InstanceType
+	}
+	return nil
 }
 
 func (m *OpenAPIMetadata) Get(key MetadataKey) (string, error) {
-	switch key {
-	case ZoneID:
-		return m.instance.ZoneId, nil
-	case InstanceID:
-		return m.instance.InstanceId, nil
-	case InstanceType:
-		return m.instance.InstanceType, nil
+	v := m.get(key)
+	if v == nil {
+		return "", ErrUnknownMetadataKey
 	}
-	return "", ErrUnknownMetadataKey
+	return *v, nil
 }
 
 type OpenAPIFetcher struct {
-	ecsClient cloud.ECSInterface
+	ecsClient cloud.ECSv2Interface
 	mPre      MetadataProvider
 }
 
@@ -58,10 +70,6 @@ func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 		return nil, ErrUnknownMetadataKey
 	}
 
-	regionId, err := f.mPre.Get(RegionID)
-	if err != nil {
-		return nil, fmt.Errorf("region ID is not available: %w", err)
-	}
 	instanceId, err := f.mPre.Get(InstanceID)
 	if err != nil {
 		if err == ErrUnknownMetadataKey {
@@ -76,7 +84,7 @@ func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("instance ID is not available: %w", err)
 	}
-	p, err := NewOpenAPIMetadata(f.ecsClient, regionId, instanceId)
+	p, err := NewOpenAPIMetadata(f.ecsClient, instanceId)
 	if err != nil {
 		return nil, err
 	}
