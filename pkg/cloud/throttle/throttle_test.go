@@ -3,44 +3,43 @@ package throttle
 import (
 	"context"
 	"errors"
-	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	alierrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/klog/v2"
-	klogtest "k8s.io/klog/v2/test"
+	"k8s.io/klog/v2/ktesting"
+	"k8s.io/utils/clock"
 	testclock "k8s.io/utils/clock/testing"
 )
 
 var ErrThrottling error = alierrors.NewServerError(400, `{"Code": "Throttling"}`, "")
 
-func TestThrottlingStress(t *testing.T) {
-	klogtest.InitKlog(t).Set("logtostderr", "true")
+func TestThrottlingStress(t *testing.T) { synctest.Test(t, testThrottlingStressSync) }
+func testThrottlingStressSync(t *testing.T) {
+	logger, ctx := ktesting.NewTestContext(t)
+	ctx, cancel := context.WithCancel(ctx)
 
 	var throttling atomic.Bool
 	var reqCount [16]atomic.Uint64
 	var apiCount atomic.Uint64
 	f := func() error {
 		apiCount.Add(1)
+		time.Sleep(10 * time.Millisecond)
 		if throttling.Load() {
 			return ErrThrottling
 		} else {
 			return nil
 		}
 	}
+	throttler := NewThrottler(clock.RealClock{}, 1*time.Second, 8*time.Second)
 
-	clk := testclock.NewFakeClock(time.Now())
-	throttler := NewThrottler(clk, 1*time.Second, 8*time.Second)
-	ctx, cancel := context.WithCancel(context.Background())
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(reqCount))
 	for i := range reqCount {
 		go func() {
-			ctx := klog.NewContext(ctx, klog.Background().WithValues("worker", i))
+			ctx := klog.NewContext(ctx, logger.WithValues("worker", i))
 			for {
 				reqCount[i].Add(1)
 				err := throttler.Throttle(ctx, f)
@@ -50,7 +49,6 @@ func TestThrottlingStress(t *testing.T) {
 					break
 				}
 			}
-			wg.Done()
 		}()
 	}
 
@@ -70,19 +68,15 @@ func TestThrottlingStress(t *testing.T) {
 		return c
 	}
 
-	for !allHasReq(16) {
-		time.Sleep(time.Millisecond)
-	}
+	time.Sleep(11 * time.Second)
+	assert.True(t, allHasReq(100))
 
 	throttling.Store(true)
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 20) // wait for all workers to finish current requests
 
 	c1 := totalCount()
 	a1 := apiCount.Load()
-	for range 16 {
-		clk.Step(time.Second)
-		time.Sleep(time.Millisecond * 10)
-	}
+	time.Sleep(16 * time.Second)
 	c2 := totalCount()
 	a2 := apiCount.Load()
 	// Expect 4 probe, but not return to caller
@@ -90,17 +84,15 @@ func TestThrottlingStress(t *testing.T) {
 	assert.Equal(t, 4, int(a2-a1))
 
 	throttling.Store(false)
-	clk.Step(time.Second * 20)
+	time.Sleep(20 * time.Second)
 
-	for !allHasReq(c2 + 32) {
-		time.Sleep(time.Millisecond)
-	}
-
+	assert.True(t, allHasReq(120))
 	cancel()
-	wg.Wait()
+	time.Sleep(time.Millisecond * 20) // wait for all workers to finish current requests
 }
 
 func TestThrottleErrorPassThrough(t *testing.T) {
+	_, ctx := ktesting.NewTestContext(t)
 	clk := testclock.NewFakeClock(time.Now())
 	throttler := NewThrottler(clk, time.Second*1, time.Second*10)
 
@@ -108,7 +100,7 @@ func TestThrottleErrorPassThrough(t *testing.T) {
 		f := func() error {
 			return expectedErr
 		}
-		err := throttler.Throttle(context.Background(), f)
+		err := throttler.Throttle(ctx, f)
 		assert.Same(t, expectedErr, err)
 	}
 
@@ -120,57 +112,47 @@ func TestThrottleErrorPassThrough(t *testing.T) {
 	})
 }
 
-func TestCancelAtDelay(t *testing.T) {
-	clk := testclock.NewFakeClock(time.Now())
-	throttler := NewThrottler(clk, time.Second*1, time.Second*10)
+func TestCancelAtDelay(t *testing.T) { synctest.Test(t, testCancelAtDelaySync) }
+func testCancelAtDelaySync(t *testing.T) {
+	throttler := NewThrottler(clock.RealClock{}, time.Second*1, time.Second*10)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	wg := sync.WaitGroup{}
-	wg.Add(2)
+	_, ctx := ktesting.NewTestContext(t)
+	ctxToCancel, cancel := context.WithCancel(ctx)
 	for range 2 {
 		// One should block at probing delay, another should block on reading tCtx.probing
 		go func() {
-			err := throttler.Throttle(ctx, func() error {
+			err := throttler.Throttle(ctxToCancel, func() error {
 				return ErrThrottling
 			})
 			assert.ErrorIs(t, err, context.Canceled)
-			wg.Done()
 		}()
 	}
 	time.Sleep(time.Millisecond * 10)
 	cancel()
-	wg.Wait()
 
-	go func() {
-		time.Sleep(time.Millisecond * 10)
-		clk.Step(time.Second)
-	}()
 	// Another request should still go through, canceling should not break throttler state.
-	err := throttler.Throttle(context.Background(), func() error { return nil })
+	err := throttler.Throttle(ctx, func() error { return nil })
 	assert.NoError(t, err)
 }
 
-func TestUnknownErrorOnProbing(t *testing.T) {
-	clk := testclock.NewFakeClock(time.Now())
-	throttler := NewThrottler(clk, time.Second*1, time.Second*10)
+func TestUnknownErrorOnProbing(t *testing.T) { synctest.Test(t, testUnknownErrorOnProbingSync) }
+func testUnknownErrorOnProbingSync(t *testing.T) {
+	_, ctx := ktesting.NewTestContext(t)
+	throttler := NewThrottler(clock.RealClock{}, time.Second*1, time.Second*10)
 
 	errUnknown := errors.New("unknown error")
 	var errRet atomic.Pointer[error]
 	errRet.Store(&ErrThrottling)
 	go func() {
-		err := throttler.Throttle(context.Background(), func() error { return *errRet.Load() })
+		err := throttler.Throttle(ctx, func() error { return *errRet.Load() })
 		assert.Equal(t, err, errUnknown)
 	}()
 
 	time.Sleep(time.Millisecond * 10)
 	errRet.Store(&errUnknown)
-	clk.Step(time.Second)
+	time.Sleep(time.Second)
 
 	// initiate next probe immediately
-	go func() {
-		time.Sleep(time.Millisecond * 10)
-		clk.Step(time.Microsecond)
-	}()
-	err := throttler.Throttle(context.Background(), func() error { return nil })
+	err := throttler.Throttle(ctx, func() error { return nil })
 	assert.NoError(t, err)
 }
