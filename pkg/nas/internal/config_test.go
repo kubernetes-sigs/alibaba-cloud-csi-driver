@@ -2,11 +2,12 @@ package internal
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/jarcoal/httpmock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const (
@@ -140,6 +141,7 @@ func TestGetNodeConfigNodeGetError(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 	registerConfigMapResponder()
 	prepareFakeK8sContext()
+	t.Setenv("NAS_LOSETUP_ENABLE", "true")
 
 	config, err := GetNodeConfig()
 	assert.Error(t, err)
