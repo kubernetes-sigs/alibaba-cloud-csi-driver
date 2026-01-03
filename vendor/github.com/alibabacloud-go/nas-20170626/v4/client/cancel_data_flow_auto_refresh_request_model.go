@@ -32,7 +32,7 @@ type CancelDataFlowAutoRefreshRequest struct {
 	//
 	// 123e4567-e89b-12d3-a456-42665544****
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// The dataflow ID.
+	// The ID of the dataflow.
 	//
 	// This parameter is required.
 	//

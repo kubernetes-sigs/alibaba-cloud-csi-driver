@@ -53,7 +53,12 @@ func (s *DescribeNfsAclResponseBody) SetRequestId(v string) *DescribeNfsAclRespo
 }
 
 func (s *DescribeNfsAclResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Acl != nil {
+		if err := s.Acl.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeNfsAclResponseBodyAcl struct {

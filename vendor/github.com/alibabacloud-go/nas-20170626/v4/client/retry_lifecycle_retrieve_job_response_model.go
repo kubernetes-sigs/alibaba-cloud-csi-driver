@@ -59,5 +59,10 @@ func (s *RetryLifecycleRetrieveJobResponse) SetBody(v *RetryLifecycleRetrieveJob
 }
 
 func (s *RetryLifecycleRetrieveJobResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

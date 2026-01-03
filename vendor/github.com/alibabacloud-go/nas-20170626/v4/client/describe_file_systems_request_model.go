@@ -28,13 +28,11 @@ type iDescribeFileSystemsRequest interface {
 type DescribeFileSystemsRequest struct {
 	// The ID of the file system.
 	//
-	// - Sample ID of a General-purpose NAS file system: 31a8e4****.
+	// 	- Sample ID of a General-purpose NAS file system: 31a8e4\\*\\*\\*\\*.
 	//
-	// - The IDs of Extreme NAS file systems must start with extreme-, for example, extreme-0015****.
+	// 	- The IDs of Extreme NAS file systems must start with extreme-, for example, extreme-0015\\*\\*\\*\\*.
 	//
-	// - The IDs of Cloud Parallel File Storage (CPFS) file systems must start with cpfs-, for example, cpfs-125487****.
-	//
-	// > CPFS file systems are available only on the China site (aliyun.com).
+	// 	- The IDs of CPFS file systems must start with cpfs-. Example: cpfs-125487\\*\\*\\*\\*.
 	//
 	// example:
 	//
@@ -50,11 +48,9 @@ type DescribeFileSystemsRequest struct {
 	//
 	// 	- extreme: Extreme NAS file system.
 	//
-	// 	- cpfs: Cloud Parallel File Storage (CPFS) file system.
+	// 	- cpfs: CPFS file system.
 	//
-	// > 	- CPFS file systems are available only on the China site (aliyun.com).
-	//
-	// > 	- Separate multiple file types with commas (,).
+	// >  Separate multiple data types with commas (,).
 	//
 	// example:
 	//
@@ -170,7 +166,16 @@ func (s *DescribeFileSystemsRequest) SetVpcId(v string) *DescribeFileSystemsRequ
 }
 
 func (s *DescribeFileSystemsRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFileSystemsRequestTag struct {

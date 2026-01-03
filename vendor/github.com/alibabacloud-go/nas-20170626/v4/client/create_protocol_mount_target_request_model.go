@@ -27,6 +27,8 @@ type iCreateProtocolMountTargetRequest interface {
 	GetProtocolServiceId() *string
 	SetVSwitchId(v string) *CreateProtocolMountTargetRequest
 	GetVSwitchId() *string
+	SetVSwitchIds(v []*string) *CreateProtocolMountTargetRequest
+	GetVSwitchIds() []*string
 	SetVpcId(v string) *CreateProtocolMountTargetRequest
 	GetVpcId() *string
 }
@@ -130,15 +132,20 @@ type CreateProtocolMountTargetRequest struct {
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
 	// The vSwitch ID of the export directory for the protocol service.
 	//
-	// This parameter is required.
+	// if can be null:
+	// true
 	//
 	// example:
 	//
 	// vsw-123****
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// if can be null:
+	// true
+	VSwitchIds []*string `json:"VSwitchIds,omitempty" xml:"VSwitchIds,omitempty" type:"Repeated"`
 	// The VPC ID of the export directory for the protocol service.
 	//
-	// This parameter is required.
+	// if can be null:
+	// true
 	//
 	// example:
 	//
@@ -190,6 +197,10 @@ func (s *CreateProtocolMountTargetRequest) GetVSwitchId() *string {
 	return s.VSwitchId
 }
 
+func (s *CreateProtocolMountTargetRequest) GetVSwitchIds() []*string {
+	return s.VSwitchIds
+}
+
 func (s *CreateProtocolMountTargetRequest) GetVpcId() *string {
 	return s.VpcId
 }
@@ -236,6 +247,11 @@ func (s *CreateProtocolMountTargetRequest) SetProtocolServiceId(v string) *Creat
 
 func (s *CreateProtocolMountTargetRequest) SetVSwitchId(v string) *CreateProtocolMountTargetRequest {
 	s.VSwitchId = &v
+	return s
+}
+
+func (s *CreateProtocolMountTargetRequest) SetVSwitchIds(v []*string) *CreateProtocolMountTargetRequest {
+	s.VSwitchIds = v
 	return s
 }
 

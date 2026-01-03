@@ -24,9 +24,7 @@ type DescribeDataFlowsRequest struct {
 	//
 	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-125487\\*\\*\\*\\*.
 	//
-	// 	- The IDs of CPFS for LINGJUN file systems must start with `bmcpfs-`. Example: bmcpfs-0015\\*\\*\\*\\*.
-	//
-	// >  CPFS file systems are available only on the China site (aliyun.com).
+	// 	- The IDs of CPFS for Lingjun file systems must start with `bmcpfs-`. Example: bmcpfs-0015\\*\\*\\*\\*.
 	//
 	// This parameter is required.
 	//
@@ -34,7 +32,7 @@ type DescribeDataFlowsRequest struct {
 	//
 	// bmcpfs-290w65p03ok64ya****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The filter that is used to query data flows.
+	// The filter that is used to query dataflows.
 	//
 	// if can be null:
 	// true
@@ -100,45 +98,54 @@ func (s *DescribeDataFlowsRequest) SetNextToken(v string) *DescribeDataFlowsRequ
 }
 
 func (s *DescribeDataFlowsRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Filters != nil {
+		for _, item := range s.Filters {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowsRequestFilters struct {
-	// The filter name. Valid values:
+	// The filter name. Valid value:
 	//
-	// 	- DataFlowIds: filters data flows by data flow ID.
+	// 	- DataFlowIds: filters dataflow tasks by dataflow ID.
 	//
-	// 	- FsetIds: filters data flows by fileset ID.
+	// 	- FsetIds: filters dataflows by fileset ID.
 	//
-	// 	- FileSystemPath: filters data flows based on the path of a fileset in a CPFS file system.
+	// 	- FileSystemPath: filters dataflows based on the path of a fileset in a CPFS file system.
 	//
-	// 	- SourceStorage: filters data flows based on the access path of the source storage.
+	// 	- SourceStorage: filters dataflows based on the access path of the source storage.
 	//
-	// 	- ThroughputList: filters data flows based on data flow throughput.
+	// 	- ThroughputList: filters dataflows based on dataflow throughput.
 	//
-	// 	- Description: filters data flows based on the fileset description.
+	// 	- Description: filters dataflows based on the fileset description.
 	//
-	// 	- Status: filters data flows based on data flow status.
+	// 	- Status: filters dataflows based on dataflow status.
 	//
 	// example:
 	//
 	// FsetIds
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The filter value. This parameter does not support wildcards.
+	// The value of the filter. This parameter does not support wildcards.
 	//
-	// 	- If Key is set to DataFlowIds, set Value to a data flow ID or a part of the data flow ID. You can specify a data flow ID or a group of data flow IDs. You can specify a maximum of 10 data flow IDs. Example: `df-194433a5be31****` or `df-194433a5be31****,df-184433a5be31****`.
+	// 	- If Key is set to DataFlowIds, set Value to a dataflow ID or a part of the dataflow ID. You can specify a dataflow ID or a group of dataflow IDs. You can specify a maximum of 10 dataflow IDs. Example: `df-194433a5be31****` or `df-194433a512a2****,df-234533a5be31****`.
 	//
-	// 	- If Key is set to FsetIds, set Value to a fileset ID or a part of the fileset ID. You can specify a fileset ID or a group of fileset IDs. You can specify a maximum of 10 fileset IDs. Example: `fset-1902718ea0ae****` or `fset-1902718ea0ae****,fset-1242718ea0ae****`.
+	// 	- If Key is set to FsetIds, set Value to a fileset ID or a part of the fileset ID. You can specify a fileset ID or a group of fileset IDs. You can specify a maximum of 10 fileset IDs. For example, `fset-1902718ea0ae****` or `fset-235718ea0ae****,fset-5122718ea0ae****`.
 	//
 	// 	- If Key is set to FileSystemPath, set Value to the path or a part of the path of a fileset in a CPFS file system. The value of the parameter must be 1 to 1,024 characters in length.
 	//
 	// 	- If Key is set to SourceStorage, set Value to the access path or a part of the access path of the source storage. The path can be up to 1,024 characters in length.
 	//
-	// 	- If Key is set to ThroughputList, set Value to the data flow throughput. Combined query is supported.
+	// 	- If Key is set to ThroughputList, set Value to the dataflow throughput. Combined query is supported.
 	//
-	// 	- If Key is set to Description, set Value to a data flow description or a part of the data flow description.
+	// 	- If Key is set to Description, set Value to a dataflow description or a part of the dataflow description.
 	//
-	// 	- If Key is set to Status, set Value to the data flow status.
+	// 	- If Key is set to Status, set Value to the dataflow status.
 	//
 	// 	- If Key is set to SourceStoragePath, set Value to the access path or a part of the access path of the source storage. The path can be up to 1,024 characters in length.
 	//

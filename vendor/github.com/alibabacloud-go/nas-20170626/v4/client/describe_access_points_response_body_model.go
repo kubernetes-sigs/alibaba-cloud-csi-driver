@@ -89,7 +89,16 @@ func (s *DescribeAccessPointsResponseBody) SetTotalCount(v int32) *DescribeAcces
 }
 
 func (s *DescribeAccessPointsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.AccessPoints != nil {
+		for _, item := range s.AccessPoints {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeAccessPointsResponseBodyAccessPoints struct {
@@ -188,7 +197,8 @@ type DescribeAccessPointsResponseBodyAccessPoints struct {
 	// example:
 	//
 	// Active
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	Status *string                                             `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags   []*DescribeAccessPointsResponseBodyAccessPointsTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 	// The vSwitch ID.
 	//
 	// example:
@@ -265,6 +275,10 @@ func (s *DescribeAccessPointsResponseBodyAccessPoints) GetRootPathStatus() *stri
 
 func (s *DescribeAccessPointsResponseBodyAccessPoints) GetStatus() *string {
 	return s.Status
+}
+
+func (s *DescribeAccessPointsResponseBodyAccessPoints) GetTags() []*DescribeAccessPointsResponseBodyAccessPointsTags {
+	return s.Tags
 }
 
 func (s *DescribeAccessPointsResponseBodyAccessPoints) GetVSwitchId() *string {
@@ -345,6 +359,11 @@ func (s *DescribeAccessPointsResponseBodyAccessPoints) SetStatus(v string) *Desc
 	return s
 }
 
+func (s *DescribeAccessPointsResponseBodyAccessPoints) SetTags(v []*DescribeAccessPointsResponseBodyAccessPointsTags) *DescribeAccessPointsResponseBodyAccessPoints {
+	s.Tags = v
+	return s
+}
+
 func (s *DescribeAccessPointsResponseBodyAccessPoints) SetVSwitchId(v string) *DescribeAccessPointsResponseBodyAccessPoints {
 	s.VSwitchId = &v
 	return s
@@ -356,7 +375,26 @@ func (s *DescribeAccessPointsResponseBodyAccessPoints) SetVpcId(v string) *Descr
 }
 
 func (s *DescribeAccessPointsResponseBodyAccessPoints) Validate() error {
-	return dara.Validate(s)
+	if s.PosixUser != nil {
+		if err := s.PosixUser.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.RootPathPermission != nil {
+		if err := s.RootPathPermission.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Tags != nil {
+		for _, item := range s.Tags {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeAccessPointsResponseBodyAccessPointsPosixUser struct {
@@ -472,5 +510,46 @@ func (s *DescribeAccessPointsResponseBodyAccessPointsRootPathPermission) SetPerm
 }
 
 func (s *DescribeAccessPointsResponseBodyAccessPointsRootPathPermission) Validate() error {
+	return dara.Validate(s)
+}
+
+type DescribeAccessPointsResponseBodyAccessPointsTags struct {
+	// example:
+	//
+	// TestKey
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// example:
+	//
+	// TestValue
+	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
+}
+
+func (s DescribeAccessPointsResponseBodyAccessPointsTags) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeAccessPointsResponseBodyAccessPointsTags) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeAccessPointsResponseBodyAccessPointsTags) GetKey() *string {
+	return s.Key
+}
+
+func (s *DescribeAccessPointsResponseBodyAccessPointsTags) GetValue() *string {
+	return s.Value
+}
+
+func (s *DescribeAccessPointsResponseBodyAccessPointsTags) SetKey(v string) *DescribeAccessPointsResponseBodyAccessPointsTags {
+	s.Key = &v
+	return s
+}
+
+func (s *DescribeAccessPointsResponseBodyAccessPointsTags) SetValue(v string) *DescribeAccessPointsResponseBodyAccessPointsTags {
+	s.Value = &v
+	return s
+}
+
+func (s *DescribeAccessPointsResponseBodyAccessPointsTags) Validate() error {
 	return dara.Validate(s)
 }

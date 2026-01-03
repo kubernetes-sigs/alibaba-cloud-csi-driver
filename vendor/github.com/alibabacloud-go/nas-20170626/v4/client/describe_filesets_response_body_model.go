@@ -30,8 +30,6 @@ type DescribeFilesetsResponseBody struct {
 	//
 	// 	- The IDs of CPFS for LINGJUN file systems must start with `bmcpfs-`. Example: bmcpfs-290w65p03ok64ya\\*\\*\\*\\*.
 	//
-	// >  CPFS is not supported on the international site.
-	//
 	// example:
 	//
 	// bmcpfs-290w65p03ok64ya****
@@ -95,7 +93,12 @@ func (s *DescribeFilesetsResponseBody) SetRequestId(v string) *DescribeFilesetsR
 }
 
 func (s *DescribeFilesetsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Entries != nil {
+		if err := s.Entries.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFilesetsResponseBodyEntries struct {
@@ -120,7 +123,16 @@ func (s *DescribeFilesetsResponseBodyEntries) SetEntrie(v []*DescribeFilesetsRes
 }
 
 func (s *DescribeFilesetsResponseBodyEntries) Validate() error {
-	return dara.Validate(s)
+	if s.Entrie != nil {
+		for _, item := range s.Entrie {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeFilesetsResponseBodyEntriesEntrie struct {
@@ -132,13 +144,13 @@ type DescribeFilesetsResponseBodyEntriesEntrie struct {
 	//
 	// 2021-09-30T10:08:08Z
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// Specifies whether to enable deletion protection to allow you to release the fileset by using the console or by calling the [DeleteFileset](https://help.aliyun.com/document_detail/2838077.html) operation. Valid values:
+	// Specifies whether to enable deletion protection to allow you to release the fileset by using the console or by calling the [DeleteFileset](https://help.aliyun.com/document_detail/2402263.html) operation. Valid values:
 	//
-	// 	- true
+	// 	- true: enables release protection.
 	//
-	// 	- false
+	// 	- false: disables release protection.
 	//
-	// >  This parameter can protect filesets only against manual releases, but not against automatic releases.
+	// > This parameter can protect filesets only against manual releases, but not against automatic releases.
 	//
 	// example:
 	//
@@ -163,8 +175,6 @@ type DescribeFilesetsResponseBodyEntriesEntrie struct {
 	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-099394bd928c\\*\\*\\*\\*.
 	//
 	// 	- The IDs of CPFS for LINGJUN file systems must start with `bmcpfs-`. Example: bmcpfs-290w65p03ok64ya\\*\\*\\*\\*.
-	//
-	// >  CPFS is not supported on the international site.
 	//
 	// example:
 	//
@@ -326,7 +336,12 @@ func (s *DescribeFilesetsResponseBodyEntriesEntrie) SetUpdateTime(v string) *Des
 }
 
 func (s *DescribeFilesetsResponseBodyEntriesEntrie) Validate() error {
-	return dara.Validate(s)
+	if s.Quota != nil {
+		if err := s.Quota.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeFilesetsResponseBodyEntriesEntrieQuota struct {

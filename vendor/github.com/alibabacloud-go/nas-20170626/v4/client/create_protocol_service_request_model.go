@@ -114,7 +114,8 @@ type CreateProtocolServiceRequest struct {
 	Throughput *int32 `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
 	// The vSwitch ID of the protocol service.
 	//
-	// This parameter is required.
+	// if can be null:
+	// true
 	//
 	// example:
 	//
@@ -122,7 +123,8 @@ type CreateProtocolServiceRequest struct {
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
 	// The virtual private cloud (VPC) ID of the protocol service. The VPC ID of the protocol service must be the same as the VPC ID of the file system.
 	//
-	// This parameter is required.
+	// if can be null:
+	// true
 	//
 	// example:
 	//
