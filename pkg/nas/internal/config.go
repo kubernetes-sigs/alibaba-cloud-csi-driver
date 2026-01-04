@@ -91,15 +91,18 @@ type NodeConfig struct {
 	// clients for kubernetes
 	KubeClient kubernetes.Interface
 	CNFSGetter cnfsv1beta1.CNFSGetter
+
+	Meta metadata.MetadataProvider
 }
 
-func GetNodeConfig() (*NodeConfig, error) {
+func GetNodeConfig(meta metadata.MetadataProvider) (*NodeConfig, error) {
 	kubeClient, cnfsGetter := mustGetKubeClients()
 	config := &NodeConfig{
 		// enable nfs port check by default
 		EnablePortCheck: true,
 		KubeClient:      kubeClient,
 		CNFSGetter:      cnfsGetter,
+		Meta:            meta,
 	}
 
 	// check if enable nfs port check

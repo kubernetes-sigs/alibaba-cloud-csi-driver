@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
@@ -27,10 +29,22 @@ const (
 )
 
 func init() {
+	m := metadata.NewMetadata()
+	m.EnableEcs(http.DefaultTransport)
+	regionID, err := m.Get(metadata.RegionID)
+	if err != nil {
+		klog.ErrorS(err, "Failed to get region ID")
+	}
+
+	interceptor, err := interceptors.NewAlinasSecretInterceptor(regionID)
+	if err != nil {
+		klog.Fatalf("Failed to create alinas secret interceptor: %v", err)
+	}
+
 	server.RegisterDriver(&Driver{
 		Mounter: mounter.NewForMounter(
 			&extendedMounter{Interface: mount.New("")},
-			interceptors.AlinasSecretInterceptor,
+			interceptor.Intercept,
 		),
 	})
 }
@@ -56,6 +70,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		Secrets:     req.Secrets,
 		MetricsPath: req.MetricsPath,
 		VolumeID:    req.VolumeID,
+		AuthConfig:  req.AuthConfig,
 	})
 }
 

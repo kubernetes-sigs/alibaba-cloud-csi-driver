@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -70,12 +71,11 @@ type RoleAuth struct {
 	Code            string
 }
 
-func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
+func doMount(m mounter.Mounter, meta metadata.MetadataProvider, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
 	var (
 		mountFstype     string
 		source          string
 		combinedOptions []string
-		secrets         map[string]string
 		isPathNotFound  func(error) bool
 	)
 	if opt.Accesspoint != "" {
@@ -85,12 +85,6 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	}
 	if opt.Options != "" {
 		combinedOptions = append(combinedOptions, opt.Options)
-	}
-	if opt.AkID != "" && opt.AkSecret != "" {
-		secrets = map[string]string{
-			akIDKey:     opt.AkID,
-			akSecretKey: opt.AkSecret,
-		}
 	}
 
 	switch opt.ClientType {
@@ -140,13 +134,29 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		}
 	}
 
-	err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
+	accountID, err := meta.Get(metadata.AccountID)
+	if err != nil {
+		klog.ErrorS(err, "failed to get account ID")
+	}
+	clusterID, err := meta.Get(metadata.ClusterID)
+	if err != nil {
+		klog.ErrorS(err, "failed to get cluster ID")
+	}
+
+	err = m.ExtendedMount(context.Background(), &mounter.MountOperation{
 		Source:   source,
 		Target:   targetPath,
 		FsType:   mountFstype,
 		Options:  combinedOptions,
-		Secrets:  secrets,
 		VolumeID: volumeId,
+		AuthConfig: &mounterutils.AuthConfig{
+			AccessKey:    opt.AkID,
+			AccessSecret: opt.AkSecret,
+			AuthType:     opt.AuthType,
+			RoleName:     opt.RoleName,
+			AccountID:    accountID,
+			ClusterID:    clusterID,
+		},
 	})
 	if err == nil {
 		return nil
@@ -179,8 +189,15 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		Target:   tmpPath,
 		FsType:   mountFstype,
 		Options:  combinedOptions,
-		Secrets:  secrets,
 		VolumeID: volumeId,
+		AuthConfig: &mounterutils.AuthConfig{
+			AccessKey:    opt.AkID,
+			AccessSecret: opt.AkSecret,
+			AuthType:     opt.AuthType,
+			RoleName:     opt.RoleName,
+			AccountID:    accountID,
+			ClusterID:    clusterID,
+		},
 	}); err != nil {
 		return err
 	}
@@ -195,8 +212,15 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		Target:   targetPath,
 		FsType:   mountFstype,
 		Options:  combinedOptions,
-		Secrets:  secrets,
 		VolumeID: volumeId,
+		AuthConfig: &mounterutils.AuthConfig{
+			AccessKey:    opt.AkID,
+			AccessSecret: opt.AkSecret,
+			AuthType:     opt.AuthType,
+			RoleName:     opt.RoleName,
+			AccountID:    accountID,
+			ClusterID:    clusterID,
+		},
 	})
 }
 
