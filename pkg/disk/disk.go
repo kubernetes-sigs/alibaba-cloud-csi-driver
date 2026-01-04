@@ -37,7 +37,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -106,13 +105,12 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType) *DISK {
+func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
 
-	// Config Global vars
-	csiCfg := GlobalConfigSet(m)
+	GlobalConfigSet(m, csiCfg)
 
 	if serviceType&utils.Node != 0 {
 		GlobalConfigVar.NodeID = metadata.MustGet(m, metadata.InstanceID)
@@ -158,9 +156,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
-	configMapName := "csi-plugin"
-
+func GlobalConfigSet(m metadata.MetadataProvider, csiCfg utils.Config) {
 	// Global Configs Set
 	cfg, err := options.GetRestConfig()
 	if err != nil {
@@ -177,14 +173,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 	snapClient, err := snapClientset.NewForConfig(crdCfg)
 	if err != nil {
 		klog.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
-	}
-
-	csiCfg := utils.Config{}
-	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
-	if err != nil {
-		klog.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
-	} else {
-		csiCfg.ConfigMap = configMap.Data
 	}
 
 	// Env variables
@@ -247,7 +235,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 		GlobalConfigVar.DetachBeforeDelete,
 		GlobalConfigVar.ClusterID,
 	)
-	return csiCfg
 }
 
 func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batcher[ecs.Disk]) {

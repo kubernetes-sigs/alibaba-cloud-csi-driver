@@ -56,7 +56,11 @@ type nodeServer struct {
 func newNodeServer(config *internal.NodeConfig) *nodeServer {
 	// configure efc dadi service discovery
 	if config.EnableEFCCache {
-		go dadi.Run(config.KubeClient)
+		if config.KubeClient == nil {
+			klog.ErrorS(errors.New("kube client is nil"), "failed to run dadi")
+		} else {
+			go dadi.Run(config.KubeClient)
+		}
 	}
 	if err := checkSystemNasConfig(); err != nil {
 		klog.Errorf("failed to config /proc/sys/sunrpc/tcp_slot_table_entries: %v", err)
@@ -251,7 +255,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	opt.AkID = req.Secrets[akIDKey]
 	opt.AkSecret = req.Secrets[akSecretKey]
 
-	if cnfsName != "" {
+	if cnfsName != "" && ns.config.CNFSGetter != nil {
 		cnfs, err := ns.getCNFS(ctx, req, cnfsName)
 		if err != nil {
 			return nil, err

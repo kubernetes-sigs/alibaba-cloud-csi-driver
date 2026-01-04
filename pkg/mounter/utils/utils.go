@@ -197,6 +197,10 @@ func GetCredientialsSecretName(fuseType string) string {
 }
 
 func CleanupCredentialSecret(ctx context.Context, clientset kubernetes.Interface, node, volumeId, fuseType string) error {
+	if clientset == nil {
+		klog.V(2).InfoS("Skip cleaning up credential secret due to nil kube client")
+		return nil
+	}
 	key := fmt.Sprintf("%s.%s", node, volumeId)
 	secretName := GetCredientialsSecretName(fuseType)
 	secretClient := clientset.CoreV1().Secrets(LegacyFusePodNamespace)

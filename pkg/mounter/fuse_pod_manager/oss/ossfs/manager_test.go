@@ -10,6 +10,7 @@ import (
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -102,7 +103,7 @@ func Test_buildAuthSpec_ossfs(t *testing.T) {
 
 func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	fakeOssfs := NewFuseOssfs(nil, fakeMeta)
+	fakeOssfs := NewFuseOssfs(utils.Config{}, fakeMeta)
 	tests := []struct {
 		name    string
 		opts    *ossfpm.Options
@@ -316,7 +317,7 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 	t.Setenv("CLUSTER_ID", "cluster-id")
 	t.Setenv("ALIBABA_CLOUD_ACCOUNT_ID", "account-id")
 	fakeMeta := metadata.NewMetadata()
-	fakeOssfs := NewFuseOssfs(nil, fakeMeta)
+	fakeOssfs := NewFuseOssfs(utils.Config{}, fakeMeta)
 	tests := []struct {
 		name           string
 		options        *ossfpm.Options
@@ -597,7 +598,7 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("REGION_ID", tt.region)
 			fakeMeta := metadata.NewMetadata()
-			fakeOssfs := NewFuseOssfs(nil, fakeMeta)
+			fakeOssfs := NewFuseOssfs(utils.Config{}, fakeMeta)
 			mountOptions, err := fakeOssfs.MakeMountOptions(tt.opts, fakeMeta)
 			assert.Equal(t, tt.expectedError, err != nil)
 			assert.ElementsMatch(t, tt.expected, mountOptions)
@@ -710,7 +711,7 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 
 func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	fakeInter := NewFuseOssfs(nil, fakeMeta)
+	fakeInter := NewFuseOssfs(utils.Config{}, fakeMeta)
 	fakeOssfs, ok := fakeInter.(*fuseOssfs)
 	if !ok {
 		t.Fatalf("failed to cast to fuseOssfs")

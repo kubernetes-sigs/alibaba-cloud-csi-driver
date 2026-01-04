@@ -325,7 +325,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 }
 
 func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts *ossfpm.Options) error {
-	if opts.CNFSName == "" {
+	if opts.CNFSName == "" || cnfsGetter == nil {
 		return nil
 	}
 	cnfs, err := cnfsGetter.GetCNFS(ctx, opts.CNFSName)

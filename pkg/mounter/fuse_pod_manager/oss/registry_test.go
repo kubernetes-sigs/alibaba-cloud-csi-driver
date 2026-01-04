@@ -7,6 +7,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -54,7 +55,7 @@ func TestGetFuseMounterInterceptors(t *testing.T) {
 func TestGetAllRegisteredFuseTypes(t *testing.T) {
 	// Register a test factory
 	testType := "test-fuse-type-3"
-	testFactory := func(*corev1.ConfigMap, metadata.MetadataProvider) OSSFuseMounterType {
+	testFactory := func(utils.Config, metadata.MetadataProvider) OSSFuseMounterType {
 		return nil
 	}
 	RegisterFuseMounter(testType, testFactory)
@@ -75,13 +76,13 @@ func TestGetAllOSSFusePodManagers(t *testing.T) {
 
 	// Register a test factory that returns a valid mounter
 	testType := "test-fuse-type-4"
-	testFactory := func(*corev1.ConfigMap, metadata.MetadataProvider) OSSFuseMounterType {
+	testFactory := func(utils.Config, metadata.MetadataProvider) OSSFuseMounterType {
 		return &testFuseMounter{name: testType}
 	}
 	RegisterFuseMounter(testType, testFactory)
 
 	// Test with nil configmap and nil client (CSI agent mode)
-	managers := GetAllOSSFusePodManagers(nil, fakeMeta, nil)
+	managers := GetAllOSSFusePodManagers(utils.Config{}, fakeMeta, nil)
 
 	// Should have at least the test manager
 	assert.GreaterOrEqual(t, len(managers), 1, "Should have at least 1 fuse pod manager")

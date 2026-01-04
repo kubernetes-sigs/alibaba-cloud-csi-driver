@@ -7,6 +7,7 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -72,7 +73,7 @@ func TestGetControllerConfigSuccess(t *testing.T) {
 	prepareFakeRegionEnvVar(t)
 
 	metadataProviders := metadata.NewMetadata()
-	config, err := GetControllerConfig(metadataProviders)
+	config, err := GetControllerConfig(metadataProviders, utils.Config{})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, config)
@@ -91,15 +92,6 @@ func registerConfigMapResponder() {
 	httpmock.RegisterResponder("GET", url, responder)
 }
 
-func TestGetControllerConfigError(t *testing.T) {
-	prepareFakeK8sContext()
-	prepareFakeRegionEnvVar(t)
-	metadataProviders := metadata.NewMetadata()
-	config, err := GetControllerConfig(metadataProviders)
-	assert.Error(t, err)
-	assert.Nil(t, config)
-}
-
 func TestGetNodeConfigSuccess(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -108,7 +100,7 @@ func TestGetNodeConfigSuccess(t *testing.T) {
 	prepareFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	config, err := GetNodeConfig()
+	config, err := GetNodeConfig(utils.Config{})
 	assert.NoError(t, err)
 	assert.NotNil(t, config)
 }
@@ -129,13 +121,6 @@ func prepareNodeConfigEnvVars(t *testing.T) {
 	t.Setenv("NAS_LOSETUP_ENABLE", "true")
 }
 
-func TestGetNodeConfigConfigMapGetError(t *testing.T) {
-	prepareFakeK8sContext()
-	config, err := GetNodeConfig()
-	assert.Error(t, err)
-	assert.Nil(t, config)
-}
-
 func TestGetNodeConfigNodeGetError(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -143,7 +128,7 @@ func TestGetNodeConfigNodeGetError(t *testing.T) {
 	prepareFakeK8sContext()
 	t.Setenv("NAS_LOSETUP_ENABLE", "true")
 
-	config, err := GetNodeConfig()
+	config, err := GetNodeConfig(utils.Config{})
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }
@@ -156,7 +141,7 @@ func TestGetNodeConfigLosetupError(t *testing.T) {
 	prepareFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	config, err := GetNodeConfig()
+	config, err := GetNodeConfig(utils.Config{})
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }
