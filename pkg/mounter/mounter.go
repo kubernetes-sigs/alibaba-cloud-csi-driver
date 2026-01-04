@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -28,6 +29,7 @@ type MountOperation struct {
 	Secrets     map[string]string
 	MetricsPath string
 	VolumeID    string
+	AuthConfig  *utils.AuthConfig
 
 	MountResult any
 }

@@ -34,6 +34,21 @@ func (m *MockSTSInterface) EXPECT() *MockSTSInterfaceMockRecorder {
 	return m.recorder
 }
 
+// AssumeRoleWithOIDC mocks base method.
+func (m *MockSTSInterface) AssumeRoleWithOIDC(request *client.AssumeRoleWithOIDCRequest) (*client.AssumeRoleWithOIDCResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssumeRoleWithOIDC", request)
+	ret0, _ := ret[0].(*client.AssumeRoleWithOIDCResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AssumeRoleWithOIDC indicates an expected call of AssumeRoleWithOIDC.
+func (mr *MockSTSInterfaceMockRecorder) AssumeRoleWithOIDC(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssumeRoleWithOIDC", reflect.TypeOf((*MockSTSInterface)(nil).AssumeRoleWithOIDC), request)
+}
+
 // GetCallerIdentity mocks base method.
 func (m *MockSTSInterface) GetCallerIdentity() (*client.GetCallerIdentityResponse, error) {
 	m.ctrl.T.Helper()

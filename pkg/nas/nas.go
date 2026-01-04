@@ -56,7 +56,7 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 		servers.ControllerServer = cs
 	}
 	if serviceType&utils.Node != 0 {
-		config, err := internal.GetNodeConfig(csiCfg)
+		config, err := internal.GetNodeConfig(meta, csiCfg)
 		if err != nil {
 			klog.Fatalf("Get nas node config: %v", err)
 		}

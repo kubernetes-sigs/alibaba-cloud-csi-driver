@@ -2,6 +2,8 @@ package proxy
 
 import (
 	"errors"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 )
 
 const (
@@ -44,4 +46,5 @@ type MountRequest struct {
 	Secrets     map[string]string `json:"secrets,omitempty"`
 	MetricsPath string            `json:"metricsPath,omitempty"`
 	VolumeID    string            `json:"volumeID,omitempty"`
+	AuthConfig  *utils.AuthConfig `json:"authConfig,omitempty"`
 }

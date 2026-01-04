@@ -37,7 +37,7 @@ func (m *NasMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperati
 	return err
 }
 
-func newNasMounter(agentMode bool, socketPath string) mounter.Mounter {
+func newNasMounter(agentMode bool, socketPath, regionID string) mounter.Mounter {
 	inner := mountutils.NewWithoutSystemd("")
 	m := &NasMounter{
 		Interface: inner,
@@ -48,7 +48,13 @@ func newNasMounter(agentMode bool, socketPath string) mounter.Mounter {
 	case !agentMode: // normal case, use connector mounter to ensure backward compatibility
 		m.alinasMounter = mounter.NewConnectorMounter(inner, "")
 	default:
-		m.alinasMounter = mounter.NewForMounter(mounter.NewAdaptorMounter(inner), interceptors.AlinasSecretInterceptor)
+		interceptor, err := interceptors.NewAlinasSecretInterceptor(regionID)
+		if err != nil {
+			klog.ErrorS(err, "failed to create alinas secret interceptor")
+			m.alinasMounter = mounter.NewForMounter(mounter.NewAdaptorMounter(inner))
+		} else {
+			m.alinasMounter = mounter.NewForMounter(mounter.NewAdaptorMounter(inner), interceptor.Intercept)
+		}
 	}
 	return m
 }

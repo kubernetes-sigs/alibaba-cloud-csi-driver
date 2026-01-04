@@ -37,6 +37,7 @@ func (m *ProxyMounter) ExtendedMount(ctx context.Context, op *MountOperation) er
 		Secrets:     op.Secrets,
 		MetricsPath: op.MetricsPath,
 		VolumeID:    op.VolumeID,
+		AuthConfig:  op.AuthConfig,
 	})
 	if err != nil {
 		return fmt.Errorf("call mounter daemon: %w", err)
