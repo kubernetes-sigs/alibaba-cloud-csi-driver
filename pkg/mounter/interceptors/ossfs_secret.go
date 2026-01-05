@@ -11,7 +11,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
-	commonutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
@@ -48,40 +47,15 @@ func checkFileContent(path string, data []byte) (exists bool, sameContent bool, 
 	return true, string(existingData) == string(data), nil
 }
 
-// writeFileAtomically writes data to file atomically using rename.
-// It first checks if the file exists and has the same content to avoid redundant writes.
-// If content is different or file doesn't exist, it writes to a temporary file
-// and atomically renames it to the target file. This avoids the need for locks
-// and ensures atomic updates even with concurrent writes.
-func writeFileAtomically(path string, data []byte, perm os.FileMode) (done bool, err error) {
-	// First check if file exists and has the same content
-	exists, sameContent, err := checkFileContent(path, data)
-	if err != nil {
-		return false, err
+// cleanupTokenDirectory removes all token files from the given directory and then tries to remove the directory itself.
+// This is used for cleaning up temporary directories on error or old data directories after rotation.
+func cleanupTokenDirectory(dir string, tokenKeys []string) {
+	for _, key := range tokenKeys {
+		filePath := filepath.Join(dir, key)
+		removeIgnoreNotExist(filePath)
 	}
-	if exists && sameContent {
-		return false, nil
-	}
-
-	// Content is different or file doesn't exist, need to write
-	// Create temporary file in the same directory
-	dir := filepath.Dir(path)
-	tmpFile := filepath.Join(dir, fmt.Sprintf(".%s.tmp.%d", filepath.Base(path), time.Now().UnixNano()))
-
-	// Write to temporary file
-	if err = commonutils.WriteAndSyncFile(tmpFile, data, perm); err != nil {
-		removeIgnoreNotExist(tmpFile)
-		return false, fmt.Errorf("failed to write temporary file: %w", err)
-	}
-
-	// Atomically rename temporary file to target file
-	// This is atomic on most filesystems and handles concurrent writes gracefully
-	if err = os.Rename(tmpFile, path); err != nil {
-		removeIgnoreNotExist(tmpFile)
-		return false, fmt.Errorf("failed to atomically replace file: %w", err)
-	}
-
-	return true, nil
+	// Try to remove the directory if it's empty
+	removeIgnoreNotExist(dir)
 }
 
 func OssfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
@@ -159,7 +133,7 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 		return err
 	}
 
-	if passwdFile == "" || op.MountResult == nil {
+	if (passwdFile == "" && tokenDir == "") || op.MountResult == nil {
 		return nil
 	}
 	result, ok := op.MountResult.(server.OssfsMountResult)
@@ -178,19 +152,14 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 	return nil
 }
 
-// rotatePasswdFile rotates (or initializes) a passwd file atomically.
-// This is similar to rotateTokenFiles but for a single file.
-func rotatePasswdFile(path string, data []byte, perm os.FileMode) (rotated bool, err error) {
-	return writeFileAtomically(path, data, perm)
-}
-
-// rotateTokenFiles rotates (or initializes) token files using symlink for atomic updates.
-// This function uses a symlink-based approach similar to Kubernetes configmap volume plugin:
-// 1. Create a temporary data directory (e.g., ..data_tmp_<timestamp>)
+// rotateTokenFiles rotates (or initializes) token files using directory-level symlink for atomic updates.
+// This function uses a simple symlink-based approach similar to Kubernetes secret volume plugin:
+// 1. Create a temporary data directory (e.g., .dir.tmp_<timestamp>)
 // 2. Write all token files to the temporary directory
-// 3. Atomically switch the ..data symlink to point to the new directory
-// 4. Create symlinks for each token file pointing to ..data/<filename>
+// 3. Atomically switch the dir symlink to point to the new directory
 // This ensures all files are updated atomically - readers either see all old files or all new files.
+// Clients that have already opened file handles will continue to read from the old directory
+// until they close and reopen, ensuring no interruption during rotation.
 func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err error) {
 	// Currently, for ossfs2, expiration is not required.
 	// But we still manage it (if offered) for the feature.
@@ -211,11 +180,17 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 
 	// Check if any file needs update before writing
 	// Read current data directory if symlink exists
-	dataLinkPath := filepath.Join(dir, "..data")
 	currentDataDir := ""
-	if linkTarget, readErr := os.Readlink(dataLinkPath); readErr == nil {
-		currentDataDir = filepath.Join(dir, linkTarget)
+	if linkTarget, readErr := os.Readlink(dir); readErr == nil {
+		// dir is a symlink, resolve to actual directory
+		if filepath.IsAbs(linkTarget) {
+			currentDataDir = linkTarget
+		} else {
+			currentDataDir = filepath.Join(filepath.Dir(dir), linkTarget)
+		}
 	}
+	// Note: dir should always be a symlink path that doesn't exist on first call,
+	// so we don't need to handle the case where dir is a regular directory
 
 	anyNeedsUpdate := false
 	if currentDataDir == "" {
@@ -243,21 +218,22 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 		return false, nil
 	}
 
-	// Create temporary data directory with timestamp suffix
-	tmpDataDir := filepath.Join(dir, fmt.Sprintf("..data_tmp_%d", time.Now().UnixNano()))
+	// Create temporary data directory with timestamp suffix in the parent directory
+	// This ensures the symlink target is in the same filesystem for atomic rename
+	parentDir := filepath.Dir(dir)
+	baseName := filepath.Base(dir)
+	tmpDataDir := filepath.Join(parentDir, fmt.Sprintf(".%s.tmp_%d", baseName, time.Now().UnixNano()))
 	if err = os.MkdirAll(tmpDataDir, 0o755); err != nil {
 		return false, fmt.Errorf("failed to create temporary data directory: %w", err)
 	}
 
-	// Helper function to clean up temporary directory by removing only the files we created
-	cleanupTmpDir := func() {
-		for _, key := range tokenKey {
-			filePath := filepath.Join(tmpDataDir, key)
-			removeIgnoreNotExist(filePath)
+	// Use defer to ensure temporary directory is cleaned up on any error or panic
+	defer func() {
+		if !rotated {
+			// Clean up temporary directory on error
+			cleanupTokenDirectory(tmpDataDir, tokenKey)
 		}
-		// Try to remove the directory if it's empty
-		removeIgnoreNotExist(tmpDataDir)
-	}
+	}()
 
 	// Write all token files to temporary directory
 	for _, key := range tokenKey {
@@ -266,83 +242,81 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 			continue
 		}
 		filePath := filepath.Join(tmpDataDir, key)
-		if err = commonutils.WriteAndSyncFile(filePath, []byte(val), 0o600); err != nil {
-			// Clean up temporary directory on error
-			cleanupTmpDir()
+		if err = os.WriteFile(filePath, []byte(val), 0o600); err != nil {
 			return false, fmt.Errorf("failed to write token file %s: %w", key, err)
 		}
 	}
 
-	// Atomically switch the ..data symlink
-	// First, create a temporary symlink
-	tmpLinkPath := filepath.Join(dir, "..data_tmp")
+	// Atomically switch the dir symlink
+	// First, create a temporary symlink pointing to the new directory
+	tmpLinkPath := filepath.Join(parentDir, fmt.Sprintf(".%s.tmp", baseName))
 	relativeDataDir := filepath.Base(tmpDataDir)
 	if err = os.Symlink(relativeDataDir, tmpLinkPath); err != nil {
-		cleanupTmpDir()
 		return false, fmt.Errorf("failed to create temporary symlink: %w", err)
 	}
 
-	// Atomically rename the temporary symlink to ..data
-	// This is atomic on most filesystems
-	// IMPORTANT: Once this rename completes, ALL file-level symlinks pointing to ..data/<filename>
-	// will immediately resolve to the new data directory, regardless of whether the file-level
-	// symlinks themselves have been updated yet. This ensures atomic consistency - readers will
-	// either see all old files (before this point) or all new files (after this point).
-	if err = os.Rename(tmpLinkPath, dataLinkPath); err != nil {
-		removeIgnoreNotExist(tmpLinkPath)
-		cleanupTmpDir()
+	// Use defer to ensure temporary symlink is cleaned up on any error or panic
+	// After successful rename, the symlink will be renamed to dir, so removeIgnoreNotExist will safely ignore it
+	defer removeIgnoreNotExist(tmpLinkPath)
+
+	// Atomically rename the temporary symlink to dir
+	// Note: dir should not exist on first call, so this will create the symlink
+	// On subsequent calls, this will atomically replace the existing symlink
+	// This is atomic on most filesystems and ensures all readers see either all old files or all new files
+	// IMPORTANT: Once this rename completes, all new opens of dir/ will resolve to the new directory.
+	// However, clients that have already opened file handles will continue to read from the old directory
+	// (pointed to by their open file descriptors), ensuring no interruption during rotation.
+	if err = os.Rename(tmpLinkPath, dir); err != nil {
 		return false, fmt.Errorf("failed to atomically switch symlink: %w", err)
 	}
 
-	// Create symlinks for each token file pointing to ..data/<filename>
-	// This ensures external references to tokenDir/<filename> work correctly.
-	// Note: The order of file-level symlink updates does NOT affect consistency because
-	// all symlinks point to ..data/<filename>, which already resolves to the new data directory
-	// after the ..data symlink switch above. Even if some file-level symlink updates fail,
-	// the existing symlinks will still resolve to the new data through ..data.
-	// Use atomic replacement to avoid race condition: create temp symlink first, then rename
-	for _, key := range tokenKey {
-		val := secrets[key]
-		if val == "" {
-			continue
-		}
-		fileLinkPath := filepath.Join(dir, key)
-		tmpFileLinkPath := filepath.Join(dir, fmt.Sprintf(".%s.tmp", key))
+	// Mark as rotated so defer won't clean up the new directory
+	rotated = true
 
-		// Create symlink pointing to ..data/<filename> with temporary name
-		// Use forward slash for symlink target (standard for symlinks)
-		linkTarget := fmt.Sprintf("..data/%s", key)
-		if err = os.Symlink(linkTarget, tmpFileLinkPath); err != nil {
-			klog.Errorf("failed to create temporary symlink for %s: %v", key, err)
-			// Continue with other files
-			continue
-		}
-
-		// Atomically replace the old symlink with the new one
-		// This ensures the file is always accessible during the update
-		if err = os.Rename(tmpFileLinkPath, fileLinkPath); err != nil {
-			removeIgnoreNotExist(tmpFileLinkPath)
-			klog.Errorf("failed to atomically replace symlink for %s: %v", key, err)
-			// Continue with other files
-		}
-	}
-
-	// Clean up old data directory if it exists
+	// Clean up old data directory if it exists and is different from the new one
 	// Only remove the token files we know about, not the entire directory
 	if currentDataDir != "" && currentDataDir != tmpDataDir {
-		// Remove old data directory asynchronously to avoid blocking
-		go func() {
-			for _, key := range tokenKey {
-				filePath := filepath.Join(currentDataDir, key)
-				removeIgnoreNotExist(filePath)
-			}
-			// Try to remove the directory if it's empty
-			removeIgnoreNotExist(currentDataDir)
-		}()
+		cleanupTokenDirectory(currentDataDir, tokenKey)
 	}
 
-	rotated = true
-	return
+	return true, nil
+}
+
+// rotatePasswdFile rotates (or initializes) a passwd file atomically.
+// It first checks if the file exists and has the same content to avoid redundant writes.
+// If content is different or file doesn't exist, it writes to a temporary file
+// and atomically renames it to the target file. This avoids the need for locks
+// and ensures atomic updates even with concurrent writes.
+func rotatePasswdFile(path string, data []byte, perm os.FileMode) (done bool, err error) {
+	// First check if file exists and has the same content
+	exists, sameContent, err := checkFileContent(path, data)
+	if err != nil {
+		return false, err
+	}
+	if exists && sameContent {
+		return false, nil
+	}
+
+	// Content is different or file doesn't exist, need to write
+	// Create temporary file in the same directory
+	dir := filepath.Dir(path)
+	tmpFile := filepath.Join(dir, fmt.Sprintf(".%s.tmp.%d", filepath.Base(path), time.Now().UnixNano()))
+
+	// Use defer to ensure temporary file is cleaned up on any error or panic
+	defer removeIgnoreNotExist(tmpFile)
+
+	// Write to temporary file
+	if err = os.WriteFile(tmpFile, data, perm); err != nil {
+		return false, fmt.Errorf("failed to write temporary file: %w", err)
+	}
+
+	// Atomically rename temporary file to target file
+	// This is atomic on most filesystems and handles concurrent writes gracefully
+	if err = os.Rename(tmpFile, path); err != nil {
+		return false, fmt.Errorf("failed to atomically replace file: %w", err)
+	}
+
+	return true, nil
 }
 
 // prepareCredentialFiles returns:
@@ -376,11 +350,14 @@ func prepareCredentialFiles(fuseType, target string, secrets map[string]string) 
 			klog.Errorf("mkdirall tokenDir failed %v", err)
 			return
 		}
-		_, err = rotateTokenFiles(tokenDir, secrets)
+		// Use tokenDir/sts as the symlink path to ensure it doesn't exist on first call
+		// This avoids the need to handle directory-to-symlink conversion
+		stsDir := filepath.Join(tokenDir, "sts")
+		_, err = rotateTokenFiles(stsDir, secrets)
 		if err != nil {
 			return
 		}
-		dir = tokenDir
+		dir = stsDir
 		return
 	}
 	return
