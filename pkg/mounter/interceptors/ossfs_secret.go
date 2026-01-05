@@ -163,9 +163,14 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err error) {
 	// Currently, for ossfs2, expiration is not required.
 	// But we still manage it (if offered) for the feature.
-	tokenKey := []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration}
+	//
+	// TODO: In ossfs and ossfs2, the client checks if AccessKeyId has changed to determine
+	// whether to update credential information. Therefore, AccessKeyId must be rotated last
+	// to ensure atomic updates - all other files are updated before AccessKeyId, so clients
+	// will see either all old files or all new files, never a mixed state.
+	tokenKeys := []string{mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration, mounterutils.KeyAccessKeyId}
 	// Check nil value in advanced.
-	for _, key := range tokenKey {
+	for _, key := range tokenKeys {
 		val := secrets[key]
 		if val == "" {
 			if key == mounterutils.KeyExpiration {
@@ -198,7 +203,7 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 		anyNeedsUpdate = true
 	} else {
 		// Check if any file content changed
-		for _, key := range tokenKey {
+		for _, key := range tokenKeys {
 			val := secrets[key]
 			if val == "" {
 				continue
@@ -231,12 +236,12 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 	defer func() {
 		if !rotated {
 			// Clean up temporary directory on error
-			cleanupTokenDirectory(tmpDataDir, tokenKey)
+			cleanupTokenDirectory(tmpDataDir, tokenKeys)
 		}
 	}()
 
 	// Write all token files to temporary directory
-	for _, key := range tokenKey {
+	for _, key := range tokenKeys {
 		val := secrets[key]
 		if val == "" {
 			continue
@@ -276,7 +281,7 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 	// Clean up old data directory if it exists and is different from the new one
 	// Only remove the token files we know about, not the entire directory
 	if currentDataDir != "" && currentDataDir != tmpDataDir {
-		cleanupTokenDirectory(currentDataDir, tokenKey)
+		cleanupTokenDirectory(currentDataDir, tokenKeys)
 	}
 
 	return true, nil
