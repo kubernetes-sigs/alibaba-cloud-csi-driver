@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
@@ -22,41 +21,6 @@ var _ mounter.MountInterceptor = OssfsSecretInterceptor
 // We use a separate instance from ossfs_monitor.go to avoid import cycles,
 // but both are created the same way and can be used interchangeably.
 var rawMounter = mountutils.NewWithoutSystemd("")
-
-// removeIgnoreNotExist removes a file or directory, ignoring "not exist" errors.
-// Other errors are logged but not returned. This is useful for cleanup operations
-// where the file may or may not exist.
-func removeIgnoreNotExist(path string) {
-	if err := os.Remove(path); err != nil {
-		if !os.IsNotExist(err) {
-			klog.V(4).Infof("failed to remove %s: %v", path, err)
-		}
-	}
-}
-
-// checkFileContent checks if a file exists and has the same content as the given data.
-// Returns (exists, sameContent, error).
-func checkFileContent(path string, data []byte) (exists bool, sameContent bool, err error) {
-	existingData, readErr := os.ReadFile(path)
-	if readErr != nil {
-		if os.IsNotExist(readErr) {
-			return false, false, nil
-		}
-		return false, false, readErr
-	}
-	return true, string(existingData) == string(data), nil
-}
-
-// cleanupTokenDirectory removes all token files from the given directory and then tries to remove the directory itself.
-// This is used for cleaning up temporary directories on error or old data directories after rotation.
-func cleanupTokenDirectory(dir string, tokenKeys []string) {
-	for _, key := range tokenKeys {
-		filePath := filepath.Join(dir, key)
-		removeIgnoreNotExist(filePath)
-	}
-	// Try to remove the directory if it's empty
-	removeIgnoreNotExist(dir)
-}
 
 func OssfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
 	return ossfsSecretInterceptor(ctx, op, handler, mounterutils.OssFsType)
@@ -122,9 +86,9 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 			// ossfs2
 			// For ossfs2, file-path is a common option configuration after -o, so append to op.Options
 			op.Options = append(op.Options,
-				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(tokenDir, mounterutils.KeyAccessKeyId)),
-				fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", filepath.Join(tokenDir, mounterutils.KeyAccessKeySecret)),
-				fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(tokenDir, mounterutils.KeySecurityToken)),
+				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", getTokenFilePath(tokenDir, mounterutils.KeyAccessKeyId)),
+				fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", getTokenFilePath(tokenDir, mounterutils.KeyAccessKeySecret)),
+				fmt.Sprintf("oss_sts_multi_conf_token_file=%s", getTokenFilePath(tokenDir, mounterutils.KeySecurityToken)),
 			)
 		}
 	}
@@ -147,28 +111,26 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 
 	go func() {
 		<-result.ExitChan
-		removeIgnoreNotExist(passwdFile)
+		// Clean up passwd file and all temporary files
+		cleanupPasswdFile(passwdFile)
+		// Clean up token directory (symlink, actual directory, and any temporary files)
+		cleanupTokenFiles(tokenDir)
 	}()
 	return nil
 }
 
 // rotateTokenFiles rotates (or initializes) token files using directory-level symlink for atomic updates.
 // This function uses a simple symlink-based approach similar to Kubernetes secret volume plugin:
-// 1. Create a temporary data directory (e.g., .dir.tmp_<timestamp>)
+// 1. Create a temporary data directory using getTempDataDirPathWithTimestamp
 // 2. Write all token files to the temporary directory
-// 3. Atomically switch the dir symlink to point to the new directory
+// 3. Atomically switch the dir symlink to point to the new directory using getTempSymlinkPath
 // This ensures all files are updated atomically - readers either see all old files or all new files.
 // Clients that have already opened file handles will continue to read from the old directory
 // until they close and reopen, ensuring no interruption during rotation.
 func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err error) {
 	// Currently, for ossfs2, expiration is not required.
 	// But we still manage it (if offered) for the feature.
-	//
-	// TODO: In ossfs and ossfs2, the client checks if AccessKeyId has changed to determine
-	// whether to update credential information. Therefore, AccessKeyId must be rotated last
-	// to ensure atomic updates - all other files are updated before AccessKeyId, so clients
-	// will see either all old files or all new files, never a mixed state.
-	tokenKeys := []string{mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration, mounterutils.KeyAccessKeyId}
+	tokenKeys := getTokenKeys()
 	// Check nil value in advanced.
 	for _, key := range tokenKeys {
 		val := secrets[key]
@@ -188,11 +150,7 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 	currentDataDir := ""
 	if linkTarget, readErr := os.Readlink(dir); readErr == nil {
 		// dir is a symlink, resolve to actual directory
-		if filepath.IsAbs(linkTarget) {
-			currentDataDir = linkTarget
-		} else {
-			currentDataDir = filepath.Join(filepath.Dir(dir), linkTarget)
-		}
+		currentDataDir = resolveSymlinkTarget(dir, linkTarget)
 	}
 	// Note: dir should always be a symlink path that doesn't exist on first call,
 	// so we don't need to handle the case where dir is a regular directory
@@ -208,7 +166,7 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 			if val == "" {
 				continue
 			}
-			filePath := filepath.Join(currentDataDir, key)
+			filePath := getTokenFilePath(currentDataDir, key)
 			exists, sameContent, checkErr := checkFileContent(filePath, []byte(val))
 			if checkErr != nil || !exists || !sameContent {
 				// File doesn't exist, error reading, or content is different, needs update
@@ -225,9 +183,8 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 
 	// Create temporary data directory with timestamp suffix in the parent directory
 	// This ensures the symlink target is in the same filesystem for atomic rename
-	parentDir := filepath.Dir(dir)
-	baseName := filepath.Base(dir)
-	tmpDataDir := filepath.Join(parentDir, fmt.Sprintf(".%s.tmp_%d", baseName, time.Now().UnixNano()))
+	parentDir, baseName := getParentDirAndBaseName(dir)
+	tmpDataDir := getTempDataDirPathWithTimestamp(parentDir, baseName)
 	if err = os.MkdirAll(tmpDataDir, 0o755); err != nil {
 		return false, fmt.Errorf("failed to create temporary data directory: %w", err)
 	}
@@ -246,7 +203,7 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 		if val == "" {
 			continue
 		}
-		filePath := filepath.Join(tmpDataDir, key)
+		filePath := getTokenFilePath(tmpDataDir, key)
 		if err = os.WriteFile(filePath, []byte(val), 0o600); err != nil {
 			return false, fmt.Errorf("failed to write token file %s: %w", key, err)
 		}
@@ -254,8 +211,8 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 
 	// Atomically switch the dir symlink
 	// First, create a temporary symlink pointing to the new directory
-	tmpLinkPath := filepath.Join(parentDir, fmt.Sprintf(".%s.tmp", baseName))
-	relativeDataDir := filepath.Base(tmpDataDir)
+	tmpLinkPath := getTempSymlinkPath(parentDir, baseName)
+	relativeDataDir := getRelativeDirName(tmpDataDir)
 	if err = os.Symlink(relativeDataDir, tmpLinkPath); err != nil {
 		return false, fmt.Errorf("failed to create temporary symlink: %w", err)
 	}
@@ -304,8 +261,8 @@ func rotatePasswdFile(path string, data []byte, perm os.FileMode) (done bool, er
 
 	// Content is different or file doesn't exist, need to write
 	// Create temporary file in the same directory
-	dir := filepath.Dir(path)
-	tmpFile := filepath.Join(dir, fmt.Sprintf(".%s.tmp.%d", filepath.Base(path), time.Now().UnixNano()))
+	parentDir, baseName := getParentDirAndBaseName(path)
+	tmpFile := getTempPasswdFilePathWithTimestamp(parentDir, baseName)
 
 	// Use defer to ensure temporary file is cleaned up on any error or panic
 	defer removeIgnoreNotExist(tmpFile)
