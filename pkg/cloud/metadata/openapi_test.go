@@ -1,9 +1,11 @@
 package metadata
 
 import (
+	"encoding/json"
+	"errors"
 	"testing"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
@@ -44,11 +46,14 @@ const describeInstanceRespJson = `{
 	"TotalCount": 1
 }`
 
-func testEcsClient(ctrl *gomock.Controller) cloud.ECSInterface {
-	res := ecs.CreateDescribeInstancesResponse()
-	cloud.UnmarshalAcsResponse([]byte(describeInstanceRespJson), res)
+func testEcsClient(ctrl *gomock.Controller) cloud.ECSv2Interface {
+	res := &ecs20140526.DescribeInstancesResponse{}
+	err := json.Unmarshal([]byte(describeInstanceRespJson), &res.Body)
+	if err != nil {
+		panic(err)
+	}
 
-	ecsClient := cloud.NewMockECSInterface(ctrl)
+	ecsClient := cloud.NewMockECSv2Interface(ctrl)
 	ecsClient.EXPECT().DescribeInstances(gomock.Any()).Return(res, nil)
 	return ecsClient
 }
@@ -57,10 +62,61 @@ func TestGetOpenAPI(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ecsClient := testEcsClient(ctrl)
 
-	m, err := NewOpenAPIMetadata(ecsClient, "cn-beijing", "i-2zec1slzwdzrwmvlr4w2")
+	m, err := NewOpenAPIMetadata(ecsClient, "i-2zec1slzwdzrwmvlr4w2")
 	assert.NoError(t, err)
 
 	assert.Equal(t, "cn-beijing-k", MustGet(m, ZoneID))
 	assert.Equal(t, "ecs.g7.xlarge", MustGet(m, InstanceType))
 	assert.Equal(t, "i-2zec1slzwdzrwmvlr4w2", MustGet(m, InstanceID))
+}
+
+func TestGetOpenAPIError(t *testing.T) {
+	cases := []struct {
+		name         string
+		configClient func(*cloud.MockECSv2Interface)
+	}{
+		{
+			name: "describe_instances_error",
+			configClient: func(client *cloud.MockECSv2Interface) {
+				client.EXPECT().DescribeInstances(gomock.Any()).Return(nil, errors.New("failed to describe instances"))
+			},
+		},
+		{
+			name: "missing_field",
+			configClient: func(client *cloud.MockECSv2Interface) {
+				client.EXPECT().DescribeInstances(gomock.Any()).Return(&ecs20140526.DescribeInstancesResponse{}, nil)
+			},
+		},
+		{
+			name: "missing_instance",
+			configClient: func(client *cloud.MockECSv2Interface) {
+				client.EXPECT().DescribeInstances(gomock.Any()).Return(&ecs20140526.DescribeInstancesResponse{
+					Body: &ecs20140526.DescribeInstancesResponseBody{
+						Instances: &ecs20140526.DescribeInstancesResponseBodyInstances{
+							Instance: []*ecs20140526.DescribeInstancesResponseBodyInstancesInstance{},
+						},
+					},
+				}, nil)
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			ecsClient := cloud.NewMockECSv2Interface(ctrl)
+			c.configClient(ecsClient)
+
+			m := OpenAPIFetcher{
+				ecsClient: ecsClient,
+				mPre: FakeProvider{
+					Values: map[MetadataKey]string{
+						InstanceID: "i-2zec1slzwdzrwmvlr4w2",
+					},
+				},
+			}
+			_, err := m.FetchFor(InstanceType)
+			assert.Error(t, err)
+		})
+	}
 }

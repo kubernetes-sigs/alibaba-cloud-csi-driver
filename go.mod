@@ -7,6 +7,7 @@ tool github.com/golang/mock/mockgen
 require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.13
+	github.com/alibabacloud-go/ecs-20140526/v7 v7.4.2
 	github.com/alibabacloud-go/eflo-controller-20221215/v3 v3.0.0
 	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
 	github.com/alibabacloud-go/nas-20170626/v4 v4.1.2

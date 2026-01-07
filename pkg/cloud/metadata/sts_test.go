@@ -32,12 +32,6 @@ func testStsClient(ctrl *gomock.Controller) cloud.STSInterface {
 	return stsClient
 }
 
-func testStsClientFactory(ctrl *gomock.Controller) func(string) (cloud.STSInterface, error) {
-	return func(regionID string) (cloud.STSInterface, error) {
-		return testStsClient(ctrl), nil
-	}
-}
-
 func TestGetSts(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	stsClient := testStsClient(ctrl)

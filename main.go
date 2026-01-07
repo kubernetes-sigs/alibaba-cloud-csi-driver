@@ -27,10 +27,10 @@ import (
 	"sync"
 	"time"
 
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	sts20150401 "github.com/alibabacloud-go/sts-20150401/v2/client"
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
@@ -158,19 +158,30 @@ func main() {
 		}
 	}
 
-	ac := utils.GetAccessControl()
-	ecsClient := utils.NewEcsClient(ac)
-	meta.EnableOpenAPI(ecsClient)
-
 	provider, err := credentials.NewProvider()
 	if err != nil {
 		klog.ErrorS(err, "failed to get credential for metadata, will not enable OpenAPI")
 	} else {
-		cred := alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider)
-		stsClient := func(regionID string) (cloud.STSInterface, error) {
-			return sts20150401.NewClient(utils.GetStsConfig(regionID).SetCredential(cred))
+		regionID, err := meta.Get(metadata.RegionID)
+		if err != nil {
+			klog.ErrorS(err, "failed to get regionID for metadata, use cn-hangzhou")
+			regionID = "cn-hangzhou"
 		}
-		meta.EnableSts(stsClient)
+		cred := alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider)
+
+		ecsClient, err := ecs20140526.NewClient(utils.GetEcsConfig(regionID).SetCredential(cred))
+		if err != nil {
+			klog.ErrorS(err, "failed to get ecsClient for metadata")
+		} else {
+			meta.EnableOpenAPI(ecsClient)
+		}
+
+		stsClient, err := sts20150401.NewClient(utils.GetStsConfig(regionID).SetCredential(cred))
+		if err != nil {
+			klog.ErrorS(err, "failed to get stsClient for metadata")
+		} else {
+			meta.EnableSts(stsClient)
+		}
 	}
 
 	for i, driverName := range driverNames {

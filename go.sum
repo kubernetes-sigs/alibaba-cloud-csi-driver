@@ -44,6 +44,8 @@ github.com/alibabacloud-go/debug v0.0.0-20190504072949-9472017b5c68/go.mod h1:6p
 github.com/alibabacloud-go/debug v1.0.0/go.mod h1:8gfgZCCAC3+SCzjWtY053FrOcd4/qlH6IHTI4QyICOc=
 github.com/alibabacloud-go/debug v1.0.1 h1:MsW9SmUtbb1Fnt3ieC6NNZi6aEwrXfDksD4QA6GSbPg=
 github.com/alibabacloud-go/debug v1.0.1/go.mod h1:8gfgZCCAC3+SCzjWtY053FrOcd4/qlH6IHTI4QyICOc=
+github.com/alibabacloud-go/ecs-20140526/v7 v7.4.2 h1:A+rE0e+5XlrniPd+68bUHIq8Fh9fG1SIVpn6szd/6ac=
+github.com/alibabacloud-go/ecs-20140526/v7 v7.4.2/go.mod h1:Jwyp6loA3nt1hZu5fmyZahVMjZxNr2eDeXadPUnSKA0=
 github.com/alibabacloud-go/eflo-controller-20221215/v3 v3.0.0 h1:pZLIXOMPzHy49K891UCgwC4ihgoUYnTwvK4VIExkwzs=
 github.com/alibabacloud-go/eflo-controller-20221215/v3 v3.0.0/go.mod h1:SKN9dFS7vtPV1hfeLYE0iu4lB8OiFWz/4lq6FRkdapc=
 github.com/alibabacloud-go/endpoint-util v1.1.0 h1:r/4D3VSw888XGaeNpP994zDUaxdgTSHBbVfZlzf6b5Q=
