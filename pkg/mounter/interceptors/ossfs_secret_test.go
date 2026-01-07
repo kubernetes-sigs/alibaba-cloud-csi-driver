@@ -14,6 +14,7 @@ import (
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
@@ -800,6 +801,62 @@ func TestRotateTokenFiles(t *testing.T) {
 			}
 		})
 	}
+
+	// Test regular directory should return error
+	t.Run("regular directory should return error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		parentDir := filepath.Join(tmpDir, "parent")
+		err := os.MkdirAll(parentDir, 0o755)
+		require.NoError(t, err)
+
+		// Create a regular directory (not a symlink) with token files
+		regularDir := filepath.Join(parentDir, "sts")
+		err = os.MkdirAll(regularDir, 0o755)
+		require.NoError(t, err)
+
+		// Create token files in the regular directory
+		secrets := map[string]string{
+			mounterutils.KeyAccessKeyId:     "oldAKID",
+			mounterutils.KeyAccessKeySecret: "oldAKSecret",
+			mounterutils.KeySecurityToken:   "oldToken",
+		}
+		for key, value := range secrets {
+			filePath := filepath.Join(regularDir, key)
+			err := os.WriteFile(filePath, []byte(value), 0o600)
+			require.NoError(t, err)
+		}
+
+		// Verify it's a regular directory, not a symlink
+		fileInfo, err := os.Stat(regularDir)
+		require.NoError(t, err)
+		assert.True(t, fileInfo.IsDir())
+		_, err = os.Readlink(regularDir)
+		assert.Error(t, err) // Should fail because it's not a symlink
+
+		// Call rotateTokenFiles with new values - should return error
+		newSecrets := map[string]string{
+			mounterutils.KeyAccessKeyId:     "newAKID",
+			mounterutils.KeyAccessKeySecret: "newAKSecret",
+			mounterutils.KeySecurityToken:   "newToken",
+		}
+		rotated, err := rotateTokenFiles(regularDir, newSecrets)
+		assert.Error(t, err, "should return error for regular directory")
+		assert.False(t, rotated, "should not have rotated")
+		assert.Contains(t, err.Error(), "regular directory")
+		assert.Contains(t, err.Error(), "not a symlink")
+
+		// Verify regularDir is still a regular directory (not converted)
+		fileInfo, err = os.Stat(regularDir)
+		require.NoError(t, err)
+		assert.True(t, fileInfo.IsDir())
+		_, err = os.Readlink(regularDir)
+		assert.Error(t, err) // Still not a symlink
+
+		// Verify old files are still there (not rotated)
+		oldAK, err := os.ReadFile(filepath.Join(regularDir, mounterutils.KeyAccessKeyId))
+		require.NoError(t, err)
+		assert.Equal(t, "oldAKID", string(oldAK))
+	})
 }
 
 // TestOssfsSecretInterceptor_TokenRotation tests token rotation scenarios.
@@ -1144,14 +1201,38 @@ func TestRotateTokenFiles_SymlinkAtomicUpdate(t *testing.T) {
 		updateDone := make(chan bool)
 
 		// Start concurrent readers
+		// Each reader opens the directory once and reads all files using openat
+		// to ensure atomic consistency - all files are read from the same directory version
 		for i := 0; i < 10; i++ {
 			go func() {
 				values := make(map[string]string)
+				// Open directory once to get a consistent view
+				// This ensures all files are read from the same directory version
+				dirFd, err := os.Open(dir)
+				if err != nil {
+					readChan <- values
+					return
+				}
+				defer func() {
+					_ = dirFd.Close()
+				}()
+
+				// Read all files using the same directory file descriptor via openat
+				// This ensures atomic consistency - all files are from the same version
+				// even if symlink is switched during reading
+				// This simulates what ossfs does - it opens the directory and uses openat
 				for _, key := range []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration} {
-					filePath := filepath.Join(dir, key)
-					content, err := os.ReadFile(filePath)
+					// Use openat to read from the same directory file descriptor
+					// This ensures all files are read from the same directory version
+					fileFd, err := unix.Openat(int(dirFd.Fd()), key, unix.O_RDONLY, 0)
 					if err == nil {
-						values[key] = string(content)
+						// Read file content
+						var buf [4096]byte
+						n, err := unix.Read(fileFd, buf[:])
+						_ = unix.Close(fileFd)
+						if err == nil && n > 0 {
+							values[key] = string(buf[:n])
+						}
 					}
 				}
 				readChan <- values

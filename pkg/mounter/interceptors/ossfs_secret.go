@@ -148,12 +148,26 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 	// Check if any file needs update before writing
 	// Read current data directory if symlink exists
 	currentDataDir := ""
-	if linkTarget, readErr := os.Readlink(dir); readErr == nil {
+	linkTarget, err := os.Readlink(dir)
+	if err == nil {
 		// dir is a symlink, resolve to actual directory
 		currentDataDir = resolveSymlinkTarget(dir, linkTarget)
+	} else if os.IsNotExist(err) {
+		// dir doesn't exist, this is the first call
+		// currentDataDir remains empty
+	} else {
+		// Error reading symlink - check if dir is a regular directory
+		// If it's a regular directory, we cannot safely convert it to symlink because
+		// rename would change the inode, breaking file handles that clients may have opened.
+		// We must return an error to prevent data inconsistency.
+		fileInfo, statErr := os.Stat(dir)
+		if statErr == nil && fileInfo.IsDir() {
+			// dir is a regular directory, cannot safely rotate
+			return false, fmt.Errorf("cannot rotate token files: %s is a regular directory, not a symlink. ", dir)
+		}
+		// Some other error (permission denied, etc.) - cannot proceed with rotation
+		return false, fmt.Errorf("failed to read symlink %s: %w. Cannot proceed with token rotation", dir, err)
 	}
-	// Note: dir should always be a symlink path that doesn't exist on first call,
-	// so we don't need to handle the case where dir is a regular directory
 
 	anyNeedsUpdate := false
 	if currentDataDir == "" {
