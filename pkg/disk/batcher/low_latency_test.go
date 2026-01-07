@@ -170,7 +170,8 @@ func TestReportInefficient(t *testing.T) {
 	})
 
 	for range 20 {
-		batcher.Describe(ctx, "d-test")
+		_, err := batcher.Describe(ctx, "d-test")
+		assert.NoError(t, err)
 	}
 	assert.Contains(t, logger.GetSink().(ktesting.Underlier).GetBuffer().String(), "Inefficient batching")
 }
