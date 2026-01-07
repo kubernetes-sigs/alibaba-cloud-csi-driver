@@ -53,7 +53,12 @@ func (s *DescribeSmbAclResponseBody) SetRequestId(v string) *DescribeSmbAclRespo
 }
 
 func (s *DescribeSmbAclResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Acl != nil {
+		if err := s.Acl.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeSmbAclResponseBodyAcl struct {

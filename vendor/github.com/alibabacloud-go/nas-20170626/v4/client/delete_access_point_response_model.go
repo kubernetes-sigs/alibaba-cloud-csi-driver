@@ -59,5 +59,10 @@ func (s *DeleteAccessPointResponse) SetBody(v *DeleteAccessPointResponseBody) *D
 }
 
 func (s *DeleteAccessPointResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

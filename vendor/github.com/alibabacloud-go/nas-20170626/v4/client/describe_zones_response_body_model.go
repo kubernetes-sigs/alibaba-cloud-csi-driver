@@ -53,7 +53,12 @@ func (s *DescribeZonesResponseBody) SetZones(v *DescribeZonesResponseBodyZones) 
 }
 
 func (s *DescribeZonesResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Zones != nil {
+		if err := s.Zones.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeZonesResponseBodyZones struct {
@@ -78,7 +83,16 @@ func (s *DescribeZonesResponseBodyZones) SetZone(v []*DescribeZonesResponseBodyZ
 }
 
 func (s *DescribeZonesResponseBodyZones) Validate() error {
-	return dara.Validate(s)
+	if s.Zone != nil {
+		for _, item := range s.Zone {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeZonesResponseBodyZonesZone struct {
@@ -141,7 +155,22 @@ func (s *DescribeZonesResponseBodyZonesZone) SetZoneId(v string) *DescribeZonesR
 }
 
 func (s *DescribeZonesResponseBodyZonesZone) Validate() error {
-	return dara.Validate(s)
+	if s.Capacity != nil {
+		if err := s.Capacity.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.InstanceTypes != nil {
+		if err := s.InstanceTypes.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Performance != nil {
+		if err := s.Performance.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeZonesResponseBodyZonesZoneCapacity struct {
@@ -191,7 +220,16 @@ func (s *DescribeZonesResponseBodyZonesZoneInstanceTypes) SetInstanceType(v []*D
 }
 
 func (s *DescribeZonesResponseBodyZonesZoneInstanceTypes) Validate() error {
-	return dara.Validate(s)
+	if s.InstanceType != nil {
+		for _, item := range s.InstanceType {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeZonesResponseBodyZonesZoneInstanceTypesInstanceType struct {
@@ -202,8 +240,6 @@ type DescribeZonesResponseBodyZonesZoneInstanceTypesInstanceType struct {
 	// 	- If the FileSystemType parameter is set to extreme, the protocol type is nfs.
 	//
 	// 	- If the FileSystemType parameter is set to cpfs, the protocol type is cpfs.
-	//
-	// > CPFS file systems are available only on the China site (aliyun.com).
 	//
 	// example:
 	//
@@ -216,8 +252,6 @@ type DescribeZonesResponseBodyZonesZoneInstanceTypesInstanceType struct {
 	// 	- If the FileSystemType parameter is set to extreme, the storage type is standard or advance.
 	//
 	// 	- If the FileSystemType parameter is set to cpfs, the storage type is advance_100 (100 MB/s/TiB baseline) or advance_200 (200 MB/s/TiB baseline).
-	//
-	// > CPFS file systems are available only on the China site (aliyun.com).
 	//
 	// example:
 	//

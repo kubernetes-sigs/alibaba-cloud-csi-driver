@@ -53,7 +53,12 @@ func (s *CreateAccessPointResponseBody) SetRequestId(v string) *CreateAccessPoin
 }
 
 func (s *CreateAccessPointResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.AccessPoint != nil {
+		if err := s.AccessPoint.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateAccessPointResponseBodyAccessPoint struct {

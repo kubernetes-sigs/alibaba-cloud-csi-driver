@@ -59,5 +59,10 @@ func (s *RemoveClientFromBlackListResponse) SetBody(v *RemoveClientFromBlackList
 }
 
 func (s *RemoveClientFromBlackListResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

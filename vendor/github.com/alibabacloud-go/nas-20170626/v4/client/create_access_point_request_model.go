@@ -31,6 +31,8 @@ type iCreateAccessPointRequest interface {
 	GetPosixUserId() *int32
 	SetRootDirectory(v string) *CreateAccessPointRequest
 	GetRootDirectory() *string
+	SetTag(v []*CreateAccessPointRequestTag) *CreateAccessPointRequest
+	GetTag() []*CreateAccessPointRequestTag
 	SetVpcId(v string) *CreateAccessPointRequest
 	GetVpcId() *string
 	SetVswId(v string) *CreateAccessPointRequest
@@ -123,7 +125,8 @@ type CreateAccessPointRequest struct {
 	// example:
 	//
 	// /
-	RootDirectory *string `json:"RootDirectory,omitempty" xml:"RootDirectory,omitempty"`
+	RootDirectory *string                        `json:"RootDirectory,omitempty" xml:"RootDirectory,omitempty"`
+	Tag           []*CreateAccessPointRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 	// The VPC ID.
 	//
 	// This parameter is required.
@@ -194,6 +197,10 @@ func (s *CreateAccessPointRequest) GetRootDirectory() *string {
 	return s.RootDirectory
 }
 
+func (s *CreateAccessPointRequest) GetTag() []*CreateAccessPointRequestTag {
+	return s.Tag
+}
+
 func (s *CreateAccessPointRequest) GetVpcId() *string {
 	return s.VpcId
 }
@@ -257,6 +264,11 @@ func (s *CreateAccessPointRequest) SetRootDirectory(v string) *CreateAccessPoint
 	return s
 }
 
+func (s *CreateAccessPointRequest) SetTag(v []*CreateAccessPointRequestTag) *CreateAccessPointRequest {
+	s.Tag = v
+	return s
+}
+
 func (s *CreateAccessPointRequest) SetVpcId(v string) *CreateAccessPointRequest {
 	s.VpcId = &v
 	return s
@@ -268,5 +280,55 @@ func (s *CreateAccessPointRequest) SetVswId(v string) *CreateAccessPointRequest 
 }
 
 func (s *CreateAccessPointRequest) Validate() error {
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+type CreateAccessPointRequestTag struct {
+	// example:
+	//
+	// TestKey
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// example:
+	//
+	// TestValue
+	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
+}
+
+func (s CreateAccessPointRequestTag) String() string {
+	return dara.Prettify(s)
+}
+
+func (s CreateAccessPointRequestTag) GoString() string {
+	return s.String()
+}
+
+func (s *CreateAccessPointRequestTag) GetKey() *string {
+	return s.Key
+}
+
+func (s *CreateAccessPointRequestTag) GetValue() *string {
+	return s.Value
+}
+
+func (s *CreateAccessPointRequestTag) SetKey(v string) *CreateAccessPointRequestTag {
+	s.Key = &v
+	return s
+}
+
+func (s *CreateAccessPointRequestTag) SetValue(v string) *CreateAccessPointRequestTag {
+	s.Value = &v
+	return s
+}
+
+func (s *CreateAccessPointRequestTag) Validate() error {
 	return dara.Validate(s)
 }

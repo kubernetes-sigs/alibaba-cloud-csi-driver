@@ -48,9 +48,9 @@ type ModifyAccessRuleRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- standard (default): General-purpose NAS file system
+	// 	- standard (default): General-purpose NAS file system.
 	//
-	// 	- extreme: Extreme NAS file system
+	// 	- extreme: Extreme NAS file system.
 	//
 	// example:
 	//
@@ -84,9 +84,9 @@ type ModifyAccessRuleRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- RDWR (default): the read and write permissions
+	// 	- RDWR (default): the read and write permissions.
 	//
-	// 	- RDONLY: the read-only permissions
+	// 	- RDONLY: the read-only permissions.
 	//
 	// example:
 	//

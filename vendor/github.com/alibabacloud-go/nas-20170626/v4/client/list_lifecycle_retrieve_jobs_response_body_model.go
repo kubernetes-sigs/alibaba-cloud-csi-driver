@@ -104,7 +104,16 @@ func (s *ListLifecycleRetrieveJobsResponseBody) SetTotalCount(v int32) *ListLife
 }
 
 func (s *ListLifecycleRetrieveJobsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.LifecycleRetrieveJobs != nil {
+		for _, item := range s.LifecycleRetrieveJobs {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type ListLifecycleRetrieveJobsResponseBodyLifecycleRetrieveJobs struct {

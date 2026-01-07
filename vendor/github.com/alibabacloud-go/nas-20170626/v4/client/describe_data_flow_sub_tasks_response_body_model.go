@@ -70,7 +70,12 @@ func (s *DescribeDataFlowSubTasksResponseBody) SetRequestId(v string) *DescribeD
 }
 
 func (s *DescribeDataFlowSubTasksResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.DataFlowSubTask != nil {
+		if err := s.DataFlowSubTask.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowSubTasksResponseBodyDataFlowSubTask struct {
@@ -95,7 +100,16 @@ func (s *DescribeDataFlowSubTasksResponseBodyDataFlowSubTask) SetDataFlowSubTask
 }
 
 func (s *DescribeDataFlowSubTasksResponseBodyDataFlowSubTask) Validate() error {
-	return dara.Validate(s)
+	if s.DataFlowSubTask != nil {
+		for _, item := range s.DataFlowSubTask {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTask struct {
@@ -338,7 +352,17 @@ func (s *DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTask) Set
 }
 
 func (s *DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTask) Validate() error {
-	return dara.Validate(s)
+	if s.FileDetail != nil {
+		if err := s.FileDetail.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.ProgressStats != nil {
+		if err := s.ProgressStats.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTaskFileDetail struct {

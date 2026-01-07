@@ -31,6 +31,10 @@ type iCreateFileSystemRequest interface {
 	GetKmsKeyId() *string
 	SetProtocolType(v string) *CreateFileSystemRequest
 	GetProtocolType() *string
+	SetRedundancyType(v string) *CreateFileSystemRequest
+	GetRedundancyType() *string
+	SetRedundancyVSwitchIds(v []*string) *CreateFileSystemRequest
+	GetRedundancyVSwitchIds() []*string
 	SetResourceGroupId(v string) *CreateFileSystemRequest
 	GetResourceGroupId() *string
 	SetSnapshotId(v string) *CreateFileSystemRequest
@@ -54,17 +58,19 @@ type CreateFileSystemRequest struct {
 	//
 	// Specify a value based on the specifications on the buy page.
 	//
+	// [CPFS file system (Pay-as-you-go)](https://common-buy-intl.alibabacloud.com/?spm=5176.nas_overview.0.0.7ea01dbft0dTui\\&commodityCode=nas_cpfspost_public_intl#/buy)
+	//
 	// example:
 	//
 	// 150
 	Bandwidth *int64 `json:"Bandwidth,omitempty" xml:"Bandwidth,omitempty"`
-	// The capacity of the file system. Unit: GiB.
-	//
-	// This parameter is valid and required if the FileSystemType parameter is set to extreme.
+	// Specify the capacity of the file system. Unit: GiB. Specify the Capacity parameter when the FileSystemType parameter is set to extreme or cpfs.
 	//
 	// Specify a value based on the specifications on the following buy page:
 	//
-	// [Extreme NAS file system (Pay-as-you-go)](https://common-buy-intl.alibabacloud.com/?commodityCode=nas_extpost_public_intl#/buy)
+	// 	- [Extreme NAS file system (Pay-as-you-go)](https://common-buy-intl.alibabacloud.com/?commodityCode=nas_extpost_public_intl#/buy)
+	//
+	// 	- [CPFS file system (Pay-as-you-go)](https://common-buy-intl.alibabacloud.com/?spm=5176.nas_overview.0.0.7ea01dbft0dTui\\&commodityCode=nas_cpfspost_public_intl#/buy)
 	//
 	// example:
 	//
@@ -76,7 +82,7 @@ type CreateFileSystemRequest struct {
 	//
 	// 	- PayAsYouGo (default): pay-as-you-go
 	//
-	// 	- Subscription: subscription
+	// 	- Subscription
 	//
 	// example:
 	//
@@ -152,13 +158,11 @@ type CreateFileSystemRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- standard (default): General-purpose NAS file system
+	// 	- standard: General-purpose Apsara File Storage NAS (NAS) file system
 	//
-	// 	- extreme: Extreme NAS file system
+	// 	- extreme: Extreme NAS file system.
 	//
-	// 	- cpfs: Cloud Parallel File Storage (CPFS) file system
-	//
-	// > CPFS file systems are available only on the China site (aliyun.com).
+	// 	- cpfs: CPFS file system
 	//
 	// example:
 	//
@@ -172,11 +176,13 @@ type CreateFileSystemRequest struct {
 	//
 	// 3c0b3885-2adf-483d-8a65-5e280689****
 	KmsKeyId *string `json:"KmsKeyId,omitempty" xml:"KmsKeyId,omitempty"`
-	// The protocol type.
+	// Specify the protocol type.
 	//
-	// 	- If the FileSystemType parameter is set to standard, you can set the ProtocolType parameter to NFS or SMB.
+	// 	- If the FileSystemType parameter is set to standard, set the ProtocolType parameter to NFS or SMB.
 	//
-	// 	- If the FileSystemType parameter is set to extreme, you can set the ProtocolType parameter to NFS.
+	// 	- If the FileSystemType parameter is set to extreme, set the ProtocolType parameter to NFS.
+	//
+	// 	- If the FileSystemType parameter is set to cpfs, set the ProtocolType parameter to cpfs.
 	//
 	// This parameter is required.
 	//
@@ -184,6 +190,16 @@ type CreateFileSystemRequest struct {
 	//
 	// NFS
 	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
+	// if can be null:
+	// true
+	//
+	// example:
+	//
+	// ZRS
+	RedundancyType *string `json:"RedundancyType,omitempty" xml:"RedundancyType,omitempty"`
+	// if can be null:
+	// true
+	RedundancyVSwitchIds []*string `json:"RedundancyVSwitchIds,omitempty" xml:"RedundancyVSwitchIds,omitempty" type:"Repeated"`
 	// The resource group ID.
 	//
 	// You can log on to the [Resource Management console](https://resourcemanager.console.aliyun.com/resource-groups?) to view resource group IDs.
@@ -202,11 +218,13 @@ type CreateFileSystemRequest struct {
 	//
 	// s-xxx
 	SnapshotId *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
-	// The storage class.
+	// The storage type.
 	//
-	// 	- If the FileSystemType parameter is set to standard, you can set the StorageType parameter to Performance, Capacity, or Premium.
+	// 	- If the FileSystemType parameter is set to standard, set the StorageType parameter to Performance, Capacity, or Premium.
 	//
-	// 	- If the FileSystemType parameter is set to extreme, you can set the StorageType parameter to standard or advance.
+	// 	- If the FileSystemType parameter is set to extreme, set the StorageType parameter to standard or advance.
+	//
+	// 	- If the FileSystemType parameter is set to cpfs, set the StorageType parameter to advance_100 (100 MB/s/TiB baseline) or advance_200 (200 MB/s/TiB baseline).
 	//
 	// This parameter is required.
 	//
@@ -218,9 +236,11 @@ type CreateFileSystemRequest struct {
 	//
 	// You can specify up to 20 tags. If you specify multiple tags, each tag key must be unique.
 	Tag []*CreateFileSystemRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-	// The vSwitch ID.
+	// The vSwitch ID of the cluster.
 	//
-	// This parameter is reserved and does not take effect. You do not need to configure this parameter.
+	// 	- This parameter is required only if you set the FileSystemType parameter to cpfs.
+	//
+	// 	- This parameter is reserved and not required if you set the FileSystemType parameter to standard or extreme.
 	//
 	// example:
 	//
@@ -228,23 +248,27 @@ type CreateFileSystemRequest struct {
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
 	// The ID of the virtual private cloud (VPC).
 	//
-	// This parameter is reserved and does not take effect. You do not need to configure this parameter.
+	// 	- This parameter is required only if you set the FileSystemType parameter to cpfs.
+	//
+	// 	- This parameter is reserved and not required if you set the FileSystemType parameter to standard or extreme.
 	//
 	// example:
 	//
 	// vpc-bp1cbv1ljve4j5hlw****
 	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
-	// The zone ID.
+	// The ID of the zone.
 	//
-	// Each region has multiple isolated locations known as zones. Each zone has its own independent power supply and networks.
+	// Each region has multiple isolated locations known as zones. Each zone has its own independent power supply and network.
 	//
 	// This parameter is not required if the FileSystemType parameter is set to standard. By default, a random zone is selected based on the protocol type and storage type.
 	//
-	// This parameter is required if the FileSystemType parameter is set to extreme.
+	// This parameter is required if the FileSystemType parameter is set to extreme or cpfs.
 	//
-	// > 	- An Elastic Compute Service (ECS) instance and a NAS file system that reside in different zones of the same region can access each other.
+	// >
 	//
-	// >	- We recommend that you select the zone where the ECS instance resides. This prevents cross-zone latency between the file system and the ECS instance.
+	// 	- An Elastic Compute Service (ECS) instance and a NAS file system that reside in different zones of the same region can access each other.
+	//
+	// 	- We recommend that you select the zone where the ECS instance resides. This prevents cross-zone latency between the file system and the ECS instance.
 	//
 	// example:
 	//
@@ -302,6 +326,14 @@ func (s *CreateFileSystemRequest) GetKmsKeyId() *string {
 
 func (s *CreateFileSystemRequest) GetProtocolType() *string {
 	return s.ProtocolType
+}
+
+func (s *CreateFileSystemRequest) GetRedundancyType() *string {
+	return s.RedundancyType
+}
+
+func (s *CreateFileSystemRequest) GetRedundancyVSwitchIds() []*string {
+	return s.RedundancyVSwitchIds
 }
 
 func (s *CreateFileSystemRequest) GetResourceGroupId() *string {
@@ -387,6 +419,16 @@ func (s *CreateFileSystemRequest) SetProtocolType(v string) *CreateFileSystemReq
 	return s
 }
 
+func (s *CreateFileSystemRequest) SetRedundancyType(v string) *CreateFileSystemRequest {
+	s.RedundancyType = &v
+	return s
+}
+
+func (s *CreateFileSystemRequest) SetRedundancyVSwitchIds(v []*string) *CreateFileSystemRequest {
+	s.RedundancyVSwitchIds = v
+	return s
+}
+
 func (s *CreateFileSystemRequest) SetResourceGroupId(v string) *CreateFileSystemRequest {
 	s.ResourceGroupId = &v
 	return s
@@ -423,7 +465,16 @@ func (s *CreateFileSystemRequest) SetZoneId(v string) *CreateFileSystemRequest {
 }
 
 func (s *CreateFileSystemRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateFileSystemRequestTag struct {

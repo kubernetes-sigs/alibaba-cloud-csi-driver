@@ -32,7 +32,7 @@ type CreateRecycleBinRestoreJobRequest struct {
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// The ID of the file or directory that you want to restore.
 	//
-	// You can call the [ListRecycleBinJobs](https://help.aliyun.com/document_detail/264192.html) operation to query the value of the FileId parameter.
+	// You can call the [ListRecycledDirectoriesAndFiles](https://help.aliyun.com/document_detail/2412174.html) operation to query the FileId of the deleted data.
 	//
 	// This parameter is required.
 	//
@@ -49,6 +49,10 @@ type CreateRecycleBinRestoreJobRequest struct {
 	// 1ca404****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The ID of the directory to which the file is restored.
+	//
+	// 	- You can call the [ListRecentlyRecycledDirectories](https://help.aliyun.com/document_detail/2412173.html) operation to query the TargetFileId for recently deleted directories.
+	//
+	// 	- You can call the [ListDirectoriesAndFiles](https://help.aliyun.com/document_detail/2412163.html) operation to query the TargetFileId for existing directories.
 	//
 	// This parameter is required.
 	//

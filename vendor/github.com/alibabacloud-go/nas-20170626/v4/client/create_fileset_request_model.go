@@ -28,7 +28,7 @@ type iCreateFilesetRequest interface {
 type CreateFilesetRequest struct {
 	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](https://help.aliyun.com/document_detail/25693.html)
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How to ensure idempotence](https://help.aliyun.com/document_detail/25693.html).
 	//
 	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	//
@@ -36,7 +36,7 @@ type CreateFilesetRequest struct {
 	//
 	// 123e4567-e89b-12d3-a456-42665544****
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// Specifies whether to enable deletion protection to allow you to release the fileset by using the console or by calling the [DeleteFileset](https://help.aliyun.com/document_detail/2838077.html) operation.
+	// Specifies whether to enable deletion protection to allow you to release the fileset by using the console or by calling the [DeleteFileset](https://help.aliyun.com/document_detail/2402263.html) operation.
 	//
 	// 	- true: enables release protection.
 	//
@@ -52,9 +52,9 @@ type CreateFilesetRequest struct {
 	//
 	// 	- The description must be 2 to 128 characters in length.
 	//
-	// 	- The description must start with a letter but cannot start with http:// or https://.
+	// 	- The name must start with a letter and cannot start with http:// or https://.
 	//
-	// 	- The description can contain letters, digits, colons (:), underscores (_), and hyphens (-).
+	// 	- The description can contain letters, digits, colons (:), underscores (_), periods (.), and hyphens (-).
 	//
 	// example:
 	//
@@ -64,9 +64,9 @@ type CreateFilesetRequest struct {
 	//
 	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no fileset is created and no fee is incurred.
 	//
-	// Valid values:
+	// Valid value:
 	//
-	// 	- true: performs a dry run. The system checks the required parameters, request syntax, service limits, and available Apsara File Storage NAS (NAS) resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the FsetId parameter.
+	// 	- true: performs a dry run. The system checks the required parameters, request syntax, service limits, and available Apsara File Storage NAS (NAS) resources. Otherwise, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the FsetId parameter.
 	//
 	// 	- false (default): performs a dry run and sends the request. If the request passes the dry run, a fileset is created.
 	//
@@ -78,9 +78,7 @@ type CreateFilesetRequest struct {
 	//
 	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-099394bd928c\\*\\*\\*\\*.
 	//
-	// 	- The IDs of CPFS for LINGJUN file systems must start with `bmcpfs-`. Example: bmcpfs-290w65p03ok64ya\\*\\*\\*\\*.
-	//
-	// >  CPFS is not supported on the international site.
+	// 	- The IDs of CPFS for Lingjun file systems must start with `bmcpfs-`. Example: bmcpfs-290w65p03ok64ya\\*\\*\\*\\*.
 	//
 	// This parameter is required.
 	//
@@ -90,17 +88,29 @@ type CreateFilesetRequest struct {
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The absolute path of the fileset.
 	//
-	// 	- The path must be 2 to 1024 characters in length.
+	// 	- CPFS path limits.
 	//
-	// 	- The path must start and end with a forward slash (/).
+	//     	- The parent directory of the path that you specify must be an existing directory in the file system.
 	//
-	// 	- The fileset path must be a new path and cannot be an existing path. Fileset paths cannot be renamed and cannot be symbolic links.
+	//     	- The path must be 2 to 1024 characters in length.
 	//
-	// 	- The maximum depth supported by a fileset path is eight levels. The depth of the root directory / is 0 levels. For example, the fileset path /test/aaa/ccc/ has three levels.
+	//     	- The path must start and end with a forward slash (/).
 	//
-	// 	- If the fileset path is a multi-level path, the parent directory must be an existing directory.
+	// 	- Path limit of CPFS for Lingjun
 	//
-	// 	- Nested filesets are not supported. If a fileset is specified as a parent directory, its subdirectory cannot be a fileset. A fileset path supports only one quota.
+	//     	- The path must be 2 to 1024 characters in length.
+	//
+	//     	- The path must start and end with a forward slash (/).
+	//
+	//     	- The fileset path must be a new path and cannot be an existing path. Fileset paths cannot be renamed and cannot be symbolic links.
+	//
+	//     	- The maximum depth supported by a fileset path is eight levels. The depth of the root directory / is 0 levels. For example, the fileset path /test/aaa/ccc/ has three levels.
+	//
+	//     	- If the fileset path is a multi-level path, the parent directory must be an existing directory.
+	//
+	//     	- Nested filesets are not supported. If a fileset is specified as a parent directory, its subdirectory cannot be a fileset. A fileset path supports only one quota.
+	//
+	//     	- The path cannot exceed 990 characters in length.
 	//
 	// This parameter is required.
 	//
@@ -110,7 +120,7 @@ type CreateFilesetRequest struct {
 	FileSystemPath *string `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
 	// The quota information.
 	//
-	// >  Only CPFS for LINGJUN V2.7.0 and later support this parameter.
+	// >  Only CPFS for Lingjun V2.7.0 and later support this parameter.
 	Quota *CreateFilesetRequestQuota `json:"Quota,omitempty" xml:"Quota,omitempty" type:"Struct"`
 }
 
@@ -186,11 +196,16 @@ func (s *CreateFilesetRequest) SetQuota(v *CreateFilesetRequestQuota) *CreateFil
 }
 
 func (s *CreateFilesetRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Quota != nil {
+		if err := s.Quota.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateFilesetRequestQuota struct {
-	// The number of files of the quota. Valid values:
+	// The file quantity quota. Valid values:
 	//
 	// 	- Minimum value: 100000.
 	//
@@ -200,13 +215,11 @@ type CreateFilesetRequestQuota struct {
 	//
 	// 10000
 	FileCountLimit *int64 `json:"FileCountLimit,omitempty" xml:"FileCountLimit,omitempty"`
-	// The total capacity of the quota. Unit: bytes.
+	// The total quota capacity limit. Unit: bytes.
 	//
 	// Valid values:
 	//
-	// 	- Minimum value: 10737418240 (10 GiB).
-	//
-	// 	- Maximum value: 1073741824000 (1024000 GiB).
+	// 	- Minimum value: 10,737,418,240 (10 GiB).
 	//
 	// 	- Step size: 1073741824 (1 GiB).
 	//

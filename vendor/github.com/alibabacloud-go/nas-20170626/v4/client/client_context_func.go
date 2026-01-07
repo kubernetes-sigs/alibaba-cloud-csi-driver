@@ -23,9 +23,11 @@ import (
 //
 // @return AddClientToBlackListResponse
 func (client *Client) AddClientToBlackListWithContext(ctx context.Context, request *AddClientToBlackListRequest, runtime *dara.RuntimeOptions) (_result *AddClientToBlackListResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientIP) {
@@ -89,9 +91,11 @@ func (client *Client) AddClientToBlackListWithContext(ctx context.Context, reque
 //
 // @return ApplyAutoSnapshotPolicyResponse
 func (client *Client) ApplyAutoSnapshotPolicyWithContext(ctx context.Context, request *ApplyAutoSnapshotPolicyRequest, runtime *dara.RuntimeOptions) (_result *ApplyAutoSnapshotPolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyId) {
@@ -131,25 +135,27 @@ func (client *Client) ApplyAutoSnapshotPolicyWithContext(ctx context.Context, re
 //
 // Description:
 //
-//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems.
 //
-//		- Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+//		- Only CPFS V2.2.0 and later support data flows. You can view the version information on the file system details page in the console.
 //
 //		- You can add AutoRefresh configurations only to the dataflows that are in the `Running` state.
 //
 //		- You can add a maximum of five AutoRefresh configurations to a dataflow.
 //
-//		- It generally takes 2 to 5 minutes to create an AutoRefresh configuration. You can call the [DescribeDataFlows](https://help.aliyun.com/document_detail/2838084.html) operation to query the dataflow status.
+//		- It generally takes 2 to 5 minutes to create an AutoRefresh configuration. You can call the [DescribeDataFlows](https://help.aliyun.com/document_detail/336901.html) operation to query the dataflow status.
 //
-//		- AutoRefresh depends on the object modification events collected by EventBridge from the source Object Storage Service (OSS) bucket. You must first [activate EventBridge](https://help.aliyun.com/document_detail/182246.html).
+//		- AutoRefresh depends on the object modification events collected by EventBridge from the source OSS bucket. You must first [activate EventBridge](https://help.aliyun.com/document_detail/182246.html).
 //
-//	    > The event buses and event rules created for CPFS in the EventBridge console contain the `Create for cpfs auto refresh` description. The event buses and event rules cannot be modified or deleted. Otherwise, AutoRefresh cannot work properly.
+//	    **
 //
-//		- The AutoRefresh configuration applies only to the prefix and is specified by the RefreshPath parameter. When you add an AutoRefresh configuration to the prefix for a CPFS dataflow, an event bus is created at the user side and an event rule is created for the prefix of the source OSS bucket. When an object is modified in the prefix of the source OSS bucket, an OSS event is generated in the EventBridge console. The event is processed by the CPFS dataflow.
+//	    **Note*	- The event buses and event rules created for CPFS in the EventBridge console contain the `Create for cpfs auto refresh` description. The event buses and event rules cannot be modified or deleted. Otherwise, AutoRefresh cannot work properly.
 //
-//		- After AutoRefresh is configured, if the data in the source OSS bucket is updated, the updated metadata is automatically synchronized to the CPFS file system. You can load the updated data when you access files, or run a dataflow task to load the updated data.
+//		- The AutoRefresh configuration applies only to the prefix and is specified by the RefreshPath parameter. When you add an AutoRefresh configuration to the prefix for a CPFS dataflow, an event bus is created at the user side and an event rule is created for the prefix of the source OSS bucket. When an object is modified in the prefix of the source OSS bucket, an OSS event is generated in the EventBridge console. The event is processed by the CPFS data flow.
 //
-//		- AutoRefreshInterval refers to the interval at which CPFS checks whether data is updated in the prefix of the source OSS bucket. If data is updated, CPFS runs an AutoRefresh task. If the frequency of triggering the object modification event in the source OSS bucket exceeds the processing capability of the CPFS dataflow, AutoRefresh tasks are accumulated, metadata updates are delayed, and the dataflow status becomes Misconfigured. To resolve these issues, you can increase the dataflow specifications or reduce the frequency of triggering the object modification event.
+//		- After AutoRefresh is configured, if the data in the source OSS bucket is updated, the updated metadata is automatically synchronized to the CPFS file system. You can load the updated data when you access files, or run a data flow task to load the updated data.
+//
+//		- AutoRefreshInterval refers to the interval at which CPFS checks whether data is updated in the prefix of the source OSS bucket. If data is updated, CPFS runs an AutoRefresh task. If the frequency of triggering the object modification event in the source OSS bucket exceeds the processing capability of the CPFS data flow, AutoRefresh tasks are accumulated, metadata updates are delayed, and the data flow status becomes Misconfigured. To resolve these issues, you can increase the data flow specifications or reduce the frequency of triggering the object modification event.
 //
 // @param request - ApplyDataFlowAutoRefreshRequest
 //
@@ -157,9 +163,11 @@ func (client *Client) ApplyAutoSnapshotPolicyWithContext(ctx context.Context, re
 //
 // @return ApplyDataFlowAutoRefreshResponse
 func (client *Client) ApplyDataFlowAutoRefreshWithContext(ctx context.Context, request *ApplyDataFlowAutoRefreshRequest, runtime *dara.RuntimeOptions) (_result *ApplyDataFlowAutoRefreshResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoRefreshInterval) {
@@ -229,9 +237,11 @@ func (client *Client) ApplyDataFlowAutoRefreshWithContext(ctx context.Context, r
 //
 // @return AttachVscToFilesystemsResponse
 func (client *Client) AttachVscToFilesystemsWithContext(ctx context.Context, request *AttachVscToFilesystemsRequest, runtime *dara.RuntimeOptions) (_result *AttachVscToFilesystemsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -281,9 +291,11 @@ func (client *Client) AttachVscToFilesystemsWithContext(ctx context.Context, req
 //
 // @return CancelAutoSnapshotPolicyResponse
 func (client *Client) CancelAutoSnapshotPolicyWithContext(ctx context.Context, request *CancelAutoSnapshotPolicyRequest, runtime *dara.RuntimeOptions) (_result *CancelAutoSnapshotPolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemIds) {
@@ -319,13 +331,13 @@ func (client *Client) CancelAutoSnapshotPolicyWithContext(ctx context.Context, r
 //
 // Description:
 //
-//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems.
 //
-//		- Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+//		- Only CPFS V2.2.0 and later support data flows. You can view the version information on the file system details page in the console.
 //
 //		- You can cancel AutoRefresh configurations only for the dataflows that are in the `Running` or `Stopped` state.
 //
-//		- It generally takes 2 to 5 minutes to cancel the AutoRefresh configurations. You can call the [DescribeDataFlows](https://help.aliyun.com/document_detail/2838084.html) operation to query the status of the AutoRefresh tasks.
+//		- It generally takes 2 to 5 minutes to cancel the AutoRefresh configurations. You can call the [DescribeDataFlows](https://help.aliyun.com/document_detail/2402270.html) operation to query the status of the AutoRefresh tasks.
 //
 // @param request - CancelDataFlowAutoRefreshRequest
 //
@@ -333,9 +345,11 @@ func (client *Client) CancelAutoSnapshotPolicyWithContext(ctx context.Context, r
 //
 // @return CancelDataFlowAutoRefreshResponse
 func (client *Client) CancelDataFlowAutoRefreshWithContext(ctx context.Context, request *CancelDataFlowAutoRefreshRequest, runtime *dara.RuntimeOptions) (_result *CancelDataFlowAutoRefreshResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -399,9 +413,11 @@ func (client *Client) CancelDataFlowAutoRefreshWithContext(ctx context.Context, 
 //
 // @return CancelDataFlowSubTaskResponse
 func (client *Client) CancelDataFlowSubTaskWithContext(ctx context.Context, request *CancelDataFlowSubTaskRequest, runtime *dara.RuntimeOptions) (_result *CancelDataFlowSubTaskResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -453,15 +469,17 @@ func (client *Client) CancelDataFlowSubTaskWithContext(ctx context.Context, requ
 
 // Summary:
 //
-// Cancels a dataflow task that is not running.
+// Cancels a batch or streaming task that is in the Pending or Execute state.
 //
 // Description:
 //
-//	  Only Cloud Parallel File Storage (CPFS) for LINGJUN V2.4.0 and later support data flow tasks. You can view the version information on the file system details page in the console.
+//	  Only Cloud Parallel File Storage (CPFS) V2.2.0 and later and CPFS for Lingjun V2.4.0 and later support this operation. You can view the version information on the file system details page in the console.
 //
 //		- You can cancel only the data flow tasks that are in the `Pending` and `Executing` states.
 //
-//		- It generally takes 5 to 10 minutes to cancel a data flow task. You can query the task execution status by calling the [DescribeDataFlowTasks](https://help.aliyun.com/document_detail/2838089.html) operation.
+//		- It generally takes 5 to 10 minutes to cancel a data flow task. You can query the task execution status by calling the [DescribeDataFlowTasks](https://help.aliyun.com/document_detail/2402275.html) operation.
+//
+//		- If a data streaming task contains running subtasks, you cannot cancel the streaming task. Otherwise, an InvalidStatus.ResourceMismatch error message is returned.
 //
 // @param request - CancelDataFlowTaskRequest
 //
@@ -469,9 +487,11 @@ func (client *Client) CancelDataFlowSubTaskWithContext(ctx context.Context, requ
 //
 // @return CancelDataFlowTaskResponse
 func (client *Client) CancelDataFlowTaskWithContext(ctx context.Context, request *CancelDataFlowTaskRequest, runtime *dara.RuntimeOptions) (_result *CancelDataFlowTaskResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -531,9 +551,11 @@ func (client *Client) CancelDataFlowTaskWithContext(ctx context.Context, request
 //
 // @return CancelDirQuotaResponse
 func (client *Client) CancelDirQuotaWithContext(ctx context.Context, request *CancelDirQuotaRequest, runtime *dara.RuntimeOptions) (_result *CancelDirQuotaResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -589,9 +611,11 @@ func (client *Client) CancelDirQuotaWithContext(ctx context.Context, request *Ca
 //
 // @return CancelFilesetQuotaResponse
 func (client *Client) CancelFilesetQuotaWithContext(ctx context.Context, request *CancelFilesetQuotaRequest, runtime *dara.RuntimeOptions) (_result *CancelFilesetQuotaResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -647,9 +671,11 @@ func (client *Client) CancelFilesetQuotaWithContext(ctx context.Context, request
 //
 // @return CancelLifecycleRetrieveJobResponse
 func (client *Client) CancelLifecycleRetrieveJobWithContext(ctx context.Context, request *CancelLifecycleRetrieveJobRequest, runtime *dara.RuntimeOptions) (_result *CancelLifecycleRetrieveJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.JobId) {
@@ -699,9 +725,11 @@ func (client *Client) CancelLifecycleRetrieveJobWithContext(ctx context.Context,
 //
 // @return CancelRecycleBinJobResponse
 func (client *Client) CancelRecycleBinJobWithContext(ctx context.Context, request *CancelRecycleBinJobRequest, runtime *dara.RuntimeOptions) (_result *CancelRecycleBinJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -737,9 +765,11 @@ func (client *Client) CancelRecycleBinJobWithContext(ctx context.Context, reques
 //
 // @return ChangeResourceGroupResponse
 func (client *Client) ChangeResourceGroupWithContext(ctx context.Context, request *ChangeResourceGroupRequest, runtime *dara.RuntimeOptions) (_result *ChangeResourceGroupResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.NewResourceGroupId) {
@@ -791,9 +821,11 @@ func (client *Client) ChangeResourceGroupWithContext(ctx context.Context, reques
 //
 // @return CreateAccessGroupResponse
 func (client *Client) CreateAccessGroupWithContext(ctx context.Context, request *CreateAccessGroupRequest, runtime *dara.RuntimeOptions) (_result *CreateAccessGroupResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -853,9 +885,11 @@ func (client *Client) CreateAccessGroupWithContext(ctx context.Context, request 
 //
 // @return CreateAccessPointResponse
 func (client *Client) CreateAccessPointWithContext(ctx context.Context, request *CreateAccessPointRequest, runtime *dara.RuntimeOptions) (_result *CreateAccessPointResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroup) {
@@ -902,6 +936,10 @@ func (client *Client) CreateAccessPointWithContext(ctx context.Context, request 
 		query["RootDirectory"] = request.RootDirectory
 	}
 
+	if !dara.IsNil(request.Tag) {
+		query["Tag"] = request.Tag
+	}
+
 	if !dara.IsNil(request.VpcId) {
 		query["VpcId"] = request.VpcId
 	}
@@ -943,9 +981,11 @@ func (client *Client) CreateAccessPointWithContext(ctx context.Context, request 
 //
 // @return CreateAccessRuleResponse
 func (client *Client) CreateAccessRuleWithContext(ctx context.Context, request *CreateAccessRuleRequest, runtime *dara.RuntimeOptions) (_result *CreateAccessRuleResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -1031,9 +1071,11 @@ func (client *Client) CreateAccessRuleWithContext(ctx context.Context, request *
 //
 // @return CreateAutoSnapshotPolicyResponse
 func (client *Client) CreateAutoSnapshotPolicyWithContext(ctx context.Context, request *CreateAutoSnapshotPolicyRequest, runtime *dara.RuntimeOptions) (_result *CreateAutoSnapshotPolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyName) {
@@ -1087,37 +1129,97 @@ func (client *Client) CreateAutoSnapshotPolicyWithContext(ctx context.Context, r
 //
 //	  Basic operations
 //
-//	    	- Cloud Parallel File Storage (CPFS) for LINGJUN V2.4.0 and later support data flows.
+//	    	- Only Cloud Parallel File Storage (CPFS) V2.2.0 and later and CPFS for Lingjun V2.4.0 and later support data flows.
 //
-//	    	- You can create a data flow only when a CPFS for LINGJUN file system is in the Running state.
+//	    	- You can create a data flow only when a CPFS or CPFS for Lingjun file system is in the Running state.
 //
-//	    	- A maximum of 10 data flows can be created for a CPFS for LINGJUN file system.
+//	    	- A maximum of 10 data flows can be created for a CPFS or CPFS for Lingjun file system.
 //
 //	    	- It generally takes 2 to 5 minutes to create a data flow. You can call the DescribeDataFlows operation to check whether the data flow has been created.
 //
-//		- Permissions
+//		- Permission
 //
-//	    When you create a data flow, CPFS for LINGJUN obtains the following two service-linked roles: `AliyunServiceRoleForNasOssDataflow` and `AliyunServiceRoleForNasEventNotification`. For more information, see [CPFS service-linked roles](https://help.aliyun.com/document_detail/2837688.html).
+//	    When you create a data flow, CPFS obtains the following two service-linked roles: `AliyunServiceRoleForNasOssDataflow` and `AliyunServiceRoleForNasEventNotification`. For more information, see [CPFS service-linked roles](https://help.aliyun.com/document_detail/185138.html).
 //
-//		- CPFS for LINGJUN usage notes
+//		- CPFS usage notes
 //
-//	     	- Source storage
+//	    	- Billing
 //
-//	         	- The source storage is an Object Storage Service (OSS) bucket. SourceStorage for a data flow must be an OSS bucket.
+//	        	- If you create a data flow, you are charged for using the data flow throughput. For more information, see [Billing of CPFS](https://help.aliyun.com/document_detail/111858.html).
 //
-//	         	- CPFS for LINGJUN data flows support both encrypted and unencrypted access to OSS. If you select SSL-encrypted access to OSS, make sure that encryption in transit for OSS buckets supports encrypted access.
+//	        	- When you configure the AutoRefresh feature for a data flow, CPFS must use EventBridge to collect object modification events from the source Object Storage Service (OSS) bucket. Event fees are incurred. For more information, see [Billing of EventBridge](https://help.aliyun.com/document_detail/163752.html).
 //
-//	         	- If data flows for multiple CPFS for LINGJUN file systems or multiple data flows for the same CPFS for LINGJUN file system are stored in the same OSS bucket, you must enable versioning for the OSS bucket to prevent data conflicts caused by data export from multiple CPFS for LINGJUN file systems to one OSS bucket.
+//	    	- Data flow specifications
 //
-//	         	- Data flows are not supported for OSS buckets across regions. The OSS bucket must reside in the same region as the CPFS file system.
+//	        	- The data flow throughput supports the following specifications: 600 MB/s, 1,200 MB/s, and 1,500 MB/s. The data flow throughput is the maximum transmission bandwidth that can be reached when data is imported or exported for a data flow.
 //
-//	         	- CPFS for LINGJUN V2.6.0 and later allow you to create data flows for OSS buckets across accounts.
+//	        	- When you create a data flow, the vSwitch IP addresses used by a CPFS mount target are consumed. Make sure that the vSwitch can provide sufficient IP addresses.
 //
-//	         	- The account id parameter is required only when you use OSS buckets across accounts.
+//	        	- Inventory query: If you set the DryRun parameter to true, you can check whether the resources for the data flow whose throughput is changed meet the requirements.
 //
-//	         	- To use OSS buckets across accounts, you must first grant permissions to the related accounts. For more information, see [Cross-account authorization on data flows](https://help.aliyun.com/document_detail/2713462.html).
+//	    	- Fileset
 //
-//	         >  Before you create a data flow, you must configure a tag (key: cpfs-dataflow, value: true) for the source OSS bucket. This way, the created data flow can access the data in the OSS bucket. When a data flow is being used, do not delete or modify the tag. Otherwise, the data flow for CPFS for LINGJUN cannot access the data in the OSS bucket.
+//	        	- The destination for a data flow is a fileset in the CPFS file system. A fileset is a new directory tree structure (a small file directory) in a CPFS file system. Each fileset independently manages an inode space.
+//
+//	        	- When you create a data flow for a CPFS file system, the related fileset must already exist and cannot be nested with other filesets. Only one data flow can be created in a fileset, which corresponds to one source storage.
+//
+//	        	- A fileset supports a maximum of one million files. If the number of files imported from an OSS bucket into the fileset exceeds the upper limit, the `no space` error message is returned when you add new files.
+//
+//	    **
+//
+//	    **Note **If data already exists in the fileset, after you create a data flow, the existing data in the fileset is cleared and replaced with the data synchronized from the OSS bucket.
+//
+//	    	- AutoRefresh
+//
+//	        	- After AutoRefresh is configured, if the data in the source OSS bucket is updated, the updated metadata is automatically synchronized to the CPFS file system. You can load the updated data when you access files, or run a data flow task to load the updated data.
+//
+//	        	- AutoRefresh depends on the object modification events collected by EventBridge from the source OSS bucket. You must first [activate EventBridge](https://help.aliyun.com/document_detail/182246.html).
+//
+//	        	- The AutoRefresh configuration applies only to the prefix and is specified by the RefreshPath parameter. You can configure a maximum of five AutoRefresh directories for a data flow.
+//
+//	        	- AutoRefreshInterval refers to the interval at which CPFS checks whether data is updated in the prefix of the source OSS bucket. If data is updated, CPFS runs an AutoRefresh task. If the frequency of triggering the object modification event in the source OSS bucket exceeds the processing capability of the CPFS data flow, AutoRefresh tasks are accumulated, metadata updates are delayed, and the data flow status becomes `Misconfigured`. To resolve these issues, you can increase the data flow specifications or reduce the frequency of triggering the object modification event.
+//
+//	        	- When you add an AutoRefresh configuration to the prefix for a CPFS data flow, an event bus is created at the user side and an event rule is created for the prefix of the source OSS bucket. When an object is modified in the prefix of the source OSS bucket, an OSS event is generated in the EventBridge console. The event is processed by the CPFS data flow.
+//
+//	        **
+//
+//	        **Note **The event buses and event rules created for CPFS in the EventBridge console contain the `Create for cpfs auto refresh` description. The event buses and event rules cannot be modified or deleted. Otherwise, AutoRefresh cannot work properly.
+//
+//	    	- Source storage
+//
+//	        	- The source storage is an OSS bucket. SourceStorage for a data flow must be an OSS bucket.
+//
+//	        	- CPFS data flows support both encrypted and unencrypted access to OSS. If you select SSL-encrypted access to OSS, make sure that encryption in transit for OSS buckets supports encrypted access.
+//
+//	        	- If data flows for multiple CPFS file systems or multiple data flows for the same CPFS file system are stored in the same OSS bucket, you must enable versioning for the OSS bucket to prevent data conflicts caused by data export from multiple CPFS file systems to one OSS bucket.
+//
+//	        	- Data flows are not supported for OSS buckets across regions. The OSS bucket must reside in the same region as the CPFS file system.
+//
+//	        **
+//
+//	        **Note **Before you create a data flow, you must configure a tag (key: cpfs-dataflow, value: true) for the source OSS bucket. This way, the created data flow can access the data in the OSS bucket. When a data flow is being used, do not delete or modify the tag. Otherwise, the data flow for CPFS cannot access the data in the OSS bucket.
+//
+//		- CPFS for Lingjun usage notes
+//
+//	    	- Source storage
+//
+//	        	- The source storage is an OSS bucket. SourceStorage for a data flow must be an OSS bucket.
+//
+//	        	- CPFS for Lingjun data flows support both encrypted and unencrypted access to OSS. If you select SSL-encrypted access to OSS, make sure that encryption in transit for OSS buckets supports encrypted access.
+//
+//	        	- If data flows for multiple CPFS for Lingjun file systems or multiple data flows for the same CPFS for Lingjun file system are stored in the same OSS bucket, you must enable versioning for the OSS bucket to prevent data conflicts caused by data export from multiple CPFS for Lingjun file systems to one OSS bucket.
+//
+//	        	- Data flows are not supported for OSS buckets across regions. The OSS bucket must reside in the same region as the CPFS file system.
+//
+//	        	- CPFS for Lingjun V2.6.0 and later allow you to create data flows for OSS buckets across accounts.
+//
+//	        	- The account id parameter is required only when you use OSS buckets across accounts.
+//
+//	        	- To use OSS buckets across accounts, you must first grant permissions to the related accounts. For more information, see [Cross-account authorization on data flows](https://help.aliyun.com/document_detail/2713462.html).
+//
+//	            **
+//
+//	            **Note **Before you create a data flow, you must configure a tag (key: cpfs-dataflow, value: true) for the source OSS bucket. This way, the created data flow can access the data in the OSS bucket. When a data flow is being used, do not delete or modify the tag. Otherwise, the data flow for CPFS for Lingjun cannot access the data in the OSS bucket.
 //
 //	    	- Limits of data flows on file systems
 //
@@ -1129,7 +1231,7 @@ func (client *Client) CreateAutoSnapshotPolicyWithContext(ctx context.Context, r
 //
 //	    	- Limits of data flows on import
 //
-//	        	- After a symbolic link is imported to CPFS for LINGJUN, the symbolic link is converted into a common data file that contains no symbolic link information.
+//	        	- After a symbolic link is imported to CPFS for Lingjun, the symbolic link is converted into a common data file that contains no symbolic link information.
 //
 //	        	- If an OSS bucket has multiple versions, only data of the latest version is used.
 //
@@ -1151,9 +1253,11 @@ func (client *Client) CreateAutoSnapshotPolicyWithContext(ctx context.Context, r
 //
 // @return CreateDataFlowResponse
 func (client *Client) CreateDataFlowWithContext(ctx context.Context, request *CreateDataFlowRequest, runtime *dara.RuntimeOptions) (_result *CreateDataFlowResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoRefreshInterval) {
@@ -1251,9 +1355,11 @@ func (client *Client) CreateDataFlowWithContext(ctx context.Context, request *Cr
 //
 // @return CreateDataFlowSubTaskResponse
 func (client *Client) CreateDataFlowSubTaskWithContext(ctx context.Context, request *CreateDataFlowSubTaskRequest, runtime *dara.RuntimeOptions) (_result *CreateDataFlowSubTaskResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -1317,17 +1423,29 @@ func (client *Client) CreateDataFlowSubTaskWithContext(ctx context.Context, requ
 //
 // Description:
 //
-//	  Only Cloud Parallel File Storage (CPFS) for Lingjun V2.4.0 and later support dataflow. You can view the version information on the file system details page in the console.
+//	  CPFS usage notes
 //
-//		- Dataflow tasks are executed asynchronously. You can call the [DescribeDataFlowTasks](https://help.aliyun.com/document_detail/2838089.html) operation to query the task execution status. The task duration depends on the amount of data to be imported and exported. If a large amount of data exists, we recommend that you create multiple tasks.
+//	    	- Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
 //
-//		- You can create a dataflow task only for a dataflow that is in the Running state.
+//	    	- Dataflow tasks are executed asynchronously. You can call the [DescribeDataFlowTasks](https://help.aliyun.com/document_detail/2402275.html) operation to query the task execution status. The task duration depends on the amount of data to be imported and exported. If a large amount of data exists, we recommend that you create multiple tasks.
 //
-//		- When you manually run a dataflow task, the automatic data update task for the dataflow is interrupted and enters the pending state.
+//	    	- You can create a dataflow task only for a dataflow that is in the Running state.
 //
-//		- When you create an export task, make sure that the total length of the absolute path of the files to be exported from a CPFS for Lingjun file system does not exceed 1,023 characters.
+//	    	- When you manually run a dataflow task, the automatic data update task for the dataflow is interrupted and enters the pending state.
 //
-//		- CPFS for Lingjun supports two types of tasks: batch tasks and streaming tasks. For more information, see [Task types](https://help.aliyun.com/document_detail/2845429.html).
+//	    	- When you create an export task, make sure that the total length of the absolute path of the files to be exported from a CPFS file system does not exceed 1,023 characters.
+//
+//		- CPFS for Lingjun usage notes
+//
+//	    	- Only CPFS for Lingjun V2.4.0 and later support dataflow. You can view the version information on the file system details page in the console.
+//
+//	    	- Dataflow tasks are executed asynchronously. You can call the [DescribeDataFlowTasks](https://help.aliyun.com/document_detail/2402275.html) operation to query the task execution status. The task duration depends on the amount of data to be imported and exported. If a large amount of data exists, we recommend that you create multiple tasks.
+//
+//	    	- You can create a dataflow task only for a dataflow that is in the Running state.
+//
+//	    	- When you create an export task, make sure that the total length of the absolute path of the files to be exported from a CPFS for Lingjun file system does not exceed 1,023 characters.
+//
+//	    	- CPFS for Lingjun supports two types of tasks: batch tasks and streaming tasks. For more information, see [Task types](https://help.aliyun.com/document_detail/2845429.html).
 //
 // @param request - CreateDataFlowTaskRequest
 //
@@ -1335,9 +1453,11 @@ func (client *Client) CreateDataFlowSubTaskWithContext(ctx context.Context, requ
 //
 // @return CreateDataFlowTaskResponse
 func (client *Client) CreateDataFlowTaskWithContext(ctx context.Context, request *CreateDataFlowTaskRequest, runtime *dara.RuntimeOptions) (_result *CreateDataFlowTaskResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -1433,9 +1553,11 @@ func (client *Client) CreateDataFlowTaskWithContext(ctx context.Context, request
 //
 // @return CreateDirResponse
 func (client *Client) CreateDirWithContext(ctx context.Context, request *CreateDirRequest, runtime *dara.RuntimeOptions) (_result *CreateDirResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -1501,9 +1623,11 @@ func (client *Client) CreateDirWithContext(ctx context.Context, request *CreateD
 //
 // @return CreateFileResponse
 func (client *Client) CreateFileWithContext(ctx context.Context, request *CreateFileRequest, runtime *dara.RuntimeOptions) (_result *CreateFileResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -1555,9 +1679,9 @@ func (client *Client) CreateFileWithContext(ctx context.Context, request *Create
 //
 // Description:
 //
-//	  Before you call this operation, you must understand the billing and pricing of File Storage NAS. For more information, see [Billing](https://help.aliyun.com/document_detail/178365.html) and [Pricing](https://www.alibabacloud.com/product/nas/pricing).
+//	  Before you call this operation, you must understand the billing and pricing of Apsara File Storage NAS. For more information, see [Billing](https://help.aliyun.com/document_detail/178365.html) and [Pricing](https://www.aliyun.com/price/product?#/nas/detail).
 //
-//		- Before you create a file system, you must complete real-name verification.
+//		- Before you create a file system, you must complete real-name verification. For more information, see [Real-name verification](https://help.aliyun.com/document_detail/48263.html).
 //
 //		- When you call this operation, a service-linked role of NAS is automatically created. For more information, see [Manage the service-linked roles of NAS](https://help.aliyun.com/document_detail/208530.html).
 //
@@ -1567,9 +1691,11 @@ func (client *Client) CreateFileWithContext(ctx context.Context, request *Create
 //
 // @return CreateFileSystemResponse
 func (client *Client) CreateFileSystemWithContext(ctx context.Context, request *CreateFileSystemRequest, runtime *dara.RuntimeOptions) (_result *CreateFileSystemResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.Bandwidth) {
@@ -1614,6 +1740,14 @@ func (client *Client) CreateFileSystemWithContext(ctx context.Context, request *
 
 	if !dara.IsNil(request.ProtocolType) {
 		query["ProtocolType"] = request.ProtocolType
+	}
+
+	if !dara.IsNil(request.RedundancyType) {
+		query["RedundancyType"] = request.RedundancyType
+	}
+
+	if !dara.IsNil(request.RedundancyVSwitchIds) {
+		query["RedundancyVSwitchIds"] = request.RedundancyVSwitchIds
 	}
 
 	if !dara.IsNil(request.ResourceGroupId) {
@@ -1673,25 +1807,41 @@ func (client *Client) CreateFileSystemWithContext(ctx context.Context, request *
 //
 // Description:
 //
-//	  Only Cloud Parallel File Storage (CPFS) for LINGJUN V2.7.0 and later support this operation. You can view the version information on the file system details page in the console.
+//	  CPFS usage notes
 //
-//		- A maximum of 500 filesets can be created for a CPFS file system.
+//	    	- Only CPFS V2.2.0 and later support fileset creation. You can view the version information on the file system details page in the console.
 //
-//		- The fileset path must be a new path and cannot be an existing path. Fileset paths cannot be renamed and cannot be symbolic links.
+//	    	- A maximum of 10 filesets can be created for a CPFS file system.
 //
-//		- The maximum depth supported by a fileset path is eight levels. The depth of the root directory / is 0 levels. For example, the fileset path /test/aaa/ccc/ has three levels.
+//	    	- The parent directory must be an existing directory.
 //
-//		- If the fileset path is a multi-level path, the parent directory must be an existing directory.
+//	    	- The maximum depth supported by a fileset path is eight levels. The depth of the root directory / is 0 levels. For example, the fileset path /test/aaa/ccc/ has three levels.
 //
-//		- Nested filesets are not supported. If a fileset is specified as a parent directory, its subdirectory cannot be a fileset. A fileset path supports only one quota.
+//	    	- Nested filesets are not supported. If a fileset is specified as a parent directory, its subdirectory cannot be a fileset.
 //
-//		- The minimum capacity quota of a fileset is 10 GiB. The scaling step size is 1 GiB. The maximum capacity quota is 1,000 TiB. The capacity quota cannot exceed the total capacity of the file system.
+//	    	- A fileset supports a maximum of one million files. If the number of files exceeds the upper limit, the `no space` error message is returned when you add new files.
 //
-//		- A fileset supports a minimum of 10,000 files or directories and a maximum of 10 billion files or directories. The scaling step size is 1.
+//		- CPFS for Lingjun usage notes
 //
-//		- When you modify a directory quota, you must set the quota capacity or the number of files to be greater than the capacity or file quantity that has been used.
+//	    	- Only CPFS for Lingjun V2.7.0 and later support this operation. You can view the version information on the file system details page in the console.
 //
-//		- The quota statistics have a 5-minute latency. The actual usage takes effect after 5 minutes.
+//	    	- A maximum of 500 filesets can be created for a CPFS file system.
+//
+//	    	- The fileset path must be a new path and cannot be an existing path. Fileset paths cannot be renamed and cannot be symbolic links.
+//
+//	    	- The maximum depth supported by a fileset path is eight levels. The depth of the root directory / is 0 levels. For example, the fileset path /test/aaa/ccc/ has three levels.
+//
+//	    	- If the fileset path is a multi-level path, the parent directory must be an existing directory.
+//
+//	    	- Nested filesets are not supported. If a fileset is specified as a parent directory, its subdirectory cannot be a fileset. A fileset path supports only one quota.
+//
+//	    	- The minimum capacity quota of a fileset is 10 GiB. The scaling step size is 1 GiB.
+//
+//	    	- A fileset supports a minimum of 10,000 files or directories and a maximum of 10 billion files or directories. The scaling step size is 1.
+//
+//	    	- When you modify a directory quota, you must set the quota capacity or the number of files to be greater than the capacity or file quantity that has been used.
+//
+//	    	- The quota statistics have a 15-minute latency. The actual usage takes effect after 15 minutes.
 //
 // @param request - CreateFilesetRequest
 //
@@ -1699,9 +1849,11 @@ func (client *Client) CreateFileSystemWithContext(ctx context.Context, request *
 //
 // @return CreateFilesetResponse
 func (client *Client) CreateFilesetWithContext(ctx context.Context, request *CreateFilesetRequest, runtime *dara.RuntimeOptions) (_result *CreateFilesetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -1767,9 +1919,11 @@ func (client *Client) CreateFilesetWithContext(ctx context.Context, request *Cre
 //
 // @return CreateLDAPConfigResponse
 func (client *Client) CreateLDAPConfigWithContext(ctx context.Context, request *CreateLDAPConfigRequest, runtime *dara.RuntimeOptions) (_result *CreateLDAPConfigResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.BindDN) {
@@ -1827,9 +1981,11 @@ func (client *Client) CreateLDAPConfigWithContext(ctx context.Context, request *
 //
 // @return CreateLifecyclePolicyResponse
 func (client *Client) CreateLifecyclePolicyWithContext(ctx context.Context, request *CreateLifecyclePolicyRequest, runtime *dara.RuntimeOptions) (_result *CreateLifecyclePolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -1895,9 +2051,11 @@ func (client *Client) CreateLifecyclePolicyWithContext(ctx context.Context, requ
 //
 // @return CreateLifecycleRetrieveJobResponse
 func (client *Client) CreateLifecycleRetrieveJobWithContext(ctx context.Context, request *CreateLifecycleRetrieveJobRequest, runtime *dara.RuntimeOptions) (_result *CreateLifecycleRetrieveJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -1945,9 +2103,11 @@ func (client *Client) CreateLifecycleRetrieveJobWithContext(ctx context.Context,
 //
 // @return CreateLogAnalysisResponse
 func (client *Client) CreateLogAnalysisWithContext(ctx context.Context, request *CreateLogAnalysisRequest, runtime *dara.RuntimeOptions) (_result *CreateLogAnalysisResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -1997,9 +2157,11 @@ func (client *Client) CreateLogAnalysisWithContext(ctx context.Context, request 
 //
 // @return CreateMountTargetResponse
 func (client *Client) CreateMountTargetWithContext(ctx context.Context, request *CreateMountTargetRequest, runtime *dara.RuntimeOptions) (_result *CreateMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -2063,7 +2225,7 @@ func (client *Client) CreateMountTargetWithContext(ctx context.Context, request 
 //
 // Description:
 //
-//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems.
 //
 //		- Prerequisites
 //
@@ -2077,7 +2239,7 @@ func (client *Client) CreateMountTargetWithContext(ctx context.Context, request 
 //
 //	    	- You can create a maximum of 10 export directories for a protocol service.
 //
-//	    	- When you create export directories for a protocol service, a maximum of 32 IP addresses that are allocated by the specified vSwitch are used. Make sure that the vSwitch can provide sufficient IP addresses.
+//	    	- A protocol service can use a maximum of 32 IP addresses that are allocated by a specified vSwitch. Make sure that the vSwitch can provide sufficient IP addresses.
 //
 // @param request - CreateProtocolMountTargetRequest
 //
@@ -2085,9 +2247,11 @@ func (client *Client) CreateMountTargetWithContext(ctx context.Context, request 
 //
 // @return CreateProtocolMountTargetResponse
 func (client *Client) CreateProtocolMountTargetWithContext(ctx context.Context, request *CreateProtocolMountTargetRequest, runtime *dara.RuntimeOptions) (_result *CreateProtocolMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -2126,6 +2290,10 @@ func (client *Client) CreateProtocolMountTargetWithContext(ctx context.Context, 
 		query["VSwitchId"] = request.VSwitchId
 	}
 
+	if !dara.IsNil(request.VSwitchIds) {
+		query["VSwitchIds"] = request.VSwitchIds
+	}
+
 	if !dara.IsNil(request.VpcId) {
 		query["VpcId"] = request.VpcId
 	}
@@ -2159,21 +2327,23 @@ func (client *Client) CreateProtocolMountTargetWithContext(ctx context.Context, 
 //
 // Description:
 //
-//	  This operation is available only to CPFS file systems on the China site (aliyun.com).
+//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems.
 //
-//		- Only CPFS V2.3.0 and later support protocol services. You can query the version information of the file system by calling the [DescribeFileSystems](~~2402188.~~) operation.
+//		- Only CPFS V2.3.0 and later support protocol services. You can query the version information of the file system by calling the [DescribeFileSystems](https://help.aliyun.com/document_detail/163314.html) operation.
 //
 //		- Protocol service types
 //
 //	    Protocol services are classified into general-purpose protocol services and cache protocol services. Different from general-purpose protocol services, cache protocol services can cache hot data. If data exists in the cache, the bandwidth of the cache protocol service may exceed the bandwidth of the CPFS file system, reaching the maximum bandwidth specified for the protocol service.
 //
-//	    	- General-purpose protocol services: provide NFS access and [directory-level mount targets](https://help.aliyun.com/document_detail/427175.html) for CPFS file systems. You do not need to configure a POSIX client to manage clusters. General-purpose protocol services are provided free of charge.
+//	    	- General-purpose protocol services: provide NFS access and [directory-level mount targets](https://help.aliyun.com/document_detail/427175.html) for CPFS file systems. You do not need to configure a POSIX client to manage clusters. The compliance package check feature is free of charge.
 //
 //	    	- Cache protocol services: provide the server memory cache based on the least recently used (LRU) policy. When data is cached in the memory, CPFS provides higher internal bandwidth. Cache protocol services are divided into Cache L1 and Cache L2 specifications. The differences are the internal bandwidth size and memory cache size.
 //
-//	       >   Note You are charged for using cache protocol services, which are in invitational preview. For more information about the billing method of cache protocol services, see [Billable items](https://help.aliyun.com/document_detail/111858.html). If you have any feedback or questions, you can join the DingTalk group (group number: 31045006299).
+//	    **
 //
-//		- Protocol type
+//	    **Note*	- You are charged for using cache protocol services, which are in invitational preview. For more information about the billing method of cache protocol services, see [Billable items](https://help.aliyun.com/document_detail/111858.html). If you have any feedback or questions, you can join the DingTalk group (group number: 31045006299).
+//
+//		- Protocol Type
 //
 //	    Only NFSv3 is supported.
 //
@@ -2189,9 +2359,11 @@ func (client *Client) CreateProtocolMountTargetWithContext(ctx context.Context, 
 //
 // @return CreateProtocolServiceResponse
 func (client *Client) CreateProtocolServiceWithContext(ctx context.Context, request *CreateProtocolServiceRequest, runtime *dara.RuntimeOptions) (_result *CreateProtocolServiceResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -2271,9 +2443,11 @@ func (client *Client) CreateProtocolServiceWithContext(ctx context.Context, requ
 //
 // @return CreateRecycleBinDeleteJobResponse
 func (client *Client) CreateRecycleBinDeleteJobWithContext(ctx context.Context, request *CreateRecycleBinDeleteJobRequest, runtime *dara.RuntimeOptions) (_result *CreateRecycleBinDeleteJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -2305,15 +2479,13 @@ func (client *Client) CreateRecycleBinDeleteJobWithContext(ctx context.Context, 
 //
 // Description:
 //
-// ### Usage notes
+//	  Only General-purpose NAS file systems support this operation.
 //
-//   - Only General-purpose NAS file systems support this operation.
+//		- You can run only one job at a time for a single file system to restore files to or clear files from the file system. You cannot create a restore or cleanup job when files are being restored from the recycle bin.
 //
-//   - You can run only one job at a time for a single file system to restore files to or clear files from the file system. You cannot create a restore or cleanup job when files are being restored from the recycle bin.
+//		- You can restore only one file or directory in a single restore job. If you restore a specified directory, all files in the directory are recursively restored.
 //
-//   - You can restore only one file or directory in a single restore job. If you restore a specified directory, all files in the directory are recursively restored.
-//
-//   - After files are restored, the data of the files is defragmented. When the data is being defragmented, the read performance is slightly degraded.
+//		- After files are restored, the data of the files is defragmented. When the data is being defragmented, the read performance is slightly degraded.
 //
 // @param request - CreateRecycleBinRestoreJobRequest
 //
@@ -2321,9 +2493,11 @@ func (client *Client) CreateRecycleBinDeleteJobWithContext(ctx context.Context, 
 //
 // @return CreateRecycleBinRestoreJobResponse
 func (client *Client) CreateRecycleBinRestoreJobWithContext(ctx context.Context, request *CreateRecycleBinRestoreJobRequest, runtime *dara.RuntimeOptions) (_result *CreateRecycleBinRestoreJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -2379,9 +2553,11 @@ func (client *Client) CreateRecycleBinRestoreJobWithContext(ctx context.Context,
 //
 // @return CreateSnapshotResponse
 func (client *Client) CreateSnapshotWithContext(ctx context.Context, request *CreateSnapshotRequest, runtime *dara.RuntimeOptions) (_result *CreateSnapshotResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.Description) {
@@ -2437,9 +2613,11 @@ func (client *Client) CreateSnapshotWithContext(ctx context.Context, request *Cr
 //
 // @return DeleteAccessGroupResponse
 func (client *Client) DeleteAccessGroupWithContext(ctx context.Context, request *DeleteAccessGroupRequest, runtime *dara.RuntimeOptions) (_result *DeleteAccessGroupResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -2489,9 +2667,11 @@ func (client *Client) DeleteAccessGroupWithContext(ctx context.Context, request 
 //
 // @return DeleteAccessPointResponse
 func (client *Client) DeleteAccessPointWithContext(ctx context.Context, request *DeleteAccessPointRequest, runtime *dara.RuntimeOptions) (_result *DeleteAccessPointResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessPointId) {
@@ -2539,9 +2719,11 @@ func (client *Client) DeleteAccessPointWithContext(ctx context.Context, request 
 //
 // @return DeleteAccessRuleResponse
 func (client *Client) DeleteAccessRuleWithContext(ctx context.Context, request *DeleteAccessRuleRequest, runtime *dara.RuntimeOptions) (_result *DeleteAccessRuleResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -2597,9 +2779,11 @@ func (client *Client) DeleteAccessRuleWithContext(ctx context.Context, request *
 //
 // @return DeleteAutoSnapshotPolicyResponse
 func (client *Client) DeleteAutoSnapshotPolicyWithContext(ctx context.Context, request *DeleteAutoSnapshotPolicyRequest, runtime *dara.RuntimeOptions) (_result *DeleteAutoSnapshotPolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyId) {
@@ -2635,7 +2819,7 @@ func (client *Client) DeleteAutoSnapshotPolicyWithContext(ctx context.Context, r
 //
 // Description:
 //
-//	  Only Cloud Parallel File Storage (CPFS) for LINGJUN V2.4.0 and later support data flows. You can view the version information on the file system details page in the console.
+//	  Only Cloud Parallel File Storage (CPFS) V2.2.0 and later and CPFS for Lingjun V2.4.0 and later support data flows. You can view the version information on the file system details page in the console.
 //
 //		- You can delete the data flows that are only in the `Running` or `Stopped` state.
 //
@@ -2647,9 +2831,11 @@ func (client *Client) DeleteAutoSnapshotPolicyWithContext(ctx context.Context, r
 //
 // @return DeleteDataFlowResponse
 func (client *Client) DeleteDataFlowWithContext(ctx context.Context, request *DeleteDataFlowRequest, runtime *dara.RuntimeOptions) (_result *DeleteDataFlowResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -2709,9 +2895,11 @@ func (client *Client) DeleteDataFlowWithContext(ctx context.Context, request *De
 //
 // @return DeleteFileSystemResponse
 func (client *Client) DeleteFileSystemWithContext(ctx context.Context, request *DeleteFileSystemRequest, runtime *dara.RuntimeOptions) (_result *DeleteFileSystemResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -2747,7 +2935,7 @@ func (client *Client) DeleteFileSystemWithContext(ctx context.Context, request *
 //
 // Description:
 //
-//	  Only Cloud Parallel File Storage (CPFS) for Lingjun V2.7.0 and later support this operation. After you delete a fileset, all data in the fileset is deleted and cannot be restored. Proceed with caution.
+//	  Only Cloud Parallel File Storage (CPFS) V2.2.0 and CPFS for Lingjun V2.7.0 and later support this operation. After you delete a fileset, all data in the fileset is deleted and cannot be restored. Proceed with caution.
 //
 //		- If deletion protection is enabled for the fileset, you must disable deletion protection before you delete the fileset.
 //
@@ -2759,9 +2947,11 @@ func (client *Client) DeleteFileSystemWithContext(ctx context.Context, request *
 //
 // @return DeleteFilesetResponse
 func (client *Client) DeleteFilesetWithContext(ctx context.Context, request *DeleteFilesetRequest, runtime *dara.RuntimeOptions) (_result *DeleteFilesetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -2807,7 +2997,7 @@ func (client *Client) DeleteFilesetWithContext(ctx context.Context, request *Del
 //
 // Summary:
 //
-// 删除LDAP配置
+// {"summary1":""}
 //
 // @param request - DeleteLDAPConfigRequest
 //
@@ -2815,9 +3005,11 @@ func (client *Client) DeleteFilesetWithContext(ctx context.Context, request *Del
 //
 // @return DeleteLDAPConfigResponse
 func (client *Client) DeleteLDAPConfigWithContext(ctx context.Context, request *DeleteLDAPConfigRequest, runtime *dara.RuntimeOptions) (_result *DeleteLDAPConfigResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -2861,9 +3053,11 @@ func (client *Client) DeleteLDAPConfigWithContext(ctx context.Context, request *
 //
 // @return DeleteLifecyclePolicyResponse
 func (client *Client) DeleteLifecyclePolicyWithContext(ctx context.Context, request *DeleteLifecyclePolicyRequest, runtime *dara.RuntimeOptions) (_result *DeleteLifecyclePolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -2907,9 +3101,11 @@ func (client *Client) DeleteLifecyclePolicyWithContext(ctx context.Context, requ
 //
 // @return DeleteLogAnalysisResponse
 func (client *Client) DeleteLogAnalysisWithContext(ctx context.Context, request *DeleteLogAnalysisRequest, runtime *dara.RuntimeOptions) (_result *DeleteLogAnalysisResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -2957,9 +3153,11 @@ func (client *Client) DeleteLogAnalysisWithContext(ctx context.Context, request 
 //
 // @return DeleteMountTargetResponse
 func (client *Client) DeleteMountTargetWithContext(ctx context.Context, request *DeleteMountTargetRequest, runtime *dara.RuntimeOptions) (_result *DeleteMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -3007,9 +3205,11 @@ func (client *Client) DeleteMountTargetWithContext(ctx context.Context, request 
 //
 // @return DeleteProtocolMountTargetResponse
 func (client *Client) DeleteProtocolMountTargetWithContext(ctx context.Context, request *DeleteProtocolMountTargetRequest, runtime *dara.RuntimeOptions) (_result *DeleteProtocolMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -3061,7 +3261,7 @@ func (client *Client) DeleteProtocolMountTargetWithContext(ctx context.Context, 
 //
 // Description:
 //
-//	  This operation is available only to CPFS file systems on the China site (aliyun.com).
+//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems.
 //
 //		- When you delete a protocol service, the export directories in the protocol service are also deleted.
 //
@@ -3071,9 +3271,11 @@ func (client *Client) DeleteProtocolMountTargetWithContext(ctx context.Context, 
 //
 // @return DeleteProtocolServiceResponse
 func (client *Client) DeleteProtocolServiceWithContext(ctx context.Context, request *DeleteProtocolServiceRequest, runtime *dara.RuntimeOptions) (_result *DeleteProtocolServiceResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -3131,9 +3333,11 @@ func (client *Client) DeleteProtocolServiceWithContext(ctx context.Context, requ
 //
 // @return DeleteSnapshotResponse
 func (client *Client) DeleteSnapshotWithContext(ctx context.Context, request *DeleteSnapshotRequest, runtime *dara.RuntimeOptions) (_result *DeleteSnapshotResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.SnapshotId) {
@@ -3173,9 +3377,11 @@ func (client *Client) DeleteSnapshotWithContext(ctx context.Context, request *De
 //
 // @return DescribeAccessGroupsResponse
 func (client *Client) DescribeAccessGroupsWithContext(ctx context.Context, request *DescribeAccessGroupsRequest, runtime *dara.RuntimeOptions) (_result *DescribeAccessGroupsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -3235,9 +3441,11 @@ func (client *Client) DescribeAccessGroupsWithContext(ctx context.Context, reque
 //
 // @return DescribeAccessPointResponse
 func (client *Client) DescribeAccessPointWithContext(ctx context.Context, request *DescribeAccessPointRequest, runtime *dara.RuntimeOptions) (_result *DescribeAccessPointResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessPointId) {
@@ -3285,9 +3493,11 @@ func (client *Client) DescribeAccessPointWithContext(ctx context.Context, reques
 //
 // @return DescribeAccessPointsResponse
 func (client *Client) DescribeAccessPointsWithContext(ctx context.Context, request *DescribeAccessPointsRequest, runtime *dara.RuntimeOptions) (_result *DescribeAccessPointsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroup) {
@@ -3304,6 +3514,10 @@ func (client *Client) DescribeAccessPointsWithContext(ctx context.Context, reque
 
 	if !dara.IsNil(request.NextToken) {
 		query["NextToken"] = request.NextToken
+	}
+
+	if !dara.IsNil(request.Tag) {
+		query["Tag"] = request.Tag
 	}
 
 	req := &openapiutil.OpenApiRequest{
@@ -3339,9 +3553,11 @@ func (client *Client) DescribeAccessPointsWithContext(ctx context.Context, reque
 //
 // @return DescribeAccessRulesResponse
 func (client *Client) DescribeAccessRulesWithContext(ctx context.Context, request *DescribeAccessRulesRequest, runtime *dara.RuntimeOptions) (_result *DescribeAccessRulesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -3403,9 +3619,11 @@ func (client *Client) DescribeAccessRulesWithContext(ctx context.Context, reques
 //
 // @return DescribeAutoSnapshotPoliciesResponse
 func (client *Client) DescribeAutoSnapshotPoliciesWithContext(ctx context.Context, request *DescribeAutoSnapshotPoliciesRequest, runtime *dara.RuntimeOptions) (_result *DescribeAutoSnapshotPoliciesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyId) {
@@ -3463,9 +3681,11 @@ func (client *Client) DescribeAutoSnapshotPoliciesWithContext(ctx context.Contex
 //
 // @return DescribeAutoSnapshotTasksResponse
 func (client *Client) DescribeAutoSnapshotTasksWithContext(ctx context.Context, request *DescribeAutoSnapshotTasksRequest, runtime *dara.RuntimeOptions) (_result *DescribeAutoSnapshotTasksResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyIds) {
@@ -3527,9 +3747,11 @@ func (client *Client) DescribeAutoSnapshotTasksWithContext(ctx context.Context, 
 //
 // @return DescribeBlackListClientsResponse
 func (client *Client) DescribeBlackListClientsWithContext(ctx context.Context, request *DescribeBlackListClientsRequest, runtime *dara.RuntimeOptions) (_result *DescribeBlackListClientsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientIP) {
@@ -3581,9 +3803,11 @@ func (client *Client) DescribeBlackListClientsWithContext(ctx context.Context, r
 //
 // @return DescribeDataFlowSubTasksResponse
 func (client *Client) DescribeDataFlowSubTasksWithContext(ctx context.Context, request *DescribeDataFlowSubTasksRequest, runtime *dara.RuntimeOptions) (_result *DescribeDataFlowSubTasksResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -3627,11 +3851,11 @@ func (client *Client) DescribeDataFlowSubTasksWithContext(ctx context.Context, r
 
 // Summary:
 //
-// Queries the details of data flow tasks.
+// Queries the details of dataflow tasks.
 //
 // Description:
 //
-// Only Cloud Parallel File Storage (CPFS) for LINGJUN V2.4.0 and later support query of data flow tasks. You can view the version information on the file system details page in the console.
+// Only CPFS V2.2.0 and later and CPFS for Lingjun V2.4.0 and later support this operation. You can view the version information on the file system details page in the console.
 //
 // @param request - DescribeDataFlowTasksRequest
 //
@@ -3639,9 +3863,11 @@ func (client *Client) DescribeDataFlowSubTasksWithContext(ctx context.Context, r
 //
 // @return DescribeDataFlowTasksResponse
 func (client *Client) DescribeDataFlowTasksWithContext(ctx context.Context, request *DescribeDataFlowTasksRequest, runtime *dara.RuntimeOptions) (_result *DescribeDataFlowTasksResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -3693,7 +3919,7 @@ func (client *Client) DescribeDataFlowTasksWithContext(ctx context.Context, requ
 //
 // Description:
 //
-//	  Only CPFS for LINGJUN V2.4.0 and later support data flows. You can view the version information on the file system details page in the console.
+//	  Only Cloud Parallel File Storage (CPFS) V2.2.0 and later and CPFS for Lingjun V2.4.0 and later support dataflows. You can view the version information on the file system details page in the console.
 //
 //		- In Filters, FsetIds, DataFlowlds, SourceStorage, ThroughputList, and Status support exact match only. FileSystemPath, Description, and SourceStoragePath support fuzzy match.
 //
@@ -3705,9 +3931,11 @@ func (client *Client) DescribeDataFlowTasksWithContext(ctx context.Context, requ
 //
 // @return DescribeDataFlowsResponse
 func (client *Client) DescribeDataFlowsWithContext(ctx context.Context, request *DescribeDataFlowsRequest, runtime *dara.RuntimeOptions) (_result *DescribeDataFlowsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -3763,9 +3991,11 @@ func (client *Client) DescribeDataFlowsWithContext(ctx context.Context, request 
 //
 // @return DescribeDirQuotasResponse
 func (client *Client) DescribeDirQuotasWithContext(ctx context.Context, request *DescribeDirQuotasRequest, runtime *dara.RuntimeOptions) (_result *DescribeDirQuotasResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -3819,9 +4049,11 @@ func (client *Client) DescribeDirQuotasWithContext(ctx context.Context, request 
 //
 // @return DescribeFileSystemStatisticsResponse
 func (client *Client) DescribeFileSystemStatisticsWithContext(ctx context.Context, request *DescribeFileSystemStatisticsRequest, runtime *dara.RuntimeOptions) (_result *DescribeFileSystemStatisticsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.PageNumber) {
@@ -3865,9 +4097,11 @@ func (client *Client) DescribeFileSystemStatisticsWithContext(ctx context.Contex
 //
 // @return DescribeFileSystemsResponse
 func (client *Client) DescribeFileSystemsWithContext(ctx context.Context, request *DescribeFileSystemsRequest, runtime *dara.RuntimeOptions) (_result *DescribeFileSystemsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -3927,7 +4161,7 @@ func (client *Client) DescribeFileSystemsWithContext(ctx context.Context, reques
 //
 // Description:
 //
-//	  Only Cloud Parallel File Storage (CPFS) for LINGJUN V2.7.0 and later support this operation. You can view the version information on the file system details page in the console.
+//	  Only Cloud Parallel File Storage (CPFS) V2.2.0 and CPFS for Lingjun V2.7.0 and later support this operation. You can view the version information on the file system details page in the console.
 //
 //		- In Filters, FsetIds supports exact match only. FileSystemPath and Description support fuzzy match.
 //
@@ -3939,9 +4173,11 @@ func (client *Client) DescribeFileSystemsWithContext(ctx context.Context, reques
 //
 // @return DescribeFilesetsResponse
 func (client *Client) DescribeFilesetsWithContext(ctx context.Context, request *DescribeFilesetsRequest, runtime *dara.RuntimeOptions) (_result *DescribeFilesetsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4007,9 +4243,11 @@ func (client *Client) DescribeFilesetsWithContext(ctx context.Context, request *
 //
 // @return DescribeFilesystemsVscAttachInfoResponse
 func (client *Client) DescribeFilesystemsVscAttachInfoWithContext(ctx context.Context, request *DescribeFilesystemsVscAttachInfoRequest, runtime *dara.RuntimeOptions) (_result *DescribeFilesystemsVscAttachInfoResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.MaxResults) {
@@ -4061,9 +4299,11 @@ func (client *Client) DescribeFilesystemsVscAttachInfoWithContext(ctx context.Co
 //
 // @return DescribeLifecyclePoliciesResponse
 func (client *Client) DescribeLifecyclePoliciesWithContext(ctx context.Context, request *DescribeLifecyclePoliciesRequest, runtime *dara.RuntimeOptions) (_result *DescribeLifecyclePoliciesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -4099,9 +4339,11 @@ func (client *Client) DescribeLifecyclePoliciesWithContext(ctx context.Context, 
 //
 // @return DescribeLogAnalysisResponse
 func (client *Client) DescribeLogAnalysisWithContext(ctx context.Context, request *DescribeLogAnalysisRequest, runtime *dara.RuntimeOptions) (_result *DescribeLogAnalysisResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemType) {
@@ -4153,9 +4395,11 @@ func (client *Client) DescribeLogAnalysisWithContext(ctx context.Context, reques
 //
 // @return DescribeMountTargetsResponse
 func (client *Client) DescribeMountTargetsWithContext(ctx context.Context, request *DescribeMountTargetsRequest, runtime *dara.RuntimeOptions) (_result *DescribeMountTargetsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.DualStackMountTargetDomain) {
@@ -4217,9 +4461,11 @@ func (client *Client) DescribeMountTargetsWithContext(ctx context.Context, reque
 //
 // @return DescribeMountedClientsResponse
 func (client *Client) DescribeMountedClientsWithContext(ctx context.Context, request *DescribeMountedClientsRequest, runtime *dara.RuntimeOptions) (_result *DescribeMountedClientsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientIP) {
@@ -4279,9 +4525,11 @@ func (client *Client) DescribeMountedClientsWithContext(ctx context.Context, req
 //
 // @return DescribeNfsAclResponse
 func (client *Client) DescribeNfsAclWithContext(ctx context.Context, request *DescribeNfsAclRequest, runtime *dara.RuntimeOptions) (_result *DescribeNfsAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4317,7 +4565,7 @@ func (client *Client) DescribeNfsAclWithContext(ctx context.Context, request *De
 //
 // Description:
 //
-// This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+// This operation is available only to Cloud Parallel File Storage (CPFS) file systems.
 //
 // @param request - DescribeProtocolMountTargetRequest
 //
@@ -4325,9 +4573,11 @@ func (client *Client) DescribeNfsAclWithContext(ctx context.Context, request *De
 //
 // @return DescribeProtocolMountTargetResponse
 func (client *Client) DescribeProtocolMountTargetWithContext(ctx context.Context, request *DescribeProtocolMountTargetRequest, runtime *dara.RuntimeOptions) (_result *DescribeProtocolMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -4348,6 +4598,10 @@ func (client *Client) DescribeProtocolMountTargetWithContext(ctx context.Context
 
 	if !dara.IsNil(request.NextToken) {
 		query["NextToken"] = request.NextToken
+	}
+
+	if !dara.IsNil(request.ProtocolServiceIds) {
+		query["ProtocolServiceIds"] = request.ProtocolServiceIds
 	}
 
 	req := &openapiutil.OpenApiRequest{
@@ -4379,7 +4633,7 @@ func (client *Client) DescribeProtocolMountTargetWithContext(ctx context.Context
 //
 // Description:
 //
-// This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+// This operation is available only to Cloud Parallel File Storage (CPFS) file systems.
 //
 // @param request - DescribeProtocolServiceRequest
 //
@@ -4387,9 +4641,11 @@ func (client *Client) DescribeProtocolMountTargetWithContext(ctx context.Context
 //
 // @return DescribeProtocolServiceResponse
 func (client *Client) DescribeProtocolServiceWithContext(ctx context.Context, request *DescribeProtocolServiceRequest, runtime *dara.RuntimeOptions) (_result *DescribeProtocolServiceResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -4453,9 +4709,11 @@ func (client *Client) DescribeProtocolServiceWithContext(ctx context.Context, re
 //
 // @return DescribeRegionsResponse
 func (client *Client) DescribeRegionsWithContext(ctx context.Context, request *DescribeRegionsRequest, runtime *dara.RuntimeOptions) (_result *DescribeRegionsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemType) {
@@ -4503,9 +4761,11 @@ func (client *Client) DescribeRegionsWithContext(ctx context.Context, request *D
 //
 // @return DescribeSmbAclResponse
 func (client *Client) DescribeSmbAclWithContext(ctx context.Context, request *DescribeSmbAclRequest, runtime *dara.RuntimeOptions) (_result *DescribeSmbAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4551,9 +4811,11 @@ func (client *Client) DescribeSmbAclWithContext(ctx context.Context, request *De
 //
 // @return DescribeSnapshotsResponse
 func (client *Client) DescribeSnapshotsWithContext(ctx context.Context, request *DescribeSnapshotsRequest, runtime *dara.RuntimeOptions) (_result *DescribeSnapshotsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4621,9 +4883,11 @@ func (client *Client) DescribeSnapshotsWithContext(ctx context.Context, request 
 //
 // @return DescribeStoragePackagesResponse
 func (client *Client) DescribeStoragePackagesWithContext(ctx context.Context, request *DescribeStoragePackagesRequest, runtime *dara.RuntimeOptions) (_result *DescribeStoragePackagesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.PageNumber) {
@@ -4675,9 +4939,11 @@ func (client *Client) DescribeStoragePackagesWithContext(ctx context.Context, re
 //
 // @return DescribeZonesResponse
 func (client *Client) DescribeZonesWithContext(ctx context.Context, request *DescribeZonesRequest, runtime *dara.RuntimeOptions) (_result *DescribeZonesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemType) {
@@ -4727,9 +4993,11 @@ func (client *Client) DescribeZonesWithContext(ctx context.Context, request *Des
 //
 // @return DetachVscFromFilesystemsResponse
 func (client *Client) DetachVscFromFilesystemsWithContext(ctx context.Context, request *DetachVscFromFilesystemsRequest, runtime *dara.RuntimeOptions) (_result *DetachVscFromFilesystemsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -4781,9 +5049,11 @@ func (client *Client) DetachVscFromFilesystemsWithContext(ctx context.Context, r
 //
 // @return DisableAndCleanRecycleBinResponse
 func (client *Client) DisableAndCleanRecycleBinWithContext(ctx context.Context, request *DisableAndCleanRecycleBinRequest, runtime *dara.RuntimeOptions) (_result *DisableAndCleanRecycleBinResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -4819,9 +5089,11 @@ func (client *Client) DisableAndCleanRecycleBinWithContext(ctx context.Context, 
 //
 // @return DisableNfsAclResponse
 func (client *Client) DisableNfsAclWithContext(ctx context.Context, request *DisableNfsAclRequest, runtime *dara.RuntimeOptions) (_result *DisableNfsAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4861,9 +5133,11 @@ func (client *Client) DisableNfsAclWithContext(ctx context.Context, request *Dis
 //
 // @return DisableSmbAclResponse
 func (client *Client) DisableSmbAclWithContext(ctx context.Context, request *DisableSmbAclRequest, runtime *dara.RuntimeOptions) (_result *DisableSmbAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4903,9 +5177,11 @@ func (client *Client) DisableSmbAclWithContext(ctx context.Context, request *Dis
 //
 // @return EnableNfsAclResponse
 func (client *Client) EnableNfsAclWithContext(ctx context.Context, request *EnableNfsAclRequest, runtime *dara.RuntimeOptions) (_result *EnableNfsAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4949,9 +5225,11 @@ func (client *Client) EnableNfsAclWithContext(ctx context.Context, request *Enab
 //
 // @return EnableRecycleBinResponse
 func (client *Client) EnableRecycleBinWithContext(ctx context.Context, request *EnableRecycleBinRequest, runtime *dara.RuntimeOptions) (_result *EnableRecycleBinResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -4995,9 +5273,11 @@ func (client *Client) EnableRecycleBinWithContext(ctx context.Context, request *
 //
 // @return EnableSmbAclResponse
 func (client *Client) EnableSmbAclWithContext(ctx context.Context, request *EnableSmbAclRequest, runtime *dara.RuntimeOptions) (_result *EnableSmbAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -5049,9 +5329,11 @@ func (client *Client) EnableSmbAclWithContext(ctx context.Context, request *Enab
 //
 // @return GetDirectoryOrFilePropertiesResponse
 func (client *Client) GetDirectoryOrFilePropertiesWithContext(ctx context.Context, request *GetDirectoryOrFilePropertiesRequest, runtime *dara.RuntimeOptions) (_result *GetDirectoryOrFilePropertiesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -5087,6 +5369,118 @@ func (client *Client) GetDirectoryOrFilePropertiesWithContext(ctx context.Contex
 
 // Summary:
 //
+// 查询特定智能目录
+//
+// @param request - GetFilesetRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return GetFilesetResponse
+func (client *Client) GetFilesetWithContext(ctx context.Context, request *GetFilesetRequest, runtime *dara.RuntimeOptions) (_result *GetFilesetResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.FileSystemId) {
+		query["FileSystemId"] = request.FileSystemId
+	}
+
+	if !dara.IsNil(request.FsetId) {
+		query["FsetId"] = request.FsetId
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("GetFileset"),
+		Version:     dara.String("2017-06-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &GetFilesetResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// 查询协议机挂载点
+//
+// @param request - GetProtocolMountTargetRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return GetProtocolMountTargetResponse
+func (client *Client) GetProtocolMountTargetWithContext(ctx context.Context, request *GetProtocolMountTargetRequest, runtime *dara.RuntimeOptions) (_result *GetProtocolMountTargetResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
+	if !dara.IsNil(request.ExportId) {
+		query["ExportId"] = request.ExportId
+	}
+
+	if !dara.IsNil(request.FileSystemId) {
+		query["FileSystemId"] = request.FileSystemId
+	}
+
+	if !dara.IsNil(request.MaxResults) {
+		query["MaxResults"] = request.MaxResults
+	}
+
+	if !dara.IsNil(request.NextToken) {
+		query["NextToken"] = request.NextToken
+	}
+
+	if !dara.IsNil(request.ProtocolServiceId) {
+		query["ProtocolServiceId"] = request.ProtocolServiceId
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("GetProtocolMountTarget"),
+		Version:     dara.String("2017-06-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &GetProtocolMountTargetResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
 // Queries the recycle bin configurations of a General-purpose NAS file system.
 //
 // Description:
@@ -5099,9 +5493,11 @@ func (client *Client) GetDirectoryOrFilePropertiesWithContext(ctx context.Contex
 //
 // @return GetRecycleBinAttributeResponse
 func (client *Client) GetRecycleBinAttributeWithContext(ctx context.Context, request *GetRecycleBinAttributeRequest, runtime *dara.RuntimeOptions) (_result *GetRecycleBinAttributeResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -5141,9 +5537,11 @@ func (client *Client) GetRecycleBinAttributeWithContext(ctx context.Context, req
 //
 // @return ListDirectoriesAndFilesResponse
 func (client *Client) ListDirectoriesAndFilesWithContext(ctx context.Context, request *ListDirectoriesAndFilesRequest, runtime *dara.RuntimeOptions) (_result *ListDirectoriesAndFilesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.DirectoryOnly) {
@@ -5207,9 +5605,11 @@ func (client *Client) ListDirectoriesAndFilesWithContext(ctx context.Context, re
 //
 // @return ListLifecycleRetrieveJobsResponse
 func (client *Client) ListLifecycleRetrieveJobsWithContext(ctx context.Context, request *ListLifecycleRetrieveJobsRequest, runtime *dara.RuntimeOptions) (_result *ListLifecycleRetrieveJobsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -5269,9 +5669,11 @@ func (client *Client) ListLifecycleRetrieveJobsWithContext(ctx context.Context, 
 //
 // @return ListRecentlyRecycledDirectoriesResponse
 func (client *Client) ListRecentlyRecycledDirectoriesWithContext(ctx context.Context, request *ListRecentlyRecycledDirectoriesRequest, runtime *dara.RuntimeOptions) (_result *ListRecentlyRecycledDirectoriesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -5313,9 +5715,11 @@ func (client *Client) ListRecentlyRecycledDirectoriesWithContext(ctx context.Con
 //
 // @return ListRecycleBinJobsResponse
 func (client *Client) ListRecycleBinJobsWithContext(ctx context.Context, request *ListRecycleBinJobsRequest, runtime *dara.RuntimeOptions) (_result *ListRecycleBinJobsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -5355,9 +5759,11 @@ func (client *Client) ListRecycleBinJobsWithContext(ctx context.Context, request
 //
 // @return ListRecycledDirectoriesAndFilesResponse
 func (client *Client) ListRecycledDirectoriesAndFilesWithContext(ctx context.Context, request *ListRecycledDirectoriesAndFilesRequest, runtime *dara.RuntimeOptions) (_result *ListRecycledDirectoriesAndFilesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -5393,9 +5799,11 @@ func (client *Client) ListRecycledDirectoriesAndFilesWithContext(ctx context.Con
 //
 // @return ListTagResourcesResponse
 func (client *Client) ListTagResourcesWithContext(ctx context.Context, request *ListTagResourcesRequest, runtime *dara.RuntimeOptions) (_result *ListTagResourcesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.NextToken) {
@@ -5451,9 +5859,11 @@ func (client *Client) ListTagResourcesWithContext(ctx context.Context, request *
 //
 // @return ModifyAccessGroupResponse
 func (client *Client) ModifyAccessGroupWithContext(ctx context.Context, request *ModifyAccessGroupRequest, runtime *dara.RuntimeOptions) (_result *ModifyAccessGroupResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -5505,9 +5915,11 @@ func (client *Client) ModifyAccessGroupWithContext(ctx context.Context, request 
 //
 // @return ModifyAccessPointResponse
 func (client *Client) ModifyAccessPointWithContext(ctx context.Context, request *ModifyAccessPointRequest, runtime *dara.RuntimeOptions) (_result *ModifyAccessPointResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroup) {
@@ -5567,9 +5979,11 @@ func (client *Client) ModifyAccessPointWithContext(ctx context.Context, request 
 //
 // @return ModifyAccessRuleResponse
 func (client *Client) ModifyAccessRuleWithContext(ctx context.Context, request *ModifyAccessRuleRequest, runtime *dara.RuntimeOptions) (_result *ModifyAccessRuleResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -5643,9 +6057,11 @@ func (client *Client) ModifyAccessRuleWithContext(ctx context.Context, request *
 //
 // @return ModifyAutoSnapshotPolicyResponse
 func (client *Client) ModifyAutoSnapshotPolicyWithContext(ctx context.Context, request *ModifyAutoSnapshotPolicyRequest, runtime *dara.RuntimeOptions) (_result *ModifyAutoSnapshotPolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoSnapshotPolicyId) {
@@ -5697,11 +6113,21 @@ func (client *Client) ModifyAutoSnapshotPolicyWithContext(ctx context.Context, r
 //
 // Description:
 //
-//	  Only Cloud Parallel File Storage (CPFS) for LINGJUN V2.4.0 and later support data flows.
+//	  Only Cloud Parallel File Storage (CPFS) V2.2.0 and later and CPFS for Lingjun V2.4.0 and later support data flows.
 //
 //		- You can modify the attributes only of the data flows that are in the `Running` state.
 //
-//		- It generally takes 2 to 5 minutes to modify the attributes of a data flow. You can call the [DescribeDataFlows](https://help.aliyun.com/document_detail/2838084.html) operation to query the status of the data flow to be modified.
+//		- It generally takes 2 to 5 minutes to modify the attributes of a data flow. You can call the [DescribeDataFlows](https://help.aliyun.com/document_detail/2402270.html) operation to query the status of the data flow to be modified.
+//
+//		- CPFS data flow specifications:
+//
+//	    	- The data flow throughput supports the following specifications: 600 MB/s, 1,200 MB/s, and 1,500 MB/s. The data flow throughput is the maximum transmission bandwidth that can be reached when data is imported or exported for a data flow.
+//
+//	    	- Inventory query: If you set the DryRun parameter to true, you can check whether the resources for the dataflow whose throughput is changed meet the requirements.
+//
+//		- Billing of CPFS file systems
+//
+//	    Changing the dataflow throughput involves the billing of dataflow bandwidth. We recommend that you understand CPFS billing methods in advance. For more information, see [Billing methods and billable items of CPFS](https://help.aliyun.com/document_detail/111858.html).
 //
 // @param request - ModifyDataFlowRequest
 //
@@ -5709,9 +6135,11 @@ func (client *Client) ModifyAutoSnapshotPolicyWithContext(ctx context.Context, r
 //
 // @return ModifyDataFlowResponse
 func (client *Client) ModifyDataFlowWithContext(ctx context.Context, request *ModifyDataFlowRequest, runtime *dara.RuntimeOptions) (_result *ModifyDataFlowResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -5767,13 +6195,13 @@ func (client *Client) ModifyDataFlowWithContext(ctx context.Context, request *Mo
 //
 // Description:
 //
-//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+//	  This operation is available only to CPFS file systems.
 //
 //		- Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
 //
 //		- You can modify the AutoRefresh configurations only for the dataflows that are in the `Running` or `Stopped` state.
 //
-//		- It generally takes 2 to 5 minutes to modify an AutoRefresh configuration. You can call the [DescribeDataFlows](https://help.aliyun.com/document_detail/2838084.html) operation to query the task of modifying an AutoRefresh configuration.
+//		- It generally takes 2 to 5 minutes to modify an AutoRefresh configuration. You can call the [DescribeDataFlows](https://help.aliyun.com/document_detail/2402270.html) operation to query the task of modifying an AutoRefresh configuration.
 //
 // @param request - ModifyDataFlowAutoRefreshRequest
 //
@@ -5781,9 +6209,11 @@ func (client *Client) ModifyDataFlowWithContext(ctx context.Context, request *Mo
 //
 // @return ModifyDataFlowAutoRefreshResponse
 func (client *Client) ModifyDataFlowAutoRefreshWithContext(ctx context.Context, request *ModifyDataFlowAutoRefreshRequest, runtime *dara.RuntimeOptions) (_result *ModifyDataFlowAutoRefreshResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AutoRefreshInterval) {
@@ -5843,9 +6273,11 @@ func (client *Client) ModifyDataFlowAutoRefreshWithContext(ctx context.Context, 
 //
 // @return ModifyFileSystemResponse
 func (client *Client) ModifyFileSystemWithContext(ctx context.Context, tmpReq *ModifyFileSystemRequest, runtime *dara.RuntimeOptions) (_result *ModifyFileSystemResponse, _err error) {
-	_err = tmpReq.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = tmpReq.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	request := &ModifyFileSystemShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
@@ -5895,7 +6327,7 @@ func (client *Client) ModifyFileSystemWithContext(ctx context.Context, tmpReq *M
 //
 // Description:
 //
-// Only Cloud Parallel File Storage (CPFS) for LINGJUN V2.7.0 and later support this operation.
+// Only Cloud Parallel File Storage (CPFS) V2.2.0 and CPFS for Lingjun V2.7.0 and later support this operation.
 //
 // @param request - ModifyFilesetRequest
 //
@@ -5903,9 +6335,11 @@ func (client *Client) ModifyFileSystemWithContext(ctx context.Context, tmpReq *M
 //
 // @return ModifyFilesetResponse
 func (client *Client) ModifyFilesetWithContext(ctx context.Context, request *ModifyFilesetRequest, runtime *dara.RuntimeOptions) (_result *ModifyFilesetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -5971,9 +6405,11 @@ func (client *Client) ModifyFilesetWithContext(ctx context.Context, request *Mod
 //
 // @return ModifyLDAPConfigResponse
 func (client *Client) ModifyLDAPConfigWithContext(ctx context.Context, request *ModifyLDAPConfigRequest, runtime *dara.RuntimeOptions) (_result *ModifyLDAPConfigResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.BindDN) {
@@ -6029,9 +6465,11 @@ func (client *Client) ModifyLDAPConfigWithContext(ctx context.Context, request *
 //
 // @return ModifyLifecyclePolicyResponse
 func (client *Client) ModifyLifecyclePolicyWithContext(ctx context.Context, request *ModifyLifecyclePolicyRequest, runtime *dara.RuntimeOptions) (_result *ModifyLifecyclePolicyResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -6087,9 +6525,11 @@ func (client *Client) ModifyLifecyclePolicyWithContext(ctx context.Context, requ
 //
 // @return ModifyMountTargetResponse
 func (client *Client) ModifyMountTargetWithContext(ctx context.Context, request *ModifyMountTargetRequest, runtime *dara.RuntimeOptions) (_result *ModifyMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.AccessGroupName) {
@@ -6141,7 +6581,7 @@ func (client *Client) ModifyMountTargetWithContext(ctx context.Context, request 
 //
 // Description:
 //
-// This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+// This operation is available only to Cloud Parallel File Storage (CPFS) file systems.
 //
 // @param request - ModifyProtocolMountTargetRequest
 //
@@ -6149,9 +6589,11 @@ func (client *Client) ModifyMountTargetWithContext(ctx context.Context, request 
 //
 // @return ModifyProtocolMountTargetResponse
 func (client *Client) ModifyProtocolMountTargetWithContext(ctx context.Context, request *ModifyProtocolMountTargetRequest, runtime *dara.RuntimeOptions) (_result *ModifyProtocolMountTargetResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -6215,9 +6657,11 @@ func (client *Client) ModifyProtocolMountTargetWithContext(ctx context.Context, 
 //
 // @return ModifyProtocolServiceResponse
 func (client *Client) ModifyProtocolServiceWithContext(ctx context.Context, request *ModifyProtocolServiceRequest, runtime *dara.RuntimeOptions) (_result *ModifyProtocolServiceResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -6273,9 +6717,11 @@ func (client *Client) ModifyProtocolServiceWithContext(ctx context.Context, requ
 //
 // @return ModifySmbAclResponse
 func (client *Client) ModifySmbAclWithContext(ctx context.Context, request *ModifySmbAclRequest, runtime *dara.RuntimeOptions) (_result *ModifySmbAclResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.EnableAnonymousAccess) {
@@ -6349,9 +6795,11 @@ func (client *Client) ModifySmbAclWithContext(ctx context.Context, request *Modi
 //
 // @return RemoveClientFromBlackListResponse
 func (client *Client) RemoveClientFromBlackListWithContext(ctx context.Context, request *RemoveClientFromBlackListRequest, runtime *dara.RuntimeOptions) (_result *RemoveClientFromBlackListResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientIP) {
@@ -6413,9 +6861,11 @@ func (client *Client) RemoveClientFromBlackListWithContext(ctx context.Context, 
 //
 // @return ResetFileSystemResponse
 func (client *Client) ResetFileSystemWithContext(ctx context.Context, request *ResetFileSystemRequest, runtime *dara.RuntimeOptions) (_result *ResetFileSystemResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
@@ -6463,9 +6913,11 @@ func (client *Client) ResetFileSystemWithContext(ctx context.Context, request *R
 //
 // @return RetryLifecycleRetrieveJobResponse
 func (client *Client) RetryLifecycleRetrieveJobWithContext(ctx context.Context, request *RetryLifecycleRetrieveJobRequest, runtime *dara.RuntimeOptions) (_result *RetryLifecycleRetrieveJobResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.JobId) {
@@ -6509,9 +6961,11 @@ func (client *Client) RetryLifecycleRetrieveJobWithContext(ctx context.Context, 
 //
 // @return SetDirQuotaResponse
 func (client *Client) SetDirQuotaWithContext(ctx context.Context, request *SetDirQuotaRequest, runtime *dara.RuntimeOptions) (_result *SetDirQuotaResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileCountLimit) {
@@ -6589,9 +7043,11 @@ func (client *Client) SetDirQuotaWithContext(ctx context.Context, request *SetDi
 //
 // @return SetFilesetQuotaResponse
 func (client *Client) SetFilesetQuotaWithContext(ctx context.Context, request *SetFilesetQuotaRequest, runtime *dara.RuntimeOptions) (_result *SetFilesetQuotaResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -6647,7 +7103,7 @@ func (client *Client) SetFilesetQuotaWithContext(ctx context.Context, request *S
 //
 // Description:
 //
-//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems.
 //
 //		- Only CPFS V2.2.0 and later support data flows. You can view the version information on the file system details page in the console.
 //
@@ -6663,9 +7119,11 @@ func (client *Client) SetFilesetQuotaWithContext(ctx context.Context, request *S
 //
 // @return StartDataFlowResponse
 func (client *Client) StartDataFlowWithContext(ctx context.Context, request *StartDataFlowRequest, runtime *dara.RuntimeOptions) (_result *StartDataFlowResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -6713,7 +7171,7 @@ func (client *Client) StartDataFlowWithContext(ctx context.Context, request *Sta
 //
 // Description:
 //
-//	  This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+//	  This operation is available only to CPFS file systems.
 //
 //		- Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
 //
@@ -6731,9 +7189,11 @@ func (client *Client) StartDataFlowWithContext(ctx context.Context, request *Sta
 //
 // @return StopDataFlowResponse
 func (client *Client) StopDataFlowWithContext(ctx context.Context, request *StopDataFlowRequest, runtime *dara.RuntimeOptions) (_result *StopDataFlowResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ClientToken) {
@@ -6785,9 +7245,11 @@ func (client *Client) StopDataFlowWithContext(ctx context.Context, request *Stop
 //
 // @return TagResourcesResponse
 func (client *Client) TagResourcesWithContext(ctx context.Context, request *TagResourcesRequest, runtime *dara.RuntimeOptions) (_result *TagResourcesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.ResourceId) {
@@ -6835,9 +7297,11 @@ func (client *Client) TagResourcesWithContext(ctx context.Context, request *TagR
 //
 // @return UntagResourcesResponse
 func (client *Client) UntagResourcesWithContext(ctx context.Context, request *UntagResourcesRequest, runtime *dara.RuntimeOptions) (_result *UntagResourcesResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.All) {
@@ -6893,9 +7357,11 @@ func (client *Client) UntagResourcesWithContext(ctx context.Context, request *Un
 //
 // @return UpdateRecycleBinAttributeResponse
 func (client *Client) UpdateRecycleBinAttributeWithContext(ctx context.Context, request *UpdateRecycleBinAttributeRequest, runtime *dara.RuntimeOptions) (_result *UpdateRecycleBinAttributeResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := openapiutil.Query(dara.ToMap(request))
 	req := &openapiutil.OpenApiRequest{
@@ -6937,9 +7403,11 @@ func (client *Client) UpdateRecycleBinAttributeWithContext(ctx context.Context, 
 //
 // @return UpgradeFileSystemResponse
 func (client *Client) UpgradeFileSystemWithContext(ctx context.Context, request *UpgradeFileSystemRequest, runtime *dara.RuntimeOptions) (_result *UpgradeFileSystemResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
 	}
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.Capacity) {

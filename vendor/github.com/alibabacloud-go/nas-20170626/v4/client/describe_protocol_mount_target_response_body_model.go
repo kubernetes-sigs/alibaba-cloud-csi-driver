@@ -70,7 +70,16 @@ func (s *DescribeProtocolMountTargetResponseBody) SetRequestId(v string) *Descri
 }
 
 func (s *DescribeProtocolMountTargetResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.ProtocolMountTargets != nil {
+		for _, item := range s.ProtocolMountTargets {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeProtocolMountTargetResponseBodyProtocolMountTargets struct {
@@ -139,7 +148,8 @@ type DescribeProtocolMountTargetResponseBodyProtocolMountTargets struct {
 	// example:
 	//
 	// vsw-2vc3c2lybvdllxyq4****
-	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	VSwitchId  *string   `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	VSwitchIds []*string `json:"VSwitchIds,omitempty" xml:"VSwitchIds,omitempty" type:"Repeated"`
 	// The VPC ID of the export directory for the protocol service.
 	//
 	// example:
@@ -200,6 +210,10 @@ func (s *DescribeProtocolMountTargetResponseBodyProtocolMountTargets) GetVSwitch
 	return s.VSwitchId
 }
 
+func (s *DescribeProtocolMountTargetResponseBodyProtocolMountTargets) GetVSwitchIds() []*string {
+	return s.VSwitchIds
+}
+
 func (s *DescribeProtocolMountTargetResponseBodyProtocolMountTargets) GetVpcId() *string {
 	return s.VpcId
 }
@@ -256,6 +270,11 @@ func (s *DescribeProtocolMountTargetResponseBodyProtocolMountTargets) SetStatus(
 
 func (s *DescribeProtocolMountTargetResponseBodyProtocolMountTargets) SetVSwitchId(v string) *DescribeProtocolMountTargetResponseBodyProtocolMountTargets {
 	s.VSwitchId = &v
+	return s
+}
+
+func (s *DescribeProtocolMountTargetResponseBodyProtocolMountTargets) SetVSwitchIds(v []*string) *DescribeProtocolMountTargetResponseBodyProtocolMountTargets {
+	s.VSwitchIds = v
 	return s
 }
 

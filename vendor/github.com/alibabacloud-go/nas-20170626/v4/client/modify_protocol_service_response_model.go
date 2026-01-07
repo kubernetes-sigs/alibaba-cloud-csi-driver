@@ -59,5 +59,10 @@ func (s *ModifyProtocolServiceResponse) SetBody(v *ModifyProtocolServiceResponse
 }
 
 func (s *ModifyProtocolServiceResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
