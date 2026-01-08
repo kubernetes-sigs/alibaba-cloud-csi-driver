@@ -1,0 +1,39 @@
+# OSSFS and OSSFS2 Version Configuration
+# This file is the single source of truth for ossfs and ossfs2 versions.
+# The RPM version will be automatically extracted from the image tag by removing the commit hash suffix.
+# When updating versions, please update all references:
+# - pkg/mounter/fuse_pod_manager/oss/utils.go (defaultOssfsUpdatedImageTag, defaultOssfs2ImageTag)
+# - build/csi-agent/Dockerfile (OSSFS_VERSION, OSSFS2_VERSION ARG defaults)
+# - build/mount-proxy/Dockerfile (OSSFS_VERSION ARG)
+# - build/multi/Dockerfile.multi (LABEL defaultOssfsImageTag, defaultOssfs2ImageTag)
+# - build/multi/Dockerfile.multi.asi (LABEL defaultOssfsImageTag, defaultOssfs2ImageTag)
+# - deploy/charts/alibaba-cloud-csi-driver/values.yaml (images.ossfs.tag, images.ossfs2.tag)
+
+# OSSFS image tag (used in Helm values and Go code)
+# Format: v<version>-<commit_hash>
+# The RPM version (v<version>) will be extracted automatically
+OSSFS_IMAGE_TAG=v1.91.9.ack.1-b81059f
+
+# OSSFS2 image tag (used in Helm values and Go code)
+# Format: v<version>-<commit_hash>
+# The RPM version (v<version>) will be extracted automatically
+OSSFS2_IMAGE_TAG=v2.0.5.ack.1-663afcf
+
+# ALINAS and EFC Version Configuration
+# This file is the single source of truth for alinas-utils and efc RPM package versions.
+# When updating versions, please update all references:
+# - build/csi-agent/Dockerfile (ALINAS_UTILS_VERSION, EFC_VERSION, EFC_ARM_VERSION, ALINAS_UTILS_ARM_VERSION ARG defaults)
+# - build/mount-proxy/Dockerfile (ALINAS_UTILS_VERSION, EFC_VERSION, EFC_ARM_VERSION, ALINAS_UTILS_ARM_VERSION ARG defaults)
+
+# ALINAS Utils version for x86_64 (used in Dockerfile for yum install)
+ALINAS_UTILS_VERSION=1.9-0.20251120211108.7e6a18.al7
+
+# EFC version for x86_64 (used in Dockerfile for yum install)
+EFC_VERSION=1.9-20250822095129.f34347.release
+
+# EFC version for ARM64 (used in Dockerfile for yum install)
+EFC_ARM_VERSION=2.1-20251105164215.8422bf.release
+
+# ALINAS Utils version for ARM64 (used in Dockerfile for yum install)
+ALINAS_UTILS_ARM_VERSION=2.1-0.20251104202327.e70d33.generic
+
