@@ -59,5 +59,10 @@ func (s *CreateLifecyclePolicyResponse) SetBody(v *CreateLifecyclePolicyResponse
 }
 
 func (s *CreateLifecyclePolicyResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -59,7 +59,16 @@ func (s *DetachVscFromFilesystemsRequest) SetResourceIds(v []*DetachVscFromFiles
 }
 
 func (s *DetachVscFromFilesystemsRequest) Validate() error {
-	return dara.Validate(s)
+	if s.ResourceIds != nil {
+		for _, item := range s.ResourceIds {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DetachVscFromFilesystemsRequestResourceIds struct {

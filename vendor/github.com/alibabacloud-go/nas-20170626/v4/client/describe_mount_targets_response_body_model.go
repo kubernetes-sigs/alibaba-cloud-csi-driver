@@ -104,7 +104,12 @@ func (s *DescribeMountTargetsResponseBody) SetTotalCount(v int32) *DescribeMount
 }
 
 func (s *DescribeMountTargetsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.MountTargets != nil {
+		if err := s.MountTargets.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeMountTargetsResponseBodyMountTargets struct {
@@ -129,7 +134,16 @@ func (s *DescribeMountTargetsResponseBodyMountTargets) SetMountTarget(v []*Descr
 }
 
 func (s *DescribeMountTargetsResponseBodyMountTargets) Validate() error {
-	return dara.Validate(s)
+	if s.MountTarget != nil {
+		for _, item := range s.MountTarget {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeMountTargetsResponseBodyMountTargetsMountTarget struct {
@@ -306,7 +320,17 @@ func (s *DescribeMountTargetsResponseBodyMountTargetsMountTarget) SetVswId(v str
 }
 
 func (s *DescribeMountTargetsResponseBodyMountTargetsMountTarget) Validate() error {
-	return dara.Validate(s)
+	if s.ClientMasterNodes != nil {
+		if err := s.ClientMasterNodes.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Tags != nil {
+		if err := s.Tags.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeMountTargetsResponseBodyMountTargetsMountTargetClientMasterNodes struct {
@@ -331,7 +355,16 @@ func (s *DescribeMountTargetsResponseBodyMountTargetsMountTargetClientMasterNode
 }
 
 func (s *DescribeMountTargetsResponseBodyMountTargetsMountTargetClientMasterNodes) Validate() error {
-	return dara.Validate(s)
+	if s.ClientMasterNode != nil {
+		for _, item := range s.ClientMasterNode {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeMountTargetsResponseBodyMountTargetsMountTargetClientMasterNodesClientMasterNode struct {
@@ -416,7 +449,16 @@ func (s *DescribeMountTargetsResponseBodyMountTargetsMountTargetTags) SetTag(v [
 }
 
 func (s *DescribeMountTargetsResponseBodyMountTargetsMountTargetTags) Validate() error {
-	return dara.Validate(s)
+	if s.Tag != nil {
+		for _, item := range s.Tag {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag struct {

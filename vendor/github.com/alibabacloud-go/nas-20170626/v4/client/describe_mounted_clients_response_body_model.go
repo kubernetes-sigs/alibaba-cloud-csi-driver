@@ -104,7 +104,12 @@ func (s *DescribeMountedClientsResponseBody) SetTotalCount(v int32) *DescribeMou
 }
 
 func (s *DescribeMountedClientsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Clients != nil {
+		if err := s.Clients.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeMountedClientsResponseBodyClients struct {
@@ -129,7 +134,16 @@ func (s *DescribeMountedClientsResponseBodyClients) SetClient(v []*DescribeMount
 }
 
 func (s *DescribeMountedClientsResponseBodyClients) Validate() error {
-	return dara.Validate(s)
+	if s.Client != nil {
+		for _, item := range s.Client {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeMountedClientsResponseBodyClientsClient struct {

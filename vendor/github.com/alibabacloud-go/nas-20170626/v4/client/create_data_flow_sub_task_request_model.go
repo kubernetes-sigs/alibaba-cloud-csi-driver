@@ -195,7 +195,12 @@ func (s *CreateDataFlowSubTaskRequest) SetSrcFilePath(v string) *CreateDataFlowS
 }
 
 func (s *CreateDataFlowSubTaskRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Condition != nil {
+		if err := s.Condition.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type CreateDataFlowSubTaskRequestCondition struct {

@@ -40,8 +40,6 @@ type ModifyFileSystemRequest struct {
 	//
 	// 	- The IDs of Cloud Paralleled File System (CPFS) file systems must start with `cpfs-`. Example: `cpfs-125487****`.
 	//
-	// >CPFS file systems are available only on the China site (aliyun.com).
-	//
 	// This parameter is required.
 	//
 	// example:
@@ -88,7 +86,12 @@ func (s *ModifyFileSystemRequest) SetOptions(v *ModifyFileSystemRequestOptions) 
 }
 
 func (s *ModifyFileSystemRequest) Validate() error {
-	return dara.Validate(s)
+	if s.Options != nil {
+		if err := s.Options.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type ModifyFileSystemRequestOptions struct {

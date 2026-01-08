@@ -59,5 +59,10 @@ func (s *CreateProtocolMountTargetResponse) SetBody(v *CreateProtocolMountTarget
 }
 
 func (s *CreateProtocolMountTargetResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
