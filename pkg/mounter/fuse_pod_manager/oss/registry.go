@@ -3,18 +3,18 @@ package oss
 import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"k8s.io/client-go/kubernetes"
 )
 
 var (
-	fstypeToFactory      = map[string]func(*corev1.ConfigMap, metadata.MetadataProvider) OSSFuseMounterType{}
+	fstypeToFactory      = map[string]func(utils.Config, metadata.MetadataProvider) OSSFuseMounterType{}
 	fstypeToPath         = map[string]string{}
 	fstypeToInterceptors = map[string][]mounter.MountInterceptor{}
 )
 
 // RegisterFuseMounter registers a fuse mounter factory for a given fstype
-func RegisterFuseMounter(fstype string, factory func(*corev1.ConfigMap, metadata.MetadataProvider) OSSFuseMounterType) {
+func RegisterFuseMounter(fstype string, factory func(utils.Config, metadata.MetadataProvider) OSSFuseMounterType) {
 	fstypeToFactory[fstype] = factory
 }
 
@@ -50,12 +50,12 @@ func GetFuseMountInterceptors(fstype string) ([]mounter.MountInterceptor, bool) 
 }
 
 // GetFuseMounter returns a fuse mounter instance for the given fstype
-func GetFuseMounter(fstype string, configmap *corev1.ConfigMap, m metadata.MetadataProvider) (OSSFuseMounterType, error) {
+func GetFuseMounter(fstype string, csiCfg utils.Config, m metadata.MetadataProvider) (OSSFuseMounterType, error) {
 	factory, ok := fstypeToFactory[fstype]
 	if !ok {
 		return nil, &UnsupportedFstypeError{Fstype: fstype}
 	}
-	return factory(configmap, m), nil
+	return factory(csiCfg, m), nil
 }
 
 // GetAllRegisteredFuseTypes returns all registered fuse types
@@ -70,10 +70,10 @@ func GetAllRegisteredFuseTypes() []string {
 // GetAllOSSFusePodManagers creates a map of all registered OSS fuse pod managers
 // configmap can be nil if not available (e.g., in CSI agent mode)
 // client can be nil if not needed (e.g., in CSI agent mode)
-func GetAllOSSFusePodManagers(configmap *corev1.ConfigMap, m metadata.MetadataProvider, client kubernetes.Interface) map[string]*OSSFusePodManager {
+func GetAllOSSFusePodManagers(csiCfg utils.Config, m metadata.MetadataProvider, client kubernetes.Interface) map[string]*OSSFusePodManager {
 	fusePodManagers := make(map[string]*OSSFusePodManager, len(fstypeToFactory))
 	for fstype, factory := range fstypeToFactory {
-		fusePodManagers[fstype] = NewOSSFusePodManager(factory(configmap, m), client)
+		fusePodManagers[fstype] = NewOSSFusePodManager(factory(csiCfg, m), client)
 	}
 	return fusePodManagers
 }

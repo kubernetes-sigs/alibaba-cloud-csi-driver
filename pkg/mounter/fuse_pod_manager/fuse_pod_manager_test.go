@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -17,8 +18,8 @@ import (
 )
 
 func Test_ExtractFuseContainerConfig(t *testing.T) {
-	configmap := &corev1.ConfigMap{
-		Data: map[string]string{
+	csiCfg := utils.Config{
+		ConfigMap: map[string]string{
 			"fuse-ossfs": `
 				image=ossfs:latest
 				cpu-request=100m
@@ -32,7 +33,7 @@ func Test_ExtractFuseContainerConfig(t *testing.T) {
 			`,
 		},
 	}
-	config := ExtractFuseContainerConfig(configmap, "ossfs")
+	config := ExtractFuseContainerConfig(csiCfg, "ossfs")
 	expected := FuseContainerConfig{
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{

@@ -39,8 +39,8 @@ var ossfs2Dbglevels = map[string]string{
 	fpm.DebugLevelInfo:  "info",
 }
 
-func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) ossfpm.OSSFuseMounterType {
-	config := fpm.ExtractFuseContainerConfig(configmap, mounterutils.OssFs2Type)
+func NewFuseOssfs(csiCfg utils.Config, m metadata.MetadataProvider) ossfpm.OSSFuseMounterType {
+	config := fpm.ExtractFuseContainerConfig(csiCfg, mounterutils.OssFs2Type)
 	// set default image
 	ossfpm.SetDefaultImage(mounterutils.OssFs2Type, m, &config)
 	// set default memory request
