@@ -145,7 +145,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 	}
 	klog.V(2).InfoS("start to create subpath directory for volume", "filesystemId", filesystemId, "path", path)
 	// create dir
-	if err := cs.nasClient.CreateDir(&sdk.CreateDirRequest{
+	if err := cs.nasClient.CreateDir(ctx, &sdk.CreateDirRequest{
 		FileSystemId:  &filesystemId,
 		OwnerGroupId:  tea.Int32(0),
 		OwnerUserId:   tea.Int32(0),
@@ -159,7 +159,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 		quota := (capacity + GiB - 1) >> 30
 		resp.Volume.CapacityBytes = quota << 30
 		resp.Volume.VolumeContext["volumeCapacity"] = "true"
-		if err := cs.nasClient.SetDirQuota(&sdk.SetDirQuotaRequest{
+		if err := cs.nasClient.SetDirQuota(ctx, &sdk.SetDirQuotaRequest{
 			FileSystemId: &filesystemId,
 			Path:         &path,
 			SizeLimit:    &quota,
@@ -197,7 +197,7 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 		filesystemType := getFilesystemTypeFromAPIOrServer(filesystemId, server, cs.nasClient)
 		if filesystemType == cloud.FilesystemTypeStandard {
 			var err error
-			recycleBinEnabled, err = cs.isRecycleBinEnabled(filesystemId)
+			recycleBinEnabled, err = cs.isRecycleBinEnabled(ctx, filesystemId)
 			if err != nil {
 				return nil, err
 			}
@@ -211,7 +211,7 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 	}
 	// cancel dir quota
 	if attributes["volumeCapacity"] == "true" {
-		if err := cs.nasClient.CancelDirQuota(&sdk.CancelDirQuotaRequest{
+		if err := cs.nasClient.CancelDirQuota(ctx, &sdk.CancelDirQuotaRequest{
 			FileSystemId: &filesystemId,
 			Path:         &path,
 			UserType:     tea.String("AllUsers"),
@@ -284,7 +284,7 @@ func (cs *subpathController) ControllerExpandVolume(ctx context.Context, req *cs
 	capacity := req.GetCapacityRange().GetRequiredBytes()
 	if attributes["volumeCapacity"] == "true" {
 		quota := (capacity + GiB - 1) >> 30
-		if err := cs.nasClient.SetDirQuota(&sdk.SetDirQuotaRequest{
+		if err := cs.nasClient.SetDirQuota(ctx, &sdk.SetDirQuotaRequest{
 			FileSystemId: &filesystemId,
 			Path:         &path,
 			SizeLimit:    &quota,
@@ -330,8 +330,8 @@ func (cs *subpathController) patchFinalizerOnPV(ctx context.Context, pv *corev1.
 	return nil
 }
 
-func (cs *subpathController) isRecycleBinEnabled(filesystemId string) (bool, error) {
-	resp, err := cs.nasClient.GetRecycleBinAttribute(filesystemId)
+func (cs *subpathController) isRecycleBinEnabled(ctx context.Context, filesystemId string) (bool, error) {
+	resp, err := cs.nasClient.GetRecycleBinAttribute(ctx, filesystemId)
 	if err != nil {
 		return false, status.Errorf(codes.Internal, "nas:GetRecycleBinAttribute failed: %v", err)
 	}
