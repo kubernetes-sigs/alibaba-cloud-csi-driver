@@ -59,6 +59,10 @@ update-base-image-deps: bin/syft
 check-base-image-deps: update-base-image-deps
 	git diff --exit-code hack/base-image-deps.txt
 
+.PHONY: update-versions
+update-versions:
+	./hack/update-versions.sh
+
 .PHONY: check-helm-kind
 check-helm-kind: bin/helm
 check-helm-kind: export KUBECONFIG := /tmp/kubeconfig
