@@ -24,9 +24,9 @@ import (
 )
 
 func init() {
-	ossfpm.RegisterFuseMounter(ossfpm.OssFsType, NewFuseOssfs)
-	ossfpm.RegisterFuseMounterPath(ossfpm.OssFsType, "/usr/local/bin/ossfs")
-	ossfpm.RegisterFuseInterceptors(ossfpm.OssFsType, []mounter.MountInterceptor{interceptors.OssfsSecretInterceptor})
+	ossfpm.RegisterFuseMounter(mounterutils.OssFsType, NewFuseOssfs)
+	ossfpm.RegisterFuseMounterPath(mounterutils.OssFsType, "/usr/local/bin/ossfs")
+	ossfpm.RegisterFuseInterceptors(mounterutils.OssFsType, []mounter.MountInterceptor{interceptors.OssfsSecretInterceptor})
 }
 
 var defaultOssfsDbglevel = fpm.DebugLevelWarn
@@ -54,10 +54,10 @@ var ossfsDbglevels = map[string]string{
 }
 
 func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) ossfpm.OSSFuseMounterType {
-	config := fpm.ExtractFuseContainerConfig(configmap, ossfpm.OssFsType)
+	config := fpm.ExtractFuseContainerConfig(configmap, mounterutils.OssFsType)
 
 	// set default image
-	ossfpm.SetDefaultImage(ossfpm.OssFsType, m, &config)
+	ossfpm.SetDefaultImage(mounterutils.OssFsType, m, &config)
 	// set default memory request
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
 		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
@@ -67,7 +67,7 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) ossf
 }
 
 func (f *fuseOssfs) Name() string {
-	return ossfpm.OssFsType
+	return mounterutils.OssFsType
 }
 
 func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
@@ -95,11 +95,17 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 			return nil
 		}
-		if o.SecretRef != "" {
+		// conflict by secret-volume and republish-token-rotate
+		sv := o.SecretRef != ""
+		rtr := o.SecurityToken != ""
+		if sv && rtr {
+			return fmt.Errorf("token and secretRef cannot be set at the same time")
+		}
+		if sv || rtr {
 			if o.AkID != "" || o.AkSecret != "" {
 				return fmt.Errorf("AK and secretRef cannot be set at the same time")
 			}
-			if o.SecretRef == mounterutils.GetCredientialsSecretName(ossfpm.OssFsType) {
+			if o.SecretRef == mounterutils.GetCredientialsSecretName(mounterutils.OssFsType) {
 				return fmt.Errorf("invalid SecretRef name")
 			}
 			return nil
@@ -127,12 +133,26 @@ func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvide
 	case ossfpm.AuthTypeSTS:
 		authCfg.RoleName = o.RoleName
 	default:
-		if o.SecretRef != "" {
-			authCfg.SecretRef = o.SecretRef
-		} else {
+		// fixed credentials
+		if o.AkID != "" && o.AkSecret != "" {
 			authCfg.Secrets = map[string]string{
 				mounterutils.GetPasswdFileName(f.Name()): fmt.Sprintf("%s:%s:%s", o.Bucket, o.AkID, o.AkSecret),
 			}
+			return authCfg, nil
+		}
+
+		// secret volume for STS.Token
+		if o.SecretRef != "" {
+			authCfg.SecretRef = o.SecretRef
+			return authCfg, nil
+		}
+
+		// republish token retoate for STS.Token
+		authCfg.Secrets = map[string]string{
+			mounterutils.KeyAccessKeyId:     o.AccessKeyId,
+			mounterutils.KeyAccessKeySecret: o.AccessKeySecret,
+			mounterutils.KeySecurityToken:   o.SecurityToken,
+			mounterutils.KeyExpiration:      o.Expiration,
 		}
 	}
 	return authCfg, nil
@@ -303,11 +323,22 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	default:
+		// fixed credentials
+		if o.AkID != "" && o.AkSecret != "" {
+			// it will make passwd_file option in mount-proxy server as it's under a tempdir
+			return
+		}
+
+		// secret volume for STS.Token
 		if o.SecretRef != "" {
 			mountOptions = append(mountOptions, fmt.Sprintf("passwd_file=%s", filepath.Join(mounterutils.GetConfigDir(o.FuseType), mounterutils.GetPasswdFileName(o.FuseType))))
-			mountOptions = append(mountOptions, "use_session_token")
 		}
-		// publishSecretRef will make option in mount-proxy server
+
+		// republish token retoate for STS.Token
+		// it will make passwd_file option in mount-proxy server as it's under a tempdir
+
+		// for both STS.Token
+		mountOptions = append(mountOptions, "use_session_token")
 	}
 	return
 }

@@ -30,12 +30,12 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
-	mountutils "k8s.io/mount-utils"
 )
 
 // VolumeAs determines the mounting target path in OSS
@@ -55,21 +55,82 @@ const (
 	// For compatibility with standard naming conventions, we also support customers configuring `accessKeyID` and `accessKeySecret`
 	AkID     = "akId"
 	AkSecret = "akSecret"
-	// AccessKeyID and AccessKeySecret are provided for compatibility with standard naming conventions.
-	AccessKeyID     = "accessKeyId"
-	AccessKeySecret = "accessKeySecret"
 )
 
-// parseCredentialsFromSecret retrieves long-term credentials from the `Secret` field in request.
-// It prioritizes obtaining the credentials from `AkID` and `AkSecret`
-func parseCredentialsFromSecret(secrets map[string]string) (akID, akSecret string) {
-	akID = strings.TrimSpace(secrets[AkID])
-	akSecret = strings.TrimSpace(secrets[AkSecret])
-	if akID == "" && akSecret == "" {
-		akID = strings.TrimSpace(secrets[AccessKeyID])
-		akSecret = strings.TrimSpace(secrets[AccessKeySecret])
+// parseCredentialsFromSecret retrieves credentials from the `Secret` field in request.
+// It supports two credential formats:
+//  1. Legacy format: `akId` and `akSecret` (case-sensitive, no trimming for key names)
+//  2. Standard format: `AccessKeyId`, `AccessKeySecret`, `SecurityToken`, `Expiration` (case-insensitive)
+//
+// Priority and return logic:
+//  1. Legacy keys (`akId` and `akSecret`):
+//     - If both are set: returns AccessKey with legacy values, TokenSecret is empty (fixed credentials)
+//     - If only one is set: returns empty AccessKey and empty TokenSecret (invalid, caller should handle)
+//     - If both are empty: continues to check standard keys
+//  2. Standard keys (searched in case-insensitive manner for SecretRef compatibility):
+//     - If AccessKeyId or AccessKeySecret is missing: returns empty AccessKey and empty TokenSecret
+//     - If SecurityToken is empty: returns AccessKey with standard values, TokenSecret is empty (fixed credentials)
+//     - If SecurityToken is set: returns empty AccessKey, TokenSecret with all values (STS token credentials)
+//
+// Returns:
+//   - AccessKey: Contains AkID and AkSecret for fixed credentials (either legacy or standard format)
+//   - TokenSecret: Contains AccessKeyId, AccessKeySecret, SecurityToken, and Expiration for STS token credentials
+//     Note: Only one of AccessKey or TokenSecret will be non-empty, never both
+func parseCredentialsFromSecret(secrets map[string]string) (ossfpm.AccessKey, ossfpm.TokenSecret) {
+	var nilAk = ossfpm.AccessKey{}
+	var nilToken = ossfpm.TokenSecret{}
+	// Maintain backward compatibility: legacy keys are case-sensitive and not trimmed
+	akID := strings.TrimSpace(secrets[AkID])
+	akSecret := strings.TrimSpace(secrets[AkSecret])
+	if akID != "" && akSecret != "" {
+		return ossfpm.AccessKey{
+			AkID:     akID,
+			AkSecret: akSecret,
+		}, nilToken
 	}
-	return
+	// If either legacy key is set, return immediately without checking standard keys
+	if akID != "" || akSecret != "" {
+		return nilAk, nilToken
+	}
+
+	var token, expiration string
+	// For SecretRef compatibility, search for standard keys in case-insensitive manner
+	for k, v := range secrets {
+		key := strings.TrimSpace(strings.ToLower(k))
+		value := strings.TrimSpace(v)
+		if value == "" {
+			continue
+		}
+		// Can be either fixed credentials or rotating STS token
+		switch key {
+		case strings.ToLower(mounterutils.KeyAccessKeyId):
+			akID = value
+		case strings.ToLower(mounterutils.KeyAccessKeySecret):
+			akSecret = value
+		case strings.ToLower(mounterutils.KeySecurityToken):
+			token = value
+		case strings.ToLower(mounterutils.KeyExpiration):
+			expiration = value
+		}
+	}
+	// if akID or akSecret is empty, return nil
+	if akID == "" || akSecret == "" {
+		return nilAk, nilToken
+	}
+	// if token is empty, see as fixed credentials
+	if token == "" {
+		return ossfpm.AccessKey{
+			AkID:     akID,
+			AkSecret: akSecret,
+		}, nilToken
+	}
+	// else, see as STS.Token
+	return nilAk, ossfpm.TokenSecret{
+		AccessKeyId:     akID,
+		AccessKeySecret: akSecret,
+		Expiration:      expiration, // optional
+		SecurityToken:   token,
+	}
 }
 
 // get Options for CreateVolume and PublishVolume
@@ -91,12 +152,12 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	}
 
 	// credientials
-	akId, akSecret := parseCredentialsFromSecret(secrets)
+	accessKey, tokenSecret := parseCredentialsFromSecret(secrets)
 	opts := &ossfpm.Options{
 		UseSharedPath: true,
 		Path:          "/",
-		AkID:          akId,
-		AkSecret:      akSecret,
+		AccessKey:     accessKey,
+		TokenSecret:   tokenSecret,
 	}
 
 	var volumeAsSubpath bool
@@ -181,9 +242,9 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		case "runtimeclass":
 			runtimeClassValue = value
 		// deprecated:
-		case "akid":
+		case strings.ToLower(AkID):
 			opts.AkID = value
-		case "aksecret":
+		case strings.ToLower(AkSecret):
 			opts.AkSecret = value
 		}
 	}
@@ -206,7 +267,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 
 	// default fuseType is ossfs
 	if opts.FuseType == "" {
-		opts.FuseType = OssFsType
+		opts.FuseType = mounterutils.OssFsType
 	}
 
 	url := opts.URL
@@ -232,7 +293,9 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	switch opts.AuthType {
 	case "":
 		// try to get ak/sk from env
-		if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
+		if opts.SecretRef == "" &&
+			(opts.AkID == "" && opts.AkSecret == "") &&
+			(opts.AccessKeyId == "" && opts.AccessKeySecret == "" && opts.SecurityToken == "") {
 			ac := utils.GetEnvAK()
 			opts.AkID = ac.AccessKeyID
 			opts.AkSecret = ac.AccessKeySecret
@@ -300,27 +363,6 @@ func parseOtherOpts(otherOpts string) (mountOptions []string, err error) {
 		}
 	}
 	return mountOptions, nil
-}
-
-func isNotMountPoint(mounter mountutils.Interface, target string) (notMnt bool, err error) {
-	notMnt, err = mounter.IsLikelyNotMountPoint(target)
-	if err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(target, os.ModePerm); err != nil {
-				return false, status.Errorf(codes.Internal, "mkdir: %v", err)
-			}
-			return true, nil
-		} else if mountutils.IsCorruptedMnt(err) {
-			klog.Warningf("Umount corrupted mountpoint %s", target)
-			err := mounter.Unmount(target)
-			if err != nil {
-				return false, status.Errorf(codes.Internal, "umount corrupted mountpoint %s: %v", target, err)
-			}
-			return true, nil
-		}
-		return false, status.Errorf(codes.Internal, "check mountpoint: %v", err)
-	}
-	return notMnt, nil
 }
 
 func setNetworkType(originURL, regionID string) (URL string, modified bool) {
@@ -413,7 +455,7 @@ func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
 	// TODO: ossfs2 should matain compatibility with ossfs on encryption,
 	// then remove this `switch`
 	switch opt.FuseType {
-	case OssFsType:
+	case mounterutils.OssFsType:
 		if !strings.HasPrefix(opt.Path, "/") {
 			return WrapOssError(PathError, "start with %s, should start with /", opt.Path)
 		}
@@ -422,7 +464,7 @@ func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
 			return WrapOssError(EncryptError, "invalid SSE encrypted type")
 		}
 
-	case OssFs2Type:
+	case mounterutils.OssFs2Type:
 		if opt.Encrypted != "" {
 			return WrapOssError(EncryptError, "ossfs2 does not support encryption")
 		}
@@ -457,7 +499,7 @@ func makeMountOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m meta
 
 	// TODO: currently the common options for fuse like kernel_cache set on mountOptions will be ignored.
 	if volumeCapability != nil && volumeCapability.GetMount() != nil && volumeCapability.GetMount().MountFlags != nil {
-		if opt.FuseType == OssFs2Type {
+		if opt.FuseType == mounterutils.OssFs2Type {
 			klog.Warningf("NodePublishVolume: ossfs2 does not support mountOptions, only support volumeAttributes")
 		} else {
 			mountOptions = append(mountOptions, volumeCapability.GetMount().MountFlags...)
@@ -607,4 +649,17 @@ func getDirectAssignedValue(runtimeClass string) bool {
 		klog.Warningf("invalid runtimeClass value: %q, only %s and %s are allowed", runtimeClass, utils.RuncRunTimeTag, utils.RundRunTimeTag)
 		return false
 	}
+}
+
+func needRotateToken(fuseType string, secrets map[string]string) (needRotate bool) {
+	if len(secrets) == 0 {
+		return false
+	}
+	// TODO: Remove this check if when ossfs support rotate fixed AKSK.
+	ak := secrets[mounterutils.GetPasswdFileName(fuseType)]
+	token := secrets[mounterutils.KeySecurityToken]
+	if ak == "" && token != "" {
+		needRotate = true
+	}
+	return
 }

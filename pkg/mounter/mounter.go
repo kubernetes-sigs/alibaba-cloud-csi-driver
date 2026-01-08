@@ -2,9 +2,17 @@ package mounter
 
 import (
 	"context"
+	"errors"
 
 	mountutils "k8s.io/mount-utils"
 )
+
+// ErrSkipMount is a special error that indicates the mount operation should be skipped.
+// When an interceptor returns this error, the mount workflow will stop executing
+// subsequent interceptors and the final mount operation, and return nil (success)
+// to the caller. This is useful when an interceptor determines that the mount
+// is already complete or unnecessary (e.g., mount point already exists).
+var ErrSkipMount = errors.New("mount operation skipped")
 
 type Mounter interface {
 	mountutils.Interface
@@ -31,6 +39,10 @@ type MountHandler func(ctx context.Context, op *MountOperation) error
 //
 //   - If any essential pre-mount operation fails, the interceptor must return an error,
 //     causing the entire mount process to abort immediately.
+//
+//   - To skip the mount operation (e.g., when the mount point already exists),
+//     return ErrSkipMount. This will stop the execution of subsequent interceptors
+//     and the final mount operation, and return nil (success) to the caller.
 //
 //   - In the post-mount phase, interceptors must preserve the original mount error.
 //     They should either:
@@ -59,7 +71,12 @@ func chainInterceptors(interceptors []MountInterceptor, finalHandler MountHandle
 	}
 
 	return func(ctx context.Context, op *MountOperation) error {
-		return interceptors[0](ctx, op, getChainHandler(interceptors, 0, finalHandler))
+		err := interceptors[0](ctx, op, getChainHandler(interceptors, 0, finalHandler))
+		// If interceptor returns ErrSkipMount, treat it as success and stop execution
+		if errors.Is(err, ErrSkipMount) {
+			return nil
+		}
+		return err
 	}
 }
 
@@ -70,10 +87,29 @@ func getChainHandler(interceptors []MountInterceptor, curr int, finalHandler Mou
 	}
 
 	return func(ctx context.Context, op *MountOperation) error {
-		return interceptors[curr+1](ctx, op, getChainHandler(interceptors, curr+1, finalHandler))
+		err := interceptors[curr+1](ctx, op, getChainHandler(interceptors, curr+1, finalHandler))
+		// If interceptor returns ErrSkipMount, treat it as success and stop execution
+		if errors.Is(err, ErrSkipMount) {
+			return nil
+		}
+		return err
 	}
 }
 
+// NewForMounter creates a new MountWorkflow that wraps the given Mounter with the provided interceptors.
+//
+// The interceptors are executed in the order they are provided. For example, if called as:
+//
+//	NewForMounter(m, interceptor1, interceptor2)
+//
+// The execution order will be:
+//  1. interceptor1 (first interceptor in the slice)
+//  2. interceptor2 (second interceptor in the slice)
+//  3. m.ExtendedMount (final mount operation)
+//
+// Each interceptor wraps the next interceptor (or the final mount operation), similar to gRPC interceptors.
+// If any interceptor returns ErrSkipMount, subsequent interceptors and the mount operation will be skipped,
+// and the function will return nil (success) to the caller.
 func NewForMounter(m Mounter, interceptors ...MountInterceptor) Mounter {
 	return &MountWorkflow{
 		Mounter:        m,

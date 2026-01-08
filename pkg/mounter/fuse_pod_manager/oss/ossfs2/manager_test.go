@@ -7,10 +7,12 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 )
@@ -70,16 +72,20 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 		{
 			"empty aksecret",
 			&ossfpm.Options{
-				AkID:     "test-ak",
-				AkSecret: "",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "",
+				},
 			},
 			true,
 		},
 		{
 			"success - aksk",
 			&ossfpm.Options{
-				AkID:     "test-ak",
-				AkSecret: "test-ak-secret",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 			},
 			false,
 		},
@@ -90,12 +96,59 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"conflict between SecurityToken and SecretRef",
+			&ossfpm.Options{
+				TokenSecret: ossfpm.TokenSecret{
+					SecurityToken: "token",
+				},
+				SecretRef: "secret",
+			},
+			true,
+		},
+		{
+			"conflict between SecurityToken and AccessKey",
+			&ossfpm.Options{
+				AccessKey: ossfpm.AccessKey{
+					AkID: "11111",
+				},
+				TokenSecret: ossfpm.TokenSecret{
+					SecurityToken: "token",
+				},
+			},
+			true,
+		},
+		{
+			"success with SecurityToken only",
+			&ossfpm.Options{
+				TokenSecret: ossfpm.TokenSecret{
+					AccessKeyId:     "akid",
+					AccessKeySecret: "aksecret",
+					SecurityToken:   "token",
+				},
+			},
+			false,
+		},
+		{
+			"success with RundCSIProtocol3 enabled",
+			&ossfpm.Options{},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Enable RundCSIProtocol3 for the specific test case
+			if tt.name == "success with RundCSIProtocol3 enabled" {
+				err := features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=true", features.RundCSIProtocol3))
+				require.NoError(t, err)
+				defer func() {
+					_ = features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=false", features.RundCSIProtocol3))
+				}()
+			}
 			err := fakeOssfs.PrecheckAuthConfig(tt.opts, true)
 			assert.Equal(t, tt.wantErr, err != nil)
 		})
+
 	}
 }
 
@@ -125,8 +178,10 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 		{
 			"aksk",
 			&ossfpm.Options{
-				AkID:     "test-ak",
-				AkSecret: "test-ak-secret",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 			},
 			&fpm.AuthConfig{
 				Secrets: map[string]string{
@@ -181,6 +236,26 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"TokenSecret_republish_token_rotate",
+			&ossfpm.Options{
+				TokenSecret: ossfpm.TokenSecret{
+					AccessKeyId:     "test-akid",
+					AccessKeySecret: "test-aksecret",
+					SecurityToken:   "test-token",
+					Expiration:      "2024-01-01T00:00:00Z",
+				},
+			},
+			&fpm.AuthConfig{
+				Secrets: map[string]string{
+					mounterutils.KeyAccessKeyId:     "test-akid",
+					mounterutils.KeyAccessKeySecret: "test-aksecret",
+					mounterutils.KeySecurityToken:   "test-token",
+					mounterutils.KeyExpiration:      "2024-01-01T00:00:00Z",
+				},
+			},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -202,8 +277,10 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		{
 			name: "ro",
 			opts: &ossfpm.Options{
-				AkID:     "test-ak",
-				AkSecret: "test-ak-secret",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 				Bucket:   "test-bucket",
 				Path:     "/",
 				URL:      "oss://test-bucket/",
@@ -219,8 +296,10 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		{
 			name: "sigv4",
 			opts: &ossfpm.Options{
-				AkID:       "test-ak",
-				AkSecret:   "test-ak-secret",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 				Bucket:     "test-bucket",
 				Path:       "/",
 				URL:        "oss://test-bucket/",
@@ -237,8 +316,10 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		{
 			name: "sigv4 with empty region",
 			opts: &ossfpm.Options{
-				AkID:       "test-ak",
-				AkSecret:   "test-ak-secret",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 				Bucket:     "test-bucket",
 				Path:       "/",
 				URL:        "oss://test-bucket/",
@@ -268,8 +349,10 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		{
 			name: "metrics top",
 			opts: &ossfpm.Options{
-				AkID:       "test-ak",
-				AkSecret:   "test-ak-secret",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 				Bucket:     "test-bucket",
 				Path:       "/",
 				URL:        "oss://test-bucket/",
@@ -394,6 +477,10 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 			name: "aksk",
 			opts: &ossfpm.Options{
 				FuseType: "ossfs2",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 			},
 		},
 		{
@@ -406,6 +493,33 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 			wantOptions: []string{
 				"rrsa_endpoint=https://sts-vpc.cn-hangzhou.aliyuncs.com",
 			},
+		},
+		{
+			name: "rrsa with AssumeRoleArn and ExternalId",
+			opts: &ossfpm.Options{
+				FuseType:      "ossfs2",
+				AuthType:      ossfpm.AuthTypeRRSA,
+				AssumeRoleArn: "test-assume-role-arn",
+				ExternalId:    "test-external-id",
+			},
+			wantOptions: []string{
+				"rrsa_endpoint=https://sts-vpc.cn-hangzhou.aliyuncs.com",
+				"assume_role_arn=test-assume-role-arn",
+				"assume_role_external_id=test-external-id",
+			},
+		},
+		{
+			name: "TokenSecret_republish_token_rotate",
+			opts: &ossfpm.Options{
+				FuseType: "ossfs2",
+				TokenSecret: ossfpm.TokenSecret{
+					AccessKeyId:     "test-akid",
+					AccessKeySecret: "test-aksecret",
+					SecurityToken:   "test-token",
+					Expiration:      "2024-01-01T00:00:00Z",
+				},
+			},
+			wantOptions: nil, // Returns nil as passwd_file option is made in mount-proxy server
 		},
 	}
 	for _, tt := range tests {
@@ -498,7 +612,7 @@ func TestBuildAuthSpec_ossfs2(t *testing.T) {
 		NodeName:   nodeName,
 		VolumeId:   volumeId,
 		AuthConfig: authCfg,
-		FuseType:   ossfpm.OssFsType,
+		FuseType:   mounterutils.OssFsType,
 	}, "target", &spec, &container)
 
 	assert.Equal(t, "rrsa-oidc-token", spec.Volumes[len(spec.Volumes)-1].Name)

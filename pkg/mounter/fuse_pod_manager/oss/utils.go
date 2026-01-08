@@ -15,25 +15,10 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	// OssFsType is the oss filesystem type
-	OssFsType = "ossfs"
-	// OssFs2Type is the ossfs2 filesystem type
-	OssFs2Type = "ossfs2"
-)
-
 var (
 	defaultOssfsImageTag        = "v1.88.4-80d165c-aliyun"
 	defaultOssfsUpdatedImageTag = "v1.91.8.ack.3-b0e4403"
 	defaultOssfs2ImageTag       = "v2.0.4.ack.1-5073ed2"
-)
-
-// keys for STS token
-const (
-	KeyAccessKeyId     = "AccessKeyId"
-	KeyAccessKeySecret = "AccessKeySecret"
-	KeyExpiration      = "Expiration"
-	KeySecurityToken   = "SecurityToken"
 )
 
 func SetDefaultImage(fuseType string, m metadata.MetadataProvider, config *fpm.FuseContainerConfig) {
@@ -49,13 +34,13 @@ func SetDefaultImage(fuseType string, m metadata.MetadataProvider, config *fpm.F
 
 	if config.ImageTag == "" {
 		switch fuseType {
-		case OssFsType:
+		case mounterutils.OssFsType:
 			if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
 				config.ImageTag = defaultOssfsUpdatedImageTag
 			} else {
 				config.ImageTag = defaultOssfsImageTag
 			}
-		case OssFs2Type:
+		case mounterutils.OssFs2Type:
 			config.ImageTag = defaultOssfs2ImageTag
 		default:
 			klog.Warningf("Unknown fuse type: %s", fuseType)
@@ -134,10 +119,10 @@ func GetSTSEndpoint(region string) string {
 
 // keep consistent with RAM response
 var secretRefKeysToParse []string = []string{
-	KeyAccessKeyId,
-	KeyAccessKeySecret,
-	KeyExpiration, // only used in ossfs1.0
-	KeySecurityToken,
+	mounterutils.KeyAccessKeyId,
+	mounterutils.KeyAccessKeySecret,
+	mounterutils.KeyExpiration, // only used in ossfs1.0
+	mounterutils.KeySecurityToken,
 }
 
 func GetPasswdSecretVolume(secretRef, fuseType string) (secret *corev1.SecretVolumeSource) {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	corev1 "k8s.io/api/core/v1"
 	apiserrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -42,7 +42,7 @@ type AuthConfig struct {
 	RrsaConfig *RrsaConfig
 	// for csi-secret-store
 	SecretProviderClassName string
-	// for AK/SK
+	// for AK/SK with or without token
 	Secrets map[string]string
 	// for Token from Secret
 	SecretRef string
@@ -150,7 +150,7 @@ func ExtractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 				invalid = true
 				break
 			}
-			err = utils.ValidateAnnotations(annotations)
+			err = mounterutils.ValidateAnnotations(annotations)
 			if err != nil {
 				invalid = true
 				break
@@ -163,7 +163,7 @@ func ExtractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 				invalid = true
 				break
 			}
-			err = utils.ValidateLabels(labels)
+			err = mounterutils.ValidateLabels(labels)
 			if err != nil {
 				invalid = true
 				break
@@ -206,7 +206,7 @@ func NewFusePodManager(fuseType FuseMounterType, client kubernetes.Interface) *F
 
 func (fpm *FusePodManager) labelsAndListOptionsFor(c *FusePodContext, target string) (map[string]string, metav1.ListOptions) {
 	labels := map[string]string{
-		FuseVolumeIdLabelKey: utils.ComputeVolumeIdLabelVal(c.VolumeId),
+		FuseVolumeIdLabelKey: mounterutils.ComputeVolumeIdLabelVal(c.VolumeId),
 	}
 	// ControllerUnPublish cannot get fuseType info,
 	// so FuseTypeLabelKey cannot used as a label for Delete
@@ -214,7 +214,7 @@ func (fpm *FusePodManager) labelsAndListOptionsFor(c *FusePodContext, target str
 		labels[FuseTypeLabelKey] = c.FuseType
 	}
 	if target != "" {
-		labels[FuseMountPathHashLabelKey] = utils.ComputeMountPathHash(target)
+		labels[FuseMountPathHashLabelKey] = mounterutils.ComputeMountPathHash(target)
 	}
 	listOptions := metav1.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector("spec.nodeName", c.NodeName).String(),

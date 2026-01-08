@@ -12,9 +12,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sys/unix"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	mountutils "k8s.io/mount-utils"
 )
 
 const (
@@ -30,7 +34,38 @@ const (
 	OssFs2Type = "ossfs2"
 )
 
+// keys for STS token
+const (
+	KeyAccessKeyId     = "AccessKeyId"
+	KeyAccessKeySecret = "AccessKeySecret"
+	KeyExpiration      = "Expiration"
+	KeySecurityToken   = "SecurityToken"
+)
+
 const LegacyFusePodNamespace = "kube-system" // deprecated
+
+// fuseAttachBaseDir is the base directory for fuse attach paths.
+// Default is "/run", but can be overridden for testing.
+var (
+	fuseAttachBaseDir     = "/run"
+	fuseAttachBaseDirLock sync.RWMutex
+)
+
+// SetFuseAttachBaseDir sets the base directory for fuse attach paths.
+// This is primarily used for testing to avoid /run permission issues.
+// It should be called before any calls to GetFuseAttachDir() or GetAttachPath().
+func SetFuseAttachBaseDir(dir string) {
+	fuseAttachBaseDirLock.Lock()
+	defer fuseAttachBaseDirLock.Unlock()
+	fuseAttachBaseDir = dir
+}
+
+// GetFuseAttachBaseDir returns the current base directory for fuse attach paths.
+func GetFuseAttachBaseDir() string {
+	fuseAttachBaseDirLock.RLock()
+	defer fuseAttachBaseDirLock.RUnlock()
+	return fuseAttachBaseDir
+}
 
 func ComputeMountPathHash(target string) string {
 	hasher := fnv.New32a()
@@ -148,7 +183,8 @@ func GetFuseAttachDir() string {
 	// so all kinds of fuseTypes share this unified mount dir.
 	// A volumeId should only belong to one kind of fuseType, and mounted ONCE.
 	fuseType := OssFsType
-	return fmt.Sprintf("/run/fuse.%s", fuseType)
+	baseDir := GetFuseAttachBaseDir()
+	return filepath.Join(baseDir, fmt.Sprintf("fuse.%s", fuseType))
 }
 
 func GetAttachPath(volumeId string) string {
@@ -211,6 +247,10 @@ func GetPasswdFileName(fuseType string) string {
 	return fmt.Sprintf("passwd-%s", fuseType)
 }
 
+func GetPasswdHashDir(target string) string {
+	return filepath.Join("/tmp", ComputeMountPathHash(target))
+}
+
 func WaitFdReadable(fd int, timeout time.Duration) error {
 	tv := unix.Timeval{
 		Sec: int64(timeout.Seconds()),
@@ -230,20 +270,23 @@ func WaitFdReadable(fd int, timeout time.Duration) error {
 	return nil
 }
 
-func SaveOssSecretsToFile(secrets map[string]string, fuseType string) (filePath string, err error) {
-	passwd := secrets[GetPasswdFileName(fuseType)]
-	if passwd == "" {
-		return
-	}
-
-	tmpDir, err := os.MkdirTemp("", fuseType+"-")
+func IsNotMountPoint(mounter mountutils.Interface, target string) (notMnt bool, err error) {
+	notMnt, err = mounter.IsLikelyNotMountPoint(target)
 	if err != nil {
-		return "", err
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(target, os.ModePerm); err != nil {
+				return false, status.Errorf(codes.Internal, "mkdir: %v", err)
+			}
+			return true, nil
+		} else if mountutils.IsCorruptedMnt(err) {
+			klog.Warningf("Umount corrupted mountpoint %s", target)
+			err := mounter.Unmount(target)
+			if err != nil {
+				return false, status.Errorf(codes.Internal, "umount corrupted mountpoint %s: %v", target, err)
+			}
+			return true, nil
+		}
+		return false, status.Errorf(codes.Internal, "check mountpoint: %v", err)
 	}
-	filePath = filepath.Join(tmpDir, "passwd")
-	if err = os.WriteFile(filePath, []byte(passwd), 0o600); err != nil {
-		return "", err
-	}
-	klog.V(4).InfoS(fmt.Sprintf("created %s passwd file", fuseType), "path", filePath)
-	return
+	return notMnt, nil
 }
