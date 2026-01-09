@@ -5,64 +5,65 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-var successHandler = func(context.Context, *MountOperation) error {
+var successHandler = func(context.Context, *utils.MountRequest) error {
 	return nil
 }
-var failureHandler = func(context.Context, *MountOperation) error {
+var failureHandler = func(context.Context, *utils.MountRequest) error {
 	return errors.New("mount failed")
 }
 
 func Test_chainInterceptors(t *testing.T) {
 	count := 0
-	interceptor := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		count++
-		return handler(ctx, op)
+		return handler(ctx, req)
 	}
 	interceptors := []MountInterceptor{interceptor, interceptor}
 
 	handler := chainInterceptors(interceptors, successHandler)
-	err := handler(context.Background(), &MountOperation{})
+	err := handler(context.Background(), &utils.MountRequest{})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, count)
 
 	count = 0
 	handler = chainInterceptors(nil, successHandler)
-	err = handler(context.Background(), &MountOperation{})
+	err = handler(context.Background(), &utils.MountRequest{})
 	assert.NoError(t, err)
 	assert.Equal(t, 0, count)
 
 	count = 0
 	handler = chainInterceptors(interceptors, failureHandler)
-	err = handler(context.Background(), &MountOperation{})
+	err = handler(context.Background(), &utils.MountRequest{})
 	assert.Error(t, err)
 	assert.Equal(t, 2, count)
 }
 
 func TestGetChainHandler(t *testing.T) {
 	count := 0
-	interceptor := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor := func(ctx context.Context, op *utils.MountRequest, handler MountHandler) error {
 		count++
 		return handler(ctx, op)
 	}
 	interceptors := []MountInterceptor{interceptor, interceptor}
 
 	handler := getChainHandler(interceptors, 0, successHandler)
-	err := handler(context.Background(), &MountOperation{})
+	err := handler(context.Background(), &utils.MountRequest{})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, count)
 
 	count = 0
 	handler = getChainHandler(interceptors, 1, successHandler)
-	err = handler(context.Background(), &MountOperation{})
+	err = handler(context.Background(), &utils.MountRequest{})
 	assert.NoError(t, err)
 	assert.Equal(t, 0, count)
 
 	count = 0
 	handler = getChainHandler(interceptors, 0, failureHandler)
-	err = handler(context.Background(), &MountOperation{})
+	err = handler(context.Background(), &utils.MountRequest{})
 	assert.Error(t, err)
 	assert.Equal(t, 1, count)
 }

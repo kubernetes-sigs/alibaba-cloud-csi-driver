@@ -143,10 +143,10 @@ func doMount(m mounter.Mounter, meta metadata.MetadataProvider, opt *Options, ta
 		klog.ErrorS(err, "failed to get cluster ID")
 	}
 
-	err = m.ExtendedMount(context.Background(), &mounter.MountOperation{
+	req := &mounterutils.MountRequest{
 		Source:   source,
 		Target:   targetPath,
-		FsType:   mountFstype,
+		Fstype:   mountFstype,
 		Options:  combinedOptions,
 		VolumeID: volumeId,
 		AuthConfig: &mounterutils.AuthConfig{
@@ -157,7 +157,9 @@ func doMount(m mounter.Mounter, meta metadata.MetadataProvider, opt *Options, ta
 			AccountID:    accountID,
 			ClusterID:    clusterID,
 		},
-	})
+	}
+
+	err = m.ExtendedMount(context.Background(), req)
 	if err == nil {
 		return nil
 	}
@@ -184,21 +186,10 @@ func doMount(m mounter.Mounter, meta metadata.MetadataProvider, opt *Options, ta
 		return err
 	}
 	defer os.Remove(tmpPath)
-	if err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
-		Source:   rootSource,
-		Target:   tmpPath,
-		FsType:   mountFstype,
-		Options:  combinedOptions,
-		VolumeID: volumeId,
-		AuthConfig: &mounterutils.AuthConfig{
-			AccessKey:    opt.AkID,
-			AccessSecret: opt.AkSecret,
-			AuthType:     opt.AuthType,
-			RoleName:     opt.RoleName,
-			AccountID:    accountID,
-			ClusterID:    clusterID,
-		},
-	}); err != nil {
+
+	req.Source = rootSource
+	req.Target = targetPath
+	if err := m.ExtendedMount(context.Background(), req); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Join(tmpPath, relPath), os.ModePerm); err != nil {
@@ -207,21 +198,10 @@ func doMount(m mounter.Mounter, meta metadata.MetadataProvider, opt *Options, ta
 	if err := cleanupMountpoint(m, tmpPath); err != nil {
 		klog.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
 	}
-	return m.ExtendedMount(context.Background(), &mounter.MountOperation{
-		Source:   source,
-		Target:   targetPath,
-		FsType:   mountFstype,
-		Options:  combinedOptions,
-		VolumeID: volumeId,
-		AuthConfig: &mounterutils.AuthConfig{
-			AccessKey:    opt.AkID,
-			AccessSecret: opt.AkSecret,
-			AuthType:     opt.AuthType,
-			RoleName:     opt.RoleName,
-			AccountID:    accountID,
-			ClusterID:    clusterID,
-		},
-	})
+
+	req.Source = source
+	req.Target = targetPath
+	return m.ExtendedMount(context.Background(), req)
 }
 
 func isEFCPathNotFoundError(err error) bool {

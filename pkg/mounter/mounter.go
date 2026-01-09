@@ -17,24 +17,10 @@ var ErrSkipMount = errors.New("mount operation skipped")
 
 type Mounter interface {
 	mountutils.Interface
-	ExtendedMount(ctx context.Context, op *MountOperation) error
+	ExtendedMount(context.Context, *utils.MountRequest) error
 }
 
-type MountOperation struct {
-	Source      string
-	Target      string
-	FsType      string
-	Options     []string
-	Args        []string
-	Secrets     map[string]string
-	MetricsPath string
-	VolumeID    string
-	AuthConfig  *utils.AuthConfig
-
-	MountResult any
-}
-
-type MountHandler func(ctx context.Context, op *MountOperation) error
+type MountHandler func(context.Context, *utils.MountRequest) error
 
 // MountInterceptor is a function that wraps the actual mount operation,
 // executing custom logic both before and after the mount.
@@ -53,7 +39,7 @@ type MountHandler func(ctx context.Context, op *MountOperation) error
 //
 // This ensures the caller always receives the true mount result, while allowing interceptors
 // to perform side effects or enrich error context safely.
-type MountInterceptor func(ctx context.Context, op *MountOperation, handler MountHandler) error
+type MountInterceptor func(context.Context, *utils.MountRequest, MountHandler) error
 
 type MountWorkflow struct {
 	Mounter
@@ -62,8 +48,8 @@ type MountWorkflow struct {
 
 var _ Mounter = &MountWorkflow{}
 
-func (w *MountWorkflow) ExtendedMount(ctx context.Context, op *MountOperation) error {
-	return w.chainedHandler(ctx, op)
+func (w *MountWorkflow) ExtendedMount(ctx context.Context, req *utils.MountRequest) error {
+	return w.chainedHandler(ctx, req)
 }
 
 // chainInterceptors creates a chain of interceptors similar to gRPC
@@ -72,8 +58,8 @@ func chainInterceptors(interceptors []MountInterceptor, finalHandler MountHandle
 		return finalHandler
 	}
 
-	return func(ctx context.Context, op *MountOperation) error {
-		err := interceptors[0](ctx, op, getChainHandler(interceptors, 0, finalHandler))
+	return func(ctx context.Context, req *utils.MountRequest) error {
+		err := interceptors[0](ctx, req, getChainHandler(interceptors, 0, finalHandler))
 		// If interceptor returns ErrSkipMount, treat it as success and stop execution
 		if errors.Is(err, ErrSkipMount) {
 			return nil
@@ -88,8 +74,8 @@ func getChainHandler(interceptors []MountInterceptor, curr int, finalHandler Mou
 		return finalHandler
 	}
 
-	return func(ctx context.Context, op *MountOperation) error {
-		err := interceptors[curr+1](ctx, op, getChainHandler(interceptors, curr+1, finalHandler))
+	return func(ctx context.Context, req *utils.MountRequest) error {
+		err := interceptors[curr+1](ctx, req, getChainHandler(interceptors, curr+1, finalHandler))
 		// If interceptor returns ErrSkipMount, treat it as success and stop execution
 		if errors.Is(err, ErrSkipMount) {
 			return nil

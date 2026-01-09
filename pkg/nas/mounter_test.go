@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	mountutils "k8s.io/mount-utils"
 )
@@ -36,7 +37,7 @@ func TestNasMounter_MountSuccess(t *testing.T) {
 		Interface:     &successMockMounter{},
 		alinasMounter: mounter.NewAdaptorMounter(&successMockMounter{}),
 	}
-	err := nasMounter.ExtendedMount(context.Background(), &mounter.MountOperation{})
+	err := nasMounter.ExtendedMount(context.Background(), &utils.MountRequest{})
 	assert.NoError(t, err)
 }
 
@@ -45,8 +46,8 @@ func TestNasMounter_FuseMountError(t *testing.T) {
 		Interface:     &errorMockMounter{},
 		alinasMounter: mounter.NewAdaptorMounter(&errorMockMounter{}),
 	}
-	err := nasMounter.ExtendedMount(context.Background(), &mounter.MountOperation{
-		FsType: "cpfs",
+	err := nasMounter.ExtendedMount(context.Background(), &utils.MountRequest{
+		Fstype: "cpfs",
 	})
 	assert.Error(t, err)
 }

@@ -15,7 +15,6 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,10 +23,10 @@ import (
 )
 
 var (
-	successMountHandler = func(context.Context, *mounter.MountOperation) error {
+	successMountHandler = func(context.Context, *utils.MountRequest) error {
 		return nil
 	}
-	failureMountHandler = func(context.Context, *mounter.MountOperation) error {
+	failureMountHandler = func(context.Context, *utils.MountRequest) error {
 		return fmt.Errorf("failed")
 	}
 )
@@ -186,7 +185,7 @@ func TestSaveCredentials(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		op        *mounter.MountOperation
+		op        *utils.MountRequest
 		expectErr bool
 	}{
 		{
@@ -196,12 +195,12 @@ func TestSaveCredentials(t *testing.T) {
 		},
 		{
 			name:      "nil auth config",
-			op:        &mounter.MountOperation{},
+			op:        &utils.MountRequest{},
 			expectErr: false,
 		},
 		{
 			name: "valid credentials",
-			op: &mounter.MountOperation{
+			op: &utils.MountRequest{
 				VolumeID: "volume-id",
 				AuthConfig: &utils.AuthConfig{
 					AccessKey:     "test-ak",
@@ -285,7 +284,7 @@ func TestRefreshRRSAToken(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		op          *mounter.MountOperation
+		op          *utils.MountRequest
 		setupMock   func(*cloud.MockSTSInterface)
 		expectErr   bool
 		expectToken bool
@@ -297,7 +296,7 @@ func TestRefreshRRSAToken(t *testing.T) {
 		},
 		{
 			name: "successful token refresh",
-			op: &mounter.MountOperation{
+			op: &utils.MountRequest{
 				VolumeID: "volume-id",
 				Target:   "/mnt/target",
 				AuthConfig: &utils.AuthConfig{
@@ -325,7 +324,7 @@ func TestRefreshRRSAToken(t *testing.T) {
 		},
 		{
 			name: "sts client returns error",
-			op: &mounter.MountOperation{
+			op: &utils.MountRequest{
 				VolumeID: "volume-id",
 				Target:   "/mnt/target",
 				AuthConfig: &utils.AuthConfig{
@@ -394,7 +393,7 @@ func TestRefreshAndSaveRRSAToken(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		op             *mounter.MountOperation
+		op             *utils.MountRequest
 		existingToken  *ramRoleToken
 		setupMock      func(*cloud.MockSTSInterface)
 		expectRefresh  bool
@@ -407,14 +406,14 @@ func TestRefreshAndSaveRRSAToken(t *testing.T) {
 		},
 		{
 			name: "nil auth config",
-			op: &mounter.MountOperation{
+			op: &utils.MountRequest{
 				VolumeID: "volume-id",
 			},
 			expectRefresh: false,
 		},
 		{
 			name: "wrong auth type",
-			op: &mounter.MountOperation{
+			op: &utils.MountRequest{
 				VolumeID: "volume-id",
 				AuthConfig: &utils.AuthConfig{
 					AuthType: "other",
@@ -424,7 +423,7 @@ func TestRefreshAndSaveRRSAToken(t *testing.T) {
 		},
 		{
 			name: "token is fresh, should not refresh",
-			op: &mounter.MountOperation{
+			op: &utils.MountRequest{
 				VolumeID: "volume-id",
 				AuthConfig: &utils.AuthConfig{
 					AuthType: rrsaAuthType,
@@ -442,7 +441,7 @@ func TestRefreshAndSaveRRSAToken(t *testing.T) {
 		},
 		{
 			name: "token needs refresh, should create credential file",
-			op: &mounter.MountOperation{
+			op: &utils.MountRequest{
 				VolumeID: "volume-id",
 				Target:   "/mnt/target",
 				AuthConfig: &utils.AuthConfig{

@@ -3,23 +3,25 @@ package mounter
 import (
 	"context"
 
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"k8s.io/klog/v2"
+	"k8s.io/mount-utils"
 	mountutils "k8s.io/mount-utils"
 )
 
 type ConnectorMounter struct {
 	mounterPath string
-	mountutils.Interface
+	mount.Interface
 }
 
 var _ Mounter = &ConnectorMounter{}
 
-func (m *ConnectorMounter) ExtendedMount(_ context.Context, op *MountOperation) error {
-	if op == nil {
+func (m *ConnectorMounter) ExtendedMount(_ context.Context, req *mounterutils.MountRequest) error {
+	if req == nil {
 		return nil
 	}
-	args := mountutils.MakeMountArgs(op.Source, op.Target, op.FsType, op.Options)
+	args := mount.MakeMountArgs(req.Source, req.Target, req.Fstype, req.Options)
 	mntCmd := []string{"systemd-run", "--scope", "--"}
 	if m.mounterPath == "" {
 		mntCmd = append(mntCmd, "mount")
@@ -35,10 +37,10 @@ func (m *ConnectorMounter) ExtendedMount(_ context.Context, op *MountOperation) 
 }
 
 func (m *ConnectorMounter) Mount(source string, target string, fstype string, options []string) error {
-	return m.ExtendedMount(context.Background(), &MountOperation{
+	return m.ExtendedMount(context.Background(), &mounterutils.MountRequest{
 		Source:  source,
 		Target:  target,
-		FsType:  fstype,
+		Fstype:  fstype,
 		Options: options,
 	})
 }

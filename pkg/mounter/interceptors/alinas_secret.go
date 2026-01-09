@@ -68,7 +68,7 @@ func NewAlinasSecretInterceptor(regionID string) (*AlinasSecretInterceptor, erro
 	}, nil
 }
 
-func (i *AlinasSecretInterceptor) Intercept(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) (err error) {
+func (i *AlinasSecretInterceptor) Intercept(ctx context.Context, op *mounterutils.MountRequest, handler mounter.MountHandler) (err error) {
 	if op == nil || op.AuthConfig == nil {
 		return handler(ctx, op)
 	}
@@ -102,7 +102,7 @@ func (i *AlinasSecretInterceptor) Intercept(ctx context.Context, op *mounter.Mou
 	return
 }
 
-func (i *AlinasSecretInterceptor) startTokenRefreshLoop(op *mounter.MountOperation) {
+func (i *AlinasSecretInterceptor) startTokenRefreshLoop(op *mounterutils.MountRequest) {
 	if op == nil || op.Target == "" || op.AuthConfig == nil {
 		return
 	}
@@ -147,7 +147,7 @@ func (i *AlinasSecretInterceptor) isMountPoint(target string) bool {
 	return !notMnt
 }
 
-func (i *AlinasSecretInterceptor) refreshAndSaveRRSAToken(op *mounter.MountOperation) (credFilePath string, err error) {
+func (i *AlinasSecretInterceptor) refreshAndSaveRRSAToken(op *mounterutils.MountRequest) (credFilePath string, err error) {
 	if op == nil || op.AuthConfig == nil || op.AuthConfig.AuthType != rrsaAuthType {
 		return
 	}
@@ -172,7 +172,7 @@ func (i *AlinasSecretInterceptor) refreshAndSaveRRSAToken(op *mounter.MountOpera
 	return save(token)
 }
 
-func (i *AlinasSecretInterceptor) refreshRRSAToken(op *mounter.MountOperation) (token ramRoleToken, err error) {
+func (i *AlinasSecretInterceptor) refreshRRSAToken(op *mounterutils.MountRequest) (token ramRoleToken, err error) {
 	if op == nil {
 		return
 	}
@@ -226,7 +226,7 @@ func (i *AlinasSecretInterceptor) shouldRefreshRRSAToken(roleName string) bool {
 	return now.After(token.refreshAt.Add(5*time.Minute)) || token.expiresAt.Before(now.Add(10*time.Minute))
 }
 
-func saveCredentials(op *mounter.MountOperation) (credFilePath string, err error) {
+func saveCredentials(op *mounterutils.MountRequest) (credFilePath string, err error) {
 	if op == nil || op.AuthConfig == nil {
 		return
 	}
