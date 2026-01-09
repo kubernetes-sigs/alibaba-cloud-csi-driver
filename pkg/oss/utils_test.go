@@ -33,7 +33,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var m = metadata.FakeProvider{
+var m = &metadata.FakeProvider{
 	Values: map[metadata.MetadataKey]string{
 		metadata.RegionID:    "cn-beijing",
 		metadata.RAMRoleName: "worker-role",
