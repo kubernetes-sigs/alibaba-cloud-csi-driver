@@ -17,6 +17,8 @@ limitations under the License.
 package bmcpfs
 
 import (
+	"time"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -30,13 +32,14 @@ const (
 	// keys in volume context or publish context
 	_vpcMountTarget = "vpcMountTarget"
 	_vscMountTarget = "vscMountTarget"
-	_vscId          = "vscId"
+	_vscID          = "vscId"
 	_networkType    = "networkType"
 	_path           = "path"
 	_mpAutoSwitch   = "mountpointAutoSwitch"
 
-	// prefix of node id
-	CommonNodeIDPrefix  = "common:"
+	// CommonNodeIDPrefix is the prefix for common node IDs
+	CommonNodeIDPrefix = "common:"
+	// LingjunNodeIDPrefix is the prefix for lingjun node IDs
 	LingjunNodeIDPrefix = "lingjun:"
 
 	// network types of CPFS mount targets
@@ -44,6 +47,8 @@ const (
 	networkTypeVSC = "vsc"
 
 	volumeHandleDelimiter = "+"
+
+	FILESET_DESCRIBE_TIMEOUT = 5 * time.Minute
 )
 
 type Driver struct {
