@@ -114,16 +114,6 @@ func prepareNodeConfigEnvVars(t *testing.T) {
 	t.Setenv("NAS_LOSETUP_ENABLE", "true")
 }
 
-<<<<<<< HEAD
-=======
-func TestGetNodeConfigConfigMapGetError(t *testing.T) {
-	prepareFakeK8sContext()
-	config, err := GetNodeConfig(nil)
-	assert.Error(t, err)
-	assert.Nil(t, config)
-}
-
->>>>>>> 3e0f3a754 (feat(nas): support access point rrsa authentication)
 func TestGetNodeConfigNodeGetError(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -131,11 +121,7 @@ func TestGetNodeConfigNodeGetError(t *testing.T) {
 	prepareFakeK8sContext()
 	t.Setenv("NAS_LOSETUP_ENABLE", "true")
 
-<<<<<<< HEAD
-	config, err := GetNodeConfig(utils.Config{})
-=======
-	config, err := GetNodeConfig(nil)
->>>>>>> 3e0f3a754 (feat(nas): support access point rrsa authentication)
+	config, err := GetNodeConfig(nil, utils.Config{})
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }
@@ -148,11 +134,7 @@ func TestGetNodeConfigLosetupError(t *testing.T) {
 	prepareFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-<<<<<<< HEAD
-	config, err := GetNodeConfig(utils.Config{})
-=======
-	config, err := GetNodeConfig(nil)
->>>>>>> 3e0f3a754 (feat(nas): support access point rrsa authentication)
+	config, err := GetNodeConfig(nil, utils.Config{})
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }

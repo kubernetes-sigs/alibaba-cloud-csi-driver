@@ -16,8 +16,8 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -59,16 +59,8 @@ func (h *Driver) Fstypes() []string {
 	return []string{"ossfs"}
 }
 
-func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
-	return h.ExtendedMount(ctx, &mounter.MountOperation{
-		Source:      req.Source,
-		Target:      req.Target,
-		FsType:      req.Fstype,
-		Options:     req.Options,
-		Secrets:     req.Secrets,
-		MetricsPath: req.MetricsPath,
-		VolumeID:    req.VolumeID,
-	})
+func (h *Driver) Mount(ctx context.Context, req *utils.MountRequest) error {
+	return h.ExtendedMount(ctx, req)
 }
 
 func (h *Driver) Init() {}
@@ -100,12 +92,12 @@ type extendedMounter struct {
 
 var _ mounter.Mounter = &extendedMounter{}
 
-func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
-	options := op.Options
-	target := op.Target
+func (m *extendedMounter) ExtendedMount(ctx context.Context, req *utils.MountRequest) error {
+	options := req.Options
+	target := req.Target
 
-	args := mount.MakeMountArgs(op.Source, op.Target, "", options)
-	args = append(args, op.Args...)
+	args := mount.MakeMountArgs(req.Source, req.Target, "", options)
+	args = append(args, req.Args...)
 	args = append(args, "-f")
 
 	var stderrBuf bytes.Buffer
@@ -180,7 +172,7 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	})
 
 	if err == nil {
-		op.MountResult = server.OssfsMountResult{
+		req.MountResult = server.OssfsMountResult{
 			PID:      pid,
 			ExitChan: ossfsExited,
 		}

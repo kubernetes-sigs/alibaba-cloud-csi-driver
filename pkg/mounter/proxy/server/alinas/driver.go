@@ -15,9 +15,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
-	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -61,17 +60,8 @@ func (h *Driver) Fstypes() []string {
 	return []string{fstypeAlinas, fstypeCpfsNfs}
 }
 
-func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
-	return h.ExtendedMount(ctx, &mounter.MountOperation{
-		Source:      req.Source,
-		Target:      req.Target,
-		FsType:      req.Fstype,
-		Options:     req.Options,
-		Secrets:     req.Secrets,
-		MetricsPath: req.MetricsPath,
-		VolumeID:    req.VolumeID,
-		AuthConfig:  req.AuthConfig,
-	})
+func (h *Driver) Mount(ctx context.Context, req *utils.MountRequest) error {
+	return h.ExtendedMount(ctx, req)
 }
 
 func (h *Driver) Init() {
@@ -101,7 +91,7 @@ func addAutoFallbackNFSMountOptions(mountOptions []string) []string {
 	isEFC := false
 	isVSC := false
 	for _, options := range mountOptions {
-		for _, option := range mounterutils.SplitMountOptions(options) {
+		for _, option := range utils.SplitMountOptions(options) {
 			if option == "" {
 				continue
 			}
@@ -190,13 +180,13 @@ type extendedMounter struct {
 
 var _ mounter.Mounter = &extendedMounter{}
 
-func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
-	klog.InfoS("Mounting", "fstype", op.FsType, "source", op.Source, "target", op.Target, "options", op.Options)
+func (m *extendedMounter) ExtendedMount(ctx context.Context, op *utils.MountRequest) error {
+	klog.InfoS("Mounting", "fstype", op.Fstype, "source", op.Source, "target", op.Target, "options", op.Options)
 	op.Options = append(op.Options, "no_start_watchdog")
-	if op.FsType == fstypeAlinas {
+	if op.Fstype == fstypeAlinas {
 		// options = append(options, "no_atomic_move", "auto_fallback_nfs")
 		op.Options = append(op.Options, "no_atomic_move")
 		op.Options = addAutoFallbackNFSMountOptions(op.Options)
 	}
-	return m.Mount(op.Source, op.Target, op.FsType, op.Options)
+	return m.Mount(op.Source, op.Target, op.Fstype, op.Options)
 }

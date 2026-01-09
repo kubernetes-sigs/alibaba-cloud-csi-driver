@@ -6,6 +6,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 )
@@ -17,22 +18,22 @@ var (
 	monitorManager = server.NewMountMonitorManager()
 )
 
-func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
-	if op == nil || op.MetricsPath == "" {
-		return handler(ctx, op)
+func OssfsMonitorInterceptor(ctx context.Context, req *utils.MountRequest, handler mounter.MountHandler) error {
+	if req == nil || req.MetricsPath == "" {
+		return handler(ctx, req)
 	}
 
 	// Get or create monitor for this target
-	monitor, found := monitorManager.GetMountMonitor(op.Target, op.MetricsPath, raw, true)
+	monitor, found := monitorManager.GetMountMonitor(req.Target, req.MetricsPath, raw, true)
 	if monitor == nil {
-		klog.ErrorS(errors.New("failed to get mount monitor"), "stop monitoring mountpoint status", "mountpoint", op.Target)
-		return handler(ctx, op)
+		klog.ErrorS(errors.New("failed to get mount monitor"), "stop monitoring mountpoint status", "mountpoint", req.Target)
+		return handler(ctx, req)
 	}
 	if found {
 		monitor.IncreaseMountRetryCount()
 	}
 
-	err := handler(ctx, op)
+	err := handler(ctx, req)
 
 	if err != nil {
 		// This method should only be called when err != nil.
@@ -40,13 +41,13 @@ func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 		monitor.HandleMountFailureOrExit(err)
 	}
 
-	if op.MountResult == nil {
+	if req.MountResult == nil {
 		return err
 	}
 
-	res, ok := op.MountResult.(server.OssfsMountResult)
+	res, ok := req.MountResult.(server.OssfsMountResult)
 	if !ok {
-		klog.ErrorS(errors.New("failed to assert ossfs mount result type"), "skipping monitoring of mountpoint", "mountpoint", op.Target)
+		klog.ErrorS(errors.New("failed to assert ossfs mount result type"), "skipping monitoring of mountpoint", "mountpoint", req.Target)
 		return err
 	}
 
@@ -65,6 +66,6 @@ func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 
 	monitor.HandleMountSuccess(res.PID)
 	// Start monitoring goroutine (ticker based only)
-	monitorManager.StartMonitoring(op.Target)
+	monitorManager.StartMonitoring(req.Target)
 	return nil
 }

@@ -92,7 +92,7 @@ func parseRawRequest(data []byte) (*rawRequest, error) {
 func handle(ctx context.Context, req *rawRequest) proxy.Response {
 	switch req.Header.Method {
 	case proxy.Mount:
-		var mountReq proxy.MountRequest
+		var mountReq utils.MountRequest
 		err := json.Unmarshal(req.Body, &mountReq)
 		if err != nil {
 			return proxy.Response{

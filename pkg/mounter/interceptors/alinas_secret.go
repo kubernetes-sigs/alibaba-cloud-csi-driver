@@ -2,6 +2,7 @@ package interceptors
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -48,27 +49,35 @@ type ramRoleToken struct {
 }
 
 func NewAlinasSecretInterceptor(regionID string) (*AlinasSecretInterceptor, error) {
-	provider, err := credentials.NewProvider()
-	if err != nil {
-		return nil, err
-	}
-
-	cred := alicred.FromCredentialsProvider(provider.GetProviderName(), provider)
-	stsConfig := utils.GetStsConfig(regionID).SetCredential(cred)
-	stsClient, err := sts20150401.NewClient(stsConfig)
+	client, err := newSTSClient(regionID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &AlinasSecretInterceptor{
-		stsClient:     stsClient,
+		stsClient:     client,
 		clock:         clock.RealClock{},
 		ramRoleTokens: sync.Map{},
 		mounter:       mountutils.New(""),
 	}, nil
 }
 
-func (i *AlinasSecretInterceptor) Intercept(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) (err error) {
+func newSTSClient(regionID string) (client cloud.STSInterface, err error) {
+	if regionID == "" {
+		return
+	}
+
+	provider, err := credentials.NewProvider()
+	if err != nil {
+		return
+	}
+
+	cred := alicred.FromCredentialsProvider(provider.GetProviderName(), provider)
+	stsConfig := utils.GetStsConfig(regionID).SetCredential(cred)
+	return sts20150401.NewClient(stsConfig)
+}
+
+func (i *AlinasSecretInterceptor) Intercept(ctx context.Context, op *mounterutils.MountRequest, handler mounter.MountHandler) (err error) {
 	if op == nil || op.AuthConfig == nil {
 		return handler(ctx, op)
 	}
@@ -102,8 +111,12 @@ func (i *AlinasSecretInterceptor) Intercept(ctx context.Context, op *mounter.Mou
 	return
 }
 
-func (i *AlinasSecretInterceptor) startTokenRefreshLoop(op *mounter.MountOperation) {
+func (i *AlinasSecretInterceptor) startTokenRefreshLoop(op *mounterutils.MountRequest) {
 	if op == nil || op.Target == "" || op.AuthConfig == nil {
+		return
+	}
+	if i.stsClient == nil {
+		klog.ErrorS(errors.New("nil STS client"), "failed to refresh RRSA token")
 		return
 	}
 
@@ -147,8 +160,12 @@ func (i *AlinasSecretInterceptor) isMountPoint(target string) bool {
 	return !notMnt
 }
 
-func (i *AlinasSecretInterceptor) refreshAndSaveRRSAToken(op *mounter.MountOperation) (credFilePath string, err error) {
+func (i *AlinasSecretInterceptor) refreshAndSaveRRSAToken(op *mounterutils.MountRequest) (credFilePath string, err error) {
 	if op == nil || op.AuthConfig == nil || op.AuthConfig.AuthType != rrsaAuthType {
+		return
+	}
+	if i.stsClient == nil {
+		klog.ErrorS(errors.New("nil STS client"), "failed to refresh RRSA token")
 		return
 	}
 
@@ -172,7 +189,7 @@ func (i *AlinasSecretInterceptor) refreshAndSaveRRSAToken(op *mounter.MountOpera
 	return save(token)
 }
 
-func (i *AlinasSecretInterceptor) refreshRRSAToken(op *mounter.MountOperation) (token ramRoleToken, err error) {
+func (i *AlinasSecretInterceptor) refreshRRSAToken(op *mounterutils.MountRequest) (token ramRoleToken, err error) {
 	if op == nil {
 		return
 	}
@@ -226,7 +243,7 @@ func (i *AlinasSecretInterceptor) shouldRefreshRRSAToken(roleName string) bool {
 	return now.After(token.refreshAt.Add(5*time.Minute)) || token.expiresAt.Before(now.Add(10*time.Minute))
 }
 
-func saveCredentials(op *mounter.MountOperation) (credFilePath string, err error) {
+func saveCredentials(op *mounterutils.MountRequest) (credFilePath string, err error) {
 	if op == nil || op.AuthConfig == nil {
 		return
 	}
@@ -248,7 +265,9 @@ func saveCredentials(op *mounter.MountOperation) (credFilePath string, err error
 
 	credFileContent := makeCredFileContent(op.AuthConfig)
 	if _, err = tmpCredFile.Write(credFileContent); err != nil {
-		tmpCredFile.Close()
+		if err := tmpCredFile.Close(); err != nil {
+			klog.ErrorS(err, "Failed to close temporary alinas credential file", "path", tmpFilePath)
+		}
 		return
 	}
 
