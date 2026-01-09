@@ -82,7 +82,7 @@ func TestInferMachineType(t *testing.T) {
 }
 
 func TestInMemoryFirst(t *testing.T) {
-	m := testMetadata(t, fakeMiddleware{InstanceID: "i-xxxx"})
+	m := testMetadata(t, fakeMiddleware{InstanceID: "i-2zec1slzwdzrwmvlr4w2"})
 	m.EnableOpenAPI(testEcsClient(t))
 	m.providers = append(m.providers, fakeMiddleware{InstanceType: "ecs.in-memory.data"})
 
@@ -105,7 +105,7 @@ func TestSessionClearError(t *testing.T) {
 	ecsClient.EXPECT().DescribeInstances(gomock.Any()).Return(nil, fakeErr)
 	ecsClient.EXPECT().DescribeInstances(gomock.Any()).Return(res, nil)
 
-	m := testMetadata(t, fakeMiddleware{InstanceID: "i-xxxx"})
+	m := testMetadata(t, fakeMiddleware{InstanceID: "i-2zec1slzwdzrwmvlr4w2"})
 	m.EnableOpenAPI(ecsClient)
 
 	_, err := m.Get(InstanceType)

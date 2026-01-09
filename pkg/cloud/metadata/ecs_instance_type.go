@@ -23,11 +23,12 @@ func NewEcsInstanceTypeMetadata(c cloud.ECSv2Interface, instanceType string) (*E
 	if resp.Body == nil || resp.Body.InstanceTypes == nil {
 		return nil, fmt.Errorf("no instance types field: %s", instanceType)
 	}
-	types := resp.Body.InstanceTypes.InstanceType
-	if len(types) != 1 || types[0] == nil {
-		return nil, fmt.Errorf("unexpected instance type count %d for %s", len(types), instanceType)
+	for _, t := range resp.Body.InstanceTypes.InstanceType {
+		if t != nil && t.InstanceTypeId != nil && *t.InstanceTypeId == instanceType {
+			return &ECSInstanceTypeMetadata{t: t}, nil
+		}
 	}
-	return &ECSInstanceTypeMetadata{t: types[0]}, nil
+	return nil, fmt.Errorf("instance type %s not found in response", instanceType)
 }
 
 func (m *ECSInstanceTypeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {

@@ -31,11 +31,12 @@ func NewOpenAPIMetadata(c cloud.ECSv2Interface, instanceId string) (*OpenAPIMeta
 	if instanceResponse.Body == nil || instanceResponse.Body.Instances == nil {
 		return nil, fmt.Errorf("no instances field: %s", instanceId)
 	}
-	instances := instanceResponse.Body.Instances.Instance
-	if len(instances) != 1 || instances[0] == nil {
-		return nil, fmt.Errorf("unexpected instance count %d for %s", len(instances), instanceId)
+	for _, i := range instanceResponse.Body.Instances.Instance {
+		if i != nil && i.InstanceId != nil && *i.InstanceId == instanceId {
+			return &OpenAPIMetadata{instance: i}, nil
+		}
 	}
-	return &OpenAPIMetadata{instance: instances[0]}, nil
+	return nil, fmt.Errorf("instance %s not found in response", instanceId)
 }
 
 func (m *OpenAPIMetadata) get(key MetadataKey) *string {
