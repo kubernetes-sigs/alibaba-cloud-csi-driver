@@ -85,7 +85,7 @@ func TestGetEcsInstanceType(t *testing.T) {
 		client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(res, nil)
 	}
 
-	m := testMetadata(t, fakeMiddleware{InstanceID: "i-xxxx"})
+	m := testMetadata(t, fakeMiddleware{InstanceID: "i-2zec1slzwdzrwmvlr4w2"})
 	m.EnableOpenAPI(client)
 
 	result, err := m.DiskQuantity()
@@ -122,14 +122,14 @@ func TestGetEcsInstanceTypeError(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple_instance_types",
+			name: "no_matching_instance_types",
 			configClient: func(client *cloud.MockECSv2Interface) {
 				resp := &ecs20140526.DescribeInstanceTypesResponse{
 					Body: &ecs20140526.DescribeInstanceTypesResponseBody{
 						InstanceTypes: &ecs20140526.DescribeInstanceTypesResponseBodyInstanceTypes{
 							InstanceType: []*ecs20140526.DescribeInstanceTypesResponseBodyInstanceTypesInstanceType{
-								{InstanceTypeId: new("ecs.g7.xlarge")},
 								{InstanceTypeId: new("ecs.g7.2xlarge")},
+								{InstanceTypeId: new("ecs.g7.4xlarge")},
 							},
 						},
 					},
