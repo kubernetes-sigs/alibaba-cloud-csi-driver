@@ -86,12 +86,8 @@ const (
 	DiskAttachedKey = "k8s.aliyun.com"
 	// DiskAttachedValue attached value
 	DiskAttachedValue = "true"
-	// VolumeDir volume dir
-	VolumeDir = "/host/etc/kubernetes/volumes/disk/"
 	// RundSocketDir dir
 	RundSocketDir = "/host/etc/kubernetes/volumes/rund/"
-	// VolumeDirRemove volume dir remove
-	VolumeDirRemove = "/host/etc/kubernetes/volumes/disk/remove"
 	// InputOutputErr tag
 	InputOutputErr = "input/output error"
 	// CreateDiskARN ARN parameter of the CreateDisk interface
@@ -126,15 +122,6 @@ const (
 var (
 	// BLOCKVOLUMEPREFIX block volume mount prefix
 	BLOCKVOLUMEPREFIX = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/publish")
-
-	// DiskXattrName xattr is applied on the block device file to indicate that it is managed by the CSI driver.
-	// Value is the disk ID.
-	// Linux only support trusted namespace xattr in tmpfs before kernel v6.6,
-	// but setting trusted xaattr requires CAP_SYS_ADMIN capability, we may use user namespace instead in unit tests.
-	DiskXattrName = "trusted.csi-managed-disk"
-
-	// DiskXattrVirtioBlkName xattr is applied on the block device file to indicate that it is managed by the CSI driver in PVM ways.
-	DiskXattrVirtioBlkName = "trusted.virtio-blk"
 
 	// BDFTypeDevice defines the regexp of bdf number
 	BDFTypeDevice = regexp.MustCompile(`^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}`)
@@ -173,17 +160,9 @@ func parseVolumeCountEnv() (int, error) {
 // NewNodeServer creates node server
 func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 	// Create Directory
-	err := os.MkdirAll(VolumeDir, os.FileMode(0755))
+	err := os.MkdirAll(RundSocketDir, os.FileMode(0755))
 	if err != nil {
-		klog.Errorf("Create Directory %s failed: %v", VolumeDir, err)
-	}
-	err = os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
-	if err != nil {
-		klog.Errorf("Create Directory %s failed: %v", VolumeDir, err)
-	}
-	err = os.MkdirAll(RundSocketDir, os.FileMode(0755))
-	if err != nil {
-		klog.Errorf("Create Directory %s failed: %v", VolumeDir, err)
+		klog.Errorf("Create Directory %s failed: %v", RundSocketDir, err)
 	}
 
 	if IsVFNode() {
@@ -215,6 +194,11 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 		klog.Fatalf("Failed to initialize pod cgroup: %v", err)
 	}
 
+	devMap, err := NewDevMap(utilsio.RealDevTmpFS{})
+	if err != nil {
+		klog.Fatalf("failed to list devices: %v", err)
+	}
+
 	waiter, batcher := newBatcher(true)
 	return &nodeServer{
 		metadata:     m,
@@ -232,7 +216,8 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 			attachThrottler: defaultThrottler(),
 			detachThrottler: defaultThrottler(),
 
-			dev: DefaultDeviceManager,
+			dev:    DefaultDeviceManager,
+			devMap: devMap,
 		},
 		locks: utils.NewVolumeLocks(),
 		GenericNodeServer: common.GenericNodeServer{
@@ -278,6 +263,7 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 
 // csi disk driver: bind directory from global to pod.
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	logger := klog.FromContext(ctx)
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
@@ -388,7 +374,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// check device name available
-	expectName, err := GetVolumeDeviceName(req.VolumeId)
+	expectName, err := ns.ad.GetVolumeDeviceName(logger, req.VolumeId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, get device name error: %s", req.VolumeId, err.Error())
 	}
@@ -596,10 +582,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		klog.Errorf("NodeStageVolume: check device %s for volume %s with error: %s", device, req.VolumeId, err.Error())
 		return nil, status.Error(defaultErrCode, err.Error())
 	}
-	if err := saveVolumeConfig(req.VolumeId, device); err != nil {
-		klog.Errorf("NodeStageVolume: saveVolumeConfig %s for volume %s with error: %s", device, req.VolumeId, err.Error())
-		return nil, status.Error(defaultErrCode, "NodeStageVolume: saveVolumeConfig for ("+req.VolumeId+device+") error with: "+err.Error())
-	}
 	klog.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.NodeID, device)
 
 	err = ns.setupDisk(ctx, device, targetPath, req)
@@ -685,22 +667,23 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 	return nil
 }
 
-func addDiskXattr(diskID string) (err error) {
+func (ns *nodeServer) addDiskXattr(logger klog.Logger, diskID string) (err error) {
 	defer func() {
 		if errors.Is(err, os.ErrNotExist) {
 			klog.Infof("addDiskXattr: disk %s not found, skip", diskID)
 			err = nil
 		}
 	}()
-	device, err := GetVolumeDeviceName(diskID)
+	device, err := ns.ad.GetVolumeDeviceName(logger, diskID)
 	if err != nil {
 		return
 	}
-	return unix.Setxattr(device, DiskXattrName, []byte(diskID), 0)
+	return setDiskXattr(device, diskID)
 }
 
 // target format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	logger := klog.FromContext(ctx)
 	klog.Infof("NodeUnstageVolume:: Starting to Unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
 
 	if !ns.locks.TryAcquire(req.VolumeId) {
@@ -788,7 +771,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		}
 	}
 
-	err := addDiskXattr(req.VolumeId)
+	err := ns.addDiskXattr(logger, req.VolumeId)
 	if err != nil {
 		klog.Errorf("NodeUnstageVolume: addDiskXattr %s failed: %v", req.VolumeId, err)
 	}
@@ -806,8 +789,8 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
 			return nil, err
 		}
-		_ = removeVolumeConfig(req.VolumeId)
 	}
+	ns.ad.devMap.Delete(req.VolumeId)
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
@@ -933,22 +916,23 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	return localExpandVolume(ctx, req)
+	return ns.localExpandVolume(ctx, req)
 }
 
-func localExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	requestBytes := req.GetCapacityRange().GetRequiredBytes()
 	volumePath := req.GetVolumePath()
 	diskID := req.GetVolumeId()
+	logger := klog.FromContext(ctx)
 
-	devicePath, err := GetVolumeDeviceName(diskID)
+	devicePath, err := ns.ad.GetVolumeDeviceName(logger, diskID)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, status.Errorf(codes.NotFound, "can't get devicePath for: %s", diskID)
 		}
 		return nil, status.Errorf(codes.Internal, "NodeExpandVolume: VolumeId: %s, get device name error: %s", req.VolumeId, err.Error())
 	}
-	logger := klog.FromContext(ctx).WithValues("device", devicePath)
+	logger = logger.WithValues("device", devicePath)
 	ctx = klog.NewContext(ctx, logger)
 
 	rootPath, index, err := DefaultDeviceManager.GetDeviceRootAndPartitionIndex(devicePath)
@@ -1246,14 +1230,9 @@ func (ns *nodeServer) mountRunvVolumes(volumeId, sourcePath, targetPath, fsType,
 		klog.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())
 		return status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
 	}
-	deviceName, err := DefaultDeviceManager.GetDeviceByVolumeID(volumeId)
+	deviceName, err := ns.ad.GetRootBlockDevice(klog.TODO(), volumeId)
 	if err != nil {
-		klog.Errorf("NodePublishVolume(runv): failed to get device by deviceName: %s", err.Error())
-		deviceName = getVolumeConfig(volumeId)
-	}
-	if deviceName == "" {
-		klog.Errorf("NodePublishVolume(runv): cannot get local deviceName for volume:  %s", volumeId)
-		return status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get local deviceName for volume: "+volumeId)
+		return status.Errorf(codes.InvalidArgument, "NodePublishVolume: cannot get local deviceName for volume %s: %v", volumeId, err)
 	}
 
 	// save volume info to local file
@@ -1289,9 +1268,11 @@ func (ns *nodeServer) mountRunvVolumes(volumeId, sourcePath, targetPath, fsType,
 
 func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock, pvmMode bool, mountFlags []string) (bool, error) {
 	klog.Infof("NodePublishVolume:: Disk Volume %s Mounted in RunD csi 3.0/2.0 protocol", volumeId)
-	deviceName, err := DefaultDeviceManager.GetDeviceByVolumeID(volumeId)
+	logger := klog.TODO()
+	deviceName, err := ns.ad.GetRootBlockDevice(logger, volumeId)
 	if err != nil {
-		deviceName = getVolumeConfig(volumeId)
+		logger.V(1).Info("RunD volume device not found", "err", err)
+		// maybe OK, we can find the device by xdragon-bdf below.
 	}
 
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
@@ -1476,7 +1457,7 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) boo
 		}
 	}
 
-	device, err := GetVolumeDeviceName(volumeId)
+	device, err := ns.ad.GetRootBlockDevice(klog.TODO(), volumeId)
 	if err != nil {
 		// In VFIO mode, an empty device is an expected condition, so the resulting error should be ignored.
 		klog.Warningf("NodeStageVolume: GetVolumeDeviceName failed: %s", err.Error())

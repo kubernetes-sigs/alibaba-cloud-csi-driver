@@ -27,7 +27,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -57,7 +56,6 @@ import (
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	perrors "github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -347,70 +345,6 @@ func GetVolumeIDByDevice(device string) (volumeID string, err error) {
 	}
 
 	return "", nil
-}
-
-// get diskID
-func getVolumeConfig(volumeID string) string {
-	volumeFile := path.Join(VolumeDir, volumeID+".conf")
-	if !utils.IsFileExisting(volumeFile) {
-		return ""
-	}
-
-	value, err := os.ReadFile(volumeFile)
-	if err != nil {
-		return ""
-	}
-	devicePath := strings.TrimSpace(string(value))
-	return devicePath
-}
-
-// save diskID and volume name
-func saveVolumeConfig(volumeID, devicePath string) error {
-	if err := utils.CreateDest(VolumeDir); err != nil {
-		return err
-	}
-	if err := utils.CreateDest(VolumeDirRemove); err != nil {
-		return err
-	}
-	if err := removeVolumeConfig(volumeID); err != nil {
-		return err
-	}
-	// cleanup all config files that is pointing to devicePath. Such files may be leaked
-	// if previous UnstageVolume is skipped. This is possible if the VolumeDevice is
-	// detached by others (e.g. DeleteVolume).
-	files, err := os.ReadDir(VolumeDir)
-	if err != nil {
-		return err
-	}
-	for _, file := range files {
-		if file.Type().IsRegular() && strings.HasSuffix(file.Name(), ".conf") {
-			tmpVolID := strings.TrimSuffix(file.Name(), ".conf")
-			if getVolumeConfig(tmpVolID) == devicePath {
-				if err := removeVolumeConfig(tmpVolID); err != nil {
-					return fmt.Errorf("failed to remove volume config for %s: %w", tmpVolID, err)
-				}
-			}
-		}
-	}
-
-	volumeFile := path.Join(VolumeDir, volumeID+".conf")
-	if err := os.WriteFile(volumeFile, []byte(devicePath), 0644); err != nil {
-		return err
-	}
-	return nil
-}
-
-// move config file to remove dir
-func removeVolumeConfig(volumeID string) error {
-	volumeFile := path.Join(VolumeDir, volumeID+".conf")
-	if utils.IsFileExisting(volumeFile) {
-		timeStr := time.Now().Format("2006-01-02-15:04:05")
-		removeFile := path.Join(VolumeDirRemove, volumeID+"-"+timeStr+".conf")
-		if err := os.Rename(volumeFile, removeFile); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // iterZone iterates zones from given topology requirement.
@@ -851,23 +785,6 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 	return nil
 }
 
-// GetVolumeDeviceName get device name
-//
-// Only call this function if the volume is a mount volume (not block volume).
-func GetVolumeDeviceName(diskID string) (string, error) {
-	device, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
-	if err == nil {
-		return device, nil
-	}
-	device = getVolumeConfig(diskID)
-	if device != "" {
-		klog.Infof("GetVolumeDeviceName: got disk %s device name %s by config file", diskID, device)
-		return device, nil
-	}
-	// return error from GetDeviceByVolumeID if config file not found
-	return device, err
-}
-
 // isPathAvailable
 func isPathAvailable(path string) error {
 	f, err := os.Open(path)
@@ -1271,22 +1188,11 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 	// We should exclude these disks from available count.
 	// e.g. static/dynamic PVs are managed, OS disk or manually attached disks are not managed.
 
-	managedDisks := sets.New[string]()
-
-	diskPaths, err := dev.ListDisks()
+	disks, err := listDiskXattrs(dev)
 	if err != nil {
 		return 0, fmt.Errorf("failed to list devices: %w", err)
 	}
-	for _, p := range diskPaths {
-		var diskID [32]byte
-		sz, err := unix.Getxattr(p, DiskXattrName, diskID[:])
-		if err == nil {
-			// this disk has xattr, it is managed by us
-			managedDisks.Insert(string(diskID[:sz]))
-		} else if !utilsio.IsXattrNotFound(err) {
-			klog.Warningf("getVolumeCount: failed to get xattr of %s, assuming not managed by us: %s", p, err)
-		}
-	}
+	managedDisks := sets.KeySet(disks)
 
 	// To ensure all the managed attachedDisks also present in managedDisks,
 	// ECS OpenAPI should goes after ListDisks because the just detached disk should
