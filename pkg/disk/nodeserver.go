@@ -127,15 +127,6 @@ var (
 	// BLOCKVOLUMEPREFIX block volume mount prefix
 	BLOCKVOLUMEPREFIX = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/publish")
 
-	// DiskXattrName xattr is applied on the block device file to indicate that it is managed by the CSI driver.
-	// Value is the disk ID.
-	// Linux only support trusted namespace xattr in tmpfs before kernel v6.6,
-	// but setting trusted xaattr requires CAP_SYS_ADMIN capability, we may use user namespace instead in unit tests.
-	DiskXattrName = "trusted.csi-managed-disk"
-
-	// DiskXattrVirtioBlkName xattr is applied on the block device file to indicate that it is managed by the CSI driver in PVM ways.
-	DiskXattrVirtioBlkName = "trusted.virtio-blk"
-
 	// BDFTypeDevice defines the regexp of bdf number
 	BDFTypeDevice = regexp.MustCompile(`^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}`)
 	// DFBusTypeDevice defines the regexp of dfnumber
