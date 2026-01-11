@@ -75,6 +75,9 @@ spec:
           volumeMounts:
             - name: etc
               mountPath: /host/etc
+            - name: host-dev
+              mountPath: /dev
+              mountPropagation: "HostToContainer"
             - name: csi-plugin-cm
               mountPath: /etc/csi-plugin/config
             - name: host-log
