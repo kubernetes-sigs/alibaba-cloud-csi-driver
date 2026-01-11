@@ -74,7 +74,8 @@ type DiskAttachDetach struct {
 	detachThrottler *throttle.Throttler
 	detaching       sync.Map
 
-	dev *DeviceManager
+	dev    *DeviceManager
+	devMap *devMap
 }
 
 type DiskCreateDelete struct {
@@ -82,6 +83,28 @@ type DiskCreateDelete struct {
 	batcher         batcher.Batcher[ecs.Disk]
 	createThrottler *throttle.Throttler
 	deleteThrottler *throttle.Throttler
+}
+
+// GetRootBlockDevice get device name
+func (ad *DiskAttachDetach) GetRootBlockDevice(logger klog.Logger, diskID string) (string, error) {
+	device, err := ad.dev.GetRootBlockBySerial(strings.TrimPrefix(diskID, "d-"))
+	if err == nil {
+		return device, nil
+	}
+	device, err2 := ad.devMap.Get(logger, diskID)
+	if device == "" {
+		return "", errors.Join(err, err2) // err2 may be nil, which is OK
+	}
+	klog.Infof("GetRootBlockDevice: got disk %s device name %s from devMap", diskID, device)
+	return device, nil
+}
+
+func (ad *DiskAttachDetach) GetVolumeDeviceName(logger klog.Logger, diskID string) (string, error) {
+	root, err := ad.GetRootBlockDevice(logger, diskID)
+	if err != nil {
+		return "", err
+	}
+	return ad.dev.adaptDevicePartition(root)
 }
 
 func (ad *DiskAttachDetach) possibleDisks(before sets.Set[string]) ([]string, error) {
@@ -123,6 +146,10 @@ func (ad *DiskAttachDetach) findDevice(ctx context.Context, diskID, serial strin
 			}
 			if len(disks) == 1 {
 				device = disks[0]
+				err := ad.devMap.Add(diskID, device)
+				if err != nil {
+					return "", fmt.Errorf("failed to populate devMap: %v", err)
+				}
 				logger.V(2).Info("found device by diff", "device", device)
 				break
 			} else {
@@ -217,23 +244,18 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 				klog.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
 				return disk.SerialNumber, nil
 			}
-			deviceName, err := GetVolumeDeviceName(diskID)
-			if err == nil && deviceName != "" && IsFileExisting(deviceName) {
-				klog.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
-				return deviceName, nil
-			} else if disk.SerialNumber != "" {
-				// wait for pci attach ready
-				time.Sleep(5 * time.Second)
-				klog.Infof("AttachDisk: find disk dev after 5 seconds")
-				deviceName, err := GetVolumeDeviceName(diskID)
-				if err == nil && deviceName != "" && IsFileExisting(deviceName) {
-					klog.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
-					return deviceName, nil
+			if disk.SerialNumber != "" {
+				return ad.dev.WaitRootBlock(ctx, disk.SerialNumber)
+			} else {
+				device, err := ad.devMap.Get(logger, diskID)
+				if err != nil {
+					return "", err
 				}
-				err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, deviceName: %s, err: %+v", diskID, deviceName, err)
-				return "", err
+				if device != "" {
+					return device, nil
+				}
+				klog.Warningf("AttachDisk: Disk (no serial) %s is already attached to instance %s, but device unknown, will be detached and try again", diskID, disk.InstanceId)
 			}
-			klog.Warningf("AttachDisk: Disk (no serial) %s is already attached to instance %s, but device unknown, will be detached and try again", diskID, disk.InstanceId)
 		}
 
 		if GlobalConfigVar.DiskBdfEnable {
