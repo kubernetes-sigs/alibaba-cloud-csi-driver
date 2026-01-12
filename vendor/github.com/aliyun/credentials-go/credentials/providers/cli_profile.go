@@ -7,9 +7,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
-	"syscall"
+	"time"
 
 	"github.com/aliyun/credentials-go/credentials/internal/utils"
 )
@@ -95,6 +96,7 @@ type profile struct {
 	OauthAccessToken       string `json:"oauth_access_token"`
 	OauthAccessTokenExpire int64  `json:"oauth_access_token_expire"`
 	StsExpire              int64  `json:"sts_expiration"`
+	ProcessCommand         string `json:"process_command"`
 }
 
 type configuration struct {
@@ -238,6 +240,11 @@ func (provider *CLIProfileCredentialsProvider) getCredentialsProvider(conf *conf
 			WithAccessTokenExpire(p.OauthAccessTokenExpire).
 			WithTokenUpdateCallback(provider.getOAuthTokenUpdateCallback()).
 			Build()
+	case "External":
+		credentialsProvider, err = NewExternalCredentialsProviderBuilder().
+			WithProcessCommand(p.ProcessCommand).
+			WithCredentialUpdateCallback(provider.getExternalCredentialUpdateCallback()).
+			Build()
 	default:
 		err = fmt.Errorf("unsupported profile mode '%s'", p.Mode)
 	}
@@ -334,17 +341,17 @@ func (provider *CLIProfileCredentialsProvider) updateOAuthTokens(refreshToken, a
 
 // writeConfigurationToFile 将配置写入文件，使用原子写入确保数据完整性
 func (provider *CLIProfileCredentialsProvider) writeConfigurationToFile(cfgPath string, conf *configuration) error {
-	// 创建临时文件
-	tempFile := cfgPath + ".tmp"
-
-	// 序列化配置
-	data, err := json.MarshalIndent(conf, "", "    ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal config: %v", err)
+	// 获取原文件权限（如果存在）
+	fileMode := os.FileMode(0644)
+	if stat, err := os.Stat(cfgPath); err == nil {
+		fileMode = stat.Mode()
 	}
 
+	// 创建唯一临时文件
+	tempFile := cfgPath + ".tmp-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+
 	// 写入临时文件
-	err = ioutil.WriteFile(tempFile, data, 0644)
+	err := provider.writeConfigFile(tempFile, fileMode, conf)
 	if err != nil {
 		return fmt.Errorf("failed to write temp file: %v", err)
 	}
@@ -360,34 +367,63 @@ func (provider *CLIProfileCredentialsProvider) writeConfigurationToFile(cfgPath 
 	return nil
 }
 
+// writeConfigFile 写入配置文件
+func (provider *CLIProfileCredentialsProvider) writeConfigFile(filename string, fileMode os.FileMode, conf *configuration) error {
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_RDWR, fileMode)
+	if err != nil {
+		return fmt.Errorf("failed to create config file: %w", err)
+	}
+
+	defer func() {
+		closeErr := f.Close()
+		if err == nil && closeErr != nil {
+			err = fmt.Errorf("failed to close config file: %w", closeErr)
+		}
+	}()
+
+	encoder := json.NewEncoder(f)
+	encoder.SetIndent("", "    ")
+
+	if err = encoder.Encode(conf); err != nil {
+		return fmt.Errorf("failed to serialize config: %w", err)
+	}
+
+	return nil
+}
+
 // writeConfigurationToFileWithLock 使用操作系统级别的文件锁写入配置文件
 func (provider *CLIProfileCredentialsProvider) writeConfigurationToFileWithLock(cfgPath string, conf *configuration) error {
+	// 获取原文件权限（如果存在）
+	fileMode := os.FileMode(0644)
+	if stat, err := os.Stat(cfgPath); err == nil {
+		fileMode = stat.Mode()
+	}
+
 	// 打开文件用于锁定
-	file, err := os.OpenFile(cfgPath, os.O_RDWR|os.O_CREATE, 0644)
+	file, err := os.OpenFile(cfgPath, os.O_RDWR|os.O_CREATE, fileMode)
 	if err != nil {
 		return fmt.Errorf("failed to open config file: %v", err)
 	}
-	defer file.Close()
 
 	// 获取独占锁（阻塞其他进程）
-	err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX)
+	err = lockFile(int(file.Fd()))
 	if err != nil {
+		file.Close()
 		return fmt.Errorf("failed to acquire file lock: %v", err)
 	}
-	defer syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
 
-	// 序列化配置
-	data, err := json.MarshalIndent(conf, "", "    ")
+	// 创建唯一临时文件
+	tempFile := cfgPath + ".tmp-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	err = provider.writeConfigFile(tempFile, fileMode, conf)
 	if err != nil {
-		return fmt.Errorf("failed to marshal config: %v", err)
-	}
-
-	// 创建临时文件
-	tempFile := cfgPath + ".tmp"
-	err = ioutil.WriteFile(tempFile, data, 0644)
-	if err != nil {
+		unlockFile(int(file.Fd()))
+		file.Close()
 		return fmt.Errorf("failed to write temp file: %v", err)
 	}
+
+	// 关闭并解锁原文件，以便在Windows上可以重命名
+	unlockFile(int(file.Fd()))
+	file.Close()
 
 	// 原子性重命名
 	err = os.Rename(tempFile, cfgPath)
@@ -404,4 +440,40 @@ func (provider *CLIProfileCredentialsProvider) getOAuthTokenUpdateCallback() OAu
 	return func(refreshToken, accessToken, accessKey, secret, securityToken string, accessTokenExpire, stsExpire int64) error {
 		return provider.updateOAuthTokens(refreshToken, accessToken, accessKey, secret, securityToken, accessTokenExpire, stsExpire)
 	}
+}
+
+// getExternalCredentialUpdateCallback 获取External凭证更新回调函数
+func (provider *CLIProfileCredentialsProvider) getExternalCredentialUpdateCallback() ExternalCredentialUpdateCallback {
+	return func(accessKeyId, accessKeySecret, securityToken string, expiration int64) error {
+		return provider.updateExternalCredentials(accessKeyId, accessKeySecret, securityToken, expiration)
+	}
+}
+
+// updateExternalCredentials 更新External凭证并写回配置文件
+func (provider *CLIProfileCredentialsProvider) updateExternalCredentials(accessKeyId, accessKeySecret, securityToken string, expiration int64) error {
+	provider.fileMutex.Lock()
+	defer provider.fileMutex.Unlock()
+
+	cfgPath := provider.profileFile
+	conf, err := newConfigurationFromPath(cfgPath)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %v", err)
+	}
+
+	profileName := provider.profileName
+	profile, err := conf.getProfile(profileName)
+	if err != nil {
+		return fmt.Errorf("failed to get profile %s: %v", profileName, err)
+	}
+
+	// update
+	profile.AccessKeyID = accessKeyId
+	profile.AccessKeySecret = accessKeySecret
+	profile.SecurityToken = securityToken
+	if expiration > 0 {
+		profile.StsExpire = expiration
+	}
+
+	// write back with file lock
+	return provider.writeConfigurationToFileWithLock(cfgPath, conf)
 }
