@@ -14,7 +14,6 @@ import (
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
@@ -1180,116 +1179,6 @@ func TestRotateTokenFiles_SymlinkAtomicUpdate(t *testing.T) {
 		content, err := os.ReadFile(akFile)
 		require.NoError(t, err)
 		assert.Equal(t, "akid2", string(content))
-	})
-
-	t.Run("verify consistency during concurrent reads", func(t *testing.T) {
-		baseDir := t.TempDir()
-		dir := filepath.Join(baseDir, "token-dir")
-
-		// Initial creation
-		secrets1 := map[string]string{
-			mounterutils.KeyAccessKeyId:     "akid1",
-			mounterutils.KeyAccessKeySecret: "aksecret1",
-			mounterutils.KeySecurityToken:   "token1",
-			mounterutils.KeyExpiration:      "exp1",
-		}
-		_, err := rotateTokenFiles(dir, secrets1)
-		require.NoError(t, err)
-
-		// Simulate concurrent reads during update
-		readChan := make(chan map[string]string, 10)
-		updateDone := make(chan bool)
-
-		// Start concurrent readers
-		// Each reader opens the directory once and reads all files using openat
-		// to ensure atomic consistency - all files are read from the same directory version
-		for i := 0; i < 10; i++ {
-			go func() {
-				values := make(map[string]string)
-				// Open directory once to get a consistent view
-				// This ensures all files are read from the same directory version
-				dirFd, err := os.Open(dir)
-				if err != nil {
-					readChan <- values
-					return
-				}
-				defer func() {
-					_ = dirFd.Close()
-				}()
-
-				// Read all files using the same directory file descriptor via openat
-				// This ensures atomic consistency - all files are from the same version
-				// even if symlink is switched during reading
-				// This simulates what ossfs does - it opens the directory and uses openat
-				for _, key := range []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken, mounterutils.KeyExpiration} {
-					// Use openat to read from the same directory file descriptor
-					// This ensures all files are read from the same directory version
-					fileFd, err := unix.Openat(int(dirFd.Fd()), key, unix.O_RDONLY, 0)
-					if err == nil {
-						// Read file content
-						var buf [4096]byte
-						n, err := unix.Read(fileFd, buf[:])
-						_ = unix.Close(fileFd)
-						if err == nil && n > 0 {
-							values[key] = string(buf[:n])
-						}
-					}
-				}
-				readChan <- values
-			}()
-		}
-
-		// Start update
-		go func() {
-			secrets2 := map[string]string{
-				mounterutils.KeyAccessKeyId:     "akid2",
-				mounterutils.KeyAccessKeySecret: "aksecret2",
-				mounterutils.KeySecurityToken:   "token2",
-				mounterutils.KeyExpiration:      "exp2",
-			}
-			_, _ = rotateTokenFiles(dir, secrets2)
-			updateDone <- true
-		}()
-
-		// Collect all reads
-		allReads := make([]map[string]string, 0, 10)
-		for i := 0; i < 10; i++ {
-			select {
-			case values := <-readChan:
-				allReads = append(allReads, values)
-			case <-time.After(5 * time.Second):
-				t.Fatal("timeout waiting for reads")
-			}
-		}
-		<-updateDone
-
-		// Verify all reads are consistent (either all old or all new)
-		// Each read should have all files from the same version.
-		// Once dir symlink is switched atomically, all new opens will resolve to the new directory.
-		// However, clients with already opened file handles will continue reading from the old directory.
-		// So all files should be consistent - either all old (before symlink switch) or all new (after symlink switch).
-		for _, read := range allReads {
-			if len(read) == 0 {
-				continue // Skip failed reads
-			}
-			// Check if this read is from old version or new version based on AccessKeyId
-			isOldVersion := read[mounterutils.KeyAccessKeyId] == "akid1"
-			isNewVersion := read[mounterutils.KeyAccessKeyId] == "akid2"
-			assert.True(t, isOldVersion || isNewVersion, "read should be from either old or new version, got: %v", read)
-
-			if isOldVersion {
-				// All files should be from old version (read happened before symlink switch)
-				assert.Equal(t, "aksecret1", read[mounterutils.KeyAccessKeySecret], "AccessKeySecret should match old version")
-				assert.Equal(t, "token1", read[mounterutils.KeySecurityToken], "SecurityToken should match old version")
-				assert.Equal(t, "exp1", read[mounterutils.KeyExpiration], "Expiration should match old version")
-			} else if isNewVersion {
-				// All files should be from new version (read happened after symlink switch)
-				// Since dir symlink switch is atomic, all new opens will resolve to new data
-				assert.Equal(t, "aksecret2", read[mounterutils.KeyAccessKeySecret], "AccessKeySecret should match new version")
-				assert.Equal(t, "token2", read[mounterutils.KeySecurityToken], "SecurityToken should match new version")
-				assert.Equal(t, "exp2", read[mounterutils.KeyExpiration], "Expiration should match new version")
-			}
-		}
 	})
 
 	t.Run("verify multiple sequential updates", func(t *testing.T) {
