@@ -474,12 +474,10 @@ func TestGetAvailableDiskCountFromOpenAPI(t *testing.T) {
 	}
 }
 
+const longDiskID = "d-some-very-looooooooooooooooog-value-that-cause-getxattr-to-fail"
+
 func TestGetVolumeCountFromOpenAPI(t *testing.T) {
-	orgiDiskXattrName := DiskXattrName
-	DiskXattrName = "user.testing-csi-managed-disk"
-	t.Cleanup(func() {
-		DiskXattrName = orgiDiskXattrName
-	})
+	testDiskXattr(t)
 
 	ctrl := gomock.NewController(t)
 	c := cloud.NewMockECSInterface(ctrl)
@@ -501,7 +499,7 @@ func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 	// manually attached disk has no xattr
 	dev.AddDisk(t, "node-for-2zeh74nnxxrobxz49eug", nil)
 	// an arbitrary error for getxattr, we should ignore it
-	dev.AddDisk(t, "node-for-testinglocaldisk", []byte("d-some-very-looooog-value-that-cause-getxattr-to-fail"))
+	dev.AddDisk(t, "node-for-testinglocaldisk", []byte(longDiskID))
 
 	getNode := func() (*corev1.Node, error) { return testNode(), nil }
 	count, err := getVolumeCountFromOpenAPI(getNode, c, efloc, testMetadata, &dev, "")

@@ -32,6 +32,10 @@ func NewCSIAgent() *CSIAgent {
 			k8smounter: k8smount.NewWithoutSystemd(""),
 			podCGroup:  podCgroup,
 			locks:      utils.NewVolumeLocks(),
+			ad: DiskAttachDetach{
+				dev:    DefaultDeviceManager,
+				devMap: &devMap{}, // Nobody will add to this map.
+			},
 		},
 	}
 }
@@ -45,7 +49,7 @@ func (a *CSIAgent) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolum
 }
 
 func (a *CSIAgent) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return localExpandVolume(ctx, req)
+	return a.ns.localExpandVolume(ctx, req)
 }
 
 func (a *CSIAgent) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {

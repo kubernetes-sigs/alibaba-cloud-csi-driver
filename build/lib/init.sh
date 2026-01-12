@@ -92,6 +92,51 @@ do
     fi
 done
 
+migrate_disk_conf() {
+    dev=$(cat "$1")
+    if ! [ -e "$dev" ]; then
+        echo "device $dev not found, skip"
+        return 0
+    fi
+    if [ -h "$dev" ]; then
+        echo "device $dev is a symlink, skip"
+        # this device can be found by symlink, no need conf file.
+        return 0
+    fi
+    if ! [ -b "$dev" ]; then
+        echo "device $dev is not a block device!"
+        return 1
+    fi
+    sysfs_path=$(readlink -f "/sys/class/block/$(basename "$dev")")
+    # check if dev is partition
+    if [ -e "$sysfs_path/partition" ]; then
+        # go up one level
+        sysfs_path=$(dirname "$sysfs_path")
+        dev_root=/dev/"$(basename "$sysfs_path")"
+        echo "device $dev is a partition of $dev_root"
+        dev=$dev_root
+    fi
+
+    serial=$(cat "$sysfs_path/serial" || cat "$sysfs_path/device/serial")
+    if [ -n "$serial" ]; then
+        echo "device $dev has serial $serial"
+        # serial is more accurate than conf, so just ignore conf.
+        return 0
+    fi
+
+    # device has no serial, it may be found by diff, we have to trust the conf.
+    disk_id=$(basename "$1" .conf)
+    echo "device $dev has no serial, assigning disk ID $disk_id"
+    setfattr -n trusted.csi-managed-disk -v "${disk_id}" "$dev" || return $?
+}
+
+for conf in /host/etc/kubernetes/volumes/disk/d-*.conf; do
+    [ -e "$conf" ] || continue  # glob pattern not expanded, no conf files found
+    echo "migrating disk conf: $conf"
+    migrate_disk_conf "$conf" || exit 1
+    rm -f "$conf"
+done
+
 # config /etc/updatedb.config if needed
 if [ "$SKIP_UPDATEDB_CONFIG" != "true" ]; then
     ## check cron.daily dir
