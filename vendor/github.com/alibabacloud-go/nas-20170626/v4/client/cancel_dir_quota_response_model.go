@@ -59,5 +59,10 @@ func (s *CancelDirQuotaResponse) SetBody(v *CancelDirQuotaResponseBody) *CancelD
 }
 
 func (s *CancelDirQuotaResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

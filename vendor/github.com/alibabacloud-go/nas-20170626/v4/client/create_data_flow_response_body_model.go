@@ -16,7 +16,7 @@ type iCreateDataFlowResponseBody interface {
 }
 
 type CreateDataFlowResponseBody struct {
-	// The dataflow ID.
+	// The ID of the dataflow.
 	//
 	// example:
 	//

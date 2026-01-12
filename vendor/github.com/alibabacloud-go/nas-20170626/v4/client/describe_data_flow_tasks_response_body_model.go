@@ -18,7 +18,7 @@ type iDescribeDataFlowTasksResponseBody interface {
 }
 
 type DescribeDataFlowTasksResponseBody struct {
-	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	// A pagination token. It can be used in the next request to retrieve a new page of results.
 	//
 	// example:
 	//
@@ -30,7 +30,7 @@ type DescribeDataFlowTasksResponseBody struct {
 	//
 	// 2D69A58F-345C-4FDE-88E4-BF518948****
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The information about data flow tasks.
+	// The information about dataflow tasks.
 	TaskInfo *DescribeDataFlowTasksResponseBodyTaskInfo `json:"TaskInfo,omitempty" xml:"TaskInfo,omitempty" type:"Struct"`
 }
 
@@ -70,7 +70,12 @@ func (s *DescribeDataFlowTasksResponseBody) SetTaskInfo(v *DescribeDataFlowTasks
 }
 
 func (s *DescribeDataFlowTasksResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.TaskInfo != nil {
+		if err := s.TaskInfo.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfo struct {
@@ -95,7 +100,16 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfo) SetTask(v []*DescribeDataFlo
 }
 
 func (s *DescribeDataFlowTasksResponseBodyTaskInfo) Validate() error {
-	return dara.Validate(s)
+	if s.Task != nil {
+		for _, item := range s.Task {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
@@ -117,13 +131,13 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
 	//
 	// 2021-08-04 18:27:35
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The ID of the data flow.
+	// The ID of the dataflow.
 	//
 	// example:
 	//
 	// dfid-194433a5be3****
 	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// The type of data on which operations are performed by the data flow task. Valid values:
+	// The type of data on which operations are performed by the dataflow task. The following information is displayed:
 	//
 	// 	- Metadata: the metadata of a file, including the timestamp, ownership, and permission information of the file. If you select Metadata, only the metadata of the file is imported. You can only query the file. When you access the file data, the file is loaded from the source storage as required.
 	//
@@ -131,25 +145,25 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
 	//
 	// 	- MetaAndData: the metadata and data blocks of the file.
 	//
-	// >  CPFS for LINGJUN supports only the MetaAndData type.
+	// >  CPFS for Lingjun supports only the MetaAndData type.
 	//
 	// example:
 	//
 	// Metadata
 	DataType *string `json:"DataType,omitempty" xml:"DataType,omitempty"`
-	// The directory in which the data flow task is executed.
+	// The directory in which the dataflow task is executed.
 	//
 	// example:
 	//
 	// /path_in_cpfs/
 	Directory *string `json:"Directory,omitempty" xml:"Directory,omitempty"`
-	// The directory mapped to the data flow task.
+	// The directory mapped to the dataflow task.
 	//
 	// example:
 	//
 	// /path_in_cpfs/
 	DstDirectory *string `json:"DstDirectory,omitempty" xml:"DstDirectory,omitempty"`
-	// The time when the task ended.
+	// The end time of the task.
 	//
 	// example:
 	//
@@ -189,13 +203,15 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
 	//
 	// /aa/
 	FsPath *string `json:"FsPath,omitempty" xml:"FsPath,omitempty"`
-	// Filter the directories under directory and transfer the folder contents contained in the filtered directory.
+	// Filters subdirectories and transfers their contents.
+	//
+	// >  Only CPFS for Lingjun supports this operation.
 	//
 	// example:
 	//
 	// ["/test/","/test1/"]
 	Includes *string `json:"Includes,omitempty" xml:"Includes,omitempty"`
-	// The initiator of the data flow task. Valid values:
+	// The initiator of the dataflow task. The following information is displayed:
 	//
 	// 	- User: The task is initiated by a user.
 	//
@@ -207,21 +223,21 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
 	//
 	// User
 	Originator *string `json:"Originator,omitempty" xml:"Originator,omitempty"`
-	// The progress of the data flow task. The number of operations that have been performed by the data flow task.
+	// The progress of the dataflow task. The number of operations that have been performed by the dataflow task.
 	//
 	// example:
 	//
 	// 240
 	Progress *int64 `json:"Progress,omitempty" xml:"Progress,omitempty"`
-	// The progress of the data flow task.
+	// The progress of the dataflow task.
 	ProgressStats *DescribeDataFlowTasksResponseBodyTaskInfoTaskProgressStats `json:"ProgressStats,omitempty" xml:"ProgressStats,omitempty" type:"Struct"`
 	// Deprecated
 	//
-	// The save path of data flow task reports in the CPFS file system.
+	// The save path of dataflow task reports in the CPFS file system.
 	//
 	// 	- The task reports for a CPFS file system are generated in the `.dataflow_report` directory of the CPFS file system.
 	//
-	// 	- CPFS for LINGJUN returns an OSS download link for you to download the task reports.
+	// 	- CPFS for Lingjun returns an OSS download link for you to download the task reports.
 	//
 	// example:
 	//
@@ -229,11 +245,17 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
 	ReportPath *string `json:"ReportPath,omitempty" xml:"ReportPath,omitempty"`
 	// The reports.
 	//
-	// >  Streaming tasks do not support reports.
+	// >
+	//
+	// 	- Streaming tasks do not support reports.
+	//
+	// 	- If the WithReport parameter is set to True, the CPFS for Lingjun report data is returned.
+	//
+	// 	- Only CPFS for Lingjun supports the WithReport parameter.
 	Reports *DescribeDataFlowTasksResponseBodyTaskInfoTaskReports `json:"Reports,omitempty" xml:"Reports,omitempty" type:"Struct"`
 	// The access path of the source storage. Format: `<storage type>://[<account id>:]<path>`.
 	//
-	// Parameters:
+	// Among them:
 	//
 	// 	- storage type: Only Object Storage Service (OSS) is supported.
 	//
@@ -251,37 +273,37 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
 	//
 	// 	- The OSS bucket must be an existing bucket in the region.
 	//
-	// 	- Only CPFS for LINGJUN V2.6.0 and later support the account id parameter.
+	// 	- Only CPFS for Lingjun V2.6.0 and later support the account id parameter.
 	//
 	// example:
 	//
 	// oss://bucket1
 	SourceStorage *string `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
-	// The time when the task started.
+	// The start time of the task.
 	//
 	// example:
 	//
 	// 2021-08-04 18:27:35
 	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The status of the data flow task. Valid values:
+	// The status of the dataflow task. The following information is displayed:
 	//
-	// 	- Pending: The data flow task has been created and has not started.
+	// 	- Pending: The dataflow task has been created and has not started.
 	//
-	// 	- Executing: The data flow task is being executed.
+	// 	- Executing: The dataflow task is being executed.
 	//
-	// 	- Failed: The data flow task failed to be executed. You can view the cause of the failure in the data flow task report.
+	// 	- Failed: The dataflow task failed to be executed. You can view the cause of the failure in the dataflow task report.
 	//
-	// 	- Completed: The data flow task is completed. You can check that all the files have been correctly transferred in the data flow task report.
+	// 	- Completed: The dataflow task is completed. You can check that all the files have been correctly transferred in the dataflow task report.
 	//
-	// 	- Canceled: The data flow task is canceled and is not completed.
+	// 	- Canceled: The dataflow task is canceled and is not completed.
 	//
-	// 	- Canceling: The data flow task is being canceled.
+	// 	- Canceling: The dataflow task is being canceled.
 	//
 	// example:
 	//
 	// Executing
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The type of the data flow task. Valid values:
+	// The type of the dataflow task. The following information is displayed:
 	//
 	// 	- Import: imports data stored in the source storage to a CPFS file system.
 	//
@@ -293,20 +315,27 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
 	//
 	// 	- Evict: releases the data blocks of a file in a CPFS file system. After the eviction, only the metadata of the file is retained in the CPFS file system. You can still query the file. However, the data blocks of the file are cleared and do not occupy the storage space in the CPFS file system. When you access the file data, the file is loaded from the source storage as required.
 	//
-	// 	- Inventory: obtains the inventory list managed by a data flow from the CPFS file system, providing the cache status of inventories in the data flow.
+	// 	- Inventory: obtains the inventory list managed by a dataflow from the CPFS file system, providing the cache status of inventories in the dataflow.
 	//
-	// >  Only CPFS for LINGJUN V2.6.0 and later support StreamImport and StreamExport.
+	// >  Only CPFS for Lingjun V2.6.0 and later support StreamImport and StreamExport.
 	//
 	// example:
 	//
 	// Import
 	TaskAction *string `json:"TaskAction,omitempty" xml:"TaskAction,omitempty"`
-	// The ID of the data flow task.
+	// The ID of the dataflow task.
 	//
 	// example:
 	//
 	// taskId-12345678
-	TaskId               *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
+	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
+	// Specify the OSS directory and synchronize data based on the content of the CSV file in the OSS directory.
+	//
+	// >  Only CPFS for Lingjun supports this operation.
+	//
+	// example:
+	//
+	// /path_in_cpfs/
 	TransferFileListPath *string `json:"TransferFileListPath,omitempty" xml:"TransferFileListPath,omitempty"`
 }
 
@@ -526,17 +555,27 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) SetTransferFileListPath(
 }
 
 func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) Validate() error {
-	return dara.Validate(s)
+	if s.ProgressStats != nil {
+		if err := s.ProgressStats.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.Reports != nil {
+		if err := s.Reports.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfoTaskProgressStats struct {
-	// The actual amount of data for which the data flow task is complete. Unit: bytes.
+	// The actual amount of data for which the dataflow task is complete. Unit: bytes.
 	//
 	// example:
 	//
 	// 131092971520
 	ActualBytes *int64 `json:"ActualBytes,omitempty" xml:"ActualBytes,omitempty"`
-	// The actual number of files for which the data flow task is complete.
+	// The actual number of files for which the dataflow task is complete.
 	//
 	// example:
 	//
@@ -548,7 +587,7 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTaskProgressStats struct {
 	//
 	// 342279299
 	AverageSpeed *int64 `json:"AverageSpeed,omitempty" xml:"AverageSpeed,omitempty"`
-	// The amount of data (including skipped data) for which the data flow task is complete. Unit: bytes.
+	// The amount of data (including skipped data) for which the dataflow task is complete. Unit: bytes.
 	//
 	// example:
 	//
@@ -560,7 +599,7 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTaskProgressStats struct {
 	//
 	// 131092971520
 	BytesTotal *int64 `json:"BytesTotal,omitempty" xml:"BytesTotal,omitempty"`
-	// The number of files (including skipped files) for which the data flow task is complete.
+	// The number of files (including skipped files) for which the dataflow task is complete.
 	//
 	// example:
 	//
@@ -686,7 +725,16 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfoTaskReports) SetReport(v []*De
 }
 
 func (s *DescribeDataFlowTasksResponseBodyTaskInfoTaskReports) Validate() error {
-	return dara.Validate(s)
+	if s.Report != nil {
+		for _, item := range s.Report {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfoTaskReportsReport struct {
@@ -696,7 +744,7 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTaskReportsReport struct {
 	//
 	//     TotalFilesReport: task reports.
 	//
-	// 	- CPFS for LINGJUN:
+	// 	- CPFS for Lingjun:
 	//
 	//     	- FailedFilesReport: failed file reports.
 	//

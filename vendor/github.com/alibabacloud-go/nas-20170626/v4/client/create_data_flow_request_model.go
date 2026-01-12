@@ -109,9 +109,7 @@ type CreateDataFlowRequest struct {
 	//
 	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-125487\\*\\*\\*\\*.
 	//
-	// 	- The IDs of CPFS for LINGJUN file systems must start with `bmcpfs-`. Example: bmcpfs-0015\\*\\*\\*\\*.
-	//
-	// >  CPFS is not supported on the international site.
+	// 	- The IDs of CPFS for Lingjun file systems must start with `bmcpfs-`. Example: bmcpfs-0015\\*\\*\\*\\*.
 	//
 	// This parameter is required.
 	//
@@ -340,7 +338,16 @@ func (s *CreateDataFlowRequest) SetThroughput(v int64) *CreateDataFlowRequest {
 }
 
 func (s *CreateDataFlowRequest) Validate() error {
-	return dara.Validate(s)
+	if s.AutoRefreshs != nil {
+		for _, item := range s.AutoRefreshs {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type CreateDataFlowRequestAutoRefreshs struct {

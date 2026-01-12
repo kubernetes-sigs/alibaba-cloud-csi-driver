@@ -18,7 +18,7 @@ type iDescribeDataFlowsResponseBody interface {
 }
 
 type DescribeDataFlowsResponseBody struct {
-	// The details about data flows.
+	// The dataflow details.
 	DataFlowInfo *DescribeDataFlowsResponseBodyDataFlowInfo `json:"DataFlowInfo,omitempty" xml:"DataFlowInfo,omitempty" type:"Struct"`
 	// A pagination token. It can be used in the next request to retrieve a new page of results.
 	//
@@ -70,7 +70,12 @@ func (s *DescribeDataFlowsResponseBody) SetRequestId(v string) *DescribeDataFlow
 }
 
 func (s *DescribeDataFlowsResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.DataFlowInfo != nil {
+		if err := s.DataFlowInfo.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfo struct {
@@ -95,7 +100,16 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfo) SetDataFlow(v []*DescribeDat
 }
 
 func (s *DescribeDataFlowsResponseBodyDataFlowInfo) Validate() error {
-	return dara.Validate(s)
+	if s.DataFlow != nil {
+		for _, item := range s.DataFlow {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
@@ -113,13 +127,13 @@ type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
 	//
 	// 10
 	AutoRefreshInterval *int64 `json:"AutoRefreshInterval,omitempty" xml:"AutoRefreshInterval,omitempty"`
-	// The automatic update policy. The updated data in the source storage is imported into the CPFS file system based on the policy. Valid values:
+	// The automatic update policy. The updated data in the source storage is imported into the CPFS file system based on the policy. The following information is displayed:
 	//
-	// 	- None: Updated data in the source storage is not automatically imported into the CPFS file system. You can run a data flow task to import the updated data from the source storage.
+	// 	- None: Updated data in the source storage is not automatically imported into the CPFS file system. You can run a dataflow task to import the updated data from the source storage.
 	//
 	// 	- ImportChanged: Updated data in the source storage is automatically imported into the CPFS file system.
 	//
-	// >  Only CPFS supports this parameter.
+	// >  Only CPFS is supported.
 	//
 	// example:
 	//
@@ -129,11 +143,13 @@ type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
 	//
 	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
 	//
+	// >  Only CPFS supports this parameter.
+	//
 	// example:
 	//
 	// 2021-09-30T10:08:08Z
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The dataflow ID.
+	// The ID of the dataflow.
 	//
 	// example:
 	//
@@ -143,17 +159,17 @@ type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
 	//
 	// Limits:
 	//
-	// 	- The description must be 2 to 128 characters in length.
+	// 	- The name must be 2 to 128 characters in length and
 	//
-	// 	- The description must start with a letter but cannot start with `http://` or `https://`.
+	// 	- start with a letter but cannot start with `http://` or `https://`.
 	//
-	// 	- The description can contain letters, digits, colons (:), underscores (_), and hyphens (-).
+	// 	- The name can contain digits, letters, colons (:), underscores (_), and hyphens (-).
 	//
 	// example:
 	//
 	// test
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The error message returned. Valid values:
+	// The error message. Valid values:
 	//
 	// 	- None (default): The dataflow status is normal.
 	//
@@ -175,7 +191,7 @@ type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
 	//
 	// Limits:
 	//
-	// 	- The directory must be 2 to 1,024 characters in length.
+	// 	- The directory must be 2 to 1024 characters in length.
 	//
 	// 	- The directory must be encoded in UTF-8.
 	//
@@ -183,7 +199,7 @@ type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
 	//
 	// 	- The directory must be a fileset directory in the CPFS file system.
 	//
-	// >  Only CPFS supports this parameter.
+	// >  Only CPFS is supported.
 	//
 	// example:
 	//
@@ -199,13 +215,15 @@ type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
 	FsetDescription *string `json:"FsetDescription,omitempty" xml:"FsetDescription,omitempty"`
 	// The fileset ID.
 	//
+	// >  Only CPFS supports this parameter.
+	//
 	// example:
 	//
 	// fset-1902718ea0ae****
 	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
-	// The type of security mechanism for the source storage. This parameter must be specified if the source storage is accessed with a security mechanism. Valid values:
+	// The type of security mechanism for the source storage. This parameter must be specified if the source storage is accessed with a security mechanism. Valid value:
 	//
-	// 	- None (default): The source storage can be accessed without a security mechanism.
+	// 	- Null (default): The OSS bucket can be accessed without a security mechanism.
 	//
 	// 	- SSL: The source storage must be accessed with an SSL certificate.
 	//
@@ -213,23 +231,29 @@ type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
 	//
 	// SSL
 	SourceSecurityType *string `json:"SourceSecurityType,omitempty" xml:"SourceSecurityType,omitempty"`
-	// The access path of the source storage. Format: `<storage type>://<path>`.
+	// The access path of the source storage. Format: `<storage type>://[<account id>:]<path>`.
 	//
-	// Parameters:
+	// Among them:
 	//
-	// 	- storage type: Only Object Storage Service (OSS) is supported.
+	// 	- storage type: Only OSS is supported.
 	//
-	// 	- path: the name of the OSS bucket.
+	// 	- account id: The UID of the account of the source storage.
+	//
+	// 	- path: The name of the OSS bucket.
 	//
 	//     	- The name can contain only lowercase letters, digits, and hyphens (-). The name must start and end with a lowercase letter or digit.
 	//
 	//     	- The name must be 8 to 128 characters in length.
 	//
-	//     	- The name must be encoded in UTF-8.
+	//     	- Must be encoded in UTF-8.
 	//
 	//     	- The name cannot start with http:// or https://.
 	//
-	// >  The OSS bucket must be an existing bucket in the region.
+	// >
+	//
+	// 	- The OSS bucket must be an existing bucket in the region.
+	//
+	// 	- Only CPFS for Lingjun V2.6.0 and later support the account id parameter.
 	//
 	// example:
 	//
@@ -237,13 +261,13 @@ type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
 	SourceStorage *string `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
 	// The access path in the bucket of the source storage.
 	//
-	// >  Only CPFS for LINGJUN supports this parameter.
+	// >  Only CPFS for Lingjun supports this parameter.
 	//
 	// example:
 	//
 	// /prefix/
 	SourceStoragePath *string `json:"SourceStoragePath,omitempty" xml:"SourceStoragePath,omitempty"`
-	// The dataflow status. Valid values:
+	// The dataflow status. The following information is displayed:
 	//
 	// 	- Starting: The dataflow is being created or enabled.
 	//
@@ -263,15 +287,19 @@ type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
 	//
 	// Running
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The maximum dataflow throughput. Unit: MB/s. Valid values:
+	// The maximum dataflow throughput. Unit: MB/s. Valid value:
 	//
 	// 	- 600
 	//
-	// 	- 1,200
+	// 	- 1200
 	//
-	// 	- 1,500
+	// 	- 1500
 	//
-	// >  The dataflow throughput must be less than the I/O throughput of the file system.
+	// >
+	//
+	// 	- The dataflow throughput must be less than the I/O throughput of the file system.
+	//
+	// 	- Only CPFS supports this parameter.
 	//
 	// example:
 	//
@@ -280,6 +308,8 @@ type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
 	// The time when the fileset was last updated.
 	//
 	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
+	//
+	// >  Only CPFS supports this parameter.
 	//
 	// example:
 	//
@@ -449,7 +479,12 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlow) SetUpdateTime(v stri
 }
 
 func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlow) Validate() error {
-	return dara.Validate(s)
+	if s.AutoRefresh != nil {
+		if err := s.AutoRefresh.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh struct {
@@ -474,7 +509,16 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh) SetAutoRe
 }
 
 func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh) Validate() error {
-	return dara.Validate(s)
+	if s.AutoRefresh != nil {
+		for _, item := range s.AutoRefresh {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefreshAutoRefresh struct {

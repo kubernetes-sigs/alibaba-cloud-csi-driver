@@ -59,5 +59,10 @@ func (s *DetachVscFromFilesystemsResponse) SetBody(v *DetachVscFromFilesystemsRe
 }
 
 func (s *DetachVscFromFilesystemsResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

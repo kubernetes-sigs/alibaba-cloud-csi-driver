@@ -48,9 +48,7 @@ type DeleteFilesetRequest struct {
 	//
 	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-099394bd928c\\*\\*\\*\\*.
 	//
-	// 	- The IDs of CPFS for LINGJUN file systems must start with `bmcpfs-`. Example: bmcpfs-290w65p03ok64ya\\*\\*\\*\\*.
-	//
-	// >  CPFS is not supported on the international site.
+	// 	- The IDs of CPFS for Lingjun file systems must start with `bmcpfs-`. Example: bmcpfs-290w65p03ok64ya\\*\\*\\*\\*.
 	//
 	// This parameter is required.
 	//

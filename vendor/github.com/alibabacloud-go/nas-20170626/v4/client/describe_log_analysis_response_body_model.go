@@ -121,7 +121,12 @@ func (s *DescribeLogAnalysisResponseBody) SetTotalCount(v int32) *DescribeLogAna
 }
 
 func (s *DescribeLogAnalysisResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.Analyses != nil {
+		if err := s.Analyses.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeLogAnalysisResponseBodyAnalyses struct {
@@ -146,7 +151,16 @@ func (s *DescribeLogAnalysisResponseBodyAnalyses) SetAnalysis(v []*DescribeLogAn
 }
 
 func (s *DescribeLogAnalysisResponseBodyAnalyses) Validate() error {
-	return dara.Validate(s)
+	if s.Analysis != nil {
+		for _, item := range s.Analysis {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeLogAnalysisResponseBodyAnalysesAnalysis struct {
@@ -187,7 +201,12 @@ func (s *DescribeLogAnalysisResponseBodyAnalysesAnalysis) SetMetaValue(v *Descri
 }
 
 func (s *DescribeLogAnalysisResponseBodyAnalysesAnalysis) Validate() error {
-	return dara.Validate(s)
+	if s.MetaValue != nil {
+		if err := s.MetaValue.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type DescribeLogAnalysisResponseBodyAnalysesAnalysisMetaValue struct {

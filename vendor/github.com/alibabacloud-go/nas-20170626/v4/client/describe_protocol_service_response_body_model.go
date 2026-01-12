@@ -70,7 +70,16 @@ func (s *DescribeProtocolServiceResponseBody) SetRequestId(v string) *DescribePr
 }
 
 func (s *DescribeProtocolServiceResponseBody) Validate() error {
-	return dara.Validate(s)
+	if s.ProtocolServices != nil {
+		for _, item := range s.ProtocolServices {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type DescribeProtocolServiceResponseBodyProtocolServices struct {
@@ -184,6 +193,14 @@ type DescribeProtocolServiceResponseBodyProtocolServices struct {
 	//
 	// Running
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// example:
+	//
+	// vsw-123xxx
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// example:
+	//
+	// vpc-123xxx
+	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
 
 func (s DescribeProtocolServiceResponseBodyProtocolServices) String() string {
@@ -244,6 +261,14 @@ func (s *DescribeProtocolServiceResponseBodyProtocolServices) GetProtocolType() 
 
 func (s *DescribeProtocolServiceResponseBodyProtocolServices) GetStatus() *string {
 	return s.Status
+}
+
+func (s *DescribeProtocolServiceResponseBodyProtocolServices) GetVSwitchId() *string {
+	return s.VSwitchId
+}
+
+func (s *DescribeProtocolServiceResponseBodyProtocolServices) GetVpcId() *string {
+	return s.VpcId
 }
 
 func (s *DescribeProtocolServiceResponseBodyProtocolServices) SetCreateTime(v string) *DescribeProtocolServiceResponseBodyProtocolServices {
@@ -308,6 +333,16 @@ func (s *DescribeProtocolServiceResponseBodyProtocolServices) SetProtocolType(v 
 
 func (s *DescribeProtocolServiceResponseBodyProtocolServices) SetStatus(v string) *DescribeProtocolServiceResponseBodyProtocolServices {
 	s.Status = &v
+	return s
+}
+
+func (s *DescribeProtocolServiceResponseBodyProtocolServices) SetVSwitchId(v string) *DescribeProtocolServiceResponseBodyProtocolServices {
+	s.VSwitchId = &v
+	return s
+}
+
+func (s *DescribeProtocolServiceResponseBodyProtocolServices) SetVpcId(v string) *DescribeProtocolServiceResponseBodyProtocolServices {
+	s.VpcId = &v
 	return s
 }
 

@@ -59,5 +59,10 @@ func (s *CreateRecycleBinRestoreJobResponse) SetBody(v *CreateRecycleBinRestoreJ
 }
 
 func (s *CreateRecycleBinRestoreJobResponse) Validate() error {
-	return dara.Validate(s)
+	if s.Body != nil {
+		if err := s.Body.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
