@@ -11,5 +11,5 @@ build/oss/csiplugin-connector
 build/lvm/lvmplugin.csi.alibabacloud.com
 build/Dockerfile
 /alibaba-cloud-csi-driver
-
+.devcontainer/
 bin
