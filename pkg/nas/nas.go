@@ -36,7 +36,7 @@ type NAS struct {
 	servers  common.Servers
 }
 
-func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType) *NAS {
+func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *NAS {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	var d NAS
@@ -45,7 +45,7 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 	servers.IdentityServer = newIdentityServer()
 
 	if serviceType&utils.Controller != 0 {
-		config, err := internal.GetControllerConfig(meta)
+		config, err := internal.GetControllerConfig(meta, csiCfg)
 		if err != nil {
 			klog.Fatalf("Get nas controller config: %v", err)
 		}
@@ -56,7 +56,7 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 		servers.ControllerServer = cs
 	}
 	if serviceType&utils.Node != 0 {
-		config, err := internal.GetNodeConfig()
+		config, err := internal.GetNodeConfig(csiCfg)
 		if err != nil {
 			klog.Fatalf("Get nas node config: %v", err)
 		}

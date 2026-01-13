@@ -33,8 +33,15 @@ func ParseEndpoint(ep string) (string, string, error) {
 }
 
 func RunCSIServer(driverType, endpoint string, servers Servers) {
-	config := options.MustGetRestConfig()
-	clientset := kubernetes.NewForConfigOrDie(config)
+	config, err := options.GetRestConfig()
+	if err != nil {
+		klog.ErrorS(err, "failed to get rest config")
+	}
+
+	var clientset kubernetes.Interface
+	if config != nil {
+		clientset = kubernetes.NewForConfigOrDie(config)
+	}
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {

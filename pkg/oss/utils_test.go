@@ -29,6 +29,7 @@ import (
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs2"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -774,8 +775,8 @@ func TestSetFsType(t *testing.T) {
 
 func Test_checkOssOptions(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, nil, fakeMeta)
-	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, nil, fakeMeta)
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
 	fusePodManagers := map[string]*ossfpm.OSSFusePodManager{
 		mounterutils.OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil),
 		mounterutils.OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil),
@@ -902,7 +903,7 @@ func Test_checkOssOptions(t *testing.T) {
 
 func TestMakeAuthConfig(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
-	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, nil, fakeMeta)
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
 	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil)
 	opt := &ossfpm.Options{
 		URL:    "1.1.1.1",
@@ -923,7 +924,7 @@ func TestMakeAuthConfig(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, want, authCfg)
 
-	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, nil, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
 	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil)
 	opt2 := &ossfpm.Options{
 		URL:    "1.1.1.1",
@@ -948,7 +949,7 @@ func TestMakeAuthConfig(t *testing.T) {
 func TestMakeMountOptions(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-beijing")
 	fakeMeta := metadata.NewMetadata()
-	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, nil, fakeMeta)
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
 	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil)
 	opt := &ossfpm.Options{
 		URL:    "1.1.1.1",
@@ -983,7 +984,7 @@ func TestMakeMountOptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, want, got)
 
-	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, nil, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
 	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil)
 	opt2 := &ossfpm.Options{
 		URL:    "1.1.1.1",

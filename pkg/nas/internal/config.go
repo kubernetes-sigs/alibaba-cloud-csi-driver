@@ -12,8 +12,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -45,14 +45,18 @@ type ControllerConfig struct {
 	NasClientFactory interfaces.NasClientFactoryInterface
 }
 
-func mustGetKubeClients() (kubernetes.Interface, cnfsv1beta1.CNFSGetter) {
-	cfg := options.MustGetRestConfig()
+func getKubeClients() (kubernetes.Interface, cnfsv1beta1.CNFSGetter) {
+	cfg, err := options.GetRestConfig()
+	if err != nil {
+		klog.ErrorS(err, "failed to get rest config")
+		return nil, nil
+	}
 	crdCfg := options.GetRestConfigForCRD(*cfg)
 	return kubernetes.NewForConfigOrDie(cfg), cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(crdCfg))
 }
 
-func GetControllerConfig(meta *metadata.Metadata) (*ControllerConfig, error) {
-	kubeClient, cnfsGetter := mustGetKubeClients()
+func GetControllerConfig(meta *metadata.Metadata, csiCfg utils.Config) (*ControllerConfig, error) {
+	kubeClient, cnfsGetter := getKubeClients()
 	config := &ControllerConfig{
 		Metadata:         meta,
 		KubeClient:       kubeClient,
@@ -60,15 +64,7 @@ func GetControllerConfig(meta *metadata.Metadata) (*ControllerConfig, error) {
 		NasClientFactory: cloud.NewNasClientFactory(),
 	}
 
-	cm, err := kubeClient.CoreV1().ConfigMaps(configMapNamespace).Get(context.Background(), configMapName, metav1.GetOptions{})
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-	} else {
-		config.SkipSubpathCreation, _ = parseBool(cm.Data["nas-fake-provision"])
-	}
-
+	config.SkipSubpathCreation = csiCfg.GetBool("nas-fake-provision", "NAS_FAKE_PROVISION", false)
 	config.EnableSubpathFinalizer, _ = parseBool(os.Getenv("ENABLE_NAS_SUBPATH_FINALIZER"))
 	config.EnableRecycleBinCheck, _ = parseBool(os.Getenv("ENABLE_NAS_RECYCLEBIN_CHECK"))
 
@@ -93,13 +89,16 @@ type NodeConfig struct {
 	CNFSGetter cnfsv1beta1.CNFSGetter
 }
 
-func GetNodeConfig() (*NodeConfig, error) {
-	kubeClient, cnfsGetter := mustGetKubeClients()
+func GetNodeConfig(csiCfg utils.Config) (*NodeConfig, error) {
+	kubeClient, cnfsGetter := getKubeClients()
 	config := &NodeConfig{
 		// enable nfs port check by default
-		EnablePortCheck: true,
-		KubeClient:      kubeClient,
-		CNFSGetter:      cnfsGetter,
+		EnablePortCheck:   true,
+		KubeClient:        kubeClient,
+		CNFSGetter:        cnfsGetter,
+		EnableVolumeStats: csiCfg.GetBool("nas-metric-enable", "NAS_METRIC_BY_PLUGIN", false),
+		EnableEFCCache: csiCfg.Get("cnfs-cache-properties", "CNFS_CACHE_PROPERTIES", "") != "" ||
+			csiCfg.Get("nas-efc-cache", "NAS_EFC_CACHE", "") != "",
 	}
 
 	// check if enable nfs port check
@@ -107,21 +106,6 @@ func GetNodeConfig() (*NodeConfig, error) {
 		config.EnablePortCheck, _ = parseBool(value)
 	}
 
-	// get csi-plugin configmap
-	cm, err := kubeClient.CoreV1().ConfigMaps(configMapNamespace).Get(context.Background(), configMapName, metav1.GetOptions{})
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-	} else {
-		if value := cm.Data["nas-metric-enable"]; value != "" {
-			config.EnableVolumeStats, _ = parseBool(value)
-		}
-		config.EnableEFCCache = cm.Data["cnfs-cache-properties"] != "" || cm.Data["nas-efc-cache"] != ""
-	}
-	if value := os.Getenv("NAS_METRIC_BY_PLUGIN"); value != "" {
-		config.EnableVolumeStats, _ = parseBool(value)
-	}
 	if config.EnableVolumeStats {
 		klog.Info("enabled nas volume stats")
 	}
@@ -130,9 +114,7 @@ func GetNodeConfig() (*NodeConfig, error) {
 	config.NodeName = nodeName
 
 	// check if losetup enabled
-	if value := os.Getenv("NAS_LOSETUP_ENABLE"); value != "" {
-		config.EnableLosetup, _ = parseBool(value)
-	}
+	config.EnableLosetup, _ = parseBool(os.Getenv("NAS_LOSETUP_ENABLE"))
 	if config.EnableLosetup {
 		klog.Info("enabled nas losetup mode")
 		node, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})

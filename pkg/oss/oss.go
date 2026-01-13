@@ -17,7 +17,6 @@ limitations under the License.
 package oss
 
 import (
-	"context"
 	"os"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -29,8 +28,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -49,7 +46,7 @@ type OSS struct {
 }
 
 // NewDriver init oss type of csi driver
-func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.ServiceType) *OSS {
+func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.ServiceType, csiCfg utils.Config) *OSS {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	d := &OSS{}
@@ -64,17 +61,20 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 		nodeName = "controller" // any non-empty value to avoid csi-common panic
 	}
 
-	cfg := options.MustGetRestConfig()
-	clientset := kubernetes.NewForConfigOrDie(cfg)
-	crdCfg := options.GetRestConfigForCRD(*cfg)
-	cnfsGetter := cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(crdCfg))
-
-	configmap, err := clientset.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "csi-plugin", metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		klog.Fatalf("failed to get configmap kube-system/csi-plugin: %v", err)
+	cfg, err := options.GetRestConfig()
+	if err != nil {
+		klog.ErrorS(err, "failed to get rest config")
 	}
 
-	fusePodManagers := ossfpm.GetAllOSSFusePodManagers(configmap, m, clientset)
+	var clientset kubernetes.Interface
+	var cnfsGetter cnfsv1beta1.CNFSGetter
+	if cfg != nil {
+		clientset = kubernetes.NewForConfigOrDie(cfg)
+		crdCfg := options.GetRestConfigForCRD(*cfg)
+		cnfsGetter = cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(crdCfg))
+	}
+
+	fusePodManagers := ossfpm.GetAllOSSFusePodManagers(csiCfg, m, clientset)
 
 	var servers common.Servers
 	servers.IdentityServer = newIdentityServer()
