@@ -12,7 +12,9 @@ local nodePool = {
         system_disk_performance_level: "PL0",
         system_disk_encrypted: false,
         instance_types: [
-            "ecs.u1-c1m2.xlarge"
+            "ecs.u2a-c1m2.xlarge",
+            "ecs.u2i-c1m2.xlarge",
+            "ecs.u1-c1m2.xlarge",
         ],
         instance_charge_type: "PostPaid",
         key_pair: clusterName,
@@ -74,7 +76,6 @@ local nodePool = {
         }
     ],
     cluster_spec: "ack.pro.small",
-    load_balancer_spec: "slb.s1.small",
     charge_type: "PostPaid",
     vpcid: std.extVar("vpc_id"),
     container_cidr: "10.236.0.0/16",
