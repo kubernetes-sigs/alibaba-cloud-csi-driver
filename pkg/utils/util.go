@@ -397,6 +397,9 @@ func getPodFromK8s(ctx context.Context, client kubernetes.Interface, req *csi.No
 	if name == "" || namespace == "" {
 		return nil, fmt.Errorf("empty pod name or namespace: '%s', '%s'", name, namespace)
 	}
+	if client == nil {
+		return nil, fmt.Errorf("kube client is nil")
+	}
 	pod, err := client.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err

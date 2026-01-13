@@ -40,14 +40,6 @@ func init() {
 	flag.IntVar(&KubeAPIBurst, KubeAPIBurstFlag, 10, "Burst to use while communicating with the kubernetes apiserver.")
 }
 
-func MustGetRestConfig() *rest.Config {
-	config, err := GetRestConfig()
-	if err != nil {
-		panic(err)
-	}
-	return config
-}
-
 func GetRestConfig() (*rest.Config, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags(MasterURL, Kubeconfig)
 	if err != nil {

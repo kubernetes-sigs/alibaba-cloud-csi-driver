@@ -27,7 +27,7 @@ func setupTestNodeServer(t *testing.T, mounter mountutils.Interface, skipAttach 
 		},
 	}
 
-	fusePodManagers := ossfpm.GetAllOSSFusePodManagers(nil, fakeMeta, nil)
+	fusePodManagers := ossfpm.GetAllOSSFusePodManagers(utils.Config{}, fakeMeta, nil)
 	ossfsPaths := ossfpm.GetAllFuseMounterPaths()
 
 	return &nodeServer{

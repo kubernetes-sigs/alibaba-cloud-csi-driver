@@ -55,7 +55,7 @@ func TestNewDriverProvisioner(t *testing.T) {
 	prepareNasTestFakeK8sContext()
 	prepareFakeRegionEnvVar(t)
 
-	driver := NewDriver(metadata.NewMetadata(), "", utils.Controller)
+	driver := NewDriver(metadata.NewMetadata(), "", utils.Controller, utils.Config{})
 	assert.NotNil(t, driver)
 }
 
@@ -84,7 +84,7 @@ func TestNewDriverPlugin(t *testing.T) {
 	prepareNasTestFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	driver := NewDriver(metadata.NewMetadata(), "", utils.Node)
+	driver := NewDriver(metadata.NewMetadata(), "", utils.Node, utils.Config{})
 	assert.NotNil(t, driver)
 }
 

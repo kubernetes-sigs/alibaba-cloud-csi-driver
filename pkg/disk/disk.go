@@ -106,13 +106,12 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType) *DISK {
+func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
 
-	// Config Global vars
-	csiCfg := GlobalConfigSet(m)
+	GlobalConfigSet(m, csiCfg)
 
 	if serviceType&utils.Node != 0 {
 		GlobalConfigVar.NodeID = metadata.MustGet(m, metadata.InstanceID)
@@ -158,7 +157,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
+func GlobalConfigSet(m metadata.MetadataProvider, csiCfg utils.Config) {
 	configMapName := "csi-plugin"
 
 	// Global Configs Set
@@ -179,7 +178,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 		klog.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
 	}
 
-	csiCfg := utils.Config{}
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
 		klog.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
@@ -247,7 +245,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 		GlobalConfigVar.DetachBeforeDelete,
 		GlobalConfigVar.ClusterID,
 	)
-	return csiCfg
 }
 
 func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batcher[ecs.Disk]) {

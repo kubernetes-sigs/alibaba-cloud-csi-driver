@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -48,6 +49,7 @@ import (
 	"github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 	"golang.org/x/sys/unix"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
 	logsapi "k8s.io/component-base/logs/api/v1"
@@ -190,6 +192,8 @@ func main() {
 		}
 	}
 
+	csiCfg := getCSIPluginConfig()
+
 	for _, driverName := range driverNames {
 		wg.Add(1)
 		endPointName := replaceCsiEndpoint(driverName, *endpoint)
@@ -199,19 +203,19 @@ func main() {
 		case TypePluginNAS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := nas.NewDriver(meta, endPoint, serviceType)
+				driver := nas.NewDriver(meta, endPoint, serviceType, csiCfg)
 				driver.Run()
 			}(endPointName)
 		case TypePluginOSS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := oss.NewDriver(endPoint, meta, serviceType)
+				driver := oss.NewDriver(endPoint, meta, serviceType, csiCfg)
 				driver.Run()
 			}(endPointName)
 		case TypePluginDISK:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := disk.NewDriver(meta, endPoint, serviceType)
+				driver := disk.NewDriver(meta, endPoint, serviceType, csiCfg)
 				driver.Run()
 			}(endPointName)
 
@@ -295,4 +299,31 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	time := time.Now()
 	message := "Liveness probe is OK, time:" + time.String()
 	_, _ = w.Write([]byte(message))
+}
+
+func getCSIPluginConfig() (config utils.Config) {
+	cfg, err := options.GetRestConfig()
+	if err != nil {
+		klog.ErrorS(err, "error building kube config")
+		return
+	}
+
+	client, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		if cfg != nil {
+			klog.Fatal(err, "error building kube client")
+		} else {
+			klog.ErrorS(err, "error building kube client")
+			return
+		}
+	}
+
+	cm, err := client.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "csi-plugin", metav1.GetOptions{})
+	if err != nil {
+		klog.ErrorS(err, "failed to get config map csi-plugin")
+		return
+	}
+
+	config.ConfigMap = cm.Data
+	return
 }

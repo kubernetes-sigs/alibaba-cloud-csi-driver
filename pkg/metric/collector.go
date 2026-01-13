@@ -46,9 +46,9 @@ type CSICollector struct {
 }
 
 // newCSICollector method returns the CSICollector object
-func newCSICollector(driverNames []string, serviceType utils.ServiceType) error {
+func newCSICollector(driverNames []string, serviceType utils.ServiceType) {
 	if csiCollectorInstance != nil {
-		return nil
+		return
 	}
 	collectors := make(map[string]Collector)
 	if serviceType&utils.Node != 0 {
@@ -67,16 +67,15 @@ func newCSICollector(driverNames []string, serviceType utils.ServiceType) error 
 			if enabled {
 				collector, err := reg.Factory()
 				if err != nil {
-					return err
+					klog.ErrorS(err, "Failed to create collector")
+				} else {
+					collectors[reg.Name] = collector
 				}
-				collectors[reg.Name] = collector
 			}
 		}
 	}
 	collectors[CsiGrpcExecTimeCollectorName] = &CsiGrpcExecTimeCollector
 	csiCollectorInstance = &CSICollector{Collectors: collectors}
-
-	return nil
 }
 
 // Describe implements the prometheus.Collector interface.

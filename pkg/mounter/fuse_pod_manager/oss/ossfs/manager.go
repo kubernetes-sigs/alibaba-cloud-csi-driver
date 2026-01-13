@@ -53,8 +53,8 @@ var ossfsDbglevels = map[string]string{
 	fpm.DebugLevelFatal: "crit",
 }
 
-func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) ossfpm.OSSFuseMounterType {
-	config := fpm.ExtractFuseContainerConfig(configmap, mounterutils.OssFsType)
+func NewFuseOssfs(csiCfg utils.Config, m metadata.MetadataProvider) ossfpm.OSSFuseMounterType {
+	config := fpm.ExtractFuseContainerConfig(csiCfg, mounterutils.OssFsType)
 
 	// set default image
 	ossfpm.SetDefaultImage(mounterutils.OssFsType, m, &config)
