@@ -348,6 +348,10 @@ func WriteJSONFile(obj interface{}, file string) error {
 // GetPodRunTime Get Pod runtimeclass config
 // Default as runc.
 func GetPodRunTime(ctx context.Context, req *csi.NodePublishVolumeRequest, clientSet kubernetes.Interface) string {
+	if req.VolumeContext["csi.alibabacloud.com/rootfs-volume"] == "true" {
+		// For rootfs volume, always mount directly. Even if it is used by runD, mount it like runC.
+		return RuncRunTimeTag
+	}
 	// if pod name namespace is empty, use default
 	runtimeVal := RuncRunTimeTag
 	pod, err := GetPodFromContextOrK8s(ctx, clientSet, req)
