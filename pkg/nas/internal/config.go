@@ -87,9 +87,11 @@ type NodeConfig struct {
 	// clients for kubernetes
 	KubeClient kubernetes.Interface
 	CNFSGetter cnfsv1beta1.CNFSGetter
+
+	Meta metadata.MetadataProvider
 }
 
-func GetNodeConfig(csiCfg utils.Config) (*NodeConfig, error) {
+func GetNodeConfig(meta metadata.MetadataProvider, csiCfg utils.Config) (*NodeConfig, error) {
 	kubeClient, cnfsGetter := getKubeClients()
 	config := &NodeConfig{
 		// enable nfs port check by default
@@ -99,6 +101,7 @@ func GetNodeConfig(csiCfg utils.Config) (*NodeConfig, error) {
 		EnableVolumeStats: csiCfg.GetBool("nas-metric-enable", "NAS_METRIC_BY_PLUGIN", false),
 		EnableEFCCache: csiCfg.Get("cnfs-cache-properties", "CNFS_CACHE_PROPERTIES", "") != "" ||
 			csiCfg.Get("nas-efc-cache", "NAS_EFC_CACHE", "") != "",
+		Meta: meta,
 	}
 
 	// check if enable nfs port check
