@@ -21,7 +21,7 @@ package fake
 import (
 	"context"
 
-	v1alpha1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1alpha1"
+	v1beta1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"
@@ -31,29 +31,29 @@ import (
 
 // FakeVolumeGroupSnapshots implements VolumeGroupSnapshotInterface
 type FakeVolumeGroupSnapshots struct {
-	Fake *FakeGroupsnapshotV1alpha1
+	Fake *FakeGroupsnapshotV1beta1
 	ns   string
 }
 
-var volumegroupsnapshotsResource = v1alpha1.SchemeGroupVersion.WithResource("volumegroupsnapshots")
+var volumegroupsnapshotsResource = v1beta1.SchemeGroupVersion.WithResource("volumegroupsnapshots")
 
-var volumegroupsnapshotsKind = v1alpha1.SchemeGroupVersion.WithKind("VolumeGroupSnapshot")
+var volumegroupsnapshotsKind = v1beta1.SchemeGroupVersion.WithKind("VolumeGroupSnapshot")
 
 // Get takes name of the volumeGroupSnapshot, and returns the corresponding volumeGroupSnapshot object, and an error if there is any.
-func (c *FakeVolumeGroupSnapshots) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.VolumeGroupSnapshot, err error) {
+func (c *FakeVolumeGroupSnapshots) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.VolumeGroupSnapshot, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(volumegroupsnapshotsResource, c.ns, name), &v1alpha1.VolumeGroupSnapshot{})
+		Invokes(testing.NewGetAction(volumegroupsnapshotsResource, c.ns, name), &v1beta1.VolumeGroupSnapshot{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.VolumeGroupSnapshot), err
+	return obj.(*v1beta1.VolumeGroupSnapshot), err
 }
 
 // List takes label and field selectors, and returns the list of VolumeGroupSnapshots that match those selectors.
-func (c *FakeVolumeGroupSnapshots) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.VolumeGroupSnapshotList, err error) {
+func (c *FakeVolumeGroupSnapshots) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.VolumeGroupSnapshotList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(volumegroupsnapshotsResource, volumegroupsnapshotsKind, c.ns, opts), &v1alpha1.VolumeGroupSnapshotList{})
+		Invokes(testing.NewListAction(volumegroupsnapshotsResource, volumegroupsnapshotsKind, c.ns, opts), &v1beta1.VolumeGroupSnapshotList{})
 
 	if obj == nil {
 		return nil, err
@@ -63,8 +63,8 @@ func (c *FakeVolumeGroupSnapshots) List(ctx context.Context, opts v1.ListOptions
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.VolumeGroupSnapshotList{ListMeta: obj.(*v1alpha1.VolumeGroupSnapshotList).ListMeta}
-	for _, item := range obj.(*v1alpha1.VolumeGroupSnapshotList).Items {
+	list := &v1beta1.VolumeGroupSnapshotList{ListMeta: obj.(*v1beta1.VolumeGroupSnapshotList).ListMeta}
+	for _, item := range obj.(*v1beta1.VolumeGroupSnapshotList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -80,43 +80,43 @@ func (c *FakeVolumeGroupSnapshots) Watch(ctx context.Context, opts v1.ListOption
 }
 
 // Create takes the representation of a volumeGroupSnapshot and creates it.  Returns the server's representation of the volumeGroupSnapshot, and an error, if there is any.
-func (c *FakeVolumeGroupSnapshots) Create(ctx context.Context, volumeGroupSnapshot *v1alpha1.VolumeGroupSnapshot, opts v1.CreateOptions) (result *v1alpha1.VolumeGroupSnapshot, err error) {
+func (c *FakeVolumeGroupSnapshots) Create(ctx context.Context, volumeGroupSnapshot *v1beta1.VolumeGroupSnapshot, opts v1.CreateOptions) (result *v1beta1.VolumeGroupSnapshot, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(volumegroupsnapshotsResource, c.ns, volumeGroupSnapshot), &v1alpha1.VolumeGroupSnapshot{})
+		Invokes(testing.NewCreateAction(volumegroupsnapshotsResource, c.ns, volumeGroupSnapshot), &v1beta1.VolumeGroupSnapshot{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.VolumeGroupSnapshot), err
+	return obj.(*v1beta1.VolumeGroupSnapshot), err
 }
 
 // Update takes the representation of a volumeGroupSnapshot and updates it. Returns the server's representation of the volumeGroupSnapshot, and an error, if there is any.
-func (c *FakeVolumeGroupSnapshots) Update(ctx context.Context, volumeGroupSnapshot *v1alpha1.VolumeGroupSnapshot, opts v1.UpdateOptions) (result *v1alpha1.VolumeGroupSnapshot, err error) {
+func (c *FakeVolumeGroupSnapshots) Update(ctx context.Context, volumeGroupSnapshot *v1beta1.VolumeGroupSnapshot, opts v1.UpdateOptions) (result *v1beta1.VolumeGroupSnapshot, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(volumegroupsnapshotsResource, c.ns, volumeGroupSnapshot), &v1alpha1.VolumeGroupSnapshot{})
+		Invokes(testing.NewUpdateAction(volumegroupsnapshotsResource, c.ns, volumeGroupSnapshot), &v1beta1.VolumeGroupSnapshot{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.VolumeGroupSnapshot), err
+	return obj.(*v1beta1.VolumeGroupSnapshot), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeVolumeGroupSnapshots) UpdateStatus(ctx context.Context, volumeGroupSnapshot *v1alpha1.VolumeGroupSnapshot, opts v1.UpdateOptions) (*v1alpha1.VolumeGroupSnapshot, error) {
+func (c *FakeVolumeGroupSnapshots) UpdateStatus(ctx context.Context, volumeGroupSnapshot *v1beta1.VolumeGroupSnapshot, opts v1.UpdateOptions) (*v1beta1.VolumeGroupSnapshot, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(volumegroupsnapshotsResource, "status", c.ns, volumeGroupSnapshot), &v1alpha1.VolumeGroupSnapshot{})
+		Invokes(testing.NewUpdateSubresourceAction(volumegroupsnapshotsResource, "status", c.ns, volumeGroupSnapshot), &v1beta1.VolumeGroupSnapshot{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.VolumeGroupSnapshot), err
+	return obj.(*v1beta1.VolumeGroupSnapshot), err
 }
 
 // Delete takes name of the volumeGroupSnapshot and deletes it. Returns an error if one occurs.
 func (c *FakeVolumeGroupSnapshots) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(volumegroupsnapshotsResource, c.ns, name, opts), &v1alpha1.VolumeGroupSnapshot{})
+		Invokes(testing.NewDeleteActionWithOptions(volumegroupsnapshotsResource, c.ns, name, opts), &v1beta1.VolumeGroupSnapshot{})
 
 	return err
 }
@@ -125,17 +125,17 @@ func (c *FakeVolumeGroupSnapshots) Delete(ctx context.Context, name string, opts
 func (c *FakeVolumeGroupSnapshots) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(volumegroupsnapshotsResource, c.ns, listOpts)
 
-	_, err := c.Fake.Invokes(action, &v1alpha1.VolumeGroupSnapshotList{})
+	_, err := c.Fake.Invokes(action, &v1beta1.VolumeGroupSnapshotList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched volumeGroupSnapshot.
-func (c *FakeVolumeGroupSnapshots) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.VolumeGroupSnapshot, err error) {
+func (c *FakeVolumeGroupSnapshots) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.VolumeGroupSnapshot, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(volumegroupsnapshotsResource, c.ns, name, pt, data, subresources...), &v1alpha1.VolumeGroupSnapshot{})
+		Invokes(testing.NewPatchSubresourceAction(volumegroupsnapshotsResource, c.ns, name, pt, data, subresources...), &v1beta1.VolumeGroupSnapshot{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.VolumeGroupSnapshot), err
+	return obj.(*v1beta1.VolumeGroupSnapshot), err
 }
