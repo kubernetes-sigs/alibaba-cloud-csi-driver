@@ -255,6 +255,7 @@ spec:
             - --kube-api-qps=100
             - --kube-api-burst=200
             - --v=5
+            - --logging-format={{ .Values.logging.format }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -305,6 +306,7 @@ spec:
             - --kube-api-qps=100
             - --kube-api-burst=200
             - --v=5
+            - --logging-format={{ .Values.logging.format }}
           image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
           resources:
             limits:
@@ -364,7 +366,7 @@ spec:
           image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
           args:
             - --csi-address=/csi/csi.sock
-            - --http-endpoint=:8100
+            - --http-endpoint=:8120
             - --volume-name-prefix=bmcpfs
             - --default-fstype=bmcpfs
             - --timeout=150s
@@ -373,6 +375,7 @@ spec:
             - --kube-api-qps=100
             - --kube-api-burst=200
             - --v=5
+            - --logging-format={{ .Values.logging.format }}
           resources: 
             requests:
               cpu: 10m
@@ -380,6 +383,17 @@ spec:
             limits:
               cpu: 500m
               memory: 1024Mi
+          ports:
+            - containerPort: 8120
+              name: bmcpfs-p-http
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: bmcpfs-p-http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: bmcpfs-provisioner-dir
               mountPath: /csi
@@ -396,11 +410,23 @@ spec:
             - --v=5
             - --logging-format={{ .Values.logging.format }}
             - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8121
             - --leader-election=true
             - --kube-api-qps=50
             - --kube-api-burst=100
             - --worker-threads=32
             - --timeout=30s
+          ports:
+            - containerPort: 8121
+              name: bmcpfs-a-http
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: bmcpfs-a-http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: bmcpfs-provisioner-dir
               mountPath: /csi
@@ -421,6 +447,7 @@ spec:
             - --kube-api-qps=100
             - --kube-api-burst=200
             - --v=5
+            - --logging-format={{ .Values.logging.format }}
           resources:
             requests:
               cpu: 10m
