@@ -39,6 +39,10 @@ spec:
   - port: local-p-http
   - port: local-r-http
 {{- end }}
+{{- if and .Values.csi.bmcpfs.enabled .Values.csi.bmcpfs.controller.enabled }}
+  - port: bmcpfs-p-http
+  - port: bmcpfs-a-http
+{{- end }}
   selector:
     matchLabels:
       app: csi-provisioner
