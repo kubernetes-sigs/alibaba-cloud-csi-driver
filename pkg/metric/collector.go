@@ -38,6 +38,7 @@ func registerCollector(collector string, factory collectorFactoryFunc, relatedDr
 type Collector interface {
 	// Get new metrics and expose them via prometheus registry.
 	Update(ch chan<- prometheus.Metric) error
+	Get() []*Metric
 }
 
 // CSICollector implements the prometheus.Collector interface.
@@ -96,6 +97,14 @@ func (csi CSICollector) Collect(ch chan<- prometheus.Metric) {
 		}(name, c)
 	}
 	wg.Wait()
+}
+
+func GetMetrics() []*Metric {
+	var metrics []*Metric
+	for _, c := range csiCollectorInstance.Collectors {
+		metrics = append(metrics, c.Get()...)
+	}
+	return metrics
 }
 
 func execute(name string, c Collector, ch chan<- prometheus.Metric) {

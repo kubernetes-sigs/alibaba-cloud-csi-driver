@@ -2,7 +2,6 @@ package metric
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
+	"k8s.io/klog/v2"
 	statsapi "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 )
 
@@ -24,12 +24,18 @@ type fsStatsMetric struct {
 	getValue func(*statsapi.FsStats) *float64
 }
 
-func (m *fsStatsMetric) Metric(fsStats *statsapi.FsStats, labels ...string) prometheus.Metric {
+func (m *fsStatsMetric) Metric(fsStats *statsapi.FsStats, labels []string, labelValues ...string) *Metric {
 	value := m.getValue(fsStats)
 	if value == nil {
 		return nil
 	}
-	return prometheus.MustNewConstMetric(m.desc, prometheus.GaugeValue, *value, labels...)
+
+	metric, err := NewMetric(m.desc, *value, prometheus.GaugeValue, labels, labelValues...)
+	if err != nil {
+		klog.ErrorS(err, "Failed to create metric", "desc", m.desc)
+		return nil
+	}
+	return metric
 }
 
 func uint64ToFloat64(value *uint64) *float64 {
@@ -70,8 +76,10 @@ func generateFsStatsDescs(namespace, subsystem string, labels []string) []*fsSta
 }
 
 var (
-	rootfsMetrics           = generateFsStatsDescs("container", "fs", []string{"namespace", "pod", "pod_uid", "container"})
-	ephemeralStorageMetrics = generateFsStatsDescs("ephemeral_storage", "pod", []string{"namespace", "pod", "pod_uid"})
+	rootfsLabels            = []string{"namespace", "pod", "pod_uid", "container"}
+	ephemeralStorageLabels  = []string{"namespace", "pod", "pod_uid"}
+	rootfsMetrics           = generateFsStatsDescs("container", "fs", rootfsLabels)
+	ephemeralStorageMetrics = generateFsStatsDescs("ephemeral_storage", "pod", ephemeralStorageLabels)
 )
 
 func init() {
@@ -83,25 +91,36 @@ type kubeletStatsSummaryCollector struct {
 }
 
 func (c *kubeletStatsSummaryCollector) Update(ch chan<- prometheus.Metric) error {
+	metrics := c.Get()
+	for _, metric := range metrics {
+		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.Labels)...)
+	}
+	return nil
+}
+
+func (c *kubeletStatsSummaryCollector) Get() (metrics []*Metric) {
 	resp, err := c.client.Get(kubeletStatsSummaryUrl)
 	if err != nil {
-		return err
+		klog.ErrorS(err, "Failed to get kubelet stats summary")
+		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to get kubelet stats summary: %d: %q", resp.StatusCode, string(body))
+		klog.ErrorS(err, "Failed to read get kubelet stats summary", "statusCode", resp.StatusCode, "body", string(body))
+		return
 	}
 	var summary statsapi.Summary
 	if err := json.NewDecoder(resp.Body).Decode(&summary); err != nil {
-		return err
+		klog.ErrorS(err, "Failed to decode kubelet stats summary")
+		return
 	}
 	for _, pod := range summary.Pods {
 		if pod.EphemeralStorage != nil {
 			for _, m := range ephemeralStorageMetrics {
-				metric := m.Metric(pod.EphemeralStorage, pod.PodRef.Namespace, pod.PodRef.Name, pod.PodRef.UID)
+				metric := m.Metric(pod.EphemeralStorage, ephemeralStorageLabels, pod.PodRef.Namespace, pod.PodRef.Name, pod.PodRef.UID)
 				if metric != nil {
-					ch <- metric
+					metrics = append(metrics, metric)
 				}
 			}
 		}
@@ -109,15 +128,15 @@ func (c *kubeletStatsSummaryCollector) Update(ch chan<- prometheus.Metric) error
 		for _, container := range pod.Containers {
 			if container.Rootfs != nil {
 				for _, m := range rootfsMetrics {
-					metric := m.Metric(container.Rootfs, pod.PodRef.Namespace, pod.PodRef.Name, pod.PodRef.UID, container.Name)
+					metric := m.Metric(container.Rootfs, rootfsLabels, pod.PodRef.Namespace, pod.PodRef.Name, pod.PodRef.UID, container.Name)
 					if metric != nil {
-						ch <- metric
+						metrics = append(metrics, metric)
 					}
 				}
 			}
 		}
 	}
-	return nil
+	return
 }
 
 func NewKubeletStatsSummaryCollector() (Collector, error) {

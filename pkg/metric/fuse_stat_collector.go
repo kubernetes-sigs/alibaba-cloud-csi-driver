@@ -420,7 +420,7 @@ func init() {
 	registerCollector("fuse_stat", NewFuseStatCollector, ossDriverName, nasDriverName)
 }
 
-// NewUsFsStatCollector returns a new Collector exposing user space fs stats.
+// NewFuseStatCollector returns a new Collector exposing user space fs stats.
 func NewFuseStatCollector() (Collector, error) {
 	return &usFsStatCollector{
 		hotSpotReadFileTop:  hotSpotReadFileTopDesc,
@@ -428,103 +428,103 @@ func NewFuseStatCollector() (Collector, error) {
 		hotSpotHeadFileTop:  hotSpotHeadFileTopDesc,
 		capacityBytesCounterDesc: capacityBytesCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: capacityBytesUsedCounterDesc, valueType: prometheus.CounterValue},
-				{desc: capacityBytesAvailableCounterDesc, valueType: prometheus.CounterValue},
-				{desc: capacityBytesTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: capacityBytesUsedCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: capacityBytesAvailableCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: capacityBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
 			},
 		},
 		inodeBytesCounterDesc: inodeBytesCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: inodeBytesUsedCounterDesc, valueType: prometheus.CounterValue},
-				{desc: inodeBytesAvailableCounterDesc, valueType: prometheus.CounterValue},
-				{desc: inodeBytesTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: inodeBytesUsedCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: inodeBytesAvailableCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: inodeBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
 			},
 		},
 		throughputBytesCounterDesc: throughputBytesCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: readBytesTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: writeBytesTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: readBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: writeBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
 			},
 		},
 		iopsCompletedCounterDesc: iopsCompletedCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: readCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: writeCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: readCompletedTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: writeCompletedTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
 			},
 		},
 		latencyMillisecondsCounterDesc: latencyMillisecondsCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: readTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
-				{desc: writeTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
+				{desc: readTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001, labels: usFsStatLabelNames},
+				{desc: writeTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001, labels: usFsStatLabelNames},
 			},
 		},
 		posixCounterDesc: posixCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: posixMkdirTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixRmdirTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixOpendirTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixReaddirTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixWriteTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixFlushTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixFsyncTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixReleaseTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixReadTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixCreateTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixOpenTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixAccessTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixRenameTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixChownTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixChmodTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: posixTruncateTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixMkdirTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixRmdirTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixOpendirTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixReaddirTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixWriteTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixFlushTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixFsyncTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixReleaseTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixReadTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixCreateTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixOpenTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixAccessTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixRenameTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixChownTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixChmodTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: posixTruncateTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
 			},
 		},
 		ossObjectCounterDesc: ossObjectCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: ossPutObjectTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: ossGetObjectTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: ossHeadObjectTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: ossDeleteObjectTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: ossPostObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: ossPutObjectTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: ossGetObjectTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: ossHeadObjectTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: ossDeleteObjectTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: ossPostObjectTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
 			},
 		},
 		backendThroughputBytesCounterDesc: backendThroughputBytesCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: backendReadBytesTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendWriteBytesTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: backendReadBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendWriteBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
 			},
 		},
 		backendIOPSCompletedCounterDesc: backendIOPSCompletedCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: backendReadCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendWriteCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: backendReadCompletedTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendWriteCompletedTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
 			},
 		},
 		backendLatencyMillisecondsCounterDesc: backendLatencyMillisecondsCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: backendReadTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
-				{desc: backendWriteTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
+				{desc: backendReadTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001, labels: usFsStatLabelNames},
+				{desc: backendWriteTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001, labels: usFsStatLabelNames},
 			},
 		},
 		backendPosixCounterDesc: backendPosixCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: backendPosixGetAttrTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixGetModeTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixAccessTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixLookupTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixMknodTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixRemoveTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixSetAttrTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixLinkTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixReadLinkTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixStatfsTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixRenameTotalCounterDesc, valueType: prometheus.CounterValue},
-				{desc: backendPosixReaddirTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: backendPosixGetAttrTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixGetModeTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixAccessTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixLookupTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixMknodTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixRemoveTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixSetAttrTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixLinkTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixReadLinkTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixStatfsTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixRenameTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{desc: backendPosixReaddirTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
 			},
 		},
-		mountRetryTotalCounter:         &typedFactorDesc{desc: mountRetryTotalCounterDesc, valueType: prometheus.CounterValue},
-		mountPointStatus:               &typedFactorDesc{desc: mountPointStatusDesc, valueType: prometheus.GaugeValue},
-		mountPointFailoverTotalCounter: &typedFactorDesc{desc: mountPointFailoverTotalCountDesc, valueType: prometheus.CounterValue},
-		lastFuseClientExitReason:       &typedFactorDesc{desc: lastFuseClientExitReasonDesc, valueType: prometheus.GaugeValue},
+		mountRetryTotalCounter:         &typedFactorDesc{desc: mountRetryTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+		mountPointStatus:               &typedFactorDesc{desc: mountPointStatusDesc, valueType: prometheus.GaugeValue, labels: usFsStatLabelNames},
+		mountPointFailoverTotalCounter: &typedFactorDesc{desc: mountPointFailoverTotalCountDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+		lastFuseClientExitReason:       &typedFactorDesc{desc: lastFuseClientExitReasonDesc, valueType: prometheus.GaugeValue, labels: usFsStatLabelNames},
 	}, nil
 }
 
@@ -536,7 +536,7 @@ func getSubDirArray(fsClientPathPrefix string, fsClientType string) ([]string, e
 	return listDirectory(fsClientPathPrefix + fsClientType)
 }
 
-func (p *usFsStatCollector) postHotTopFileMetrics(hotSpotType string, fsClientInfo *fuseInfo, metricsArray []string, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) postHotTopFileMetrics(hotSpotType string, fsClientInfo *fuseInfo, metricsArray []string) (metrics []*Metric) {
 	for _, metricsValue := range metricsArray {
 		start := strings.LastIndex(metricsValue, ":")
 		if start == -1 {
@@ -551,18 +551,19 @@ func (p *usFsStatCollector) postHotTopFileMetrics(hotSpotType string, fsClientIn
 		labels := p.getCommonLabels(fsClientInfo, fileName, "")
 		switch hotSpotType {
 		case "hot_spot_read_file_top":
-			ch <- prometheus.MustNewConstMetric(p.hotSpotReadFileTop, prometheus.GaugeValue, valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetric(p.hotSpotReadFileTop, valueFloat64, prometheus.GaugeValue, usFsStatLabelNames, labels...))
 		case "hot_spot_write_file_top":
-			ch <- prometheus.MustNewConstMetric(p.hotSpotWriteFileTop, prometheus.GaugeValue, valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetric(p.hotSpotWriteFileTop, valueFloat64, prometheus.GaugeValue, usFsStatLabelNames, labels...))
 		case "hot_spot_head_file_top":
-			ch <- prometheus.MustNewConstMetric(p.hotSpotHeadFileTop, prometheus.GaugeValue, valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetric(p.hotSpotHeadFileTop, valueFloat64, prometheus.GaugeValue, usFsStatLabelNames, labels...))
 		default:
 			klog.Errorf("Unknown hotSpotType:%s", hotSpotType)
 		}
 	}
+	return
 }
 
-func (p *usFsStatCollector) postCounterMetrics(counterType string, fsClientInfo *fuseInfo, metricsArray []string, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) postCounterMetrics(counterType string, fsClientInfo *fuseInfo, metricsArray []string) (metrics []*Metric) {
 	if len(metricsArray) == 0 {
 		return
 	}
@@ -583,44 +584,46 @@ func (p *usFsStatCollector) postCounterMetrics(counterType string, fsClientInfo 
 			if i >= len(p.capacityBytesCounterDesc.descs) {
 				return
 			}
-			ch <- p.capacityBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.capacityBytesCounterDesc.descs[i], valueFloat64, labels...))
 		case "inodes_counter":
 			if i >= len(p.inodeBytesCounterDesc.descs) {
 				return
 			}
-			ch <- p.inodeBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.inodeBytesCounterDesc.descs[i], valueFloat64, labels...))
+
 		case "throughput_counter":
 			if i >= len(p.throughputBytesCounterDesc.descs) {
 				return
 			}
-			ch <- p.throughputBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.throughputBytesCounterDesc.descs[i], valueFloat64, labels...))
 		case "iops_counter":
 			if i >= len(p.iopsCompletedCounterDesc.descs) {
 				return
 			}
-			ch <- p.iopsCompletedCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.iopsCompletedCounterDesc.descs[i], valueFloat64, labels...))
 		case "latency_counter":
 			if i >= len(p.latencyMillisecondsCounterDesc.descs) {
 				return
 			}
-			ch <- p.latencyMillisecondsCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.latencyMillisecondsCounterDesc.descs[i], valueFloat64, labels...))
 		case "posix_counter":
 			if i >= len(p.posixCounterDesc.descs) {
 				return
 			}
-			ch <- p.posixCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.posixCounterDesc.descs[i], valueFloat64, labels...))
 		case "oss_object_counter":
 			if i >= len(p.ossObjectCounterDesc.descs) {
 				return
 			}
-			ch <- p.ossObjectCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.ossObjectCounterDesc.descs[i], valueFloat64, labels...))
 		default:
 			klog.Errorf("Unknown counterType:%s", counterType)
 		}
 	}
+	return
 }
 
-func (p *usFsStatCollector) postBackendCounterMetrics(counterType string, fsClientInfo *fuseInfo, metricsArray []string, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) postBackendCounterMetrics(counterType string, fsClientInfo *fuseInfo, metricsArray []string) (metrics []*Metric) {
 	if len(metricsArray) == 0 {
 		return
 	}
@@ -641,34 +644,35 @@ func (p *usFsStatCollector) postBackendCounterMetrics(counterType string, fsClie
 			if i >= len(p.backendIOPSCompletedCounterDesc.descs) {
 				return
 			}
-			ch <- p.backendIOPSCompletedCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.backendIOPSCompletedCounterDesc.descs[i], valueFloat64, labels...))
 		case "backend_latency_counter":
 			if i >= len(p.backendLatencyMillisecondsCounterDesc.descs) {
 				return
 			}
-			ch <- p.backendLatencyMillisecondsCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.backendLatencyMillisecondsCounterDesc.descs[i], valueFloat64, labels...))
 		case "backend_meta_qps_ounter":
 			if i >= len(p.backendPosixCounterDesc.descs) {
 				return
 			}
-			ch <- p.backendPosixCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.backendPosixCounterDesc.descs[i], valueFloat64, labels...))
 		case "backend_throughput_counter":
 			if i >= len(p.backendThroughputBytesCounterDesc.descs) {
 				return
 			}
-			ch <- p.backendThroughputBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.backendThroughputBytesCounterDesc.descs[i], valueFloat64, labels...))
 		default:
 			klog.Errorf("Unknown counterType:%s", counterType)
 		}
 	}
+	return
 }
 
-func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsClientInfo *fuseInfo, metricsArray []string, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsClientInfo *fuseInfo, metricsArray []string) (metrics []*Metric) {
 	var err error
 	for _, value := range metricsArray {
 		if statusType == utils.MetricsLastFuseClientExitReason {
 			labels := p.getCommonLabels(fsClientInfo, "", value)
-			ch <- p.lastFuseClientExitReason.mustNewConstMetric(1, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(*p.lastFuseClientExitReason, 1, labels...))
 			continue
 		}
 
@@ -682,16 +686,25 @@ func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsCli
 		labels := p.getCommonLabels(fsClientInfo, "", "")
 		switch statusType {
 		case utils.MetricsMountRetryCount:
-			ch <- p.mountRetryTotalCounter.mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(*p.mountRetryTotalCounter, valueFloat64, labels...))
 		case utils.MetricsMountPointStatus:
-			ch <- p.mountPointStatus.mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(*p.mountPointStatus, valueFloat64, labels...))
 		case utils.MetricsMountPointFailoverCount:
-			ch <- p.mountPointFailoverTotalCounter.mustNewConstMetric(valueFloat64, labels...)
+			metrics = append(metrics, MustNewMetricWithTypedFactorDesc(*p.mountPointFailoverTotalCounter, valueFloat64, labels...))
 		}
 	}
+	return
 }
 
 func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
+	metrics := p.Get()
+	for _, metric := range metrics {
+		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.Labels)...)
+	}
+	return nil
+}
+
+func (p *usFsStatCollector) Get() (metrics []*Metric) {
 	fsClientInfo := new(fuseInfo)
 	// foreach fuse client type
 	for _, fsClientType := range fsClientTypeArray {
@@ -706,19 +719,19 @@ func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 			//stat pod_info, if exists, updateExclusiveMetrics; else updateSharedMetrics
 			if utils.IsFileExisting(filepath.Join(fsClientPathPrefix, fsClientType, subDir, utils.PodInfoFile)) {
 				// subDir -> podUid
-				p.updateExclusiveMetrics(fsClientType, subDir, fsClientInfo, ch)
+				metrics = append(metrics, p.updateExclusiveMetrics(fsClientType, subDir, fsClientInfo)...)
 				continue
 			}
 			// subDir -> shaVol
-			p.updateSharedMetrics(fsClientType, subDir, fsClientInfo, ch)
+			metrics = append(metrics, p.updateSharedMetrics(fsClientType, subDir, fsClientInfo)...)
 		}
 	}
-	return nil
+	return
 }
 
-func (p *usFsStatCollector) updateExclusiveMetrics(fsClientType, podUid string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) updateExclusiveMetrics(fsClientType, podUID string, fsClientInfo *fuseInfo) (metrics []*Metric) {
 	//get pod info
-	podInfoArray, err := readFirstLines(filepath.Join(fsClientPathPrefix, fsClientType, podUid, utils.PodInfoFile))
+	podInfoArray, err := readFirstLines(filepath.Join(fsClientPathPrefix, fsClientType, podUID, utils.PodInfoFile))
 	if err != nil {
 		return
 	}
@@ -730,24 +743,25 @@ func (p *usFsStatCollector) updateExclusiveMetrics(fsClientType, podUid string, 
 	fsClientInfo.PodName = podInfoArray[1]
 	fsClientInfo.PodUID = podInfoArray[2]
 	// list volume from pod
-	volumeArray, err := listDirectory(filepath.Join(fsClientPathPrefix, fsClientType, podUid))
+	volumeArray, err := listDirectory(filepath.Join(fsClientPathPrefix, fsClientType, podUID))
 	if err != nil {
 		return
 	}
 	// foreach volume
 	for _, volume := range volumeArray {
-		volPath := filepath.Join(fsClientPathPrefix, fsClientType, podUid, volume)
-		p.postVolMetrics(volPath, fsClientInfo, ch)
+		volPath := filepath.Join(fsClientPathPrefix, fsClientType, podUID, volume)
+		metrics = append(metrics, p.postVolMetrics(volPath, fsClientInfo)...)
 	}
+	return
 }
 
-func (p *usFsStatCollector) updateSharedMetrics(fsClientType, subDir string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) updateSharedMetrics(fsClientType, subDir string, fsClientInfo *fuseInfo) []*Metric {
 	// /var/run/fsType/sha256(pvname)
 	volPath := filepath.Join(fsClientPathPrefix, fsClientType, subDir)
-	p.postVolMetrics(volPath, fsClientInfo, ch)
+	return p.postVolMetrics(volPath, fsClientInfo)
 }
 
-func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInfo) (metrics []*Metric) {
 	mountPointInfoArray, err := readFirstLines(filepath.Join(volPath, utils.MountPointInfoFile))
 	if err != nil {
 		return
@@ -767,7 +781,7 @@ func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInf
 		if err != nil {
 			continue
 		}
-		p.postCounterMetrics(counterType, fsClientInfo, metricsArray, ch)
+		metrics = append(metrics, p.postCounterMetrics(counterType, fsClientInfo, metricsArray)...)
 	}
 	// foreach hot_top_file metrics
 	for _, hotSpotType := range hotSpotArray {
@@ -775,7 +789,7 @@ func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInf
 		if err != nil {
 			continue
 		}
-		p.postHotTopFileMetrics(hotSpotType, fsClientInfo, metricsArray, ch)
+		metrics = append(metrics, p.postHotTopFileMetrics(hotSpotType, fsClientInfo, metricsArray)...)
 	}
 	// foreach backend counter metrics
 	for _, backendCounterType := range backendCounterTypeArray {
@@ -783,7 +797,7 @@ func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInf
 		if err != nil {
 			continue
 		}
-		p.postBackendCounterMetrics(backendCounterType, fsClientInfo, metricsArray, ch)
+		metrics = append(metrics, p.postBackendCounterMetrics(backendCounterType, fsClientInfo, metricsArray)...)
 	}
 	// foreach mountpoint status related metrics
 	for _, mountPointStatus := range mountPointStatusArray {
@@ -800,6 +814,7 @@ func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInf
 				continue
 			}
 		}
-		p.postMountPointStatusMetrics(mountPointStatus, fsClientInfo, metricsArray, ch)
+		metrics = append(metrics, p.postMountPointStatusMetrics(mountPointStatus, fsClientInfo, metricsArray)...)
 	}
+	return
 }

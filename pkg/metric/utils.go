@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/sha256"
+
 	"errors"
 	"fmt"
 	"os"
@@ -11,8 +12,11 @@ import (
 	"strings"
 	"sync"
 
+	promdto "github.com/prometheus/client_model/go"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/prometheus/client_golang/prometheus"
 	apicorev1 "k8s.io/api/core/v1"
 	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
@@ -153,4 +157,61 @@ func parseCapacityThreshold(s string, defaults float64) (float64, error) {
 func getGlobalMountPathByDiskID(diskID string) string {
 	hash := sha256.Sum256([]byte(diskID))
 	return filepath.Join(utils.KubeletRootDir, fmt.Sprintf("/plugins/kubernetes.io/csi/%s/%x/globalmount", diskDriverName, hash))
+}
+
+func extractMetricsFromMetricVec(metricVec prometheus.Collector, valueType prometheus.ValueType) (metrics []*Metric) {
+	ch := make(chan prometheus.Metric)
+	go func() {
+		metricVec.Collect(ch)
+		close(ch)
+	}()
+
+	for metric := range ch {
+		desc := metric.Desc()
+
+		gauge := &promdto.Metric{}
+		if err := metric.Write(gauge); err != nil {
+			klog.ErrorS(err, "Failed to write metric", "desc", desc)
+			continue
+		}
+
+		value, err := getMetricValue(gauge, valueType)
+		if err != nil {
+			klog.ErrorS(err, "Failed to get metric value", "desc", desc)
+			continue
+		}
+
+		metrics = append(metrics, &Metric{
+			Desc:      desc,
+			Labels:    gauge.Label,
+			Value:     value,
+			ValueType: valueType,
+		})
+	}
+	return metrics
+}
+
+func getMetricValue(metric *promdto.Metric, valueType prometheus.ValueType) (float64, error) {
+	if metric == nil {
+		return 0, nil
+	}
+	switch valueType {
+	case prometheus.CounterValue:
+		if metric.Counter == nil || metric.Counter.Value == nil {
+			return 0, errors.New("nil metric counter")
+		}
+		return *metric.Counter.Value, nil
+	case prometheus.GaugeValue:
+		if metric.Gauge == nil {
+			return 0, errors.New("nil metric gauge")
+		}
+		return *metric.Gauge.Value, nil
+	case prometheus.UntypedValue:
+		if metric.Untyped == nil {
+			return 0, errors.New("nil metric untyped")
+		}
+		return *metric.Untyped.Value, nil
+	default:
+		return 0, fmt.Errorf("unsupported value type: %s", valueType)
+	}
 }

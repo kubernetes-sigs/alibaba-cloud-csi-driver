@@ -209,38 +209,38 @@ func NewNfsStatCollector() (Collector, error) {
 }
 
 func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
-	//startTime := time.Now()
-	pvNameStatsMap, err := getNfsStat()
-	if len(pvNameStatsMap) == 0 {
-		return nil
+	metrics := p.Get()
+	for _, metric := range metrics {
+		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.Labels)...)
 	}
-
-	if err != nil {
-		return fmt.Errorf("couldn't get nfsstats: %s", err)
-	}
-	volJSONPaths, err := findVolJSON(podsRootPath)
-	if err != nil {
-		return err
-	}
-	//log.Infof("volJSONPaths:%+v", volJSONPaths)
-	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName)
-	//log.Infof("lastPvNfsInfoMap:%+v", p.lastPvNfsInfoMap)
-	wg := sync.WaitGroup{}
-	for pvName, stats := range pvNameStatsMap {
-		nfsInfo := p.lastPvNfsInfoMap[pvName]
-		wg.Add(1)
-		go func(pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, serverNameArgs string, statsArgs []string) {
-			defer wg.Done()
-			p.setNfsMetric(pvNameArgs, pvcNamespaceArgs, pvcNameArgs, serverNameArgs, statsArgs, ch)
-		}(pvName, nfsInfo.PvcNamespace, nfsInfo.PvcName, nfsInfo.ServerName, stats)
-	}
-	wg.Wait()
-	//elapsedTime := time.Since(startTime)
-	//logrus.Info("Nfsstat spent time:", elapsedTime)
 	return nil
 }
 
-func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcName string, serverName string, stats []string, ch chan<- prometheus.Metric) {
+func (p *nfsStatCollector) Get() (metrics []*Metric) {
+	pvNameStatsMap, err := getNfsStat()
+	if len(pvNameStatsMap) == 0 {
+		klog.V(2).InfoS("No nfs stats found")
+		return
+	}
+
+	if err != nil {
+		klog.ErrorS(err, "couldn't get nfsstats")
+		return
+	}
+	volJSONPaths, err := findVolJSON(podsRootPath)
+	if err != nil {
+		klog.ErrorS(err, "couldn't find vol json", "podRootPath", podsRootPath)
+		return
+	}
+	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName)
+	for pvName, stats := range pvNameStatsMap {
+		nfsInfo := p.lastPvNfsInfoMap[pvName]
+		metrics = append(metrics, p.getNfsMetrics(pvName, nfsInfo.PvcNamespace, nfsInfo.PvcName, nfsInfo.ServerName, stats)...)
+	}
+	return nil
+}
+
+func (p *nfsStatCollector) getNfsMetrics(pvName string, pvcNamespace string, pvcName string, serverName string, stats []string) (metrics []*Metric) {
 	defer p.lastPvStatsMap.Store(pvName, stats)
 	for i, value := range stats {
 		if i >= len(p.descs) {
@@ -252,9 +252,24 @@ func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcN
 			klog.Errorf("Convert value %s to float64 is failed, err:%s, stat:%+v", value, err, stats)
 			continue
 		}
+		if p.descs[i].factor != 0 {
+			valueFloat64 = valueFloat64 * p.descs[i].factor
+		}
 
-		ch <- p.descs[i].mustNewConstMetric(valueFloat64, pvcNamespace, pvcName, serverName, nasStorageName)
+		labels, err := makeLabelPairs(nfsStatLabelNames, pvcNamespace, pvcName, serverName, nasStorageName)
+		if err != nil {
+			klog.ErrorS(err, "Failed to make label pairs")
+			continue
+		}
+
+		metrics = append(metrics, &Metric{
+			Desc:      p.descs[i].desc,
+			Labels:    labels,
+			Value:     valueFloat64,
+			ValueType: p.descs[i].valueType,
+		})
 	}
+	return
 }
 
 func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonPaths []string, deriverName string) {
