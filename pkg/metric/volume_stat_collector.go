@@ -41,6 +41,12 @@ func GetVolumeStatCollector() (Collector, error) {
 	return &VolumeStatCollector, nil
 }
 
+func (c *volumeStatCollector) Get() []*Metric {
+	countMetrics := extractMetricsFromMetricVec(c.AttachmentCountMetric, prometheus.CounterValue)
+	timeMetrics := extractMetricsFromMetricVec(c.AttachmentTimeTotalMetric, prometheus.CounterValue)
+	return append(countMetrics, timeMetrics...)
+}
+
 func (c *volumeStatCollector) Update(ch chan<- prometheus.Metric) error {
 	c.AttachmentCountMetric.Collect(ch)
 	c.AttachmentTimeTotalMetric.Collect(ch)

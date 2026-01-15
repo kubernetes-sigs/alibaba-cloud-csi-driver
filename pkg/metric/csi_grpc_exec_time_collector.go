@@ -44,9 +44,17 @@ func GetCsiGrpcExecTimeCollector() (Collector, error) {
 	return &CsiGrpcExecTimeCollector, nil
 }
 
+func (c *csiGrpcExecTimeCollector) Get() []*Metric {
+	countMetrics := extractMetricsFromMetricVec(c.ExecCountMetric, prometheus.CounterValue)
+	timeMetrics := extractMetricsFromMetricVec(c.ExecTimeTotalMetric, prometheus.CounterValue)
+	return append(countMetrics, timeMetrics...)
+}
+
 func (c *csiGrpcExecTimeCollector) Update(ch chan<- prometheus.Metric) error {
-	c.ExecCountMetric.Collect(ch)
-	c.ExecTimeTotalMetric.Collect(ch)
+	metrics := c.Get()
+	for _, metric := range metrics {
+		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.Labels)...)
+	}
 	return nil
 }
 
