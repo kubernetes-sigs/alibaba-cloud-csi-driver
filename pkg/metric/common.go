@@ -26,8 +26,6 @@ const (
 	//diskDriverName represents the csi storage type name of Disk
 	diskDriverName  string = "diskplugin.csi.alibabacloud.com"
 	localDriverName string = "localplugin.csi.alibabacloud.com"
-	// unknown metric value
-	UnknownValue string = "unknown"
 )
 
 const (
