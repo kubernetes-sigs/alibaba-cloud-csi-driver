@@ -586,6 +586,11 @@ func getDiskVolumeOptions(
 	}
 	diskVolArgs.RequestGB = requestGB
 
+	err = getDataCacheOpts(volOptions, &diskVolArgs.DataCache)
+	if err != nil {
+		return nil, err
+	}
+
 	return diskVolArgs, nil
 }
 
