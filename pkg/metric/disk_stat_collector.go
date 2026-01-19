@@ -33,12 +33,8 @@ var (
 	scalerPvcMap        *sync.Map
 )
 
-func diskMetricDesc(name, help string) *prometheus.Desc {
-	return prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, name),
-		help,
-		diskStatLabelNames, diskStatConstLabels,
-	)
+func diskMetricDesc(name, help string) *MetaDesc {
+	return NewMetaDesc(nodeNamespace, volumeSubsystem, name, help, diskStatLabelNames, diskStatConstLabels)
 }
 
 func convertStringSliceToLabelPairs(labels []string) []*promdto.LabelPair {
@@ -59,7 +55,8 @@ func convertLabelsToString(labelPairs []*promdto.LabelPair) []string {
 
 // stats from /proc/diskstats
 var (
-	diskReadsCompletedDesc       = diskMetricDesc("read_completed_total", "The total number of reads completed successfully.")
+	diskReadsCompletedDesc = diskMetricDesc("read_completed_total", "The total number of reads completed successfully.")
+
 	diskReadsMergeDesc           = diskMetricDesc("read_merged_total", "The total number of reads merged.")
 	diskReadBytesDesc            = diskMetricDesc("read_bytes_total", "The total number of bytes read successfully.")
 	diskReadTimeMilliSecondsDesc = diskMetricDesc("read_time_milliseconds_total", "The total number of milliseconds spent by all reads.")
@@ -74,9 +71,9 @@ var (
 )
 
 type capDescs struct {
-	Available *prometheus.Desc
-	Total     *prometheus.Desc
-	Used      *prometheus.Desc
+	Available *MetaDesc
+	Total     *MetaDesc
+	Used      *MetaDesc
 }
 
 var capStatDescs = map[csi.VolumeUsage_Unit]capDescs{
@@ -206,8 +203,8 @@ func (p *diskStatCollector) Get() (metrics []*Metric) {
 			continue
 		}
 		devPath := "/dev/" + stats.DeviceName
-		labels := []string{info.PVCRef.Namespace, info.PVCRef.Name, devPath}
-		metrics = append(metrics, p.getDiskStats(&stats.IOStats, labels)...)
+		labelValues := []string{info.PVCRef.Namespace, info.PVCRef.Name, devPath}
+		metrics = append(metrics, p.getDiskStats(&stats.IOStats, labelValues...)...)
 		if lastStats, ok := lastStatsMap[info.Dev]; ok {
 			p.latencyEventAlert(&stats.IOStats, &lastStats.IOStats, info.PVCRef)
 		}
@@ -221,7 +218,7 @@ func (p *diskStatCollector) Get() (metrics []*Metric) {
 			klog.ErrorS(err, "Get disk capacity failed", "disk", info.DiskID, err)
 			continue
 		}
-		metrics = append(metrics, p.getCapStats(capStats, labels)...)
+		metrics = append(metrics, p.getCapStats(capStats, labelValues)...)
 		p.capacityEventAlert(capStats, info.PVCRef)
 	}
 
@@ -231,7 +228,7 @@ func (p *diskStatCollector) Get() (metrics []*Metric) {
 func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	metrics := p.Get()
 	for _, metric := range metrics {
-		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.Labels)...)
+		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.VariableLabelPairs)...)
 	}
 	return nil
 }
@@ -271,92 +268,27 @@ func (p *diskStatCollector) capacityEventAlert(usage []*csi.VolumeUsage, ref *v1
 	}
 }
 
-func (p *diskStatCollector) getDiskStats(stats *blockdevice.IOStats, labels []string) []*Metric {
+func (p *diskStatCollector) getDiskStats(stats *blockdevice.IOStats, labelValues ...string) []*Metric {
 	return []*Metric{
-		{
-			Desc:      diskReadsCompletedDesc,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stats.ReadIOs),
-			ValueType: prometheus.CounterValue,
-		},
-		{
-			Desc:      diskReadsMergeDesc,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stats.ReadMerges),
-			ValueType: prometheus.CounterValue,
-		},
-		{
-			Desc:      diskReadBytesDesc,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stats.ReadSectors) * diskSectorSize,
-			ValueType: prometheus.CounterValue,
-		},
-		{
-			Desc:      diskReadTimeMilliSecondsDesc,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stats.ReadTicks),
-			ValueType: prometheus.CounterValue,
-		},
-		{
-			Desc:      diskWritesCompletedDesc,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stats.WriteIOs),
-			ValueType: prometheus.CounterValue,
-		},
-		{
-			Desc:      diskWriteMergeDesc,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stats.WriteMerges),
-			ValueType: prometheus.CounterValue,
-		},
-		{
-			Desc:      diskWrittenBytesDesc,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stats.WriteSectors) * diskSectorSize,
-			ValueType: prometheus.CounterValue,
-		},
-		{
-			Desc:      diskWriteTimeMilliSecondsDesc,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stats.WriteTicks),
-			ValueType: prometheus.CounterValue,
-		},
-		{
-			Desc:      diskIONowDesc,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stats.IOsInProgress),
-			ValueType: prometheus.GaugeValue,
-		},
-		{
-			Desc:      diskIOTimeSecondsDesc,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stats.IOsTotalTicks) / 1000,
-			ValueType: prometheus.CounterValue,
-		},
+		MustNewMetricWithMetaDesc(diskReadsCompletedDesc, float64(stats.ReadIOs), prometheus.CounterValue, labelValues...),
+		MustNewMetricWithMetaDesc(diskReadsMergeDesc, float64(stats.ReadMerges), prometheus.CounterValue, labelValues...),
+		MustNewMetricWithMetaDesc(diskReadBytesDesc, float64(stats.ReadSectors)*diskSectorSize, prometheus.CounterValue, labelValues...),
+		MustNewMetricWithMetaDesc(diskReadTimeMilliSecondsDesc, float64(stats.ReadTicks), prometheus.CounterValue, labelValues...),
+		MustNewMetricWithMetaDesc(diskWritesCompletedDesc, float64(stats.WriteIOs), prometheus.CounterValue, labelValues...),
+		MustNewMetricWithMetaDesc(diskWriteMergeDesc, float64(stats.WriteMerges), prometheus.CounterValue, labelValues...),
+		MustNewMetricWithMetaDesc(diskWrittenBytesDesc, float64(stats.WriteSectors)*diskSectorSize, prometheus.CounterValue, labelValues...),
+		MustNewMetricWithMetaDesc(diskWriteTimeMilliSecondsDesc, float64(stats.WriteTicks), prometheus.CounterValue, labelValues...),
+		MustNewMetricWithMetaDesc(diskIONowDesc, float64(stats.IOsInProgress), prometheus.GaugeValue, labelValues...),
+		MustNewMetricWithMetaDesc(diskIOTimeSecondsDesc, float64(stats.IOsTotalTicks)/1000, prometheus.CounterValue, labelValues...),
 	}
 }
 
-func (p *diskStatCollector) getCapStats(stats []*csi.VolumeUsage, labels []string) (metrics []*Metric) {
+func (p *diskStatCollector) getCapStats(stats []*csi.VolumeUsage, labelValues []string) (metrics []*Metric) {
 	for _, stat := range stats {
 		descs := capStatDescs[stat.Unit]
-		metrics = append(metrics, &Metric{
-			Desc:      descs.Available,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stat.Available),
-			ValueType: prometheus.GaugeValue,
-		})
-		metrics = append(metrics, &Metric{
-			Desc:      descs.Total,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stat.Total),
-			ValueType: prometheus.GaugeValue,
-		})
-		metrics = append(metrics, &Metric{
-			Desc:      descs.Used,
-			Labels:    convertStringSliceToLabelPairs(labels),
-			Value:     float64(stat.Used),
-			ValueType: prometheus.GaugeValue,
-		})
+		metrics = append(metrics, MustNewMetricWithMetaDesc(descs.Available, float64(stat.Available), prometheus.GaugeValue, labelValues...))
+		metrics = append(metrics, MustNewMetricWithMetaDesc(descs.Total, float64(stat.Total), prometheus.GaugeValue, labelValues...))
+		metrics = append(metrics, MustNewMetricWithMetaDesc(descs.Used, float64(stat.Used), prometheus.GaugeValue, labelValues...))
 	}
 	return
 }

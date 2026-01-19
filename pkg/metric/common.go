@@ -38,7 +38,6 @@ const (
 	diskSectorSize                          = 512
 	diskDefaultsLatencyThreshold            = 10
 	diskDefaultsCapacityPercentageThreshold = 85
-	nfsDefaultsCapacityPercentageThreshold  = 85
 	nfsStatsFileName                        = "/proc/self/mountstats"
 	latencyTooHigh                          = "LatencyTooHigh"
 	capacityNotEnough                       = "NotEnoughDiskSpace"
@@ -66,15 +65,7 @@ var (
 )
 
 type typedFactorDesc struct {
-	desc      *prometheus.Desc
+	*MetaDesc
 	valueType prometheus.ValueType
 	factor    float64
-	labels    []string
-}
-
-func (d *typedFactorDesc) mustNewConstMetric(value float64, labels ...string) prometheus.Metric {
-	if d.factor != 0 {
-		value *= d.factor
-	}
-	return prometheus.MustNewConstMetric(d.desc, d.valueType, value, labels...)
 }

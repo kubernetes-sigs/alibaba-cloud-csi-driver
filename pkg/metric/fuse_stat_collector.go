@@ -33,300 +33,72 @@ var (
 		"exit_reason"}
 )
 
+func fuseMetricDesc(name, help string) *MetaDesc {
+	return NewMetaDesc(nodeNamespace, volumeSubsystem, name, help, usFsStatLabelNames, nil)
+}
+
 var (
-	capacityBytesUsedCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_used_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	capacityBytesAvailableCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_available_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	capacityBytesTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	inodeBytesUsedCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "inode_bytes_used_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	inodeBytesAvailableCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "inode_bytes_available_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	inodeBytesTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "inode_bytes_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	readBytesTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_bytes_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	writeBytesTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_bytes_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	readCompletedTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_completed_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	writeCompletedTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_completed_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	readTimeMillisecondsTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_time_milliseconds_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	writeTimeMillisecondsTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_time_milliseconds_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixMkdirTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_mkdir_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixRmdirTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_rmdir_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixOpendirTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_opendir_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixReaddirTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_readdir_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixWriteTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_write_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixFlushTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_flush_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixFsyncTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_fsync_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixReleaseTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_release_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixReadTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_read_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixCreateTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_create_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixOpenTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_open_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixAccessTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_access_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixRenameTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_rename_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixChownTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_chown_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixChmodTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_chmod_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	posixTruncateTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "posix_truncate_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	ossPutObjectTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "oss_put_object_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	ossGetObjectTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "oss_get_object_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	ossHeadObjectTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "oss_head_object_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	ossDeleteObjectTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "oss_delete_object_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	ossPostObjectTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "oss_post_object_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	hotSpotReadFileTopDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "hot_spot_read_file_top"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	hotSpotWriteFileTopDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "hot_spot_write_file_top"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	hotSpotHeadFileTopDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "hot_spot_head_file_top"),
-		".",
-		usFsStatLabelNames, nil,
-	)
+	capacityBytesUsedCounterDesc          = fuseMetricDesc("capacity_bytes_used_counter", ".")
+	capacityBytesAvailableCounterDesc     = fuseMetricDesc("capacity_bytes_available_counter", ".")
+	capacityBytesTotalCounterDesc         = fuseMetricDesc("capacity_bytes_total_counter", ".")
+	inodeBytesUsedCounterDesc             = fuseMetricDesc("inode_bytes_used_counter", ".")
+	inodeBytesAvailableCounterDesc        = fuseMetricDesc("inode_bytes_available_counter", ".")
+	inodeBytesTotalCounterDesc            = fuseMetricDesc("inode_bytes_total_counter", ".")
+	readBytesTotalCounterDesc             = fuseMetricDesc("read_bytes_total_counter", ".")
+	writeBytesTotalCounterDesc            = fuseMetricDesc("write_bytes_total_counter", ".")
+	readCompletedTotalCounterDesc         = fuseMetricDesc("read_completed_total_counter", ".")
+	writeCompletedTotalCounterDesc        = fuseMetricDesc("write_completed_total_counter", ".")
+	readTimeMillisecondsTotalCounterDesc  = fuseMetricDesc("read_time_milliseconds_total_counter", ".")
+	writeTimeMillisecondsTotalCounterDesc = fuseMetricDesc("write_time_milliseconds_total_counter", ".")
+	posixMkdirTotalCounterDesc            = fuseMetricDesc("posix_mkdir_total_counter", ".")
+	posixRmdirTotalCounterDesc            = fuseMetricDesc("posix_rmdir_total_counter", ".")
+	posixOpendirTotalCounterDesc          = fuseMetricDesc("posix_opendir_total_counter", ".")
+	posixReaddirTotalCounterDesc          = fuseMetricDesc("posix_readdir_total_counter", ".")
+	posixWriteTotalCounterDesc            = fuseMetricDesc("posix_write_total_counter", ".")
+	posixFlushTotalCounterDesc            = fuseMetricDesc("posix_flush_total_counter", ".")
+	posixFsyncTotalCounterDesc            = fuseMetricDesc("posix_fsync_total_counter", ".")
+	posixReleaseTotalCounterDesc          = fuseMetricDesc("posix_release_total_counter", ".")
+	posixReadTotalCounterDesc             = fuseMetricDesc("posix_read_total_counter", ".")
+	posixCreateTotalCounterDesc           = fuseMetricDesc("posix_create_total_counter", ".")
+	posixOpenTotalCounterDesc             = fuseMetricDesc("posix_open_total_counter", ".")
+	posixAccessTotalCounterDesc           = fuseMetricDesc("posix_access_total_counter", ".")
+	posixRenameTotalCounterDesc           = fuseMetricDesc("posix_rename_total_counter", ".")
+	posixChownTotalCounterDesc            = fuseMetricDesc("posix_chown_total_counter", ".")
+	posixChmodTotalCounterDesc            = fuseMetricDesc("posix_chmod_total_counter", ".")
+	posixTruncateTotalCounterDesc         = fuseMetricDesc("posix_truncate_total_counter", ".")
+	ossPutObjectTotalCounterDesc          = fuseMetricDesc("oss_put_object_total_counter", ".")
+	ossGetObjectTotalCounterDesc          = fuseMetricDesc("oss_get_object_total_counter", ".")
+	ossHeadObjectTotalCounterDesc         = fuseMetricDesc("oss_head_object_total_counter", ".")
+	ossDeleteObjectTotalCounterDesc       = fuseMetricDesc("oss_delete_object_total_counter", ".")
+	ossPostObjectTotalCounterDesc         = fuseMetricDesc("oss_post_object_total_counter", ".")
+	hotSpotReadFileTopDesc                = fuseMetricDesc("hot_spot_read_file_top", ".")
+	hotSpotWriteFileTopDesc               = fuseMetricDesc("hot_spot_write_file_top", ".")
+	hotSpotHeadFileTopDesc                = fuseMetricDesc("hot_spot_head_file_top", ".")
 )
 
 var (
-	backendReadBytesTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_read_bytes_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendWriteBytesTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_write_bytes_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendReadCompletedTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_read_completed_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendWriteCompletedTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_write_completed_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendReadTimeMillisecondsTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_read_time_milliseconds_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendWriteTimeMillisecondsTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_write_time_milliseconds_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixGetAttrTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_getattr_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixGetModeTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_getmode_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixAccessTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_access_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixLookupTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_lookup_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixMknodTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_mknod_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixRemoveTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_remove_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixSetAttrTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_setattr_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixLinkTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_link_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixReadLinkTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_readlink_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixStatfsTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_statfs_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixRenameTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_rename_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	backendPosixReaddirTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "backend_posix_readdir_total_counter"),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	mountRetryTotalCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, utils.MetricsMountRetryCount),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	mountPointStatusDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, utils.MetricsMountPointStatus),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	mountPointFailoverTotalCountDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, utils.MetricsMountPointFailoverCount),
-		".",
-		usFsStatLabelNames, nil,
-	)
-	lastFuseClientExitReasonDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, utils.MetricsLastFuseClientExitReason),
-		".",
-		usFsStatLabelNames, nil,
-	)
+	backendReadBytesTotalCounterDesc             = fuseMetricDesc("backend_read_bytes_total_counter", ".")
+	backendWriteBytesTotalCounterDesc            = fuseMetricDesc("backend_write_bytes_total_counter", ".")
+	backendReadCompletedTotalCounterDesc         = fuseMetricDesc("backend_read_completed_total_counter", ".")
+	backendWriteCompletedTotalCounterDesc        = fuseMetricDesc("backend_write_completed_total_counter", ".")
+	backendReadTimeMillisecondsTotalCounterDesc  = fuseMetricDesc("backend_read_time_milliseconds_total_counter", ".")
+	backendWriteTimeMillisecondsTotalCounterDesc = fuseMetricDesc("backend_write_time_milliseconds_total_counter", ".")
+	backendPosixGetAttrTotalCounterDesc          = fuseMetricDesc("backend_posix_getattr_total_counter", ".")
+	backendPosixGetModeTotalCounterDesc          = fuseMetricDesc("backend_posix_getmode_total_counter", ".")
+	backendPosixAccessTotalCounterDesc           = fuseMetricDesc("backend_posix_access_total_counter", ".")
+	backendPosixLookupTotalCounterDesc           = fuseMetricDesc("backend_posix_lookup_total_counter", ".")
+	backendPosixMknodTotalCounterDesc            = fuseMetricDesc("backend_posix_mknod_total_counter", ".")
+	backendPosixRemoveTotalCounterDesc           = fuseMetricDesc("backend_posix_remove_total_counter", ".")
+	backendPosixSetAttrTotalCounterDesc          = fuseMetricDesc("backend_posix_setattr_total_counter", ".")
+	backendPosixLinkTotalCounterDesc             = fuseMetricDesc("backend_posix_link_total_counter", ".")
+	backendPosixReadLinkTotalCounterDesc         = fuseMetricDesc("backend_posix_readlink_total_counter", ".")
+	backendPosixStatfsTotalCounterDesc           = fuseMetricDesc("backend_posix_statfs_total_counter", ".")
+	backendPosixRenameTotalCounterDesc           = fuseMetricDesc("backend_posix_rename_total_counter", ".")
+	backendPosixReaddirTotalCounterDesc          = fuseMetricDesc("backend_posix_readdir_total_counter", ".")
+	mountRetryTotalCounterDesc                   = fuseMetricDesc(utils.MetricsMountRetryCount, ".")
+	mountPointStatusDesc                         = fuseMetricDesc(utils.MetricsMountPointStatus, ".")
+	mountPointFailoverTotalCountDesc             = fuseMetricDesc(utils.MetricsMountPointFailoverCount, ".")
+	lastFuseClientExitReasonDesc                 = fuseMetricDesc(utils.MetricsLastFuseClientExitReason, ".")
 )
 
 type fuseInfo struct {
@@ -356,9 +128,9 @@ func (p *usFsStatCollector) getCommonLabels(fsClientInfo *fuseInfo, fileName, ex
 }
 
 type usFsStatCollector struct {
-	hotSpotReadFileTop                    *prometheus.Desc
-	hotSpotWriteFileTop                   *prometheus.Desc
-	hotSpotHeadFileTop                    *prometheus.Desc
+	hotSpotReadFileTop                    *MetaDesc
+	hotSpotWriteFileTop                   *MetaDesc
+	hotSpotHeadFileTop                    *MetaDesc
 	capacityBytesCounterDesc              capacityBytesCounterDesc
 	inodeBytesCounterDesc                 inodeBytesCounterDesc
 	throughputBytesCounterDesc            throughputBytesCounterDesc
@@ -428,103 +200,103 @@ func NewFuseStatCollector() (Collector, error) {
 		hotSpotHeadFileTop:  hotSpotHeadFileTopDesc,
 		capacityBytesCounterDesc: capacityBytesCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: capacityBytesUsedCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: capacityBytesAvailableCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: capacityBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{MetaDesc: capacityBytesUsedCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: capacityBytesAvailableCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: capacityBytesTotalCounterDesc, valueType: prometheus.CounterValue},
 			},
 		},
 		inodeBytesCounterDesc: inodeBytesCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: inodeBytesUsedCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: inodeBytesAvailableCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: inodeBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{MetaDesc: inodeBytesUsedCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: inodeBytesAvailableCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: inodeBytesTotalCounterDesc, valueType: prometheus.CounterValue},
 			},
 		},
 		throughputBytesCounterDesc: throughputBytesCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: readBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: writeBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{MetaDesc: readBytesTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: writeBytesTotalCounterDesc, valueType: prometheus.CounterValue},
 			},
 		},
 		iopsCompletedCounterDesc: iopsCompletedCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: readCompletedTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: writeCompletedTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{MetaDesc: readCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: writeCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
 			},
 		},
 		latencyMillisecondsCounterDesc: latencyMillisecondsCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: readTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001, labels: usFsStatLabelNames},
-				{desc: writeTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001, labels: usFsStatLabelNames},
+				{MetaDesc: readTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
+				{MetaDesc: writeTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
 			},
 		},
 		posixCounterDesc: posixCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: posixMkdirTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixRmdirTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixOpendirTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixReaddirTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixWriteTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixFlushTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixFsyncTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixReleaseTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixReadTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixCreateTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixOpenTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixAccessTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixRenameTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixChownTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixChmodTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: posixTruncateTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{MetaDesc: posixMkdirTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixRmdirTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixOpendirTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixReaddirTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixWriteTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixFlushTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixFsyncTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixReleaseTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixReadTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixCreateTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixOpenTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixAccessTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixRenameTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixChownTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixChmodTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: posixTruncateTotalCounterDesc, valueType: prometheus.CounterValue},
 			},
 		},
 		ossObjectCounterDesc: ossObjectCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: ossPutObjectTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: ossGetObjectTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: ossHeadObjectTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: ossDeleteObjectTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: ossPostObjectTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{MetaDesc: ossPutObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: ossGetObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: ossHeadObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: ossDeleteObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: ossPostObjectTotalCounterDesc, valueType: prometheus.CounterValue},
 			},
 		},
 		backendThroughputBytesCounterDesc: backendThroughputBytesCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: backendReadBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendWriteBytesTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{MetaDesc: backendReadBytesTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendWriteBytesTotalCounterDesc, valueType: prometheus.CounterValue},
 			},
 		},
 		backendIOPSCompletedCounterDesc: backendIOPSCompletedCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: backendReadCompletedTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendWriteCompletedTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{MetaDesc: backendReadCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendWriteCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
 			},
 		},
 		backendLatencyMillisecondsCounterDesc: backendLatencyMillisecondsCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: backendReadTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001, labels: usFsStatLabelNames},
-				{desc: backendWriteTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001, labels: usFsStatLabelNames},
+				{MetaDesc: backendReadTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
+				{MetaDesc: backendWriteTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
 			},
 		},
 		backendPosixCounterDesc: backendPosixCounterDesc{
 			descs: []typedFactorDesc{
-				{desc: backendPosixGetAttrTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixGetModeTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixAccessTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixLookupTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixMknodTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixRemoveTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixSetAttrTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixLinkTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixReadLinkTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixStatfsTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixRenameTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-				{desc: backendPosixReaddirTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
+				{MetaDesc: backendPosixGetAttrTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixGetModeTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixAccessTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixLookupTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixMknodTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixRemoveTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixSetAttrTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixLinkTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixReadLinkTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixStatfsTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixRenameTotalCounterDesc, valueType: prometheus.CounterValue},
+				{MetaDesc: backendPosixReaddirTotalCounterDesc, valueType: prometheus.CounterValue},
 			},
 		},
-		mountRetryTotalCounter:         &typedFactorDesc{desc: mountRetryTotalCounterDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-		mountPointStatus:               &typedFactorDesc{desc: mountPointStatusDesc, valueType: prometheus.GaugeValue, labels: usFsStatLabelNames},
-		mountPointFailoverTotalCounter: &typedFactorDesc{desc: mountPointFailoverTotalCountDesc, valueType: prometheus.CounterValue, labels: usFsStatLabelNames},
-		lastFuseClientExitReason:       &typedFactorDesc{desc: lastFuseClientExitReasonDesc, valueType: prometheus.GaugeValue, labels: usFsStatLabelNames},
+		mountRetryTotalCounter:         &typedFactorDesc{MetaDesc: mountRetryTotalCounterDesc, valueType: prometheus.CounterValue},
+		mountPointStatus:               &typedFactorDesc{MetaDesc: mountPointStatusDesc, valueType: prometheus.GaugeValue},
+		mountPointFailoverTotalCounter: &typedFactorDesc{MetaDesc: mountPointFailoverTotalCountDesc, valueType: prometheus.CounterValue},
+		lastFuseClientExitReason:       &typedFactorDesc{MetaDesc: lastFuseClientExitReasonDesc, valueType: prometheus.GaugeValue},
 	}, nil
 }
 
@@ -551,11 +323,11 @@ func (p *usFsStatCollector) postHotTopFileMetrics(hotSpotType string, fsClientIn
 		labels := p.getCommonLabels(fsClientInfo, fileName, "")
 		switch hotSpotType {
 		case "hot_spot_read_file_top":
-			metrics = append(metrics, MustNewMetric(p.hotSpotReadFileTop, valueFloat64, prometheus.GaugeValue, usFsStatLabelNames, labels...))
+			metrics = append(metrics, MustNewMetricWithMetaDesc(p.hotSpotReadFileTop, valueFloat64, prometheus.GaugeValue, labels...))
 		case "hot_spot_write_file_top":
-			metrics = append(metrics, MustNewMetric(p.hotSpotWriteFileTop, valueFloat64, prometheus.GaugeValue, usFsStatLabelNames, labels...))
+			metrics = append(metrics, MustNewMetricWithMetaDesc(p.hotSpotWriteFileTop, valueFloat64, prometheus.GaugeValue, labels...))
 		case "hot_spot_head_file_top":
-			metrics = append(metrics, MustNewMetric(p.hotSpotHeadFileTop, valueFloat64, prometheus.GaugeValue, usFsStatLabelNames, labels...))
+			metrics = append(metrics, MustNewMetricWithMetaDesc(p.hotSpotHeadFileTop, valueFloat64, prometheus.GaugeValue, labels...))
 		default:
 			klog.Errorf("Unknown hotSpotType:%s", hotSpotType)
 		}
@@ -699,7 +471,7 @@ func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsCli
 func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	metrics := p.Get()
 	for _, metric := range metrics {
-		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.Labels)...)
+		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.VariableLabelPairs)...)
 	}
 	return nil
 }
