@@ -21,6 +21,8 @@ const (
 
 type fsStatsMetric struct {
 	desc     *prometheus.Desc
+	fqName   string
+	help     string
 	getValue func(*statsapi.FsStats) *float64
 }
 
@@ -30,7 +32,14 @@ func (m *fsStatsMetric) Metric(fsStats *statsapi.FsStats, labels []string, label
 		return nil
 	}
 
-	metric, err := NewMetric(m.desc, *value, prometheus.GaugeValue, labels, labelValues...)
+	desc := &MetaDesc{
+		Desc:           prometheus.NewDesc(m.fqName, m.help, labels, nil),
+		FQName:         m.fqName,
+		Help:           m.help,
+		VariableLabels: labels,
+	}
+
+	metric, err := NewMetric(desc, *value, prometheus.GaugeValue, labelValues...)
 	if err != nil {
 		klog.ErrorS(err, "Failed to create metric", "desc", m.desc)
 		return nil
@@ -47,32 +56,38 @@ func uint64ToFloat64(value *uint64) *float64 {
 }
 
 func generateFsStatsDescs(namespace, subsystem string, labels []string) []*fsStatsMetric {
-	return []*fsStatsMetric{
-		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "inodes_free"), "Number of available Inodes", labels, nil),
-			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.InodesFree) },
-		},
-		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "inodes_total"), "Total number of Inodes", labels, nil),
-			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.Inodes) },
-		},
-		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "inodes_used"), "Number of used Inodes", labels, nil),
-			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.InodesUsed) },
-		},
-		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "limit_bytes"), "Number of bytes that can be consumed by the container on this filesystem", labels, nil),
-			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.CapacityBytes) },
-		},
-		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "usage_bytes"), "Number of bytes that are consumed by the container on this filesystem", labels, nil),
-			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.UsedBytes) },
-		},
-		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "available_bytes"), "Number of bytes that not consumed", labels, nil),
-			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.AvailableBytes) },
-		},
+	var metrics []*fsStatsMetric
+
+	addMetric := func(name, help string, fn func(*statsapi.FsStats) *float64) {
+		fqName := prometheus.BuildFQName(namespace, subsystem, name)
+		metrics = append(metrics, &fsStatsMetric{
+			desc:     prometheus.NewDesc(fqName, help, labels, nil),
+			fqName:   fqName,
+			help:     help,
+			getValue: fn,
+		})
 	}
+
+	addMetric("inodes_free", "Number of available Inodes", func(fs *statsapi.FsStats) *float64 {
+		return uint64ToFloat64(fs.InodesFree)
+	})
+	addMetric("inodes_total", "Total number of Inodes", func(fs *statsapi.FsStats) *float64 {
+		return uint64ToFloat64(fs.Inodes)
+	})
+	addMetric("inodes_used", "Number of used Inodes", func(fs *statsapi.FsStats) *float64 {
+		return uint64ToFloat64(fs.InodesUsed)
+	})
+	addMetric("limit_bytes", "Number of bytes that can be consumed by the container on this filesystem", func(fs *statsapi.FsStats) *float64 {
+		return uint64ToFloat64(fs.CapacityBytes)
+	})
+	addMetric("usage_bytes", "Number of bytes that are consumed by the container on this filesystem", func(fs *statsapi.FsStats) *float64 {
+		return uint64ToFloat64(fs.UsedBytes)
+	})
+	addMetric("available_bytes", "Number of bytes that not consumed", func(fs *statsapi.FsStats) *float64 {
+		return uint64ToFloat64(fs.AvailableBytes)
+	})
+
+	return metrics
 }
 
 var (
@@ -93,7 +108,7 @@ type kubeletStatsSummaryCollector struct {
 func (c *kubeletStatsSummaryCollector) Update(ch chan<- prometheus.Metric) error {
 	metrics := c.Get()
 	for _, metric := range metrics {
-		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.Labels)...)
+		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.VariableLabelPairs)...)
 	}
 	return nil
 }

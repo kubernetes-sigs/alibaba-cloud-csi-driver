@@ -159,7 +159,7 @@ func getGlobalMountPathByDiskID(diskID string) string {
 	return filepath.Join(utils.KubeletRootDir, fmt.Sprintf("/plugins/kubernetes.io/csi/%s/%x/globalmount", diskDriverName, hash))
 }
 
-func extractMetricsFromMetricVec(metricVec prometheus.Collector, valueType prometheus.ValueType) (metrics []*Metric) {
+func extractMetricsFromMetricVec(fqName, help string, metricVec prometheus.Collector, valueType prometheus.ValueType) (metrics []*Metric) {
 	ch := make(chan prometheus.Metric)
 	go func() {
 		metricVec.Collect(ch)
@@ -182,10 +182,14 @@ func extractMetricsFromMetricVec(metricVec prometheus.Collector, valueType prome
 		}
 
 		metrics = append(metrics, &Metric{
-			Desc:      desc,
-			Labels:    gauge.Label,
-			Value:     value,
-			ValueType: valueType,
+			MetaDesc: &MetaDesc{
+				Desc:   desc,
+				FQName: fqName,
+				Help:   help,
+			},
+			VariableLabelPairs: gauge.Label,
+			Value:              value,
+			ValueType:          valueType,
 		})
 	}
 	return metrics
