@@ -25,13 +25,11 @@ const (
 type dataCache struct {
 	Size resource.Quantity
 	Mode DataCacheMode
-	Path string
 }
 
 const (
 	DataCacheModeKey = "dataCacheMode"
 	DataCacheSizeKey = "dataCacheSize"
-	DataCachePathKey = "dataCachePath"
 )
 
 func getDataCacheOpts(opts map[string]string, d *dataCache) error {
@@ -50,15 +48,7 @@ func getDataCacheOpts(opts map[string]string, d *dataCache) error {
 		return fmt.Errorf("unrecognized %s: %s", DataCacheModeKey, m)
 	}
 
-	d.Path = opts[DataCachePathKey]
-	if d.Path != "" && d.Path[0] != '/' {
-		return fmt.Errorf("%s must be an absolute path", DataCachePathKey)
-	}
-
-	if d.Mode != "" || d.Path != "" || !d.Size.IsZero() {
-		if d.Path == "" {
-			return fmt.Errorf("must specify %s for dataCache", DataCachePathKey)
-		}
+	if d.Mode != "" || !d.Size.IsZero() {
 		if d.Size.IsZero() {
 			return fmt.Errorf("must specify non-zero %s for dataCache", DataCacheSizeKey)
 		}
@@ -251,9 +241,11 @@ func resizeDmCache(logger klog.Logger, size uint64, volumeID string) error {
 	return updateTable(dmCtrl, volumeID, size, args)
 }
 
-func cacheFilePath(base, volumeID string) (meta, data string) {
-	meta = filepath.Join(base, volumeID+".meta")
-	data = filepath.Join(base, volumeID+".data")
+const DataCachePath = "/var/alibaba-cloud-csi/data-cache"
+
+func cacheFilePath(volumeID string) (meta, data string) {
+	meta = filepath.Join(DataCachePath, volumeID+".meta")
+	data = filepath.Join(DataCachePath, volumeID+".data")
 	return meta, data
 }
 
@@ -279,7 +271,7 @@ func setupDataCache(logger klog.Logger, d *dataCache, device, volumeID string) (
 	}
 
 	size := d.Size.Value()
-	meta, data := cacheFilePath(d.Path, volumeID)
+	meta, data := cacheFilePath(volumeID)
 
 	data, dataFd, err := allocCacheFile(logger, data, size)
 	if err != nil {
@@ -323,9 +315,6 @@ func teardownDmCache(logger klog.Logger, volumeID string) error {
 	return nil
 }
 
-// FIXME: nowhere to get this path on Unstage
-const DataCachePath = "/var/alibaba-cloud-csi/data-cache"
-
 func clean(path string) error {
 	err := os.RemoveAll(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -341,6 +330,6 @@ func teardownDataCache(logger klog.Logger, volumeID string) error {
 	}
 	// Note: loop device has LO_FLAGS_AUTOCLEAR set, so it is auto removed after teardownDmCache.
 
-	meta, data := cacheFilePath(DataCachePath, volumeID)
+	meta, data := cacheFilePath(volumeID)
 	return errors.Join(clean(meta), clean(data))
 }
