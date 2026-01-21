@@ -46,8 +46,7 @@ type CSICollector struct {
 	Collectors map[string]Collector
 }
 
-// newCSICollector method returns the CSICollector object
-func newCSICollector(driverNames []string, serviceType utils.ServiceType) {
+func initCSICollector(driverNames []string, serviceType utils.ServiceType) {
 	if csiCollectorInstance != nil {
 		return
 	}
@@ -99,7 +98,10 @@ func (csi CSICollector) Collect(ch chan<- prometheus.Metric) {
 	wg.Wait()
 }
 
-func GetMetrics() []*Metric {
+func GetMetrics(driverNames []string, serviceType utils.ServiceType) []*Metric {
+	if csiCollectorInstance == nil {
+		initCSICollector(driverNames, serviceType)
+	}
 	var metrics []*Metric
 	for _, c := range csiCollectorInstance.Collectors {
 		metrics = append(metrics, c.Get()...)
