@@ -275,6 +275,10 @@ func setupDataCache(logger klog.Logger, d *dataCache, device, volumeID string) (
 
 	data, dataFd, err := allocCacheFile(logger, data, size)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			logger.V(1).Info("data cache not exist on node, proceed without cache")
+			return device, nil
+		}
 		return "", fmt.Errorf("failed to allocate cache file: %v", err)
 	}
 	defer loggedClose(logger, dataFd) // be sure to close these FDs after setupDmCache, or loop device will be removed
