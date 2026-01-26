@@ -10,10 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -55,7 +53,6 @@ var (
 type nfsInfo struct {
 	PvcNamespace string
 	PvcName      string
-	ServerName   string
 	VolDataPath  string
 }
 
@@ -73,8 +70,7 @@ type nfsStatCollector struct {
 	pvInfoLock       sync.Mutex
 	lastPvNfsInfoMap map[string]nfsInfo
 	lastPvStatsMap   sync.Map
-	clientSet        *kubernetes.Clientset
-	crdClient        dynamic.Interface
+	client           kubernetes.Interface
 	recorder         record.EventRecorder
 	mounter          mount.Interface
 }
@@ -85,21 +81,10 @@ func init() {
 
 // NewNfsStatCollector returns a new Collector exposing nfs stats.
 func NewNfsStatCollector() (Collector, error) {
-	config, err := options.GetRestConfig()
-	if err != nil {
-		return nil, err
-	}
 	recorder := utils.NewEventRecorder()
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	client, err := newK8sClient()
 	if err != nil {
 		return nil, err
-	}
-
-	crdCfg := options.GetRestConfigForCRD(*config)
-	crdClient, err := dynamic.NewForConfig(crdCfg)
-	if err != nil {
-		klog.Fatalf("Failed to create crd client: %v", err)
 	}
 
 	return &nfsStatCollector{
@@ -125,8 +110,7 @@ func NewNfsStatCollector() (Collector, error) {
 		},
 		lastPvNfsInfoMap: make(map[string]nfsInfo, 0),
 		lastPvStatsMap:   sync.Map{},
-		clientSet:        clientset,
-		crdClient:        crdClient,
+		client:           client,
 		recorder:         recorder,
 		mounter:          mount.NewWithoutSystemd(""),
 	}, nil
@@ -141,7 +125,7 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 }
 
 func (p *nfsStatCollector) Get() (metrics []*Metric) {
-	pvNameStatsMap, err := getNfsStat()
+	pvNameServerMap, pvNameStatsMap, err := getNfsStat()
 	if len(pvNameStatsMap) == 0 {
 		klog.V(2).InfoS("No nfs stats found")
 		return
@@ -159,7 +143,7 @@ func (p *nfsStatCollector) Get() (metrics []*Metric) {
 	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName)
 	for pvName, stats := range pvNameStatsMap {
 		nfsInfo := p.lastPvNfsInfoMap[pvName]
-		metrics = append(metrics, p.getNfsMetrics(pvName, nfsInfo.PvcNamespace, nfsInfo.PvcName, nfsInfo.ServerName, stats)...)
+		metrics = append(metrics, p.getNfsMetrics(pvName, nfsInfo.PvcNamespace, nfsInfo.PvcName, pvNameServerMap[pvName], stats)...)
 	}
 	return
 }
@@ -224,7 +208,7 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 		lastInfo, ok := (*lastPvNfsInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcNamespace, pvcName, serverName, err := getNasPvcByPvName(p.clientSet, p.crdClient, pv)
+			pvcNamespace, pvcName, err := getNasPvcByPvName(p.client, pv, thisInfo.VolDataPath)
 			if err != nil {
 				continue
 			}
@@ -232,7 +216,6 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 				VolDataPath:  thisInfo.VolDataPath,
 				PvcName:      pvcName,
 				PvcNamespace: pvcNamespace,
-				ServerName:   serverName,
 			}
 			(*lastPvNfsInfoMap)[pv] = updateInfo
 		}
@@ -246,36 +229,53 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 	}
 }
 
-func getNfsStat() (map[string][]string, error) {
+func getNfsStat() (map[string]string, map[string][]string, error) {
+	pvServerMapping := make(map[string]string, 0)
 	pvNameStatMapping := make(map[string][]string, 0)
 	mountStatsFile, err := os.Open(nfsStatsFileName)
 	if mountStatsFile == nil {
-		return nil, fmt.Errorf("File %s is not found.", nfsStatsFileName)
+		return nil, nil, fmt.Errorf("File %s is not found.", nfsStatsFileName)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Open file %s is error, err:%s", nfsStatsFileName, err)
+		return nil, nil, fmt.Errorf("Open file %s is error, err:%s", nfsStatsFileName, err)
 	}
 	defer mountStatsFile.Close()
 	mountArr, err := parseMountStats(mountStatsFile)
 	if err != nil {
-		return nil, fmt.Errorf("ParseMountStats %s is error, err:%s.", nfsStatsFileName, err)
+		return nil, nil, fmt.Errorf("ParseMountStats %s is error, err:%s.", nfsStatsFileName, err)
 	}
 	for _, mount := range mountArr {
+		pvName := getPVName(mount)
+		segments := strings.Split(mount.Device, ":")
+		if len(segments) >= 2 {
+			pvServerMapping[pvName] = segments[0]
+		} else {
+			pvServerMapping[pvName] = mount.Device
+		}
 		nfsOperationStats := mount.Stats.operationStats()
 		for _, operation := range nfsOperationStats {
-			addNfsStat(&pvNameStatMapping, mount.Mount, operation, "READ")
+			addNfsStat(&pvNameStatMapping, pvName, operation, "READ")
 		}
 		for _, operation := range nfsOperationStats {
-			addNfsStat(&pvNameStatMapping, mount.Mount, operation, "WRITE")
+			addNfsStat(&pvNameStatMapping, pvName, operation, "WRITE")
 		}
 	}
-	return pvNameStatMapping, nil
+	return pvServerMapping, pvNameStatMapping, nil
 }
 
-func addNfsStat(pvNameStatMapping *map[string][]string, mountPath string, operationStat NFSOperationStats, keyWord string) {
+func getPVName(mount *Mount) string {
+	if mount == nil {
+		return ""
+	}
+	paths := strings.Split(mount.Mount, "/")
+	if len(paths) < 2 {
+		return ""
+	}
+	return paths[len(paths)-2]
+}
+
+func addNfsStat(pvNameStatMapping *map[string][]string, pvName string, operationStat NFSOperationStats, keyWord string) {
 	if operationStat.Operation == keyWord {
-		pathArr := strings.Split(mountPath, "/")
-		pvName := pathArr[len(pathArr)-2]
 		if len((*pvNameStatMapping)[pvName]) >= NFSMetricsCount {
 			return
 		}

@@ -67,7 +67,7 @@ func initCSICollector(driverNames []string, serviceType utils.ServiceType) {
 			if enabled {
 				collector, err := reg.Factory()
 				if err != nil {
-					klog.ErrorS(err, "Failed to create collector")
+					klog.ErrorS(err, "Failed to create collector", "name", reg.Name)
 				} else {
 					collectors[reg.Name] = collector
 				}

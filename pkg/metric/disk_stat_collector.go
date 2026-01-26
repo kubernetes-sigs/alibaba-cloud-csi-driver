@@ -23,7 +23,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
@@ -103,7 +102,7 @@ type diskStatCollector struct {
 	lastPvDiskInfoMap            map[string]diskInfo
 	lastPvStatsMap               atomic.Pointer[map[uint64]*blockdevice.Diskstats]
 	diskStats                    *ProcDiskStats
-	clientSet                    *kubernetes.Clientset
+	client                       kubernetes.Interface
 	recorder                     record.EventRecorder
 	mounter                      mount.Interface
 	nodeName                     string
@@ -134,12 +133,7 @@ func getDiskCapacityThreshold() float64 {
 // NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
 	recorder := utils.NewEventRecorder()
-	config, err := options.GetRestConfig()
-	if err != nil {
-		return nil, err
-	}
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	client, err := newK8sClient()
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +148,7 @@ func NewDiskStatCollector() (Collector, error) {
 	return &diskStatCollector{
 		lastPvDiskInfoMap:            make(map[string]diskInfo, 0),
 		diskStats:                    diskStats,
-		clientSet:                    clientset,
+		client:                       client,
 		milliSecondsLatencyThreshold: getDiskLatencyThreshold(),
 		capacityPercentageThreshold:  getDiskCapacityThreshold(),
 		recorder:                     recorder,
@@ -204,7 +198,7 @@ func (p *diskStatCollector) Get() (metrics []*Metric) {
 		}
 		devPath := "/dev/" + stats.DeviceName
 		labelValues := []string{info.PVCRef.Namespace, info.PVCRef.Name, devPath}
-		metrics = append(metrics, p.getDiskStats(&stats.IOStats, labelValues...)...)
+		metrics = append(metrics, p.getDiskStatMetrics(&stats.IOStats, labelValues...)...)
 		if lastStats, ok := lastStatsMap[info.Dev]; ok {
 			p.latencyEventAlert(&stats.IOStats, &lastStats.IOStats, info.PVCRef)
 		}
@@ -213,12 +207,12 @@ func (p *diskStatCollector) Get() (metrics []*Metric) {
 				pvName, p.nodeName, info.DiskID, devPath)
 		}
 
-		capStats, err := getDiskCapacityMetric(info.DiskID)
+		capStats, err := getDiskCapacityStats(info.DiskID)
 		if err != nil {
 			klog.ErrorS(err, "Get disk capacity failed", "disk", info.DiskID, err)
 			continue
 		}
-		metrics = append(metrics, p.getCapStats(capStats, labelValues)...)
+		metrics = append(metrics, p.getDiskCapacityMetrics(capStats, labelValues)...)
 		p.capacityEventAlert(capStats, info.PVCRef)
 	}
 
@@ -268,7 +262,7 @@ func (p *diskStatCollector) capacityEventAlert(usage []*csi.VolumeUsage, ref *v1
 	}
 }
 
-func (p *diskStatCollector) getDiskStats(stats *blockdevice.IOStats, labelValues ...string) []*Metric {
+func (p *diskStatCollector) getDiskStatMetrics(stats *blockdevice.IOStats, labelValues ...string) []*Metric {
 	return []*Metric{
 		MustNewMetricWithMetaDesc(diskReadsCompletedDesc, float64(stats.ReadIOs), prometheus.CounterValue, labelValues...),
 		MustNewMetricWithMetaDesc(diskReadsMergeDesc, float64(stats.ReadMerges), prometheus.CounterValue, labelValues...),
@@ -283,7 +277,7 @@ func (p *diskStatCollector) getDiskStats(stats *blockdevice.IOStats, labelValues
 	}
 }
 
-func (p *diskStatCollector) getCapStats(stats []*csi.VolumeUsage, labelValues []string) (metrics []*Metric) {
+func (p *diskStatCollector) getDiskCapacityMetrics(stats []*csi.VolumeUsage, labelValues []string) (metrics []*Metric) {
 	for _, stat := range stats {
 		descs := capStatDescs[stat.Unit]
 		metrics = append(metrics, MustNewMetricWithMetaDesc(descs.Available, float64(stat.Available), prometheus.GaugeValue, labelValues...))
@@ -343,7 +337,7 @@ func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskI
 		lastInfo, ok := (*lastPvDiskInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcRef, err := getDiskPvcByPvName(p.clientSet, pv)
+			pvcRef, err := getDiskPvcByPvName(p.client, pv, thisInfo.VolDataPath)
 			if err != nil {
 				continue
 			}
@@ -365,7 +359,7 @@ func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskI
 	}
 }
 
-func getDiskCapacityMetric(diskID string) ([]*csi.VolumeUsage, error) {
+func getDiskCapacityStats(diskID string) ([]*csi.VolumeUsage, error) {
 	globalMountPath := getGlobalMountPathByDiskID(diskID)
 	response, err := utils.GetMetrics(globalMountPath)
 	if err != nil {
