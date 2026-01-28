@@ -29,7 +29,7 @@ func removeAllIgnoreNotExist(path string) {
 	}
 }
 
-var mockOssfsHandler = func(ctx context.Context, op *mounter.MountOperation) error {
+var mockOssfsHandler = func(ctx context.Context, req *mounterutils.MountRequest) error {
 	result := server.OssfsMountResult{
 		PID:      123,
 		ExitChan: make(chan error),
@@ -38,7 +38,7 @@ var mockOssfsHandler = func(ctx context.Context, op *mounter.MountOperation) err
 		time.Sleep(500 * time.Millisecond)
 		close(result.ExitChan)
 	}()
-	op.MountResult = result
+	req.MountResult = result
 	return nil
 }
 
@@ -46,7 +46,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 	tests := []struct {
 		name        string
 		handler     mounter.MountHandler
-		op          *mounter.MountOperation
+		req         *mounterutils.MountRequest
 		expectErr   bool
 		expectFile  bool
 		expectDir   bool
@@ -60,13 +60,13 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 		{
 			name:    "nil secrets",
 			handler: successMountHandler,
-			op:      &mounter.MountOperation{},
+			req:     &mounterutils.MountRequest{},
 		},
 		{
 			name:      "mount error with fixed credentials",
 			handler:   failureMountHandler,
 			expectErr: true,
-			op: &mounter.MountOperation{
+			req: &mounterutils.MountRequest{
 				Target: "/mnt/target1",
 				Secrets: map[string]string{
 					"passwd-ossfs": "akid:aksecret:bucket",
@@ -76,7 +76,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 		{
 			name:    "nil mount result with fixed credentials",
 			handler: successMountHandler,
-			op: &mounter.MountOperation{
+			req: &mounterutils.MountRequest{
 				Target: "/mnt/target2",
 				Secrets: map[string]string{
 					"passwd-ossfs": "akid:aksecret:bucket",
@@ -88,7 +88,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 		{
 			name:    "invalid mount result with fixed credentials",
 			handler: successMountHandler,
-			op: &mounter.MountOperation{
+			req: &mounterutils.MountRequest{
 				Target:      "/mnt/target3",
 				MountResult: "invalid",
 				Secrets: map[string]string{
@@ -101,7 +101,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 		{
 			name:    "token credentials",
 			handler: successMountHandler,
-			op: &mounter.MountOperation{
+			req: &mounterutils.MountRequest{
 				Target: "/mnt/target4",
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "testAKID",
@@ -117,7 +117,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 		{
 			name:    "token credentials without expiration",
 			handler: successMountHandler,
-			op: &mounter.MountOperation{
+			req: &mounterutils.MountRequest{
 				Target: "/mnt/target5",
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "testAKID",
@@ -135,30 +135,30 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup cleanup
 			var hashDir string
-			if tt.op != nil && tt.op.Target != "" {
-				hash := mounterutils.ComputeMountPathHash(tt.op.Target)
+			if tt.req != nil && tt.req.Target != "" {
+				hash := mounterutils.ComputeMountPathHash(tt.req.Target)
 				hashDir = filepath.Join("/tmp", hash)
 				removeAllIgnoreNotExist(hashDir)       // Cleanup before test
 				defer removeAllIgnoreNotExist(hashDir) // Cleanup after test
 			}
 
-			err := OssfsSecretInterceptor(context.Background(), tt.op, tt.handler)
+			err := OssfsSecretInterceptor(context.Background(), tt.req, tt.handler)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return
 			}
 
 			assert.NoError(t, err)
-			if tt.op == nil {
+			if tt.req == nil {
 				return
 			}
 
 			// Only check Options if secrets are provided
-			if len(tt.op.Secrets) > 0 {
+			if len(tt.req.Secrets) > 0 {
 				if tt.expectFile || tt.expectDir {
-					assert.GreaterOrEqual(t, len(tt.op.Options), 1, "Options should contain passwd_file")
+					assert.GreaterOrEqual(t, len(tt.req.Options), 1, "Options should contain passwd_file")
 					found := false
-					for _, opt := range tt.op.Options {
+					for _, opt := range tt.req.Options {
 						if strings.Contains(opt, "passwd_file=") {
 							found = true
 							break
@@ -171,7 +171,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 			if tt.expectFile {
 				found := false
 				// For ossfs, passwd_file is in Options, not Args
-				for _, opt := range tt.op.Options {
+				for _, opt := range tt.req.Options {
 					if strings.HasPrefix(opt, "passwd_file=") {
 						filePath := opt[len("passwd_file="):]
 						assert.FileExists(t, filePath)
@@ -185,7 +185,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 			if tt.expectToken {
 				found := false
 				// For ossfs, passwd_file is in Options, not Args
-				for _, opt := range tt.op.Options {
+				for _, opt := range tt.req.Options {
 					if strings.HasPrefix(opt, "passwd_file=") {
 						dirPath := opt[len("passwd_file="):]
 						// dirPath should be a symlink pointing to a directory
@@ -218,31 +218,31 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 	removeAllIgnoreNotExist(hashDir)       // Cleanup before test
 	defer removeAllIgnoreNotExist(hashDir) // Cleanup after test
 
-	op := &mounter.MountOperation{
+	req := &mounterutils.MountRequest{
 		Target: target,
 		Secrets: map[string]string{
 			"passwd-ossfs": "akid:aksecret:bucket",
 		},
 	}
-	err := OssfsSecretInterceptor(context.Background(), op, mockOssfsHandler)
+	err := OssfsSecretInterceptor(context.Background(), req, mockOssfsHandler)
 	assert.NoError(t, err)
-	assert.NotNil(t, op.MountResult, "MountResult should be set")
+	assert.NotNil(t, req.MountResult, "MountResult should be set")
 
-	result, ok := op.MountResult.(server.OssfsMountResult)
+	result, ok := req.MountResult.(server.OssfsMountResult)
 	require.True(t, ok, "MountResult should be OssfsMountResult")
 	<-result.ExitChan
 
-	assert.Len(t, op.Options, 1)
-	assert.Contains(t, op.Options[0], "passwd_file=")
+	assert.Len(t, req.Options, 1)
+	assert.Contains(t, req.Options[0], "passwd_file=")
 	time.Sleep(500 * time.Millisecond) // Wait for ossfs monitor interceptor to cleanup the credential file
-	assert.NoFileExists(t, op.Options[0][len("passwd_file="):])
+	assert.NoFileExists(t, req.Options[0][len("passwd_file="):])
 }
 
 func TestOssfs2SecretInterceptor(t *testing.T) {
 	tests := []struct {
 		name        string
 		handler     mounter.MountHandler
-		op          *mounter.MountOperation
+		req         *mounterutils.MountRequest
 		expectErr   bool
 		expectFile  bool
 		expectDir   bool
@@ -255,13 +255,13 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 		{
 			name:    "nil secrets",
 			handler: successMountHandler,
-			op:      &mounter.MountOperation{},
+			req:     &mounterutils.MountRequest{},
 		},
 		{
 			name:      "mount error with fixed credentials",
 			handler:   failureMountHandler,
 			expectErr: true,
-			op: &mounter.MountOperation{
+			req: &mounterutils.MountRequest{
 				Target: "/mnt/target_ossfs2_1",
 				Secrets: map[string]string{
 					"passwd-ossfs2": "akid:aksecret:bucket",
@@ -271,7 +271,7 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 		{
 			name:    "fixed credentials",
 			handler: successMountHandler,
-			op: &mounter.MountOperation{
+			req: &mounterutils.MountRequest{
 				Target: "/mnt/target_ossfs2_2",
 				Secrets: map[string]string{
 					"passwd-ossfs2": "akid:aksecret:bucket",
@@ -282,7 +282,7 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 		{
 			name:    "token credentials",
 			handler: successMountHandler,
-			op: &mounter.MountOperation{
+			req: &mounterutils.MountRequest{
 				Target: "/mnt/target_ossfs2_3",
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "testAKID",
@@ -297,7 +297,7 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 		{
 			name:    "token credentials without expiration",
 			handler: successMountHandler,
-			op: &mounter.MountOperation{
+			req: &mounterutils.MountRequest{
 				Target: "/mnt/target_ossfs2_4",
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "testAKID",
@@ -314,37 +314,37 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup cleanup
 			var hashDir string
-			if tt.op != nil && tt.op.Target != "" {
-				hash := mounterutils.ComputeMountPathHash(tt.op.Target)
+			if tt.req != nil && tt.req.Target != "" {
+				hash := mounterutils.ComputeMountPathHash(tt.req.Target)
 				hashDir = filepath.Join("/tmp", hash)
 				removeAllIgnoreNotExist(hashDir)       // Cleanup before test
 				defer removeAllIgnoreNotExist(hashDir) // Cleanup after test
 			}
 
-			err := Ossfs2SecretInterceptor(context.Background(), tt.op, tt.handler)
+			err := Ossfs2SecretInterceptor(context.Background(), tt.req, tt.handler)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return
 			}
 
 			assert.NoError(t, err)
-			if tt.op == nil {
+			if tt.req == nil {
 				return
 			}
 
 			if tt.expectFile {
-				assert.GreaterOrEqual(t, len(tt.op.Args), 2)
-				assert.Equal(t, "-c", tt.op.Args[0])
-				assert.FileExists(t, tt.op.Args[1])
+				assert.GreaterOrEqual(t, len(tt.req.Args), 2)
+				assert.Equal(t, "-c", tt.req.Args[0])
+				assert.FileExists(t, tt.req.Args[1])
 			}
 
 			if tt.expectToken {
 				// ossfs2 token should have 3 file path arguments
-				assert.GreaterOrEqual(t, len(tt.op.Options), 3)
+				assert.GreaterOrEqual(t, len(tt.req.Options), 3)
 				foundAK := false
 				foundSK := false
 				foundToken := false
-				for _, arg := range tt.op.Options {
+				for _, arg := range tt.req.Options {
 					if len(arg) > len("oss_sts_multi_conf_ak_file=") && arg[:len("oss_sts_multi_conf_ak_file=")] == "oss_sts_multi_conf_ak_file=" {
 						filePath := arg[len("oss_sts_multi_conf_ak_file="):]
 						assert.FileExists(t, filePath)
@@ -947,7 +947,7 @@ func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 				fakeMounter = mountutils.NewFakeMounter([]mountutils.MountPoint{})
 			}
 
-			op := &mounter.MountOperation{
+			req := &mounterutils.MountRequest{
 				Target: target,
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "newAKID",
@@ -958,16 +958,16 @@ func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 			}
 
 			handlerCalled := false
-			handler := func(ctx context.Context, op *mounter.MountOperation) error {
+			handler := func(ctx context.Context, req *mounterutils.MountRequest) error {
 				handlerCalled = true
 				return nil
 			}
 
 			// Use the internal function with fake mounter
 			if tt.fuseType == "ossfs" {
-				err = ossfsSecretInterceptorWithMounter(context.Background(), op, handler, mounterutils.OssFsType, fakeMounter)
+				err = ossfsSecretInterceptorWithMounter(context.Background(), req, handler, mounterutils.OssFsType, fakeMounter)
 			} else {
-				err = ossfsSecretInterceptorWithMounter(context.Background(), op, handler, mounterutils.OssFs2Type, fakeMounter)
+				err = ossfsSecretInterceptorWithMounter(context.Background(), req, handler, mounterutils.OssFs2Type, fakeMounter)
 			}
 
 			if tt.expectSkip {

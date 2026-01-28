@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"time"
 
-	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/mount-utils"
 )
 
@@ -29,12 +29,12 @@ func NewOssCmdMounter(execPath, volumeID string, inner mount.Interface) Mounter 
 	}
 }
 
-func (m *OssCmdMounter) ExtendedMount(ctx context.Context, op *MountOperation) error {
-	if op == nil {
+func (m *OssCmdMounter) ExtendedMount(ctx context.Context, req *utils.MountRequest) error {
+	if req == nil {
 		return nil
 	}
 
-	cmd := exec.CommandContext(ctx, m.execPath, getArgs(op)...)
+	cmd := exec.CommandContext(ctx, m.execPath, getArgs(req)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -44,17 +44,17 @@ func (m *OssCmdMounter) ExtendedMount(ctx context.Context, op *MountOperation) e
 	return nil
 }
 
-func getArgs(op *MountOperation) []string {
-	if op == nil {
+func getArgs(req *utils.MountRequest) []string {
+	if req == nil {
 		return nil
 	}
-	switch op.FsType {
-	case mounterutils.OssFsType:
-		return mount.MakeMountArgs(op.Source, op.Target, "", op.Options)
-	case mounterutils.OssFs2Type:
-		args := []string{"mount", op.Target}
-		args = append(args, op.Args...)
-		for _, o := range op.Options {
+	switch req.Fstype {
+	case utils.OssFsType:
+		return mount.MakeMountArgs(req.Source, req.Target, "", req.Options)
+	case utils.OssFs2Type:
+		args := []string{"mount", req.Target}
+		args = append(args, req.Args...)
+		for _, o := range req.Options {
 			args = append(args, fmt.Sprintf("--%s", o))
 		}
 		return args

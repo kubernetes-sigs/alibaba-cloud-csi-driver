@@ -5,64 +5,65 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-var successHandler = func(context.Context, *MountOperation) error {
+var successHandler = func(context.Context, *utils.MountRequest) error {
 	return nil
 }
-var failureHandler = func(context.Context, *MountOperation) error {
+var failureHandler = func(context.Context, *utils.MountRequest) error {
 	return errors.New("mount failed")
 }
 
 func Test_chainInterceptors(t *testing.T) {
 	count := 0
-	interceptor := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		count++
-		return handler(ctx, op)
+		return handler(ctx, req)
 	}
 	interceptors := []MountInterceptor{interceptor, interceptor}
 
 	handler := chainInterceptors(interceptors, successHandler)
-	err := handler(context.Background(), &MountOperation{})
+	err := handler(context.Background(), &utils.MountRequest{})
 	assert.NoError(t, err)
 	assert.Equal(t, 2, count)
 
 	count = 0
 	handler = chainInterceptors(nil, successHandler)
-	err = handler(context.Background(), &MountOperation{})
+	err = handler(context.Background(), &utils.MountRequest{})
 	assert.NoError(t, err)
 	assert.Equal(t, 0, count)
 
 	count = 0
 	handler = chainInterceptors(interceptors, failureHandler)
-	err = handler(context.Background(), &MountOperation{})
+	err = handler(context.Background(), &utils.MountRequest{})
 	assert.Error(t, err)
 	assert.Equal(t, 2, count)
 }
 
 func TestGetChainHandler(t *testing.T) {
 	count := 0
-	interceptor := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor := func(ctx context.Context, op *utils.MountRequest, handler MountHandler) error {
 		count++
 		return handler(ctx, op)
 	}
 	interceptors := []MountInterceptor{interceptor, interceptor}
 
 	handler := getChainHandler(interceptors, 0, successHandler)
-	err := handler(context.Background(), &MountOperation{})
+	err := handler(context.Background(), &utils.MountRequest{})
 	assert.NoError(t, err)
 	assert.Equal(t, 1, count)
 
 	count = 0
 	handler = getChainHandler(interceptors, 1, successHandler)
-	err = handler(context.Background(), &MountOperation{})
+	err = handler(context.Background(), &utils.MountRequest{})
 	assert.NoError(t, err)
 	assert.Equal(t, 0, count)
 
 	count = 0
 	handler = getChainHandler(interceptors, 0, failureHandler)
-	err = handler(context.Background(), &MountOperation{})
+	err = handler(context.Background(), &utils.MountRequest{})
 	assert.Error(t, err)
 	assert.Equal(t, 1, count)
 }
@@ -70,23 +71,23 @@ func TestGetChainHandler(t *testing.T) {
 func TestChainInterceptors_SkipMount(t *testing.T) {
 	executionOrder := []string{}
 
-	interceptor1 := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor1 := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		executionOrder = append(executionOrder, "interceptor1")
-		return handler(ctx, op)
+		return handler(ctx, req)
 	}
 
-	interceptor2 := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor2 := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		executionOrder = append(executionOrder, "interceptor2")
 		// Skip mount by returning ErrSkipMount
 		return ErrSkipMount
 	}
 
-	interceptor3 := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor3 := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		executionOrder = append(executionOrder, "interceptor3")
-		return handler(ctx, op)
+		return handler(ctx, req)
 	}
 
-	finalHandler := func(ctx context.Context, op *MountOperation) error {
+	finalHandler := func(ctx context.Context, req *utils.MountRequest) error {
 		executionOrder = append(executionOrder, "finalHandler")
 		return nil
 	}
@@ -94,7 +95,7 @@ func TestChainInterceptors_SkipMount(t *testing.T) {
 	interceptors := []MountInterceptor{interceptor1, interceptor2, interceptor3}
 	handler := chainInterceptors(interceptors, finalHandler)
 
-	err := handler(context.Background(), &MountOperation{})
+	err := handler(context.Background(), &utils.MountRequest{})
 
 	// Should return nil (success) when ErrSkipMount is returned
 	assert.NoError(t, err)
@@ -105,18 +106,18 @@ func TestChainInterceptors_SkipMount(t *testing.T) {
 func TestChainInterceptors_SkipMountInMiddle(t *testing.T) {
 	executionOrder := []string{}
 
-	interceptor1 := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor1 := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		executionOrder = append(executionOrder, "interceptor1")
-		return handler(ctx, op)
+		return handler(ctx, req)
 	}
 
-	interceptor2 := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor2 := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		executionOrder = append(executionOrder, "interceptor2")
 		// Skip mount by returning ErrSkipMount without calling handler
 		return ErrSkipMount
 	}
 
-	finalHandler := func(ctx context.Context, op *MountOperation) error {
+	finalHandler := func(ctx context.Context, req *utils.MountRequest) error {
 		executionOrder = append(executionOrder, "finalHandler")
 		return nil
 	}
@@ -124,7 +125,7 @@ func TestChainInterceptors_SkipMountInMiddle(t *testing.T) {
 	interceptors := []MountInterceptor{interceptor1, interceptor2}
 	handler := chainInterceptors(interceptors, finalHandler)
 
-	err := handler(context.Background(), &MountOperation{})
+	err := handler(context.Background(), &utils.MountRequest{})
 
 	// Should return nil (success) when ErrSkipMount is returned
 	assert.NoError(t, err)
@@ -139,18 +140,18 @@ func TestChainInterceptors_SkipMountInMiddle(t *testing.T) {
 func TestChainInterceptors_SkipMountInFirstInterceptor(t *testing.T) {
 	executionOrder := []string{}
 
-	interceptor1 := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor1 := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		executionOrder = append(executionOrder, "interceptor1")
 		// Directly return ErrSkipMount without calling handler
 		return ErrSkipMount
 	}
 
-	interceptor2 := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor2 := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		executionOrder = append(executionOrder, "interceptor2")
-		return handler(ctx, op)
+		return handler(ctx, req)
 	}
 
-	finalHandler := func(ctx context.Context, op *MountOperation) error {
+	finalHandler := func(ctx context.Context, req *utils.MountRequest) error {
 		executionOrder = append(executionOrder, "finalHandler")
 		return nil
 	}
@@ -158,7 +159,7 @@ func TestChainInterceptors_SkipMountInFirstInterceptor(t *testing.T) {
 	interceptors := []MountInterceptor{interceptor1, interceptor2}
 	handler := chainInterceptors(interceptors, finalHandler)
 
-	err := handler(context.Background(), &MountOperation{})
+	err := handler(context.Background(), &utils.MountRequest{})
 
 	// Should return nil (success) when ErrSkipMount is returned
 	assert.NoError(t, err)
@@ -173,17 +174,17 @@ func TestChainInterceptors_SkipMountInFirstInterceptor(t *testing.T) {
 func TestNewForMounter_ExecutionOrder(t *testing.T) {
 	executionOrder := []string{}
 
-	interceptor1 := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor1 := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		executionOrder = append(executionOrder, "interceptor1")
-		return handler(ctx, op)
+		return handler(ctx, req)
 	}
 
-	interceptor2 := func(ctx context.Context, op *MountOperation, handler MountHandler) error {
+	interceptor2 := func(ctx context.Context, req *utils.MountRequest, handler MountHandler) error {
 		executionOrder = append(executionOrder, "interceptor2")
-		return handler(ctx, op)
+		return handler(ctx, req)
 	}
 
-	finalHandler := func(ctx context.Context, op *MountOperation) error {
+	finalHandler := func(ctx context.Context, req *utils.MountRequest) error {
 		executionOrder = append(executionOrder, "m.ExtendedMount")
 		return nil
 	}
@@ -191,7 +192,7 @@ func TestNewForMounter_ExecutionOrder(t *testing.T) {
 	// Test chainInterceptors directly, which is what NewForMounter uses internally
 	interceptors := []MountInterceptor{interceptor1, interceptor2}
 	handler := chainInterceptors(interceptors, finalHandler)
-	err := handler(context.Background(), &MountOperation{})
+	err := handler(context.Background(), &utils.MountRequest{})
 
 	assert.NoError(t, err)
 	// Verify execution order: interceptor1 -> interceptor2 -> m.ExtendedMount
