@@ -226,6 +226,9 @@ spec:
             - mountPath: /host/sys/fs/cgroup
               name: cgroup
               mountPropagation: "HostToContainer"
+            - mountPath: /var/alibaba-cloud-csi
+              name: var-csi
+              mountPropagation: "HostToContainer"
             - mountPath: /etc/csi-plugin/config
               name: csi-plugin-cm
 {{- if $nodePool.csi.local.enabled }}
@@ -372,6 +375,10 @@ spec:
           hostPath:
             path: /sys/fs/cgroup
             type: Directory
+        - name: var-csi
+          hostPath:
+            path: /var/alibaba-cloud-csi
+            type: DirectoryOrCreate
         - name: host-dev
           hostPath:
             path: /dev
