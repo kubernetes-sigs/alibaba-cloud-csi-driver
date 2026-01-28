@@ -69,8 +69,8 @@ deploy:
 
   # By default, the controller server does not delete NAS subpaths when DeleteVolume, that means
   # the files created in the volume will remain in the filesystem after PV deleted.
-  # You can set "withStorageController" to true in ACK clusters with storage-operator addon installed, 
-  # then the controller server will patch a finalizer on NAS subpath-type PV when DeleteVolume 
+  # You can set "withStorageController" to true in ACK clusters with storage-operator addon installed,
+  # then the controller server will patch a finalizer on NAS subpath-type PV when DeleteVolume
   # and the storage-controller will handle the cleanup of the subpath in NAS filesystem.
   withStorageController: false
 
@@ -107,13 +107,13 @@ images:
   registryVPC: null
   controller:
     repo: acs/csi-plugin
-    tag: "v1.34.3"
+    tag: "v1.35.1"
   plugin:
     repo: acs/csi-plugin
-    tag: "v1.34.3"
+    tag: "v1.35.1"
   pluginInit:
     repo: acs/csi-plugin
-    tag: "v1.34.3-init"
+    tag: "v1.35.1-init"
   localController:
     repo: acs/local-csi-driver
     tag: "v0.2.1"
@@ -125,7 +125,7 @@ images:
     tag: "v4.9.0-aliyun"
   externalProvisioner:
     repo: acs/csi-provisioner
-    tag: "v5.3.2-aliyun"
+    tag: "v6.1.0-5-apsara"
   externalResizer:
     repo: acs/csi-resizer
     tag: "v1.14.0-aliyun"
