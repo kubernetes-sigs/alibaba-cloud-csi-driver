@@ -1402,80 +1402,80 @@ func TestDetermineRuntimeType(t *testing.T) {
 		name            string
 		directAssigned  bool
 		socketPath      string
-		skipAttach      bool
+		skipGlobalMount bool
 		wantRuntimeType RuntimeType
 		wantError       bool
 		errorContains   string
 	}{
 		{
-			name:            "COCO: directAssigned=true, socketPath=empty, skipAttach=false",
+			name:            "COCO: directAssigned=true, socketPath=empty, skipGlobalMount=false",
 			directAssigned:  true,
 			socketPath:      "",
-			skipAttach:      false,
+			skipGlobalMount: false,
 			wantRuntimeType: RuntimeTypeCOCO,
 			wantError:       false,
 		},
 		{
-			name:            "RunD: directAssigned=true, socketPath=non-empty, skipAttach=true",
+			name:            "RunD: directAssigned=true, socketPath=non-empty, skipGlobalMount=true",
 			directAssigned:  true,
 			socketPath:      "/path/to/socket",
-			skipAttach:      true,
+			skipGlobalMount: true,
 			wantRuntimeType: RuntimeTypeRunD,
 			wantError:       false,
 		},
 		{
-			name:            "RunD: directAssigned=false, socketPath=non-empty, skipAttach=true",
+			name:            "RunD: directAssigned=false, socketPath=non-empty, skipGlobalMount=true",
 			directAssigned:  false,
 			socketPath:      "/path/to/socket",
-			skipAttach:      true,
+			skipGlobalMount: true,
 			wantRuntimeType: RuntimeTypeRunD,
 			wantError:       false,
 		},
 		{
-			name:            "RunC: directAssigned=false, socketPath=non-empty, skipAttach=false",
+			name:            "RunC: directAssigned=false, socketPath=non-empty, skipGlobalMount=false",
 			directAssigned:  false,
 			socketPath:      "/path/to/socket",
-			skipAttach:      false,
+			skipGlobalMount: false,
 			wantRuntimeType: RuntimeTypeRunC,
 			wantError:       false,
 		},
 		{
-			name:            "MicroVM: directAssigned=true, socketPath=empty, skipAttach=true",
+			name:            "MicroVM: directAssigned=true, socketPath=empty, skipGlobalMount=true",
 			directAssigned:  true,
 			socketPath:      "",
-			skipAttach:      true,
+			skipGlobalMount: true,
 			wantRuntimeType: RuntimeTypeMicroVM,
 			wantError:       false,
 		},
 		{
-			name:            "MicroVM: directAssigned=false, socketPath=empty, skipAttach=true",
+			name:            "MicroVM: directAssigned=false, socketPath=empty, skipGlobalMount=true",
 			directAssigned:  false,
 			socketPath:      "",
-			skipAttach:      true,
+			skipGlobalMount: true,
 			wantRuntimeType: RuntimeTypeMicroVM,
 			wantError:       false,
 		},
 		{
-			name:           "Invalid: directAssigned=true, socketPath=non-empty, skipAttach=false",
-			directAssigned: true,
-			socketPath:     "/path/to/socket",
-			skipAttach:     false,
-			wantError:      true,
-			errorContains:  "should not occur",
+			name:            "Invalid: directAssigned=true, socketPath=non-empty, skipGlobalMount=false",
+			directAssigned:  true,
+			socketPath:      "/path/to/socket",
+			skipGlobalMount: false,
+			wantError:       true,
+			errorContains:   "should not occur",
 		},
 		{
-			name:           "Invalid: directAssigned=false, socketPath=empty, skipAttach=false",
-			directAssigned: false,
-			socketPath:     "",
-			skipAttach:     false,
-			wantError:      true,
-			errorContains:  "should not occur",
+			name:            "Invalid: directAssigned=false, socketPath=empty, skipGlobalMount=false",
+			directAssigned:  false,
+			socketPath:      "",
+			skipGlobalMount: false,
+			wantError:       true,
+			errorContains:   "should not occur",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotRuntimeType, err := DetermineRuntimeType(tt.directAssigned, tt.socketPath, tt.skipAttach)
+			gotRuntimeType, err := DetermineRuntimeType(tt.directAssigned, tt.socketPath, tt.skipGlobalMount)
 			if tt.wantError {
 				assert.Error(t, err)
 				if tt.errorContains != "" {
