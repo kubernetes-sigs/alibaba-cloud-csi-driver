@@ -234,15 +234,15 @@ func getNfsStat() (map[string]string, map[string][]string, error) {
 	pvNameStatMapping := make(map[string][]string, 0)
 	mountStatsFile, err := os.Open(nfsStatsFileName)
 	if mountStatsFile == nil {
-		return nil, nil, fmt.Errorf("File %s is not found.", nfsStatsFileName)
+		return nil, nil, fmt.Errorf("file %s not found", nfsStatsFileName)
 	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("Open file %s is error, err:%s", nfsStatsFileName, err)
+		return nil, nil, fmt.Errorf("failed to open file %s: %s", nfsStatsFileName, err)
 	}
 	defer mountStatsFile.Close()
 	mountArr, err := parseMountStats(mountStatsFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ParseMountStats %s is error, err:%s.", nfsStatsFileName, err)
+		return nil, nil, fmt.Errorf("failed to parse mount stats %s: %s", nfsStatsFileName, err)
 	}
 	for _, mount := range mountArr {
 		pvName := getPVName(mount)

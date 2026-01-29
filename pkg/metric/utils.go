@@ -241,6 +241,6 @@ func getMetricValue(metric *promdto.Metric, valueType prometheus.ValueType) (flo
 		}
 		return *metric.Untyped.Value, nil
 	default:
-		return 0, fmt.Errorf("unsupported value type: %s", valueType)
+		return 0, fmt.Errorf("unsupported value type: %s", valueType.ToDTO().String())
 	}
 }
