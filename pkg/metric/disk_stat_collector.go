@@ -36,14 +36,6 @@ func diskMetricDesc(name, help string) *MetaDesc {
 	return NewMetaDesc(nodeNamespace, volumeSubsystem, name, help, diskStatLabelNames, diskStatConstLabels)
 }
 
-func convertStringSliceToLabelPairs(labels []string) []*promdto.LabelPair {
-	result := make([]*promdto.LabelPair, len(labels))
-	for i, label := range labels {
-		result[i] = &promdto.LabelPair{Name: &diskStatLabelNames[i], Value: &label}
-	}
-	return result
-}
-
 func convertLabelsToString(labelPairs []*promdto.LabelPair) []string {
 	result := make([]string, len(labelPairs))
 	for i, pair := range labelPairs {
