@@ -1,4 +1,4 @@
-base-files 12.4+deb12u12
+base-files 12.4+deb12u13
 coreutils 9.1-1
 e2fsprogs 1.47.0-2+b2
 fdisk 2.38.1-5+deb12u3
@@ -22,7 +22,7 @@ libpcre2-8-0 10.42-1
 libreadline8 8.2-1.3
 libselinux1 3.4-1+b6
 libsmartcols1 2.38.1-5+deb12u3
-libssl3 3.0.17-1~deb12u3
+libssl3 3.0.18-1~deb12u2
 libtinfo6 6.4-4
 libtirpc-common 1.3.3+ds-1
 libtirpc3 1.3.3+ds-1
