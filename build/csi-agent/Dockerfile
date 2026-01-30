@@ -18,7 +18,7 @@ ARG TARGETPLATFORM
 # The versions specified here are for RPM packages, which may not necessarily align with the image version
 ARG OSSFS_VERSION=v1.91.9.ack.1
 ARG OSSFS2_VERSION=v2.0.5.ack.1
-ARG ALINAS_UTILS_VERSION=1.9-0.20260114172749.66a6bf.al7
+ARG ALINAS_UTILS_VERSION=1.9-0.20260130140828.ea13c0.al7
 ARG EFC_VERSION=1.9-20250822095129.f34347.release
 # v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch.
 # It's temporarily unavailable for all ACK clusters,
