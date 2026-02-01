@@ -16,7 +16,10 @@ type iGetFilesetResponseBody interface {
 }
 
 type GetFilesetResponseBody struct {
+	// The response parameters.
 	Data *GetFilesetResponseBodyData `json:"Data,omitempty" xml:"Data,omitempty" type:"Struct"`
+	// The request ID.
+	//
 	// example:
 	//
 	// BC7C825C-5F65-4B56-BEF6-98C56C7C****
@@ -59,43 +62,94 @@ func (s *GetFilesetResponseBody) Validate() error {
 }
 
 type GetFilesetResponseBodyData struct {
+	// The time when the fileset was created.
+	//
+	// Return format: `yyyy-MM-dd HH:mm:ss`
+	//
 	// example:
 	//
 	// 2025-11-21 12:49:25
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	// Specifies whether the fileset is protected from being released through the console or the [DeleteFileset](https://help.aliyun.com/document_detail/2402263.html) operation.
+	//
+	// 	- true: Enables release protection. The fileset cannot be released.
+	//
+	// 	- false (default): Disables release protection. The fileset can be released.
+	//
+	// >  This parameter can protect filesets only against manual releases, but not against automatic releases.
+	//
 	// example:
 	//
 	// false
 	DeletionProtection *bool `json:"DeletionProtection,omitempty" xml:"DeletionProtection,omitempty"`
+	// The description of the fileset.
+	//
 	// example:
 	//
 	// Description
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// The usage of the file quantity.
+	//
+	// >  Only CPFS for LINGJUN V2.7.0 and later support this parameter.
+	//
 	// example:
 	//
 	// 1024
 	FileCountUsage *int64 `json:"FileCountUsage,omitempty" xml:"FileCountUsage,omitempty"`
+	// The ID of the file system.
+	//
+	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-125487\\*\\*\\*\\*.
+	//
+	// 	- The IDs of CPFS for Lingjun file systems must start with `bmcpfs-`. Example: bmcpfs-0015\\*\\*\\*\\*.
+	//
 	// example:
 	//
 	// cpfs-0244729a8ef8****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The directory of the fileset in the CPFS file system.
+	//
 	// example:
 	//
 	// pathtoroot/fset/
 	FileSystemPath *string `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
+	// The fileset ID.
+	//
+	// >  This parameter is required for CPFS file systems.
+	//
 	// example:
 	//
 	// fset-03250e8fe78d****
-	FsetId *string                          `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
-	Quota  *GetFilesetResponseBodyDataQuota `json:"Quota,omitempty" xml:"Quota,omitempty" type:"Struct"`
+	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The quota information.
+	//
+	// >  Only CPFS for Lingjun V2.7.0 and later support this parameter.
+	Quota *GetFilesetResponseBodyDataQuota `json:"Quota,omitempty" xml:"Quota,omitempty" type:"Struct"`
+	// The capacity usage. Unit: bytes.
+	//
+	// >  Only CPFS for Lingjun V2.7.0 and later support this parameter.
+	//
 	// example:
 	//
 	// 1024
 	SpaceUsage *int64 `json:"SpaceUsage,omitempty" xml:"SpaceUsage,omitempty"`
+	// The fileset status. Valid values:
+	//
+	// 	- CREATING: The fileset is being created.
+	//
+	// 	- CREATED: The fileset has been created and is running properly.
+	//
+	// 	- RELEASING: The fileset is being released.
+	//
+	// 	- RELEASED: The fileset has been deleted.
+	//
 	// example:
 	//
 	// CREATED
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The time when the fileset was last updated.
+	//
+	// Return format: `yyyy-MM-dd HH:mm:ss`
+	//
 	// example:
 	//
 	// 2025-11-22 12:49:25
@@ -219,10 +273,24 @@ func (s *GetFilesetResponseBodyData) Validate() error {
 }
 
 type GetFilesetResponseBodyDataQuota struct {
+	// The file quantity quota. Valid values:
+	//
+	// 	- Minimum value: 10,000.
+	//
+	// 	- Maximum value: 10,000,000,000.
+	//
 	// example:
 	//
 	// 10001
 	FileCountLimit *int64 `json:"FileCountLimit,omitempty" xml:"FileCountLimit,omitempty"`
+	// The total quota capacity limit. Unit: bytes.
+	//
+	// Valid values:
+	//
+	// 	- Minimum value: 10,737,418,240 (10 GiB).
+	//
+	// 	- Step size: 1,073,741,824 (1 GiB).
+	//
 	// example:
 	//
 	// 10,737,418,240

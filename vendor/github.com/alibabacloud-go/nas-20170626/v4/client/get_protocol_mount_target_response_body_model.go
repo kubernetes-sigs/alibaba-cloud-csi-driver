@@ -18,11 +18,16 @@ type iGetProtocolMountTargetResponseBody interface {
 }
 
 type GetProtocolMountTargetResponseBody struct {
+	// A pagination token. It can be used in the next request to retrieve a new page of results.
+	//
 	// example:
 	//
 	// M18xMA==
-	NextToken           *string                                                `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// Information of the export directory for the protocol service
 	ProtocolMountTarget *GetProtocolMountTargetResponseBodyProtocolMountTarget `json:"ProtocolMountTarget,omitempty" xml:"ProtocolMountTarget,omitempty" type:"Struct"`
+	// The request ID.
+	//
 	// example:
 	//
 	// 6299428C-3861-435D-AE54-9B330A00****
@@ -74,46 +79,98 @@ func (s *GetProtocolMountTargetResponseBody) Validate() error {
 }
 
 type GetProtocolMountTargetResponseBodyProtocolMountTarget struct {
+	// The name of the permission group.
+	//
+	// Default permission group: DEFAULT\\\_VPC\\\_GROUP\\\_NAME
+	//
 	// example:
 	//
 	// DEFAULT_VPC_GROUP_NAME
 	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
+	// The time when the export directory was created. Return format: yyyy-MM-dd HH:mm:ss
+	//
 	// example:
 	//
 	// 2025-12-22 17:49:25
-	CreateTime  *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	// The description of the export directory.
+	//
+	// example:
+	//
+	// The description of the export directory.
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// The ID of the export directory.
+	//
 	// example:
 	//
 	// exp-19abf5beab8d****
 	ExportId *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
-	// Fileset ID。
+	// The fileset ID.
 	//
 	// example:
 	//
 	// fset-299b4ca04de8****
 	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The path of the CPFS directory that was queried.
+	//
+	// Format:
+	//
+	// 	- Must be 1 to 1,024 characters in length.
+	//
+	// 	- Must be encoded in UTF-8.
+	//
+	// 	- Must start and end with a forward slash (/). The root directory is `/`.
+	//
 	// example:
 	//
 	// /
 	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
+	// The domain name of the export directory for the protocol service.
+	//
 	// example:
 	//
 	// cpfs-0229cb80bcc0****-x******.cn-*****.cpfs.aliyuncs.com
 	ProtocolMountTargetDomain *string `json:"ProtocolMountTargetDomain,omitempty" xml:"ProtocolMountTargetDomain,omitempty"`
+	// The protocol type of the file system.
+	//
+	// Valid values:
+	//
+	// 	- NFS: Network File System (NFS)
+	//
+	// 	- SMB: Server Message Block (SMB)
+	//
+	// 	- cpfs: The protocol type supported by the CPFS file system.
+	//
 	// example:
 	//
 	// NFS
 	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
+	// The status of the export directory. Valid values:
+	//
+	// 	- CREATING: The export directory is being created.
+	//
+	// 	- AVAILABLE : The export directory is available.
+	//
+	// 	- MODIFYING: The export directory is being modified.
+	//
+	// 	- DELETING: The export directory is being deleted.
+	//
+	// 	- STOPPING: The export directory is being stopped.
+	//
 	// example:
 	//
 	// AVAILABLE
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The vSwitch ID of the export directory.
+	//
 	// example:
 	//
 	// vsw-8vb2qjnxs6hiobzve****
-	VSwitchId  *string   `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The vSwitch ID list of the export directory.
 	VSwitchIds []*string `json:"VSwitchIds,omitempty" xml:"VSwitchIds,omitempty" type:"Repeated"`
+	// The VPC ID of the export directory.
+	//
 	// example:
 	//
 	// vpc-bp1h5mxoqfuo3xurf****

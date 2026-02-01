@@ -175,11 +175,11 @@ type DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup struct {
 	//
 	// Valid values:
 	//
-	// 	- standard: General-purpose Apsara File Storage NAS (NAS) file system
+	// 	- standard: General-purpose NAS
 	//
-	// 	- extreme: Extreme NAS file system.
+	// 	- extreme: Extreme NAS
 	//
-	// 	- cpfs: CPFS file system.
+	// 	- cpfs: CPFS
 	//
 	// example:
 	//
@@ -191,7 +191,7 @@ type DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup struct {
 	//
 	// 0
 	MountTargetCount *int32 `json:"MountTargetCount,omitempty" xml:"MountTargetCount,omitempty"`
-	// The region ID.
+	// Region ID.
 	//
 	// example:
 	//

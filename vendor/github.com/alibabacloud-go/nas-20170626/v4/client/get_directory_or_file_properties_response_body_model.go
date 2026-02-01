@@ -131,7 +131,9 @@ type GetDirectoryOrFilePropertiesResponseBodyEntry struct {
 	// example:
 	//
 	// file.txt
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
+	Name                     *string `json:"Name,omitempty" xml:"Name,omitempty"`
+	OfflineDuration          *int64  `json:"OfflineDuration,omitempty" xml:"OfflineDuration,omitempty"`
+	OfflineUnchangedDuration *int64  `json:"OfflineUnchangedDuration,omitempty" xml:"OfflineUnchangedDuration,omitempty"`
 	// The time when the last data retrieval task was run.
 	//
 	// The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format.
@@ -216,6 +218,14 @@ func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) GetName() *string {
 	return s.Name
 }
 
+func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) GetOfflineDuration() *int64 {
+	return s.OfflineDuration
+}
+
+func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) GetOfflineUnchangedDuration() *int64 {
+	return s.OfflineUnchangedDuration
+}
+
 func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) GetRetrieveTime() *string {
 	return s.RetrieveTime
 }
@@ -264,6 +274,16 @@ func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) SetMTime(v string) *GetD
 
 func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) SetName(v string) *GetDirectoryOrFilePropertiesResponseBodyEntry {
 	s.Name = &v
+	return s
+}
+
+func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) SetOfflineDuration(v int64) *GetDirectoryOrFilePropertiesResponseBodyEntry {
+	s.OfflineDuration = &v
+	return s
+}
+
+func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) SetOfflineUnchangedDuration(v int64) *GetDirectoryOrFilePropertiesResponseBodyEntry {
+	s.OfflineUnchangedDuration = &v
 	return s
 }
 

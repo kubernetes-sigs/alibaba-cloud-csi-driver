@@ -130,7 +130,9 @@ type CreateProtocolMountTargetRequest struct {
 	//
 	// ptc-123****
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
-	// The vSwitch ID of the export directory for the protocol service.
+	// The vSwitch ID of the export directory.
+	//
+	// If the storage redundancy type of the file system is not zone-redundant (ZRS) and the VpcId is set, this field is required.
 	//
 	// if can be null:
 	// true
@@ -139,10 +141,12 @@ type CreateProtocolMountTargetRequest struct {
 	//
 	// vsw-123****
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The list of vSwitch IDs of the export directory.
+	//
 	// if can be null:
 	// true
 	VSwitchIds []*string `json:"VSwitchIds,omitempty" xml:"VSwitchIds,omitempty" type:"Repeated"`
-	// The VPC ID of the export directory for the protocol service.
+	// The VPC ID of the export directory.
 	//
 	// if can be null:
 	// true
