@@ -24,8 +24,9 @@ const (
 	//nasDriverName represents the csi storage type name of Nas
 	nasDriverName string = "nasplugin.csi.alibabacloud.com"
 	//diskDriverName represents the csi storage type name of Disk
-	diskDriverName  string = "diskplugin.csi.alibabacloud.com"
-	localDriverName string = "localplugin.csi.alibabacloud.com"
+	diskDriverName   string = "diskplugin.csi.alibabacloud.com"
+	localDriverName  string = "localplugin.csi.alibabacloud.com"
+	bmcpfsDriverName        = "bmcpfsplugin.csi.alibabacloud.com"
 )
 
 const (

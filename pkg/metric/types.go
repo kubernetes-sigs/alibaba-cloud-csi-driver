@@ -91,6 +91,31 @@ func NewMetric(desc *MetaDesc, value float64, valueType prometheus.ValueType, la
 	}, nil
 }
 
+func NewMetricWithLabelPairs(name, help string, value float64, valueType prometheus.ValueType, labelPairs []*promdto.LabelPair) *Metric {
+	var labelNames []string
+	for _, lp := range labelPairs {
+		labelNames = append(labelNames, lp.GetName())
+	}
+
+	desc := prometheus.NewDesc(
+		name,
+		help,
+		labelNames,
+		nil,
+	)
+
+	return &Metric{
+		MetaDesc: &MetaDesc{
+			Desc:   desc,
+			FQName: name,
+			Help:   help,
+		},
+		VariableLabelPairs: labelPairs,
+		Value:              value,
+		ValueType:          valueType,
+	}
+}
+
 func makeLabelPairs(labels []string, labelValues ...string) (pairs []*promdto.LabelPair, err error) {
 	if len(labels) != len(labelValues) {
 		return nil, fmt.Errorf("labels and labelValues must have the same length")
