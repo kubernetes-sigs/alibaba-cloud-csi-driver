@@ -785,20 +785,6 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 	return nil
 }
 
-// isPathAvailable
-func isPathAvailable(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("Open Path (%s) with error: %v ", path, err)
-	}
-	defer f.Close()
-	_, err = f.Readdirnames(1)
-	if err != nil && err != io.EOF {
-		return fmt.Errorf("Read Path (%s) with error: %v ", path, err)
-	}
-	return nil
-}
-
 func getBlockDeviceCapacity(devicePath string) int64 {
 
 	file, err := os.Open(devicePath)

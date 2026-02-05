@@ -24,7 +24,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
 
@@ -252,30 +251,4 @@ func IsDirEmpty(name string) (bool, error) {
 		return true, nil
 	}
 	return false, err
-}
-
-// CleanupSimpleMount umount and remove the path.
-// It does not invoke mount helper and use syscall directly.
-func CleanupSimpleMount(path string) error {
-	err := unix.Unmount(path, 0)
-	if err != nil {
-		switch {
-		case errors.Is(err, unix.ENOENT):
-			return nil
-		case errors.Is(err, unix.EINVAL):
-			// Maybe not mounted, proceed to remove it. If not, remove will report error.
-		default:
-			return err
-		}
-	}
-
-	errRm := os.Remove(path)
-	if errRm == nil {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("failed to remove %s: %w", path, errRm)
-	} else {
-		return fmt.Errorf("failed to unmount %s: %w; then failed to remove: %w", path, err, errRm)
-	}
 }
