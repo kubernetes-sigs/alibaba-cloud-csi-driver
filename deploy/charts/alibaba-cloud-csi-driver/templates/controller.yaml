@@ -354,6 +354,7 @@ spec:
             - --leader-election=true
             - --kube-api-qps=100
             - --kube-api-burst=200
+            - --worker-threads=32
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
