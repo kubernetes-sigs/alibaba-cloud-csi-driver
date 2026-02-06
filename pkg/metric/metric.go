@@ -44,7 +44,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // NewMetricHandler method returns a promHttp object
 func NewMetricHandler(driverNames []string, serviceType utils.ServiceType) *Handler {
 	//csi collector singleton
-	newCSICollector(driverNames, serviceType)
+	initCSICollector(driverNames, serviceType)
 	return newHandler()
 }
 

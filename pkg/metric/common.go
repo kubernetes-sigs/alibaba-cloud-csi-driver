@@ -26,8 +26,6 @@ const (
 	//diskDriverName represents the csi storage type name of Disk
 	diskDriverName  string = "diskplugin.csi.alibabacloud.com"
 	localDriverName string = "localplugin.csi.alibabacloud.com"
-	// unknown metric value
-	UnknownValue string = "unknown"
 )
 
 const (
@@ -40,7 +38,6 @@ const (
 	diskSectorSize                          = 512
 	diskDefaultsLatencyThreshold            = 10
 	diskDefaultsCapacityPercentageThreshold = 85
-	nfsDefaultsCapacityPercentageThreshold  = 85
 	nfsStatsFileName                        = "/proc/self/mountstats"
 	latencyTooHigh                          = "LatencyTooHigh"
 	capacityNotEnough                       = "NotEnoughDiskSpace"
@@ -68,14 +65,7 @@ var (
 )
 
 type typedFactorDesc struct {
-	desc      *prometheus.Desc
+	*MetaDesc
 	valueType prometheus.ValueType
 	factor    float64
-}
-
-func (d *typedFactorDesc) mustNewConstMetric(value float64, labels ...string) prometheus.Metric {
-	if d.factor != 0 {
-		value *= d.factor
-	}
-	return prometheus.MustNewConstMetric(d.desc, d.valueType, value, labels...)
 }
