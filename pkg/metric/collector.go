@@ -38,6 +38,7 @@ func registerCollector(collector string, factory collectorFactoryFunc, relatedDr
 type Collector interface {
 	// Get new metrics and expose them via prometheus registry.
 	Update(ch chan<- prometheus.Metric) error
+	Get() []*Metric
 }
 
 // CSICollector implements the prometheus.Collector interface.
@@ -45,8 +46,7 @@ type CSICollector struct {
 	Collectors map[string]Collector
 }
 
-// newCSICollector method returns the CSICollector object
-func newCSICollector(driverNames []string, serviceType utils.ServiceType) {
+func initCSICollector(driverNames []string, serviceType utils.ServiceType) {
 	if csiCollectorInstance != nil {
 		return
 	}
@@ -67,7 +67,7 @@ func newCSICollector(driverNames []string, serviceType utils.ServiceType) {
 			if enabled {
 				collector, err := reg.Factory()
 				if err != nil {
-					klog.ErrorS(err, "Failed to create collector")
+					klog.ErrorS(err, "Failed to create collector", "name", reg.Name)
 				} else {
 					collectors[reg.Name] = collector
 				}
@@ -96,6 +96,17 @@ func (csi CSICollector) Collect(ch chan<- prometheus.Metric) {
 		}(name, c)
 	}
 	wg.Wait()
+}
+
+func GetMetrics(driverNames []string, serviceType utils.ServiceType) []*Metric {
+	if csiCollectorInstance == nil {
+		initCSICollector(driverNames, serviceType)
+	}
+	var metrics []*Metric
+	for _, c := range csiCollectorInstance.Collectors {
+		metrics = append(metrics, c.Get()...)
+	}
+	return metrics
 }
 
 func execute(name string, c Collector, ch chan<- prometheus.Metric) {

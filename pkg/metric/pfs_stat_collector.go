@@ -21,6 +21,10 @@ func NewPfsRawBlockStatCollector() (Collector, error) {
 	return &pfsRawBlockStatCollector{}, nil
 }
 
+func (p *pfsRawBlockStatCollector) Get() []*Metric {
+	return nil
+}
+
 func (p *pfsRawBlockStatCollector) Update(ch chan<- prometheus.Metric) error {
 	return nil
 }

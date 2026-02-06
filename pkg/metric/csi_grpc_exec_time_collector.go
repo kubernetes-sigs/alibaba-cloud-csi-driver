@@ -21,18 +21,28 @@ type csiGrpcExecTimeCollector struct {
 	ExecTimeTotalMetric *prometheus.CounterVec
 }
 
+var (
+	execCountName   = "execution_count"
+	execCountFQName = prometheus.BuildFQName(csiNamespace, grpcSubsystem, execCountName)
+	execCountHelp   = "CSI grpc execution count."
+
+	execTimeName   = "execution_time_total"
+	execTimeFQName = prometheus.BuildFQName(csiNamespace, grpcSubsystem, execTimeName)
+	execTimeHelp   = "CSI grpc execution time in total."
+)
+
 var CsiGrpcExecTimeCollector = csiGrpcExecTimeCollector{
 	ExecCountMetric: prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: csiNamespace,
 		Subsystem: grpcSubsystem,
-		Name:      "execution_count",
-		Help:      "CSI grpc execution count.",
+		Name:      execCountName,
+		Help:      execCountHelp,
 	}, csiGrpcExecTimeLabels),
 	ExecTimeTotalMetric: prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: csiNamespace,
 		Subsystem: grpcSubsystem,
-		Name:      "execution_time_total",
-		Help:      "CSI grpc execution time in total.",
+		Name:      execTimeName,
+		Help:      execTimeHelp,
 	}, csiGrpcExecTimeLabels),
 }
 
@@ -44,9 +54,17 @@ func GetCsiGrpcExecTimeCollector() (Collector, error) {
 	return &CsiGrpcExecTimeCollector, nil
 }
 
+func (c *csiGrpcExecTimeCollector) Get() []*Metric {
+	countMetrics := extractMetricsFromMetricVec(execCountFQName, execCountHelp, c.ExecCountMetric, prometheus.CounterValue)
+	timeMetrics := extractMetricsFromMetricVec(execTimeFQName, execTimeHelp, c.ExecTimeTotalMetric, prometheus.CounterValue)
+	return append(countMetrics, timeMetrics...)
+}
+
 func (c *csiGrpcExecTimeCollector) Update(ch chan<- prometheus.Metric) error {
-	c.ExecCountMetric.Collect(ch)
-	c.ExecTimeTotalMetric.Collect(ch)
+	metrics := c.Get()
+	for _, metric := range metrics {
+		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.VariableLabelPairs)...)
+	}
 	return nil
 }
 
