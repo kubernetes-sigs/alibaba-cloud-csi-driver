@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"context"
 	"fmt"
 
 	sts20150401 "github.com/alibabacloud-go/sts-20150401/v2/client"
@@ -13,12 +14,13 @@ type StsMetadata struct {
 	identity *sts20150401.GetCallerIdentityResponseBody
 }
 
-func NewStsMetadata(s cloud.STSInterface) (*StsMetadata, error) {
+func NewStsMetadata(ctx context.Context, s cloud.STSInterface) (*StsMetadata, error) {
 	resp, err := s.GetCallerIdentity()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get caller identity: %w", err)
 	}
-	klog.V(2).InfoS("GetCallerIdentity OK", "requestID", tea.StringValue(resp.Body.RequestId))
+	logger := klog.FromContext(ctx)
+	logger.V(2).Info("GetCallerIdentity OK", "requestID", tea.StringValue(resp.Body.RequestId))
 	return &StsMetadata{identity: resp.Body}, nil
 }
 
@@ -36,16 +38,18 @@ type StsFetcher struct {
 	stsClient cloud.STSInterface
 }
 
-func (f *StsFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
+func (f *StsFetcher) ID() fetcherID { return stsFetcherID }
+
+func (f *StsFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
 	case AccountID:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
 
-	p, err := NewStsMetadata(f.stsClient)
+	p, err := NewStsMetadata(ctx, f.stsClient)
 	if err != nil {
 		return nil, err
 	}
-	return newImmutableProvider(p, "Sts"), nil
+	return newImmutable(strProvider{p}, "Sts"), nil
 }

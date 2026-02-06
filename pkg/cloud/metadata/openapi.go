@@ -31,11 +31,12 @@ func NewOpenAPIMetadata(c cloud.ECSv2Interface, instanceId string) (*OpenAPIMeta
 	if instanceResponse.Body == nil || instanceResponse.Body.Instances == nil {
 		return nil, fmt.Errorf("no instances field: %s", instanceId)
 	}
-	instances := instanceResponse.Body.Instances.Instance
-	if len(instances) != 1 || instances[0] == nil {
-		return nil, fmt.Errorf("unexpected instance count %d for %s", len(instances), instanceId)
+	for _, i := range instanceResponse.Body.Instances.Instance {
+		if i != nil && i.InstanceId != nil && *i.InstanceId == instanceId {
+			return &OpenAPIMetadata{instance: i}, nil
+		}
 	}
-	return &OpenAPIMetadata{instance: instances[0]}, nil
+	return nil, fmt.Errorf("instance %s not found in response", instanceId)
 }
 
 func (m *OpenAPIMetadata) get(key MetadataKey) *string {
@@ -60,17 +61,24 @@ func (m *OpenAPIMetadata) Get(key MetadataKey) (string, error) {
 
 type OpenAPIFetcher struct {
 	ecsClient cloud.ECSv2Interface
-	mPre      MetadataProvider
+	mPre      middleware
 }
 
-func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
+func (f *OpenAPIFetcher) ID() fetcherID { return openAPIFetcherID }
+
+func (f *OpenAPIFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
-	case InstanceID, ZoneID, InstanceType, AccountID:
+	case InstanceID, ZoneID, InstanceType:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
 
-	instanceId, err := f.mPre.Get(InstanceID)
+	kind, err := f.mPre.GetAny(ctx, machineKind)
+	if err == nil && kind != MachineKindECS { // skip for non-ECS instances
+		ctx.logger.V(1).Info("skip ECS DescribeInstances metadata fetcher", "machineKind", kind)
+		return empty{}, nil
+	}
+	instanceId, err := f.mPre.GetAny(ctx, InstanceID)
 	if err != nil {
 		if err == ErrUnknownMetadataKey {
 			nodeName := os.Getenv(KUBE_NODE_NAME_ENV)
@@ -84,9 +92,9 @@ func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("instance ID is not available: %w", err)
 	}
-	p, err := NewOpenAPIMetadata(f.ecsClient, instanceId)
+	p, err := NewOpenAPIMetadata(f.ecsClient, instanceId.(string))
 	if err != nil {
 		return nil, err
 	}
-	return newImmutableProvider(p, "OpenAPI"), nil
+	return newImmutable(strProvider{p}, "OpenAPI"), nil
 }

@@ -160,7 +160,8 @@ type ListClusterNodesResponseBodyNodes struct {
 	// example:
 	//
 	// e01-cn-2r42tmj4z02
-	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	NodeId   *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	NodeType *string `json:"NodeType,omitempty" xml:"NodeType,omitempty"`
 	// The node status.
 	//
 	// Valid values:
@@ -293,6 +294,10 @@ func (s *ListClusterNodesResponseBodyNodes) GetNodeId() *string {
 	return s.NodeId
 }
 
+func (s *ListClusterNodesResponseBodyNodes) GetNodeType() *string {
+	return s.NodeType
+}
+
 func (s *ListClusterNodesResponseBodyNodes) GetOperatingState() *string {
 	return s.OperatingState
 }
@@ -388,6 +393,11 @@ func (s *ListClusterNodesResponseBodyNodes) SetNodeGroupName(v string) *ListClus
 
 func (s *ListClusterNodesResponseBodyNodes) SetNodeId(v string) *ListClusterNodesResponseBodyNodes {
 	s.NodeId = &v
+	return s
+}
+
+func (s *ListClusterNodesResponseBodyNodes) SetNodeType(v string) *ListClusterNodesResponseBodyNodes {
+	s.NodeType = &v
 	return s
 }
 

@@ -2,16 +2,24 @@ package metadata
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
+	"sync"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
+// instanceTypeInfo is the annotation value of "alibabacloud.com/instance-type-info"
+type instanceTypeInfo struct {
+	DiskQuantity int32
+}
+
 type KubernetesNodeMetadata struct {
-	node *v1.Node
+	node         *v1.Node
+	instanceType func() (*instanceTypeInfo, error)
 }
 
 var (
@@ -42,12 +50,15 @@ var (
 	}
 )
 
+const instanceTypeInfoAnnotation = "alibabacloud.com/instance-type-info"
+
 var MetadataLabels = map[MetadataKey][]string{
 	RegionID:     RegionIDLabels,
 	ZoneID:       ZoneIDLabels,
 	InstanceType: InstanceTypeLabels,
 	InstanceID:   InstanceIdLabels,
 	VmocType:     VmocLabels,
+	machineKind:  {"alibabacloud.com/lingjun-worker"},
 }
 
 func init() {
@@ -58,19 +69,46 @@ func init() {
 	}
 }
 
-func NewKubernetesNodeMetadata(nodeName string, nodeClient corev1.NodeInterface) (*KubernetesNodeMetadata, error) {
-	node, err := nodeClient.Get(context.Background(), nodeName, metav1.GetOptions{})
+func NewKubernetesNodeMetadata(ctx context.Context, nodeName string, nodeClient corev1.NodeInterface) (*KubernetesNodeMetadata, error) {
+	node, err := nodeClient.Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return &KubernetesNodeMetadata{node: node}, nil
+
+	instanceType := func() (*instanceTypeInfo, error) {
+		return nil, ErrUnknownMetadataKey
+	}
+	if value := node.Annotations[instanceTypeInfoAnnotation]; value != "" {
+		instanceType = sync.OnceValues(func() (*instanceTypeInfo, error) {
+			var info instanceTypeInfo
+			err := json.Unmarshal([]byte(value), &info)
+			return &info, err
+		})
+	}
+
+	return &KubernetesNodeMetadata{node: node, instanceType: instanceType}, nil
 }
 
-func (m *KubernetesNodeMetadata) Get(key MetadataKey) (string, error) {
+func (m *KubernetesNodeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
 	labels := MetadataLabels[key]
 	for _, label := range labels {
 		if value := m.node.Labels[label]; value != "" {
-			return value, nil
+			switch key {
+			case machineKind:
+				if value == "true" {
+					return MachineKindLingjun, nil
+				}
+			default:
+				return value, nil
+			}
+		}
+	}
+
+	if key == diskQuantity {
+		if i, err := m.instanceType(); err == nil {
+			return i.DiskQuantity, nil
+		} else {
+			return nil, err
 		}
 	}
 
@@ -92,14 +130,20 @@ type KubernetesNodeMetadataFetcher struct {
 	nodeName string
 }
 
-func (f *KubernetesNodeMetadataFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
+func (f *KubernetesNodeMetadataFetcher) ID() fetcherID { return kubernetesNodeMetadataFetcherID }
+
+func (f *KubernetesNodeMetadataFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	_, ok := MetadataLabels[key]
 	if !ok {
-		return nil, ErrUnknownMetadataKey
+		switch key {
+		case diskQuantity: // supported
+		default:
+			return nil, ErrUnknownMetadataKey
+		}
 	}
-	p, err := NewKubernetesNodeMetadata(f.nodeName, f.client)
+	p, err := NewKubernetesNodeMetadata(ctx, f.nodeName, f.client)
 	if err != nil {
 		return nil, err
 	}
-	return newImmutableProvider(p, "Kubernetes"), nil
+	return newImmutable(p, "Kubernetes"), nil
 }

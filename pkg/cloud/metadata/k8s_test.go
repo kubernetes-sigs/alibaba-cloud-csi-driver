@@ -101,12 +101,12 @@ func TestGetK8s(t *testing.T) {
 			node.Labels = c.Labels
 
 			client := fake.NewSimpleClientset(node).CoreV1().Nodes()
-			m, err := NewKubernetesNodeMetadata(node.Name, client)
+			m, err := NewKubernetesNodeMetadata(testMContext(t), node.Name, client)
 			assert.NoError(t, err)
 
 			for k, v := range expectedValues {
 				t.Log(k, v)
-				value, err := m.Get(k)
+				value, err := m.GetAny(testMContext(t), k)
 				if c.NotFound[k] {
 					assert.Equal(t, ErrUnknownMetadataKey, err)
 				} else {
@@ -114,6 +114,102 @@ func TestGetK8s(t *testing.T) {
 					assert.Equal(t, v, value)
 				}
 			}
+		})
+	}
+}
+
+func TestGetK8sKind(t *testing.T) {
+	cases := []struct {
+		name   string
+		Labels map[string]string
+		kind   MachineKind
+	}{
+		{
+			name: "ecs",
+			Labels: map[string]string{
+				"node.kubernetes.io/instance-type": "ecs.g7.xlarge",
+			},
+			kind: MachineKindECS,
+		},
+		{
+			name: "lingjun",
+			Labels: map[string]string{
+				"alibabacloud.com/lingjun-worker": "true",
+			},
+			kind: MachineKindLingjun,
+		},
+		{
+			name: "strange-label",
+			Labels: map[string]string{
+				"alibabacloud.com/lingjun-worker": "false",
+			},
+			kind: MachineKindUnknown,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			node := testNode.DeepCopy()
+			node.Labels = c.Labels
+
+			m := testMetadata(t, fakeMiddleware{})
+			m.enableKubernetesNode(fake.NewSimpleClientset(node), node.Name)
+			kind, err := m.MachineKind()
+
+			assert.Equal(t, c.kind, kind)
+			if c.kind == MachineKindUnknown {
+				assert.ErrorIs(t, err, ErrUnknownMetadataKey)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetK8sDiskQuantity(t *testing.T) {
+	cases := []struct {
+		name        string
+		Annotations map[string]string
+		quantity    int32
+		err         assert.ErrorAssertionFunc
+	}{
+		{
+			name: "ok",
+			Annotations: map[string]string{
+				"alibabacloud.com/instance-type-info": `{"DiskQuantity":8}`,
+			},
+			quantity: 8,
+			err:      assert.NoError,
+		},
+		{
+			name: "invalid",
+			Annotations: map[string]string{
+				"alibabacloud.com/instance-type-info": `{`,
+			},
+			err: assert.Error,
+		},
+		{
+			name: "not_found",
+			err: func(tt assert.TestingT, err error, i ...interface{}) bool {
+				return assert.ErrorIs(tt, err, ErrUnknownMetadataKey, i...)
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			node := testNode.DeepCopy()
+			node.Annotations = c.Annotations
+
+			fetcher := KubernetesNodeMetadataFetcher{
+				client:   fake.NewSimpleClientset(node).CoreV1().Nodes(),
+				nodeName: node.Name,
+			}
+			m, err := fetcher.FetchFor(testMContext(t), diskQuantity)
+			assert.NoError(t, err)
+
+			full := testMetadata(t, m)
+			quantity, err := full.DiskQuantity()
+			assert.Equal(t, c.quantity, quantity)
+			c.err(t, err)
 		})
 	}
 }
