@@ -185,6 +185,21 @@ func (mr *MockECSInterfaceMockRecorder) DescribeSnapshots(request interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeSnapshots", reflect.TypeOf((*MockECSInterface)(nil).DescribeSnapshots), request)
 }
 
+// DescribeTasks mocks base method.
+func (m *MockECSInterface) DescribeTasks(request *ecs.DescribeTasksRequest) (*ecs.DescribeTasksResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeTasks", request)
+	ret0, _ := ret[0].(*ecs.DescribeTasksResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeTasks indicates an expected call of DescribeTasks.
+func (mr *MockECSInterfaceMockRecorder) DescribeTasks(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeTasks", reflect.TypeOf((*MockECSInterface)(nil).DescribeTasks), request)
+}
+
 // DetachDisk mocks base method.
 func (m *MockECSInterface) DetachDisk(request *ecs.DetachDiskRequest) (*ecs.DetachDiskResponse, error) {
 	m.ctrl.T.Helper()
@@ -200,6 +215,36 @@ func (mr *MockECSInterfaceMockRecorder) DetachDisk(request interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DetachDisk", reflect.TypeOf((*MockECSInterface)(nil).DetachDisk), request)
 }
 
+// ModifyDiskAttribute mocks base method.
+func (m *MockECSInterface) ModifyDiskAttribute(request *ecs.ModifyDiskAttributeRequest) (*ecs.ModifyDiskAttributeResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ModifyDiskAttribute", request)
+	ret0, _ := ret[0].(*ecs.ModifyDiskAttributeResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ModifyDiskAttribute indicates an expected call of ModifyDiskAttribute.
+func (mr *MockECSInterfaceMockRecorder) ModifyDiskAttribute(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ModifyDiskAttribute", reflect.TypeOf((*MockECSInterface)(nil).ModifyDiskAttribute), request)
+}
+
+// ModifyDiskSpec mocks base method.
+func (m *MockECSInterface) ModifyDiskSpec(request *ecs.ModifyDiskSpecRequest) (*ecs.ModifyDiskSpecResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ModifyDiskSpec", request)
+	ret0, _ := ret[0].(*ecs.ModifyDiskSpecResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ModifyDiskSpec indicates an expected call of ModifyDiskSpec.
+func (mr *MockECSInterfaceMockRecorder) ModifyDiskSpec(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ModifyDiskSpec", reflect.TypeOf((*MockECSInterface)(nil).ModifyDiskSpec), request)
+}
+
 // ResizeDisk mocks base method.
 func (m *MockECSInterface) ResizeDisk(request *ecs.ResizeDiskRequest) (*ecs.ResizeDiskResponse, error) {
 	m.ctrl.T.Helper()
@@ -213,6 +258,36 @@ func (m *MockECSInterface) ResizeDisk(request *ecs.ResizeDiskRequest) (*ecs.Resi
 func (mr *MockECSInterfaceMockRecorder) ResizeDisk(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResizeDisk", reflect.TypeOf((*MockECSInterface)(nil).ResizeDisk), request)
+}
+
+// TagResources mocks base method.
+func (m *MockECSInterface) TagResources(request *ecs.TagResourcesRequest) (*ecs.TagResourcesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TagResources", request)
+	ret0, _ := ret[0].(*ecs.TagResourcesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// TagResources indicates an expected call of TagResources.
+func (mr *MockECSInterfaceMockRecorder) TagResources(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TagResources", reflect.TypeOf((*MockECSInterface)(nil).TagResources), request)
+}
+
+// UntagResources mocks base method.
+func (m *MockECSInterface) UntagResources(request *ecs.UntagResourcesRequest) (*ecs.UntagResourcesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UntagResources", request)
+	ret0, _ := ret[0].(*ecs.UntagResourcesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UntagResources indicates an expected call of UntagResources.
+func (mr *MockECSInterfaceMockRecorder) UntagResources(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UntagResources", reflect.TypeOf((*MockECSInterface)(nil).UntagResources), request)
 }
 
 // MockECSv2Interface is a mock of ECSv2Interface interface.
