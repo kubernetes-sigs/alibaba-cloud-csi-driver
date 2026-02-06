@@ -2461,7 +2461,7 @@ func (client *Client) CreateFile(request *CreateFileRequest) (_result *CreateFil
 //
 // Description:
 //
-//	  Before you call this operation, you must understand the billing and pricing of Apsara File Storage NAS. For more information, see [Billing](https://help.aliyun.com/document_detail/178365.html) and [Pricing](https://www.aliyun.com/price/product?#/nas/detail).
+//	  Before you call this operation, you must understand the billing and pricing of File Storage NAS. For more information, see [Billing](https://help.aliyun.com/document_detail/178365.html) and [Pricing](https://www.aliyun.com/price/product?#/nas/detail).
 //
 //		- Before you create a file system, you must complete real-name verification. For more information, see [Real-name verification](https://help.aliyun.com/document_detail/48263.html).
 //
@@ -2589,7 +2589,7 @@ func (client *Client) CreateFileSystemWithOptions(request *CreateFileSystemReque
 //
 // Description:
 //
-//	  Before you call this operation, you must understand the billing and pricing of Apsara File Storage NAS. For more information, see [Billing](https://help.aliyun.com/document_detail/178365.html) and [Pricing](https://www.aliyun.com/price/product?#/nas/detail).
+//	  Before you call this operation, you must understand the billing and pricing of File Storage NAS. For more information, see [Billing](https://help.aliyun.com/document_detail/178365.html) and [Pricing](https://www.aliyun.com/price/product?#/nas/detail).
 //
 //		- Before you create a file system, you must complete real-name verification. For more information, see [Real-name verification](https://help.aliyun.com/document_detail/48263.html).
 //
@@ -2856,9 +2856,11 @@ func (client *Client) CreateLDAPConfig(request *CreateLDAPConfigRequest) (_resul
 //
 // Description:
 //
-//	  You can create lifecycle policies only for General-purpose NAS file systems.
+//	  Only General-purpose NAS and CPFS for Lingjun file systems support this operation.
 //
-//		- You can create up to 20 lifecycle policies in each region within an Alibaba Cloud account.
+//		- Up to 10 Auto and 100 OnDemand lifecycle policies can be created for each CPFS for Lingjun file system.
+//
+//		- For general-purpose NAS file systems, up to 20 lifecycle policies can be created in each region.
 //
 // @param request - CreateLifecyclePolicyRequest
 //
@@ -2873,12 +2875,20 @@ func (client *Client) CreateLifecyclePolicyWithOptions(request *CreateLifecycleP
 		}
 	}
 	query := map[string]interface{}{}
+	if !dara.IsNil(request.Description) {
+		query["Description"] = request.Description
+	}
+
 	if !dara.IsNil(request.FileSystemId) {
 		query["FileSystemId"] = request.FileSystemId
 	}
 
 	if !dara.IsNil(request.LifecyclePolicyName) {
 		query["LifecyclePolicyName"] = request.LifecyclePolicyName
+	}
+
+	if !dara.IsNil(request.LifecyclePolicyType) {
+		query["LifecyclePolicyType"] = request.LifecyclePolicyType
 	}
 
 	if !dara.IsNil(request.LifecycleRuleName) {
@@ -2893,8 +2903,16 @@ func (client *Client) CreateLifecyclePolicyWithOptions(request *CreateLifecycleP
 		query["Paths"] = request.Paths
 	}
 
+	if !dara.IsNil(request.RetrieveRules) {
+		query["RetrieveRules"] = request.RetrieveRules
+	}
+
 	if !dara.IsNil(request.StorageType) {
 		query["StorageType"] = request.StorageType
+	}
+
+	if !dara.IsNil(request.TransitRules) {
+		query["TransitRules"] = request.TransitRules
 	}
 
 	req := &openapiutil.OpenApiRequest{
@@ -2926,9 +2944,11 @@ func (client *Client) CreateLifecyclePolicyWithOptions(request *CreateLifecycleP
 //
 // Description:
 //
-//	  You can create lifecycle policies only for General-purpose NAS file systems.
+//	  Only General-purpose NAS and CPFS for Lingjun file systems support this operation.
 //
-//		- You can create up to 20 lifecycle policies in each region within an Alibaba Cloud account.
+//		- Up to 10 Auto and 100 OnDemand lifecycle policies can be created for each CPFS for Lingjun file system.
+//
+//		- For general-purpose NAS file systems, up to 20 lifecycle policies can be created in each region.
 //
 // @param request - CreateLifecyclePolicyRequest
 //
@@ -4387,7 +4407,7 @@ func (client *Client) DeleteLDAPConfig(request *DeleteLDAPConfigRequest) (_resul
 //
 // Description:
 //
-// Only General-purpose NAS file systems support this operation.
+// Only General-purpose NAS and CPFS for Lingjun file systems support this operation.
 //
 // @param request - DeleteLifecyclePolicyRequest
 //
@@ -4404,6 +4424,10 @@ func (client *Client) DeleteLifecyclePolicyWithOptions(request *DeleteLifecycleP
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
 		query["FileSystemId"] = request.FileSystemId
+	}
+
+	if !dara.IsNil(request.LifecyclePolicyId) {
+		query["LifecyclePolicyId"] = request.LifecyclePolicyId
 	}
 
 	if !dara.IsNil(request.LifecyclePolicyName) {
@@ -4439,7 +4463,7 @@ func (client *Client) DeleteLifecyclePolicyWithOptions(request *DeleteLifecycleP
 //
 // Description:
 //
-// Only General-purpose NAS file systems support this operation.
+// Only General-purpose NAS and CPFS for Lingjun file systems support this operation.
 //
 // @param request - DeleteLifecyclePolicyRequest
 //
@@ -4995,11 +5019,11 @@ func (client *Client) DescribeAccessPoint(request *DescribeAccessPointRequest) (
 
 // Summary:
 //
-// Queries the information about an access point.
+// Queries a list of access points.
 //
 // Description:
 //
-// Only General-purpose Network File System (NFS) file systems support this operation.
+// Only General-purpose NAS file systems that use the NFS protocol support this operation.
 //
 // @param request - DescribeAccessPointsRequest
 //
@@ -5059,11 +5083,11 @@ func (client *Client) DescribeAccessPointsWithOptions(request *DescribeAccessPoi
 
 // Summary:
 //
-// Queries the information about an access point.
+// Queries a list of access points.
 //
 // Description:
 //
-// Only General-purpose Network File System (NFS) file systems support this operation.
+// Only General-purpose NAS file systems that use the NFS protocol support this operation.
 //
 // @param request - DescribeAccessPointsRequest
 //
@@ -6013,6 +6037,78 @@ func (client *Client) DescribeFilesets(request *DescribeFilesetsRequest) (_resul
 
 // Summary:
 //
+// 查询文件系统关联的 HpnZone 列表
+//
+// @param tmpReq - DescribeFilesystemsAssociatedHpnZonesRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return DescribeFilesystemsAssociatedHpnZonesResponse
+func (client *Client) DescribeFilesystemsAssociatedHpnZonesWithOptions(tmpReq *DescribeFilesystemsAssociatedHpnZonesRequest, runtime *dara.RuntimeOptions) (_result *DescribeFilesystemsAssociatedHpnZonesResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = tmpReq.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	request := &DescribeFilesystemsAssociatedHpnZonesShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.Filesystems) {
+		request.FilesystemsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Filesystems, dara.String("Filesystems"), dara.String("json"))
+	}
+
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.FilesystemsShrink) {
+		query["Filesystems"] = request.FilesystemsShrink
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("DescribeFilesystemsAssociatedHpnZones"),
+		Version:     dara.String("2017-06-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &DescribeFilesystemsAssociatedHpnZonesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// 查询文件系统关联的 HpnZone 列表
+//
+// @param request - DescribeFilesystemsAssociatedHpnZonesRequest
+//
+// @return DescribeFilesystemsAssociatedHpnZonesResponse
+func (client *Client) DescribeFilesystemsAssociatedHpnZones(request *DescribeFilesystemsAssociatedHpnZonesRequest) (_result *DescribeFilesystemsAssociatedHpnZonesResponse, _err error) {
+	runtime := &dara.RuntimeOptions{}
+	_result = &DescribeFilesystemsAssociatedHpnZonesResponse{}
+	_body, _err := client.DescribeFilesystemsAssociatedHpnZonesWithOptions(request, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_result = _body
+	return _result, _err
+}
+
+// Summary:
+//
 // Queries information about virtual storage channels associated with a file system.
 //
 // Description:
@@ -6099,7 +6195,7 @@ func (client *Client) DescribeFilesystemsVscAttachInfo(request *DescribeFilesyst
 //
 // Description:
 //
-// Only General-purpose NAS file systems support this operation.
+// Only General-purpose NAS and CPFS for Lingjun file systems support this operation.
 //
 // @param request - DescribeLifecyclePoliciesRequest
 //
@@ -6143,7 +6239,7 @@ func (client *Client) DescribeLifecyclePoliciesWithOptions(request *DescribeLife
 //
 // Description:
 //
-// Only General-purpose NAS file systems support this operation.
+// Only General-purpose NAS and CPFS for Lingjun file systems support this operation.
 //
 // @param request - DescribeLifecyclePoliciesRequest
 //
@@ -7583,7 +7679,11 @@ func (client *Client) GetDirectoryOrFileProperties(request *GetDirectoryOrFilePr
 
 // Summary:
 //
-// 查询特定智能目录
+// Queries the information about the created fileset.
+//
+// Description:
+//
+// Only CPFS V2.2.0 and CPFS for Lingjun V2.7.0 and later support this operation. You can view the version information on the file system details page in the console.
 //
 // @param request - GetFilesetRequest
 //
@@ -7631,7 +7731,11 @@ func (client *Client) GetFilesetWithOptions(request *GetFilesetRequest, runtime 
 
 // Summary:
 //
-// 查询特定智能目录
+// Queries the information about the created fileset.
+//
+// Description:
+//
+// Only CPFS V2.2.0 and CPFS for Lingjun V2.7.0 and later support this operation. You can view the version information on the file system details page in the console.
 //
 // @param request - GetFilesetRequest
 //
@@ -9095,6 +9199,10 @@ func (client *Client) ModifyLifecyclePolicyWithOptions(request *ModifyLifecycleP
 	query := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemId) {
 		query["FileSystemId"] = request.FileSystemId
+	}
+
+	if !dara.IsNil(request.LifecyclePolicyId) {
+		query["LifecyclePolicyId"] = request.LifecyclePolicyId
 	}
 
 	if !dara.IsNil(request.LifecyclePolicyName) {
