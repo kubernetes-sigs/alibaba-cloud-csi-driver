@@ -6,7 +6,7 @@ import (
 	nas "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/golang/mock/gomock"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
 )
@@ -21,7 +21,7 @@ func TestNewNasClientV2(t *testing.T) {
 
 func TestCreateDirSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CreateDir(gomock.Any()).Return(
 			&nas.CreateDirResponse{
 				Headers:    make(map[string]*string),
@@ -29,13 +29,13 @@ func TestCreateDirSuccess(t *testing.T) {
 				Body:       &nas.CreateDirResponseBody{RequestId: tea.String("")},
 			}, nil)
 	})
-	err := client.CreateDir(&nas.CreateDirRequest{})
+	err := client.CreateDir(t.Context(), &nas.CreateDirRequest{})
 	assert.NoError(t, err)
 }
 
-func newNasClientV2ForTest(t *testing.T, mockExpects func(*interfaces.MockNasV2Interface)) *NasClientV2 {
+func newNasClientV2ForTest(t *testing.T, mockExpects func(*cloud.MockNasInterface)) *NasClientV2 {
 	ctrl := gomock.NewController(t)
-	mockNas := interfaces.NewMockNasV2Interface(ctrl)
+	mockNas := cloud.NewMockNasInterface(ctrl)
 	mockExpects(mockNas)
 	return &NasClientV2{
 		region:  nasV2Region,
@@ -46,7 +46,7 @@ func newNasClientV2ForTest(t *testing.T, mockExpects func(*interfaces.MockNasV2I
 
 func TestCreateDirError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CreateDir(gomock.Any()).Return(
 			&nas.CreateDirResponse{
 				Headers:    make(map[string]*string),
@@ -58,13 +58,13 @@ func TestCreateDirError(t *testing.T) {
 				Message:    tea.String("The specified protocol type does not supported."),
 			})
 	})
-	err := client.CreateDir(&nas.CreateDirRequest{})
+	err := client.CreateDir(t.Context(), &nas.CreateDirRequest{})
 	assert.Error(t, err)
 }
 
 func TestSetDirQuotaSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().SetDirQuota(gomock.Any()).Return(
 			&nas.SetDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -74,13 +74,13 @@ func TestSetDirQuotaSuccess(t *testing.T) {
 					Success:   tea.Bool(true),
 				}}, nil)
 	})
-	err := client.SetDirQuota(&nas.SetDirQuotaRequest{})
+	err := client.SetDirQuota(t.Context(), &nas.SetDirQuotaRequest{})
 	assert.NoError(t, err)
 }
 
 func TestSetDirQuotaFailure(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().SetDirQuota(gomock.Any()).Return(
 			&nas.SetDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -90,13 +90,13 @@ func TestSetDirQuotaFailure(t *testing.T) {
 					Success:   tea.Bool(false),
 				}}, nil)
 	})
-	err := client.SetDirQuota(&nas.SetDirQuotaRequest{})
+	err := client.SetDirQuota(t.Context(), &nas.SetDirQuotaRequest{})
 	assert.Error(t, err)
 }
 
 func TestSetDirQuotaError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().SetDirQuota(gomock.Any()).Return(
 			&nas.SetDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -111,13 +111,13 @@ func TestSetDirQuotaError(t *testing.T) {
 				Message:    tea.String("The Dir Path does not exist"),
 			})
 	})
-	err := client.SetDirQuota(&nas.SetDirQuotaRequest{})
+	err := client.SetDirQuota(t.Context(), &nas.SetDirQuotaRequest{})
 	assert.Error(t, err)
 }
 
 func TestCancelDirQuotaSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CancelDirQuota(gomock.Any()).Return(
 			&nas.CancelDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -128,13 +128,13 @@ func TestCancelDirQuotaSuccess(t *testing.T) {
 				},
 			}, nil)
 	})
-	err := client.CancelDirQuota(&nas.CancelDirQuotaRequest{})
+	err := client.CancelDirQuota(t.Context(), &nas.CancelDirQuotaRequest{})
 	assert.NoError(t, err)
 }
 
 func TestCancelDirQuotaFailure(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CancelDirQuota(gomock.Any()).Return(
 			&nas.CancelDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -145,13 +145,13 @@ func TestCancelDirQuotaFailure(t *testing.T) {
 				},
 			}, nil)
 	})
-	err := client.CancelDirQuota(&nas.CancelDirQuotaRequest{})
+	err := client.CancelDirQuota(t.Context(), &nas.CancelDirQuotaRequest{})
 	assert.Error(t, err)
 }
 
 func TestCancelDirQuotaError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CancelDirQuota(gomock.Any()).Return(
 			&nas.CancelDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -166,13 +166,13 @@ func TestCancelDirQuotaError(t *testing.T) {
 				Message:    tea.String("The Dir Path does not exist"),
 			})
 	})
-	err := client.CancelDirQuota(&nas.CancelDirQuotaRequest{})
+	err := client.CancelDirQuota(t.Context(), &nas.CancelDirQuotaRequest{})
 	assert.Error(t, err)
 }
 
 func TestCancelDirQuotaIgnoreQuotaNotExistsError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CancelDirQuota(gomock.Any()).Return(
 			&nas.CancelDirQuotaResponse{
 				Headers:    make(map[string]*string),
@@ -187,13 +187,13 @@ func TestCancelDirQuotaIgnoreQuotaNotExistsError(t *testing.T) {
 				Message:    tea.String("The specified path does not have quota."),
 			})
 	})
-	err := client.CancelDirQuota(&nas.CancelDirQuotaRequest{})
+	err := client.CancelDirQuota(t.Context(), &nas.CancelDirQuotaRequest{})
 	assert.NoError(t, err)
 }
 
 func TestGetRecycleBinAttributeSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().GetRecycleBinAttribute(gomock.Any()).Return(
 			&nas.GetRecycleBinAttributeResponse{
 				Headers:    make(map[string]*string),
@@ -201,13 +201,13 @@ func TestGetRecycleBinAttributeSuccess(t *testing.T) {
 				Body:       &nas.GetRecycleBinAttributeResponseBody{RequestId: tea.String("")},
 			}, nil)
 	})
-	_, err := client.GetRecycleBinAttribute("")
+	_, err := client.GetRecycleBinAttribute(t.Context(), "")
 	assert.NoError(t, err)
 }
 
 func TestGetRecycleBinAttributeError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().GetRecycleBinAttribute(gomock.Any()).Return(
 			&nas.GetRecycleBinAttributeResponse{
 				Headers:    make(map[string]*string),
@@ -219,13 +219,13 @@ func TestGetRecycleBinAttributeError(t *testing.T) {
 				Message:    tea.String("FileSystemId is mandatory for this action.\t"),
 			})
 	})
-	_, err := client.GetRecycleBinAttribute("")
+	_, err := client.GetRecycleBinAttribute(t.Context(), "")
 	assert.Error(t, err)
 }
 
 func TestCreateAccessPointSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CreateAccessPoint(gomock.Any()).Return(
 			&nas.CreateAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -233,13 +233,13 @@ func TestCreateAccessPointSuccess(t *testing.T) {
 				Body:       &nas.CreateAccessPointResponseBody{RequestId: tea.String("")},
 			}, nil)
 	})
-	_, err := client.CreateAccesspoint(&nas.CreateAccessPointRequest{})
+	_, err := client.CreateAccesspoint(t.Context(), &nas.CreateAccessPointRequest{})
 	assert.NoError(t, err)
 }
 
 func TestCreateAccessPointError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().CreateAccessPoint(gomock.Any()).Return(
 			&nas.CreateAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -251,13 +251,13 @@ func TestCreateAccessPointError(t *testing.T) {
 				Message:    tea.String("The maximum number of access point has reached its limits.\t"),
 			})
 	})
-	_, err := client.CreateAccesspoint(&nas.CreateAccessPointRequest{})
+	_, err := client.CreateAccesspoint(t.Context(), &nas.CreateAccessPointRequest{})
 	assert.Error(t, err)
 }
 
 func TestDeleteAccessPointSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().DeleteAccessPoint(gomock.Any()).Return(
 			&nas.DeleteAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -265,13 +265,13 @@ func TestDeleteAccessPointSuccess(t *testing.T) {
 				Body:       &nas.DeleteAccessPointResponseBody{RequestId: tea.String("")},
 			}, nil)
 	})
-	err := client.DeleteAccesspoint("", "")
+	err := client.DeleteAccesspoint(t.Context(), "", "")
 	assert.NoError(t, err)
 }
 
 func TestDeleteAccessPointError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().DeleteAccessPoint(gomock.Any()).Return(
 			&nas.DeleteAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -283,13 +283,13 @@ func TestDeleteAccessPointError(t *testing.T) {
 				Message:    tea.String("The specified file system does not exist."),
 			})
 	})
-	err := client.DeleteAccesspoint("", "")
+	err := client.DeleteAccesspoint(t.Context(), "", "")
 	assert.Error(t, err)
 }
 
 func TestDescribeAccessPointSuccess(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().DescribeAccessPoint(gomock.Any()).Return(
 			&nas.DescribeAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -297,13 +297,13 @@ func TestDescribeAccessPointSuccess(t *testing.T) {
 				Body:       &nas.DescribeAccessPointResponseBody{RequestId: tea.String("")},
 			}, nil)
 	})
-	_, err := client.DescribeAccesspoint("", "")
+	_, err := client.DescribeAccesspoint(t.Context(), "", "")
 	assert.NoError(t, err)
 }
 
 func TestDescribeAccessPointError(t *testing.T) {
 	t.Parallel()
-	client := newNasClientV2ForTest(t, func(mockNas *interfaces.MockNasV2Interface) {
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
 		mockNas.EXPECT().DescribeAccessPoint(gomock.Any()).Return(
 			&nas.DescribeAccessPointResponse{
 				Headers:    make(map[string]*string),
@@ -315,17 +315,6 @@ func TestDescribeAccessPointError(t *testing.T) {
 				Message:    tea.String("The access point id does not exist."),
 			})
 	})
-	_, err := client.DescribeAccesspoint("", "")
+	_, err := client.DescribeAccesspoint(t.Context(), "", "")
 	assert.Error(t, err)
-}
-
-func TestIsAccessPointNotFoundErrorNil(t *testing.T) {
-	actual := IsAccessPointNotFoundError(nil)
-	assert.False(t, actual)
-}
-
-func TestIsAccessPointNotFoundErrorNotFound(t *testing.T) {
-	t.Parallel()
-	actual := IsAccessPointNotFoundError(&tea.SDKError{Code: tea.String("NotFound")})
-	assert.True(t, actual)
 }

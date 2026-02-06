@@ -111,7 +111,7 @@ func main() {
 	}
 
 	server := NewStdIOGrpcServer()
-	csi.RegisterNodeServer(server, common.WrapNodeServerWithValidator(agent))
+	csi.RegisterNodeServer(server, common.WrapNodeServer(agent))
 	err := server.ServeOneRequest(os.Getenv("CSI_COMMAND"))
 	if err != nil {
 		printError(err)

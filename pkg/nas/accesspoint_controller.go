@@ -2,12 +2,14 @@ package nas
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
 	"strconv"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
@@ -98,7 +100,7 @@ func (c *accesspointController) CreateVolume(ctx context.Context, req *csi.Creat
 		quota := (capacity + GiB - 1) >> 30
 		resp.Volume.CapacityBytes = quota << 30
 		resp.Volume.VolumeContext["volumeCapacity"] = "true"
-		if err := c.nasClient.SetDirQuota(&sdk.SetDirQuotaRequest{
+		if err := c.nasClient.SetDirQuota(ctx, &sdk.SetDirQuotaRequest{
 			FileSystemId: &cnfs.Status.FsAttributes.FilesystemID,
 			Path:         tea.String(path.Join(basePath, req.Name)),
 			SizeLimit:    &quota,
@@ -181,7 +183,7 @@ func (c *accesspointController) createAccesspoint(ctx context.Context, name, bas
 		return nil, status.Errorf(codes.InvalidArgument, "storageclass parameters.%s is invalid: %q", key, parameters[key])
 	}
 
-	resp, err := c.nasClient.CreateAccesspoint(req)
+	resp, err := c.nasClient.CreateAccesspoint(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "nas:CreateAccesspoint: %v", err)
 	}
@@ -209,15 +211,15 @@ func (c *accesspointController) DeleteVolume(ctx context.Context, req *csi.Delet
 
 	// cancel dir quota
 	if attributes["volumeCapacity"] == "true" {
-		apInfo, err := c.nasClient.DescribeAccesspoint(filesystemId, accesspointId)
+		apInfo, err := c.nasClient.DescribeAccesspoint(ctx, filesystemId, accesspointId)
 		if err != nil {
-			if cloud.IsAccessPointNotFoundError(err) {
+			if errors.Is(err, wrap.ErrorCode("NotFound")) {
 				klog.Infof("accesspoint %s already deleted", accesspointId)
 				return &csi.DeleteVolumeResponse{}, nil
 			}
 			return nil, status.Errorf(codes.Internal, "nas:DescribeAccesspoint failed: %v", err)
 		}
-		if err := c.nasClient.CancelDirQuota(&sdk.CancelDirQuotaRequest{
+		if err := c.nasClient.CancelDirQuota(ctx, &sdk.CancelDirQuotaRequest{
 			FileSystemId: &filesystemId,
 			Path:         apInfo.Body.AccessPoint.RootPath,
 			UserType:     tea.String("AllUsers"),
@@ -227,7 +229,7 @@ func (c *accesspointController) DeleteVolume(ctx context.Context, req *csi.Delet
 	}
 
 	// delete accesspoint
-	err = c.nasClient.DeleteAccesspoint(filesystemId, accesspointId)
+	err = c.nasClient.DeleteAccesspoint(ctx, filesystemId, accesspointId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "nas:DeleteAccesspoint failed: %v", err)
 	}
@@ -256,11 +258,11 @@ func (c *accesspointController) ControllerExpandVolume(ctx context.Context, req 
 	capacity := req.GetCapacityRange().GetRequiredBytes()
 	if attributes["volumeCapacity"] == "true" {
 		quota := (capacity + GiB - 1) >> 30
-		apInfo, err := c.nasClient.DescribeAccesspoint(filesystemId, accesspointId)
+		apInfo, err := c.nasClient.DescribeAccesspoint(ctx, filesystemId, accesspointId)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "nas:DescribeAccesspoint failed: %v", err)
 		}
-		if err := c.nasClient.SetDirQuota(&sdk.SetDirQuotaRequest{
+		if err := c.nasClient.SetDirQuota(ctx, &sdk.SetDirQuotaRequest{
 			FileSystemId: &filesystemId,
 			Path:         apInfo.Body.AccessPoint.RootPath,
 			SizeLimit:    &quota,

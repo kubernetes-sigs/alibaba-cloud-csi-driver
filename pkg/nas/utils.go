@@ -371,7 +371,7 @@ func getCPFSIDFromMapOrServer(params map[string]string, server string) string {
 }
 
 func getFilesystemTypeFromAPIOrServer(filesystemID, server string, client interfaces.NasClientV2Interface) string {
-	fs, err := client.DescribeFileSystems(filesystemID)
+	fs, err := client.DescribeFileSystems(context.TODO(), filesystemID)
 	if err != nil {
 		klog.ErrorS(err, "DescribeFileSystems failed")
 	}

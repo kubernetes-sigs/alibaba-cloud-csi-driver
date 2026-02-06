@@ -21,8 +21,10 @@ func UnmarshalAcsResponse(jsonBytes []byte, res responses.AcsResponse) {
 		Status:     "200 OK",
 		StatusCode: 200,
 		Proto:      "HTTP/1.0",
-		Header:     http.Header{},
-		Body:       io.NopCloser(bytes.NewReader(jsonBytes)),
+		Header: http.Header{
+			"X-Acs-Request-Id": []string{"testing-openapi-request-id"},
+		},
+		Body: io.NopCloser(bytes.NewReader(jsonBytes)),
 	}, "JSON")
 	if err != nil {
 		panic(err)
