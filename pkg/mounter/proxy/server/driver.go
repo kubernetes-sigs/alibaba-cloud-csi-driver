@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 )
 
 type Driver interface {
@@ -12,7 +12,7 @@ type Driver interface {
 	Fstypes() []string
 	Init()
 	Terminate()
-	Mount(ctx context.Context, req *proxy.MountRequest) error
+	Mount(ctx context.Context, req *utils.MountRequest) error
 }
 
 var (
@@ -24,7 +24,7 @@ func RegisterDriver(driver Driver) {
 	nameToDriver[driver.Name()] = driver
 }
 
-func handleMountRequest(ctx context.Context, req *proxy.MountRequest) error {
+func handleMountRequest(ctx context.Context, req *utils.MountRequest) error {
 	h := fstypeToDriver[req.Fstype]
 	if h == nil {
 		return fmt.Errorf("fstype %q not supported", req.Fstype)

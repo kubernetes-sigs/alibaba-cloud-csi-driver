@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/client"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -24,20 +24,12 @@ func NewProxyMounter(socketPath string, inner mountutils.Interface) Mounter {
 	}
 }
 
-func (m *ProxyMounter) ExtendedMount(ctx context.Context, op *MountOperation) error {
-	if op == nil {
+func (m *ProxyMounter) ExtendedMount(ctx context.Context, req *utils.MountRequest) error {
+	if req == nil {
 		return nil
 	}
 	dclient := client.NewClient(m.socketPath)
-	resp, err := dclient.Mount(&proxy.MountRequest{
-		Source:      op.Source,
-		Target:      op.Target,
-		Fstype:      op.FsType,
-		Options:     op.Options,
-		Secrets:     op.Secrets,
-		MetricsPath: op.MetricsPath,
-		VolumeID:    op.VolumeID,
-	})
+	resp, err := dclient.Mount(req)
 	if err != nil {
 		return fmt.Errorf("call mounter daemon: %w", err)
 	}
@@ -45,7 +37,7 @@ func (m *ProxyMounter) ExtendedMount(ctx context.Context, op *MountOperation) er
 	if err != nil {
 		return fmt.Errorf("failed to mount: %w", err)
 	}
-	notMnt, err := m.IsLikelyNotMountPoint(op.Target)
+	notMnt, err := m.IsLikelyNotMountPoint(req.Target)
 	if err != nil {
 		return err
 	}
@@ -56,10 +48,10 @@ func (m *ProxyMounter) ExtendedMount(ctx context.Context, op *MountOperation) er
 }
 
 func (m *ProxyMounter) Mount(source string, target string, fstype string, options []string) error {
-	return m.ExtendedMount(context.Background(), &MountOperation{
+	return m.ExtendedMount(context.Background(), &utils.MountRequest{
 		Source:  source,
 		Target:  target,
-		FsType:  fstype,
+		Fstype:  fstype,
 		Options: options,
 	})
 }

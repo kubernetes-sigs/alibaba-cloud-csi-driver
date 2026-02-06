@@ -20,7 +20,7 @@ const (
 )
 
 type Client interface {
-	Mount(req *proxy.MountRequest) (*proxy.Response, error)
+	Mount(req *utils.MountRequest) (*proxy.Response, error)
 }
 
 type client struct {
@@ -86,7 +86,7 @@ func (c *client) doRequest(req *proxy.Request) (*proxy.Response, error) {
 	return &response, json.Unmarshal(p[:end], &response)
 }
 
-func (c *client) Mount(req *proxy.MountRequest) (*proxy.Response, error) {
+func (c *client) Mount(req *utils.MountRequest) (*proxy.Response, error) {
 	return c.doRequest(&proxy.Request{
 		Header: proxy.Header{
 			Method: proxy.Mount,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +18,7 @@ func TestOssfsMonitorInterceptor(t *testing.T) {
 	tests := []struct {
 		name      string
 		handler   mounter.MountHandler
-		op        *mounter.MountOperation
+		op        *mounterutils.MountRequest
 		expectErr bool
 	}{
 		{
@@ -27,12 +28,12 @@ func TestOssfsMonitorInterceptor(t *testing.T) {
 		{
 			name:    "nil metrics path",
 			handler: successMountHandler,
-			op:      &mounter.MountOperation{},
+			op:      &mounterutils.MountRequest{},
 		},
 		{
 			name:    "mount error reservation",
 			handler: failureMountHandler,
-			op: &mounter.MountOperation{
+			op: &mounterutils.MountRequest{
 				MetricsPath: metricsDir,
 			},
 			expectErr: true,
@@ -40,7 +41,7 @@ func TestOssfsMonitorInterceptor(t *testing.T) {
 		{
 			name:    "nil mount result",
 			handler: successMountHandler,
-			op: &mounter.MountOperation{
+			op: &mounterutils.MountRequest{
 				MetricsPath: metricsDir,
 				Target:      "target1",
 			},
@@ -48,7 +49,7 @@ func TestOssfsMonitorInterceptor(t *testing.T) {
 		{
 			name:    "invalid mount result",
 			handler: successMountHandler,
-			op: &mounter.MountOperation{
+			op: &mounterutils.MountRequest{
 				MetricsPath: metricsDir,
 				MountResult: "invalid",
 				Target:      "target2",
@@ -83,7 +84,7 @@ func TestOssfsMonitorInterceptor(t *testing.T) {
 		monitorManager.WaitForAllMonitoring()
 	}()
 
-	op := &mounter.MountOperation{
+	op := &mounterutils.MountRequest{
 		Target:      "volume1",
 		MetricsPath: metricsDir,
 		MountResult: server.OssfsMountResult{

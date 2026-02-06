@@ -93,7 +93,7 @@ func TestGetNodeConfigSuccess(t *testing.T) {
 	prepareFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	config, err := GetNodeConfig(utils.Config{})
+	config, err := GetNodeConfig(nil, utils.Config{})
 	assert.NoError(t, err)
 	assert.NotNil(t, config)
 }
@@ -121,7 +121,7 @@ func TestGetNodeConfigNodeGetError(t *testing.T) {
 	prepareFakeK8sContext()
 	t.Setenv("NAS_LOSETUP_ENABLE", "true")
 
-	config, err := GetNodeConfig(utils.Config{})
+	config, err := GetNodeConfig(nil, utils.Config{})
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }
@@ -134,7 +134,7 @@ func TestGetNodeConfigLosetupError(t *testing.T) {
 	prepareFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	config, err := GetNodeConfig(utils.Config{})
+	config, err := GetNodeConfig(nil, utils.Config{})
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }

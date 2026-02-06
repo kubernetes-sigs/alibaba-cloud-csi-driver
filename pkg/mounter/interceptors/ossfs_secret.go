@@ -22,26 +22,26 @@ var _ mounter.MountInterceptor = OssfsSecretInterceptor
 // but both are created the same way and can be used interchangeably.
 var rawMounter = mountutils.NewWithoutSystemd("")
 
-func OssfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
-	return ossfsSecretInterceptor(ctx, op, handler, mounterutils.OssFsType)
+func OssfsSecretInterceptor(ctx context.Context, req *mounterutils.MountRequest, handler mounter.MountHandler) error {
+	return ossfsSecretInterceptor(ctx, req, handler, mounterutils.OssFsType)
 }
 
-func Ossfs2SecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
-	return ossfsSecretInterceptor(ctx, op, handler, mounterutils.OssFs2Type)
+func Ossfs2SecretInterceptor(ctx context.Context, req *mounterutils.MountRequest, handler mounter.MountHandler) error {
+	return ossfsSecretInterceptor(ctx, req, handler, mounterutils.OssFs2Type)
 }
 
-func ossfsSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler, fuseType string) error {
-	return ossfsSecretInterceptorWithMounter(ctx, op, handler, fuseType, rawMounter)
+func ossfsSecretInterceptor(ctx context.Context, req *mounterutils.MountRequest, handler mounter.MountHandler, fuseType string) error {
+	return ossfsSecretInterceptorWithMounter(ctx, req, handler, fuseType, rawMounter)
 }
 
 // ossfsSecretInterceptorWithMounter is the internal implementation that accepts a mounter parameter.
 // This allows tests to inject a fake mounter to simulate different mount point states.
-func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler, fuseType string, mountInterface mountutils.Interface) error {
-	if op == nil || op.Secrets == nil {
-		return handler(ctx, op)
+func ossfsSecretInterceptorWithMounter(ctx context.Context, req *mounterutils.MountRequest, handler mounter.MountHandler, fuseType string, mountInterface mountutils.Interface) error {
+	if req == nil || req.Secrets == nil {
+		return handler(ctx, req)
 	}
 
-	passwdFile, tokenDir, err := prepareCredentialFiles(fuseType, op.Target, op.Secrets)
+	passwdFile, tokenDir, err := prepareCredentialFiles(fuseType, req.Target, req.Secrets)
 	if err != nil {
 		return fmt.Errorf("prepare credential files failed: %w", err)
 	}
@@ -56,15 +56,15 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 	// (e.g., permission denied, mkdir failed, unmount failed) that should be returned.
 	// Only check mount point if mountInterface is available (not nil).
 	if mountInterface != nil {
-		notMnt, err := mounterutils.IsNotMountPoint(mountInterface, op.Target)
+		notMnt, err := mounterutils.IsNotMountPoint(mountInterface, req.Target)
 		if err != nil {
-			return fmt.Errorf("failed to check if target %s is a mountpoint: %w", op.Target, err)
+			return fmt.Errorf("failed to check if target %s is a mountpoint: %w", req.Target, err)
 		}
 		if !notMnt {
 			// Mount point already exists, this is a token rotation scenario.
 			// Token files have already been updated by rotateTokenFiles above.
 			// Skip mount operation and let the existing ossfs client reload the new token.
-			klog.V(4).InfoS("mount point already exists, skipping mount for token rotation", "target", op.Target)
+			klog.V(4).InfoS("mount point already exists, skipping mount for token rotation", "target", req.Target)
 			return mounter.ErrSkipMount
 		}
 	}
@@ -72,20 +72,20 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 	if passwdFile != "" {
 		klog.V(4).InfoS("created ossfs passwd file", "path", passwdFile)
 		if fuseType == mounterutils.OssFsType {
-			op.Options = append(op.Options, "passwd_file="+passwdFile)
+			req.Options = append(req.Options, "passwd_file="+passwdFile)
 		} else {
 			// ossfs2
-			op.Args = append(op.Args, []string{"-c", passwdFile}...)
+			req.Args = append(req.Args, []string{"-c", passwdFile}...)
 		}
 	}
 	if tokenDir != "" {
 		klog.V(4).InfoS("created ossfs token directory", "dir", tokenDir)
 		if fuseType == mounterutils.OssFsType {
-			op.Options = append(op.Options, "passwd_file="+tokenDir)
+			req.Options = append(req.Options, "passwd_file="+tokenDir)
 		} else {
 			// ossfs2
 			// For ossfs2, file-path is a common option configuration after -o, so append to op.Options
-			op.Options = append(op.Options,
+			req.Options = append(req.Options,
 				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", getTokenFilePath(tokenDir, mounterutils.KeyAccessKeyId)),
 				fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", getTokenFilePath(tokenDir, mounterutils.KeyAccessKeySecret)),
 				fmt.Sprintf("oss_sts_multi_conf_token_file=%s", getTokenFilePath(tokenDir, mounterutils.KeySecurityToken)),
@@ -93,18 +93,18 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 		}
 	}
 
-	if err = handler(ctx, op); err != nil {
+	if err = handler(ctx, req); err != nil {
 		return err
 	}
 
-	if (passwdFile == "" && tokenDir == "") || op.MountResult == nil {
+	if (passwdFile == "" && tokenDir == "") || req.MountResult == nil {
 		return nil
 	}
-	result, ok := op.MountResult.(server.OssfsMountResult)
+	result, ok := req.MountResult.(server.OssfsMountResult)
 	if !ok {
 		klog.ErrorS(
 			errors.New("failed to assert ossfs mount result"),
-			"skipping cleanup of passwd file", "mountpoint", op.Target, "path", passwdFile,
+			"skipping cleanup of passwd file", "mountpoint", req.Target, "path", passwdFile,
 		)
 		return nil
 	}

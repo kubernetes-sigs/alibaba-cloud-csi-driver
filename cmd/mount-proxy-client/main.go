@@ -7,8 +7,8 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/client"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
@@ -21,7 +21,7 @@ func main() {
 	utils.AddGoFlags(flag.CommandLine)
 	flag.Parse()
 
-	var req proxy.MountRequest
+	var req mounterutils.MountRequest
 	err := json.NewDecoder(os.Stdin).Decode(&req)
 	if err != nil {
 		fmt.Println(err.Error())
