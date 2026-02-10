@@ -43,6 +43,7 @@ type nodeServer struct {
 const (
 	LingjunConfigFile             = "/host/etc/eflo_config/lingjun_config"
 	defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
+	metricsPathPrefix             = "/host/var/run/efc/"
 )
 
 func newNodeServer() (*nodeServer, error) {
@@ -127,6 +128,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "efc", "cpfs", req.VolumeId)
 
 	klog.InfoS("NodePublishVolume: succeeded to mount", "volumeId", req.VolumeId, "targetPath", req.TargetPath)
 	return &csi.NodePublishVolumeResponse{}, nil
