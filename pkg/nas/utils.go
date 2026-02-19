@@ -156,7 +156,7 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	}
 
 	rootPath := "/"
-	if opt.FSType == "cpfs" || mountFstype == MountProtocolCPFSNFS || isExtrameNAS(opt.FSType, opt.Server) {
+	if opt.FSType == "cpfs" || mountFstype == MountProtocolCPFSNFS {
 		rootPath = "/share"
 	}
 	relPath, relErr := filepath.Rel(rootPath, opt.Path)
