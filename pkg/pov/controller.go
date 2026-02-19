@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -197,12 +198,7 @@ func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 
 func isValidVolumeCapabilities(volCaps []*csi.VolumeCapability) bool {
 	hasSupport := func(cap *csi.VolumeCapability) bool {
-		for _, c := range volumeCaps {
-			if c == cap.AccessMode.GetMode() {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(volumeCaps, cap.AccessMode.GetMode())
 	}
 
 	foundAll := true

@@ -80,7 +80,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	requestGB := strconv.FormatInt((volSizeBytes+1024*1024*1024-1)/(1024*1024*1024), 10)
 	actualDiskType := ""
 	actualDiskID := ""
-	for _, dt := range strings.Split(diskParams.DiskType, ",") {
+	for dt := range strings.SplitSeq(diskParams.DiskType, ",") {
 		diskID, err := GlobalConfigVar.ENSCli.CreateVolume(diskParams.RegionID, dt, requestGB)
 		if err == nil {
 			actualDiskType = dt

@@ -147,7 +147,6 @@ func TestListSnapshots(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			client := cloud.NewMockECSInterface(ctrl)

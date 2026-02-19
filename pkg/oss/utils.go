@@ -353,8 +353,8 @@ func parseOtherOpts(otherOpts string) (mountOptions []string, err error) {
 		} else {
 			if ele == "-o" {
 				accepting = true
-			} else if strings.HasPrefix(ele, "-o") {
-				eles := strings.Split(strings.TrimPrefix(ele, "-o"), ",")
+			} else if after, ok := strings.CutPrefix(ele, "-o"); ok {
+				eles := strings.Split(after, ",")
 				mountOptions = append(mountOptions, eles...)
 			} else {
 				// missing -o

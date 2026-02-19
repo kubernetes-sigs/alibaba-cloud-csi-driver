@@ -41,7 +41,7 @@ func NewStdIOGrpcServer() *FileGrpcServer {
 	}
 }
 
-func (s *FileGrpcServer) RegisterService(desc *grpc.ServiceDesc, impl interface{}) {
+func (s *FileGrpcServer) RegisterService(desc *grpc.ServiceDesc, impl any) {
 	s.desc = desc
 	s.impl = impl
 }

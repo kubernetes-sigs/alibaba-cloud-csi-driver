@@ -187,10 +187,10 @@ func findBdf(diskID string) (bdf string, err error) {
 	defer syscall.Munmap(mmdata)
 
 	bdf = ""
-	for i := 0; i < MaxVfNum; i++ {
+	for i := range MaxVfNum {
 		pos := offset + i*VfBar0Sz + DevIDOffsetInBar0
 		devIds := make([]byte, BlkIDSz)
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			start := 4 * i
 			copy(devIds[start:start+4], mmdata[pos+start:pos+start+4])
 		}

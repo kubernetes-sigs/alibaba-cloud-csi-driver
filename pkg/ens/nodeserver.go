@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -375,8 +376,8 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	// sysConfig
 	if value, ok := req.VolumeContext[SYS_CONFIG_TAG]; ok {
-		configList := strings.Split(strings.TrimSpace(value), ",")
-		for _, configStr := range configList {
+		configList := strings.SplitSeq(strings.TrimSpace(value), ",")
+		for configStr := range configList {
 			key, value, found := strings.Cut(configStr, "=")
 			if !found {
 				klog.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
@@ -581,12 +582,7 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 
 // hasMountOption return boolean value indicating whether the slice contains a mount option
 func hasMountOption(options []string, opt string) bool {
-	for _, o := range options {
-		if o == opt {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(options, opt)
 }
 
 // collectMountOptions returns array of mount options

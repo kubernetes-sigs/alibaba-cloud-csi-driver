@@ -11,6 +11,6 @@ var EncryptError = errors.New("OSS encrypted error")
 var PathError = errors.New("OSS path error")
 var UrlError = errors.New("OSS url error")
 
-func WrapOssError(errType error, format string, args ...interface{}) error {
+func WrapOssError(errType error, format string, args ...any) error {
 	return fmt.Errorf("%w: %s", errType, fmt.Sprintf(format, args...))
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func TestEarlyTimeout_None(t *testing.T) {
-	handler := func(ctx context.Context, _ interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, _ any) (any, error) {
 		_, ok := ctx.Deadline()
 		assert.False(t, ok)
 		return struct{}{}, nil
@@ -27,7 +27,7 @@ func TestEarlyTimeout(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.before.String(), func(t *testing.T) {
 			now := time.Now()
-			handler := func(ctx context.Context, _ interface{}) (interface{}, error) {
+			handler := func(ctx context.Context, _ any) (any, error) {
 				deadline, ok := ctx.Deadline()
 				assert.True(t, ok)
 				assert.WithinDuration(t, now.Add(tc.after), deadline, 10*time.Millisecond)

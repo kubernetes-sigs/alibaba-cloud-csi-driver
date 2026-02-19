@@ -105,7 +105,6 @@ func TestCreateOpenAPI(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
@@ -209,14 +208,12 @@ func TestParallelLazyInit(t *testing.T) {
 	m := lazyInitProvider{fetcher: &noopFetcher{}}
 
 	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
+	for range 10 {
+		wg.Go(func() {
 			region, err := m.Get(RegionID)
 			assert.NoError(t, err)
 			assert.Equal(t, "cn-beijing", region)
-			wg.Done()
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -231,14 +228,12 @@ func TestParallelImmutableProvider(t *testing.T) {
 	}, "fake")
 
 	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
+	for range 10 {
+		wg.Go(func() {
 			region, err := m.Get(RegionID)
 			assert.NoError(t, err)
 			assert.Equal(t, "cn-beijing", region)
-			wg.Done()
-		}()
+		})
 	}
 	wg.Wait()
 }

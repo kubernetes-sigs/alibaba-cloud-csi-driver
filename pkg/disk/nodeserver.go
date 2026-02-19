@@ -602,8 +602,8 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 	logger := klog.FromContext(ctx)
 	// sysConfig
 	if value, ok := volumeContext[SysConfigTag]; ok {
-		configList := strings.Split(strings.TrimSpace(value), ",")
-		for _, configStr := range configList {
+		configList := strings.SplitSeq(strings.TrimSpace(value), ",")
+		for configStr := range configList {
 			key, value, found := strings.Cut(configStr, "=")
 			if !found {
 				return fmt.Errorf("invalid sysConfig format %q", configStr)

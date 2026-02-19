@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -149,7 +150,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 		FileSystemId:  &filesystemId,
 		OwnerGroupId:  tea.Int32(0),
 		OwnerUserId:   tea.Int32(0),
-		Permission:    tea.String("0777"),
+		Permission:    new("0777"),
 		RootDirectory: &path,
 	}); err != nil {
 		return nil, status.Errorf(codes.Internal, "nas:CreateDir failed: %v", err)
@@ -163,8 +164,8 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 			FileSystemId: &filesystemId,
 			Path:         &path,
 			SizeLimit:    &quota,
-			QuotaType:    tea.String("Enforcement"),
-			UserType:     tea.String("AllUsers"),
+			QuotaType:    new("Enforcement"),
+			UserType:     new("AllUsers"),
 		}); err != nil {
 			return nil, status.Errorf(codes.Internal, "nas:SetDirQuota failed: %v", err)
 		}
@@ -214,7 +215,7 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 		if err := cs.nasClient.CancelDirQuota(&sdk.CancelDirQuotaRequest{
 			FileSystemId: &filesystemId,
 			Path:         &path,
-			UserType:     tea.String("AllUsers"),
+			UserType:     new("AllUsers"),
 		}); err != nil {
 			return nil, status.Errorf(codes.Internal, "nas:CancelDirQuota failed: %v", err)
 		}
@@ -288,8 +289,8 @@ func (cs *subpathController) ControllerExpandVolume(ctx context.Context, req *cs
 			FileSystemId: &filesystemId,
 			Path:         &path,
 			SizeLimit:    &quota,
-			QuotaType:    tea.String("Enforcement"),
-			UserType:     tea.String("AllUsers"),
+			QuotaType:    new("Enforcement"),
+			UserType:     new("AllUsers"),
 		}); err != nil {
 			return nil, status.Errorf(codes.Internal, "nas:SetDirQuota failed: %v", err)
 		}
@@ -306,10 +307,8 @@ func (cs *subpathController) ControllerExpandVolume(ctx context.Context, req *cs
 }
 
 func (cs *subpathController) patchFinalizerOnPV(ctx context.Context, pv *corev1.PersistentVolume, finalizer string) error {
-	for _, f := range pv.Finalizers {
-		if f == finalizer {
-			return nil
-		}
+	if slices.Contains(pv.Finalizers, finalizer) {
+		return nil
 	}
 
 	patch := corev1.PersistentVolume{
@@ -351,7 +350,7 @@ func (s *rrMuxServerSelector) SelectNfsServer(muxServer string) (string, string)
 	s.Lock()
 	defer s.Unlock()
 	var servers, paths []string
-	for _, str := range strings.Split(muxServer, ",") {
+	for str := range strings.SplitSeq(muxServer, ",") {
 		server, path := s.parse(str)
 		if server == "" {
 			return "", ""

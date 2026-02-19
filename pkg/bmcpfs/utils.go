@@ -18,6 +18,7 @@ package bmcpfs
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -35,9 +36,7 @@ const (
 // updateVolumeContext removes unnecessary volume context parameters
 func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	cloned := make(map[string]string)
-	for k, v := range volumeContext {
-		cloned[k] = v
-	}
+	maps.Copy(cloned, volumeContext)
 
 	// Remove unnecessary keys similar to disk implementation
 	keysToRemove := []string{

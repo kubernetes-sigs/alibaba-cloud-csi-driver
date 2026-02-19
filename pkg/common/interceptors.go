@@ -14,7 +14,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func logGRPC(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 	logger := klog.FromContext(ctx).WithValues("method", info.FullMethod)
 	logger.Info("GRPC call start")
 	logger.V(4).Info("GRPC request", "request", protosanitizer.StripSecrets(req))
@@ -28,7 +28,7 @@ func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, h
 }
 
 func instrumentGRPC(driverType string) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		method := info.FullMethod[strings.LastIndex(info.FullMethod, "/")+1:]
 		start := time.Now()
 		resp, err := handler(ctx, req)
@@ -58,7 +58,7 @@ func recordExecTime(time time.Duration, method, driverType string, err error) {
 
 // Timeout the request a little bit earlier, to get the error message out.
 // reduce the timeout by 1s or 10%, whichever is smaller.
-func earlyTimeout(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func earlyTimeout(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return handler(ctx, req)

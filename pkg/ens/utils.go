@@ -77,7 +77,7 @@ func ValidateCreateVolumeParams(params map[string]string) (*DiskParams, error) {
 	} else {
 		if strings.Contains(params["type"], ",") {
 			orderedList := []string{}
-			for _, cusType := range strings.Split(params["type"], ",") {
+			for cusType := range strings.SplitSeq(params["type"], ",") {
 				if _, ok := ENSDiskTypeMap[cusType]; ok {
 					orderedList = append(orderedList, cusType)
 				} else {
@@ -297,7 +297,7 @@ func detachDisk(diskID, nodeID string) error {
 			}
 
 			// check disk detach
-			for i := 0; i < 25; i++ {
+			for i := range 25 {
 				tmpDisk, err := GlobalConfigVar.ENSCli.DescribeVolume(diskID)
 				if err != nil {
 					return err
@@ -605,7 +605,7 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 }
 
 func waitForDiskInStatus(retryCount int, interval time.Duration, diskID string, expectedStatus string) error {
-	for i := 0; i < retryCount; i++ {
+	for range retryCount {
 		time.Sleep(interval)
 		disk, err := GlobalConfigVar.ENSCli.DescribeVolume(diskID)
 		if err != nil {

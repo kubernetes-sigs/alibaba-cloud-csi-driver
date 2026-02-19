@@ -281,16 +281,16 @@ func TestGetAvailableDiskCount(t *testing.T) {
 	cloud.UnmarshalAcsResponse([]byte(DescribeInstanceTypesResponse), resp)
 	lingjunNodeResp := &eflo.DescribeNodeResponse{
 		Body: &eflo.DescribeNodeResponseBody{
-			NodeId:        ptr.To("i-2ze0yyw7rf00yz9fttpg"),
-			NodeGroupId:   ptr.To("ng-2ze0yyw7rf00yz9fttpg"),
-			NodeGroupName: ptr.To("test-node-group"),
-			NodeType:      ptr.To("emgh.xxxxx"),
-			HyperNodeId:   ptr.To("e01-cn-zvp2tgykr08"),
+			NodeId:        new("i-2ze0yyw7rf00yz9fttpg"),
+			NodeGroupId:   new("ng-2ze0yyw7rf00yz9fttpg"),
+			NodeGroupName: new("test-node-group"),
+			NodeType:      new("emgh.xxxxx"),
+			HyperNodeId:   new("e01-cn-zvp2tgykr08"),
 		},
 	}
 	lingjunNodeTypeResp := &eflo.DescribeNodeTypeResponse{
 		Body: &eflo.DescribeNodeTypeResponseBody{
-			DiskQuantity: ptr.To(int32(12)),
+			DiskQuantity: new(int32(12)),
 		},
 	}
 	ecsClient := cloud.NewMockECSInterface(gomock.NewController(t))
@@ -717,7 +717,6 @@ func TestGetMountedVolumeDevice(t *testing.T) {
 	}
 
 	for _, test := range cases {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			device := getMountedVolumeDevice(test.mountInfo, "/path/to/volumeDevice")
@@ -750,7 +749,6 @@ func TestIsDeviceMountedAt(t *testing.T) {
 	}
 
 	for _, test := range cases {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			mounted := isDeviceMountedAt(test.mountInfo, "/dev/vdb", "/path/to/mountpoint")
@@ -1194,7 +1192,7 @@ func TestGetLingjunAvailableDiskCount(t *testing.T) {
 				// 第一次调用获取NodeType
 				lingjunNodeResp := &eflo.DescribeNodeResponse{
 					Body: &eflo.DescribeNodeResponseBody{
-						NodeType: ptr.To("ebmgvn"),
+						NodeType: new("ebmgvn"),
 					},
 				}
 				mockEFLOClient.EXPECT().
@@ -1204,7 +1202,7 @@ func TestGetLingjunAvailableDiskCount(t *testing.T) {
 				// 第二次调用获取磁盘数量
 				lingjunNodeTypeResp := &eflo.DescribeNodeTypeResponse{
 					Body: &eflo.DescribeNodeTypeResponseBody{
-						DiskQuantity: ptr.To(int32(12)),
+						DiskQuantity: new(int32(12)),
 					},
 				}
 				mockEFLOClient.EXPECT().
@@ -1248,7 +1246,7 @@ func TestGetLingjunAvailableDiskCount(t *testing.T) {
 			setupMocks: func(mockEFLOClient *cloud.MockEFLOInterface) {
 				lingjunNodeResp := &eflo.DescribeNodeResponse{
 					Body: &eflo.DescribeNodeResponseBody{
-						NodeType: ptr.To("ebmgvn"),
+						NodeType: new("ebmgvn"),
 					},
 				}
 				mockEFLOClient.EXPECT().

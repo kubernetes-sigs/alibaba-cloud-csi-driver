@@ -48,14 +48,14 @@ func TestIsAttachNotSupportedError_AttachNotSupportedError(t *testing.T) {
 
 func TestIsAttachNotSupportedError_SDKErrorWithCorrectCode(t *testing.T) {
 	sdkErr := &tea.SDKError{
-		Code: tea.String(VscAttachNotSupported),
+		Code: new(VscAttachNotSupported),
 	}
 	assert.True(t, IsAttachNotSupportedError(sdkErr))
 }
 
 func TestIsAttachNotSupportedError_SDKErrorWithWrongCode(t *testing.T) {
 	sdkErr := &tea.SDKError{
-		Code: tea.String("SomeOtherError"),
+		Code: new("SomeOtherError"),
 	}
 	assert.False(t, IsAttachNotSupportedError(sdkErr))
 }
@@ -67,8 +67,8 @@ func TestIsAttachNotSupportedError_GenericError(t *testing.T) {
 
 func TestIsAttachNotSupportedError_SDKErrorWithAttachNotSupportedInMessage(t *testing.T) {
 	sdkErr := &tea.SDKError{
-		Message: tea.String("Some error with AttachVscTarget.VscAttachNotSupported in message"),
-		Code:    tea.String("DifferentCode"),
+		Message: new("Some error with AttachVscTarget.VscAttachNotSupported in message"),
+		Code:    new("DifferentCode"),
 	}
 	// Should be false because the code doesn't match, even if message contains the string
 	assert.False(t, IsAttachNotSupportedError(sdkErr))

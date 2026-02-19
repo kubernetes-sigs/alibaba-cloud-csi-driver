@@ -93,7 +93,6 @@ func TestGetK8s(t *testing.T) {
 		InstanceID:   "i-2zec1slzwdzrwmvlr4w2",
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			node := testNode.DeepCopy()

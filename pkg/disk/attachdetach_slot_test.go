@@ -16,7 +16,7 @@ func TestDetachPriority(t *testing.T) {
 
 	wg := sync.WaitGroup{}
 	wg.Add(3)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		go func() {
 			as := s.Attach()
 			if err := as.Acquire(context.Background()); err != nil {
@@ -56,7 +56,7 @@ func TestParallelGetSlot(t *testing.T) {
 	nodeName := "node1"
 	wg := sync.WaitGroup{}
 	wg.Add(10)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			slots.GetSlotFor(nodeName)
 			wg.Done()
@@ -77,7 +77,7 @@ func TestCancelWaiting(t *testing.T) {
 		}()
 		time.Sleep(100 * time.Millisecond) // ensure we enter waiting state
 		cancel()
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			select {
 			case err := <-errs:
 				if err != context.Canceled {
@@ -158,7 +158,7 @@ func TestSerialDetach_NoRace(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	state := -1
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		go func(i int) {
 			s.Acquire(ctx)
 			state = i

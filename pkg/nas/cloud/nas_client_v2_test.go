@@ -26,7 +26,7 @@ func TestCreateDirSuccess(t *testing.T) {
 			&nas.CreateDirResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(201),
-				Body:       &nas.CreateDirResponseBody{RequestId: tea.String("")},
+				Body:       &nas.CreateDirResponseBody{RequestId: new("")},
 			}, nil)
 	})
 	err := client.CreateDir(&nas.CreateDirRequest{})
@@ -51,11 +51,11 @@ func TestCreateDirError(t *testing.T) {
 			&nas.CreateDirResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(403),
-				Body:       &nas.CreateDirResponseBody{RequestId: tea.String("")},
+				Body:       &nas.CreateDirResponseBody{RequestId: new("")},
 			}, &tea.SDKError{
-				Code:       tea.String("InvalidProtocolType.NotSupported"),
-				StatusCode: tea.Int(403),
-				Message:    tea.String("The specified protocol type does not supported."),
+				Code:       new("InvalidProtocolType.NotSupported"),
+				StatusCode: new(403),
+				Message:    new("The specified protocol type does not supported."),
 			})
 	})
 	err := client.CreateDir(&nas.CreateDirRequest{})
@@ -70,8 +70,8 @@ func TestSetDirQuotaSuccess(t *testing.T) {
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(201),
 				Body: &nas.SetDirQuotaResponseBody{
-					RequestId: tea.String(""),
-					Success:   tea.Bool(true),
+					RequestId: new(""),
+					Success:   new(true),
 				}}, nil)
 	})
 	err := client.SetDirQuota(&nas.SetDirQuotaRequest{})
@@ -86,8 +86,8 @@ func TestSetDirQuotaFailure(t *testing.T) {
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(404),
 				Body: &nas.SetDirQuotaResponseBody{
-					RequestId: tea.String(""),
-					Success:   tea.Bool(false),
+					RequestId: new(""),
+					Success:   new(false),
 				}}, nil)
 	})
 	err := client.SetDirQuota(&nas.SetDirQuotaRequest{})
@@ -102,13 +102,13 @@ func TestSetDirQuotaError(t *testing.T) {
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(404),
 				Body: &nas.SetDirQuotaResponseBody{
-					RequestId: tea.String(""),
-					Success:   tea.Bool(false),
+					RequestId: new(""),
+					Success:   new(false),
 				},
 			}, &tea.SDKError{
-				Code:       tea.String("InvalidParameter.DirPathNotExist"),
-				StatusCode: tea.Int(404),
-				Message:    tea.String("The Dir Path does not exist"),
+				Code:       new("InvalidParameter.DirPathNotExist"),
+				StatusCode: new(404),
+				Message:    new("The Dir Path does not exist"),
 			})
 	})
 	err := client.SetDirQuota(&nas.SetDirQuotaRequest{})
@@ -123,8 +123,8 @@ func TestCancelDirQuotaSuccess(t *testing.T) {
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(201),
 				Body: &nas.CancelDirQuotaResponseBody{
-					RequestId: tea.String(""),
-					Success:   tea.Bool(true),
+					RequestId: new(""),
+					Success:   new(true),
 				},
 			}, nil)
 	})
@@ -140,8 +140,8 @@ func TestCancelDirQuotaFailure(t *testing.T) {
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(201),
 				Body: &nas.CancelDirQuotaResponseBody{
-					RequestId: tea.String(""),
-					Success:   tea.Bool(false),
+					RequestId: new(""),
+					Success:   new(false),
 				},
 			}, nil)
 	})
@@ -157,13 +157,13 @@ func TestCancelDirQuotaError(t *testing.T) {
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(404),
 				Body: &nas.CancelDirQuotaResponseBody{
-					RequestId: tea.String(""),
-					Success:   tea.Bool(false),
+					RequestId: new(""),
+					Success:   new(false),
 				},
 			}, &tea.SDKError{
-				Code:       tea.String("InvalidParameter.DirPathNotExist"),
-				StatusCode: tea.Int(404),
-				Message:    tea.String("The Dir Path does not exist"),
+				Code:       new("InvalidParameter.DirPathNotExist"),
+				StatusCode: new(404),
+				Message:    new("The Dir Path does not exist"),
 			})
 	})
 	err := client.CancelDirQuota(&nas.CancelDirQuotaRequest{})
@@ -178,13 +178,13 @@ func TestCancelDirQuotaIgnoreQuotaNotExistsError(t *testing.T) {
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(404),
 				Body: &nas.CancelDirQuotaResponseBody{
-					RequestId: tea.String(""),
-					Success:   tea.Bool(false),
+					RequestId: new(""),
+					Success:   new(false),
 				},
 			}, &tea.SDKError{
-				Code:       tea.String("InvalidParameter.QuotaNotExistOnPath"),
-				StatusCode: tea.Int(404),
-				Message:    tea.String("The specified path does not have quota."),
+				Code:       new("InvalidParameter.QuotaNotExistOnPath"),
+				StatusCode: new(404),
+				Message:    new("The specified path does not have quota."),
 			})
 	})
 	err := client.CancelDirQuota(&nas.CancelDirQuotaRequest{})
@@ -198,7 +198,7 @@ func TestGetRecycleBinAttributeSuccess(t *testing.T) {
 			&nas.GetRecycleBinAttributeResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(201),
-				Body:       &nas.GetRecycleBinAttributeResponseBody{RequestId: tea.String("")},
+				Body:       &nas.GetRecycleBinAttributeResponseBody{RequestId: new("")},
 			}, nil)
 	})
 	_, err := client.GetRecycleBinAttribute("")
@@ -212,11 +212,11 @@ func TestGetRecycleBinAttributeError(t *testing.T) {
 			&nas.GetRecycleBinAttributeResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(400),
-				Body:       &nas.GetRecycleBinAttributeResponseBody{RequestId: tea.String("")},
+				Body:       &nas.GetRecycleBinAttributeResponseBody{RequestId: new("")},
 			}, &tea.SDKError{
-				Code:       tea.String("MissingFileSystemId"),
-				StatusCode: tea.Int(400),
-				Message:    tea.String("FileSystemId is mandatory for this action.\t"),
+				Code:       new("MissingFileSystemId"),
+				StatusCode: new(400),
+				Message:    new("FileSystemId is mandatory for this action.\t"),
 			})
 	})
 	_, err := client.GetRecycleBinAttribute("")
@@ -230,7 +230,7 @@ func TestCreateAccessPointSuccess(t *testing.T) {
 			&nas.CreateAccessPointResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(201),
-				Body:       &nas.CreateAccessPointResponseBody{RequestId: tea.String("")},
+				Body:       &nas.CreateAccessPointResponseBody{RequestId: new("")},
 			}, nil)
 	})
 	_, err := client.CreateAccesspoint(&nas.CreateAccessPointRequest{})
@@ -244,11 +244,11 @@ func TestCreateAccessPointError(t *testing.T) {
 			&nas.CreateAccessPointResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(403),
-				Body:       &nas.CreateAccessPointResponseBody{RequestId: tea.String("")},
+				Body:       &nas.CreateAccessPointResponseBody{RequestId: new("")},
 			}, &tea.SDKError{
-				Code:       tea.String("OperationDenied.AccessPointCountsExceeded\n"),
-				StatusCode: tea.Int(403),
-				Message:    tea.String("The maximum number of access point has reached its limits.\t"),
+				Code:       new("OperationDenied.AccessPointCountsExceeded\n"),
+				StatusCode: new(403),
+				Message:    new("The maximum number of access point has reached its limits.\t"),
 			})
 	})
 	_, err := client.CreateAccesspoint(&nas.CreateAccessPointRequest{})
@@ -262,7 +262,7 @@ func TestDeleteAccessPointSuccess(t *testing.T) {
 			&nas.DeleteAccessPointResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(201),
-				Body:       &nas.DeleteAccessPointResponseBody{RequestId: tea.String("")},
+				Body:       &nas.DeleteAccessPointResponseBody{RequestId: new("")},
 			}, nil)
 	})
 	err := client.DeleteAccesspoint("", "")
@@ -276,11 +276,11 @@ func TestDeleteAccessPointError(t *testing.T) {
 			&nas.DeleteAccessPointResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(404),
-				Body:       &nas.DeleteAccessPointResponseBody{RequestId: tea.String("")},
+				Body:       &nas.DeleteAccessPointResponseBody{RequestId: new("")},
 			}, &tea.SDKError{
-				Code:       tea.String("InvalidFileSystem.NotFound"),
-				StatusCode: tea.Int(404),
-				Message:    tea.String("The specified file system does not exist."),
+				Code:       new("InvalidFileSystem.NotFound"),
+				StatusCode: new(404),
+				Message:    new("The specified file system does not exist."),
 			})
 	})
 	err := client.DeleteAccesspoint("", "")
@@ -294,7 +294,7 @@ func TestDescribeAccessPointSuccess(t *testing.T) {
 			&nas.DescribeAccessPointResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(201),
-				Body:       &nas.DescribeAccessPointResponseBody{RequestId: tea.String("")},
+				Body:       &nas.DescribeAccessPointResponseBody{RequestId: new("")},
 			}, nil)
 	})
 	_, err := client.DescribeAccesspoint("", "")
@@ -308,11 +308,11 @@ func TestDescribeAccessPointError(t *testing.T) {
 			&nas.DescribeAccessPointResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(404),
-				Body:       &nas.DescribeAccessPointResponseBody{RequestId: tea.String("")},
+				Body:       &nas.DescribeAccessPointResponseBody{RequestId: new("")},
 			}, &tea.SDKError{
-				Code:       tea.String("InvalidAccessPointId.NotFound"),
-				StatusCode: tea.Int(404),
-				Message:    tea.String("The access point id does not exist."),
+				Code:       new("InvalidAccessPointId.NotFound"),
+				StatusCode: new(404),
+				Message:    new("The access point id does not exist."),
 			})
 	})
 	_, err := client.DescribeAccesspoint("", "")
@@ -326,6 +326,6 @@ func TestIsAccessPointNotFoundErrorNil(t *testing.T) {
 
 func TestIsAccessPointNotFoundErrorNotFound(t *testing.T) {
 	t.Parallel()
-	actual := IsAccessPointNotFoundError(&tea.SDKError{Code: tea.String("NotFound")})
+	actual := IsAccessPointNotFoundError(&tea.SDKError{Code: new("NotFound")})
 	assert.True(t, actual)
 }

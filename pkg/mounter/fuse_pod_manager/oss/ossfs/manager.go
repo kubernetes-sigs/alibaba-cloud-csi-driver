@@ -229,7 +229,7 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
-			Privileged: tea.Bool(true),
+			Privileged: new(true),
 		},
 		ReadinessProbe: &corev1.Probe{
 			ProbeHandler: corev1.ProbeHandler{
@@ -479,7 +479,7 @@ func (f *fuseOssfs) buildAuthSpec(c *fpm.FusePodContext, target string, spec *co
 			VolumeSource: corev1.VolumeSource{
 				CSI: &corev1.CSIVolumeSource{
 					Driver:           CsiSecretStoreDriver,
-					ReadOnly:         tea.Bool(true),
+					ReadOnly:         new(true),
 					VolumeAttributes: map[string]string{SecretProviderClassKey: authCfg.SecretProviderClassName},
 				},
 			},

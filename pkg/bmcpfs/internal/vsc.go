@@ -65,7 +65,7 @@ type LingjunVscManager struct {
 func (m *LingjunVscManager) CreatePrimaryVscFor(instanceId string) (string, error) {
 	req := &efloclient.CreateVscRequest{
 		NodeId:  &instanceId,
-		VscType: tea.String(VscTypePrimary),
+		VscType: new(VscTypePrimary),
 	}
 	resp, err := m.client.CreateVsc(req)
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
-	"k8s.io/utils/ptr"
 )
 
 type OpenAPIMetadata struct {
@@ -21,7 +20,7 @@ func NewOpenAPIMetadata(c cloud.ECSv2Interface, instanceId string) (*OpenAPIMeta
 		panic(err)
 	}
 	instanceRequest := ecs20140526.DescribeInstancesRequest{
-		InstanceIds: ptr.To(string(ids)),
+		InstanceIds: new(string(ids)),
 	}
 
 	instanceResponse, err := c.DescribeInstances(&instanceRequest)
