@@ -20,7 +20,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9.2.0
         with:
-          version: v2.7.2
+          version: v2.10.1
           # only-new-issues does not work on large PRs
           # https://github.com/golangci/golangci-lint-action/issues/996
           args: --new-from-rev=${{ github.event.pull_request.base.sha }}
