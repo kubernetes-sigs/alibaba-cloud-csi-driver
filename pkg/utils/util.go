@@ -675,8 +675,7 @@ func GetDiskFStypePTtype(disk string) (fstype string, pttype string, err error) 
 		return "", "", err
 	}
 
-	lines := strings.SplitSeq(output, "\n")
-	for l := range lines {
+	for l := range strings.SplitSeq(output, "\n") {
 		if len(l) <= 0 {
 			// Ignore empty line.
 			continue

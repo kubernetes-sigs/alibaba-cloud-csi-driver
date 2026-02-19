@@ -54,7 +54,7 @@ func TestCPFSFileSetManager_CreateFileSet_WithGoMock(t *testing.T) {
 			require.Equal(t, deleteProtection, tea.BoolValue(req.DeletionProtection))
 			return &nasclient.CreateFilesetResponse{
 				Body: &nasclient.CreateFilesetResponseBody{
-					FsetId: new(expectedFileSetID),
+					FsetId: &expectedFileSetID,
 				},
 			}, nil
 		})

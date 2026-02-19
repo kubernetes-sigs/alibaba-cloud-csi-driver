@@ -35,8 +35,7 @@ const (
 
 // updateVolumeContext removes unnecessary volume context parameters
 func updateVolumeContext(volumeContext map[string]string) map[string]string {
-	cloned := make(map[string]string)
-	maps.Copy(cloned, volumeContext)
+	cloned := maps.Clone(volumeContext)
 
 	// Remove unnecessary keys similar to disk implementation
 	keysToRemove := []string{

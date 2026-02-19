@@ -15,9 +15,8 @@ func TestDetachPriority(t *testing.T) {
 	seq := 0
 
 	wg := sync.WaitGroup{}
-	wg.Add(3)
 	for range 3 {
-		go func() {
+		wg.Go(func() {
 			as := s.Attach()
 			if err := as.Acquire(context.Background()); err != nil {
 				t.Error(err)
@@ -27,8 +26,7 @@ func TestDetachPriority(t *testing.T) {
 			seq += 1
 			time.Sleep(200 * time.Millisecond)
 			as.Release()
-			wg.Done()
-		}()
+		})
 	}
 	time.Sleep(100 * time.Millisecond)
 	ds := s.Detach()
@@ -55,12 +53,10 @@ func TestParallelGetSlot(t *testing.T) {
 	slots := NewSlots(0, 0)
 	nodeName := "node1"
 	wg := sync.WaitGroup{}
-	wg.Add(10)
 	for range 10 {
-		go func() {
+		wg.Go(func() {
 			slots.GetSlotFor(nodeName)
-			wg.Done()
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -156,15 +152,13 @@ func TestSerialDetach_NoRace(t *testing.T) {
 	s := NewSlots(1, 0).GetSlotFor("node1").Detach()
 	ctx := context.Background()
 	wg := sync.WaitGroup{}
-	wg.Add(2)
 	state := -1
 	for i := range 2 {
-		go func(i int) {
+		wg.Go(func() {
 			s.Acquire(ctx)
 			state = i
 			s.Release()
-			wg.Done()
-		}(i)
+		})
 	}
 	wg.Wait()
 	if state == -1 {

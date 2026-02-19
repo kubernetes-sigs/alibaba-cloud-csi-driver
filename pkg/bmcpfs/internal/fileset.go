@@ -56,16 +56,16 @@ func NewCPFSFileSetManager(client NasClient) CPFSFileSetManager {
 
 func (m *cpfsFileSetManager) CreateFileSet(ctx context.Context, fsID, pvName, fileSystemPath string, countLimit, sizeBytes int64, deleteProtection bool) (string, error) {
 	quota := &nasclient.CreateFilesetRequestQuota{
-		SizeLimit: new(sizeBytes),
+		SizeLimit: &sizeBytes,
 	}
 	if countLimit != 0 {
-		quota.FileCountLimit = new(countLimit)
+		quota.FileCountLimit = &countLimit
 	}
 	request := &nasclient.CreateFilesetRequest{
-		FileSystemId:       new(fsID),
-		ClientToken:        new(pvName),
-		DeletionProtection: new(deleteProtection),
-		FileSystemPath:     new(fileSystemPath),
+		FileSystemId:       &fsID,
+		ClientToken:        &pvName,
+		DeletionProtection: &deleteProtection,
+		FileSystemPath:     &fileSystemPath,
 		Quota:              quota,
 	}
 	klog.InfoS("before create fileset", "request", *request)
@@ -83,8 +83,8 @@ func (m *cpfsFileSetManager) CreateFileSet(ctx context.Context, fsID, pvName, fi
 // DeleteFileSet deletes a fileset by fileSystemId and fileSetId
 func (m *cpfsFileSetManager) DeleteFileSet(ctx context.Context, fsID, fileSetID string) error {
 	request := &nasclient.DeleteFilesetRequest{
-		FileSystemId: new(fsID),
-		FsetId:       new(fileSetID),
+		FileSystemId: &fsID,
+		FsetId:       &fileSetID,
 	}
 
 	response, err := m.client.DeleteFileset(request)
@@ -108,7 +108,7 @@ func (m *cpfsFileSetManager) DescribeFileSets(ctx context.Context, fsID string) 
 	// Handle pagination - iterate through all pages to collect all filesets
 	for {
 		request := &nasclient.DescribeFilesetsRequest{
-			FileSystemId: new(fsID),
+			FileSystemId: &fsID,
 			NextToken:    nextToken,
 		}
 
@@ -143,11 +143,11 @@ func (m *cpfsFileSetManager) DescribeFileSets(ctx context.Context, fsID string) 
 // DescribeFileset describes a specific fileset by fileSystemId and fileSetId
 func (m *cpfsFileSetManager) DescribeFilesetByFsetID(ctx context.Context, fsID, fileSetID string) (*nasclient.DescribeFilesetsResponseBodyEntriesEntrie, error) {
 	request := &nasclient.DescribeFilesetsRequest{
-		FileSystemId: new(fsID),
+		FileSystemId: &fsID,
 		Filters: []*nasclient.DescribeFilesetsRequestFilters{
 			{
 				Key:   new("FsetIds"),
-				Value: new(fileSetID),
+				Value: &fileSetID,
 			},
 		},
 	}
@@ -175,11 +175,11 @@ func (m *cpfsFileSetManager) DescribeFilesetByFsetID(ctx context.Context, fsID, 
 // DescribeFilesetByFilePath describes a specific fileset by fileSystemId and filesystemPath
 func (m *cpfsFileSetManager) DescribeFilesetByFilePath(ctx context.Context, fsID, filesystemPath string) (*nasclient.DescribeFilesetsResponseBodyEntriesEntrie, error) {
 	request := &nasclient.DescribeFilesetsRequest{
-		FileSystemId: new(fsID),
+		FileSystemId: &fsID,
 		Filters: []*nasclient.DescribeFilesetsRequestFilters{
 			{
 				Key:   new("FileSystemPath"),
-				Value: new(filesystemPath),
+				Value: &filesystemPath,
 			},
 		},
 	}

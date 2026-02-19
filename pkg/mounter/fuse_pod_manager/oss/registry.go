@@ -38,9 +38,7 @@ func GetFuseMounterPath(fstype string) (string, bool) {
 
 // GetAllFuseMounterPaths returns a map of all registered fuse types to their executable paths
 func GetAllFuseMounterPaths() map[string]string {
-	result := make(map[string]string, len(fstypeToPath))
-	maps.Copy(result, fstypeToPath)
-	return result
+	return maps.Clone(fstypeToPath)
 }
 
 // GetFuseMountInterceptors returns the mount interceptors for a given fstype

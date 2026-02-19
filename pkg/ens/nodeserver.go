@@ -580,21 +580,16 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 	return nil
 }
 
-// hasMountOption return boolean value indicating whether the slice contains a mount option
-func hasMountOption(options []string, opt string) bool {
-	return slices.Contains(options, opt)
-}
-
 // collectMountOptions returns array of mount options
 func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 	for _, opt := range mntFlags {
-		if !hasMountOption(options, opt) {
+		if !slices.Contains(options, opt) {
 			options = append(options, opt)
 		}
 	}
 
 	if fsType == "xfs" {
-		if !hasMountOption(options, NOUUID) {
+		if !slices.Contains(options, NOUUID) {
 			options = append(options, NOUUID)
 		}
 	}

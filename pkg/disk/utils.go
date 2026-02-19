@@ -1244,11 +1244,6 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 	return availableCount, nil
 }
 
-// hasMountOption return boolean value indicating whether the slice contains a mount option
-func hasMountOption(options []string, opt string) bool {
-	return slices.Contains(options, opt)
-}
-
 // checkRundVolumeExpand
 func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 	klog.Infof("checkRundVolumeExpand: volumePath: %s", req.VolumePath)

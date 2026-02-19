@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -1105,13 +1106,13 @@ func (ns *nodeServer) forceUnmountPath(globalPath string) error {
 // collectMountOptions returns array of mount options
 func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 	for _, opt := range mntFlags {
-		if !hasMountOption(options, opt) {
+		if !slices.Contains(options, opt) {
 			options = append(options, opt)
 		}
 	}
 
 	if fsType == "xfs" {
-		if !hasMountOption(options, NOUUID) {
+		if !slices.Contains(options, NOUUID) {
 			options = append(options, NOUUID)
 		}
 	}
