@@ -557,9 +557,14 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 		device, err = ns.ad.findDevice(ctx, req.VolumeId, serial, nil)
 		if err != nil {
-			return nil, status.Errorf(defaultErrCode, "NodeStageVolume: ADController Enabled, but disk %s can't be found: %v", req.VolumeId, err)
+			if GlobalConfigVar.ADControllerEnable || isMultiAttach {
+				return nil, status.Errorf(defaultErrCode, "NodeStageVolume: ADController Enabled, but disk %s can't be found: %v", req.VolumeId, err)
+			}
+			// This disk should have been attached by controller, but old NodeUnstageVolume detaches it.
+			// So lets try attach it back.
 		}
-	} else {
+	}
+	if device == "" {
 		device, err = ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID, true)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
@@ -667,20 +672,6 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 	return nil
 }
 
-func (ns *nodeServer) addDiskXattr(logger klog.Logger, diskID string) (err error) {
-	defer func() {
-		if errors.Is(err, os.ErrNotExist) {
-			klog.Infof("addDiskXattr: disk %s not found, skip", diskID)
-			err = nil
-		}
-	}()
-	device, err := ns.ad.GetVolumeDeviceName(logger, diskID)
-	if err != nil {
-		return
-	}
-	return setDiskXattr(device, diskID)
-}
-
 // target format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	logger := klog.FromContext(ctx)
@@ -771,24 +762,41 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		}
 	}
 
-	err := ns.addDiskXattr(logger, req.VolumeId)
+	// All device related errors are not fatal, just log it
+	device, err := ns.ad.dev.GetRootBlockBySerial(strings.TrimPrefix(req.VolumeId, "d-"))
 	if err != nil {
-		klog.Errorf("NodeUnstageVolume: addDiskXattr %s failed: %v", req.VolumeId, err)
+		if errors.Is(err, os.ErrNotExist) {
+			// devices without serial should already have xattr set on NodeStageVolume
+			logger.V(2).Info("device not found (no serial?)")
+		} else {
+			logger.Error(err, "failed to get device for disk")
+		}
+	} else {
+		err := setDiskXattr(device, req.VolumeId)
+		if err != nil {
+			klog.Errorf("NodeUnstageVolume: addDiskXattr %s failed: %v", req.VolumeId, err)
+		}
 	}
 
-	// Do detach if ADController disable
-	if !GlobalConfigVar.ADControllerEnable {
-		// if DetachDisabled is set to true, return
-		if GlobalConfigVar.DetachDisabled {
-			klog.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
-			return &csi.NodeUnstageVolumeResponse{}, nil
-		}
-		ecsClient := GlobalConfigVar.EcsClient
-		err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID, true)
-		if err != nil {
-			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
-			return nil, err
-		}
+	if GlobalConfigVar.ADControllerEnable {
+		return &csi.NodeUnstageVolumeResponse{}, nil
+	}
+	if GlobalConfigVar.DetachDisabled {
+		klog.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
+		return &csi.NodeUnstageVolumeResponse{}, nil
+	}
+
+	if device != "" {
+		// best effort to avoid OpenAPI call. detachDisk will check again.
+		klog.V(2).InfoS("locally checked disk has serial number, defer detach to controller")
+		return &csi.NodeUnstageVolumeResponse{}, nil
+	}
+	// Do detach if ADController is disabled and disk has no serial number
+	ecsClient := GlobalConfigVar.EcsClient
+	err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID, true)
+	if err != nil {
+		klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
+		return nil, err
 	}
 	ns.ad.devMap.Delete(req.VolumeId)
 
