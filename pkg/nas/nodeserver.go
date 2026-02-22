@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
@@ -66,13 +67,18 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 		klog.Errorf("failed to config /proc/sys/sunrpc/tcp_slot_table_entries: %v", err)
 	}
 
+	regionID, err := config.Meta.Get(metadata.RegionID)
+	if err != nil {
+		klog.ErrorS(err, "failed to get region ID")
+	}
+
 	ns := &nodeServer{
 		config: config,
 		locks:  utils.NewVolumeLocks(),
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: config.NodeName,
 		},
-		mounter: newNasMounter(config.AgentMode, config.MountProxySocket),
+		mounter: newNasMounter(config.AgentMode, config.MountProxySocket, regionID),
 	}
 	if !ns.config.AgentMode {
 		ns.recorder = utils.NewEventRecorder() // There is no kubeconfig under agent mode
@@ -95,8 +101,11 @@ type Options struct {
 	MountProtocol string `json:"mountProtocol"`
 	ClientType    string `json:"clientType"`
 	FSType        string `json:"fsType"`
-	AkID          string
-	AkSecret      string
+
+	AuthType string `json:"authType"`
+	RoleName string `json:"roleName"`
+	AkID     string
+	AkSecret string
 }
 
 // RunvNasOptions struct definition
@@ -250,6 +259,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			cnfsName = value
 		case "mountprotocol":
 			opt.MountProtocol = strings.TrimSpace(value)
+		case "authtype":
+			opt.AuthType = strings.TrimSpace(value)
+		case "rolename":
+			opt.RoleName = strings.TrimSpace(value)
 		}
 	}
 	opt.AkID = req.Secrets[akIDKey]
@@ -444,7 +457,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	//mount nas client
-	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, podUID, ns.config.AgentMode); err != nil {
+	if err := doMount(ns.mounter, ns.config.Meta, opt, mountPath, req.VolumeId, podUID, ns.config.AgentMode); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if opt.MountProtocol == "efc" {
@@ -578,7 +591,7 @@ func (ns *nodeServer) mountLosetupPv(mountPoint string, opt *Options, volumeID s
 		return fmt.Errorf("mountLosetupPv: create nfs mountPath error %s ", err.Error())
 	}
 	//mount nas to use losetup dev
-	err := doMount(ns.mounter, opt, nfsPath, volumeID, podID, ns.config.AgentMode)
+	err := doMount(ns.mounter, ns.config.Meta, opt, nfsPath, volumeID, podID, ns.config.AgentMode)
 	if err != nil {
 		return fmt.Errorf("mountLosetupPv: mount losetup volume failed: %s", err.Error())
 	}

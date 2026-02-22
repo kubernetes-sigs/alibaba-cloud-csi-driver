@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -70,12 +71,11 @@ type RoleAuth struct {
 	Code            string
 }
 
-func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
+func doMount(m mounter.Mounter, meta metadata.MetadataProvider, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
 	var (
 		mountFstype     string
 		source          string
 		combinedOptions []string
-		secrets         map[string]string
 		isPathNotFound  func(error) bool
 	)
 	if opt.Accesspoint != "" {
@@ -85,12 +85,6 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	}
 	if opt.Options != "" {
 		combinedOptions = append(combinedOptions, opt.Options)
-	}
-	if opt.AkID != "" && opt.AkSecret != "" {
-		secrets = map[string]string{
-			akIDKey:     opt.AkID,
-			akSecretKey: opt.AkSecret,
-		}
 	}
 
 	switch opt.ClientType {
@@ -140,14 +134,32 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		}
 	}
 
-	err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
+	accountID, err := meta.Get(metadata.AccountID)
+	if err != nil {
+		klog.ErrorS(err, "failed to get account ID")
+	}
+	clusterID, err := meta.Get(metadata.ClusterID)
+	if err != nil {
+		klog.ErrorS(err, "failed to get cluster ID")
+	}
+
+	req := &mounterutils.MountRequest{
 		Source:   source,
 		Target:   targetPath,
-		FsType:   mountFstype,
+		Fstype:   mountFstype,
 		Options:  combinedOptions,
-		Secrets:  secrets,
 		VolumeID: volumeId,
-	})
+		AuthConfig: &mounterutils.AuthConfig{
+			AccessKey:    opt.AkID,
+			AccessSecret: opt.AkSecret,
+			AuthType:     opt.AuthType,
+			RoleName:     opt.RoleName,
+			AccountID:    accountID,
+			ClusterID:    clusterID,
+		},
+	}
+
+	err = m.ExtendedMount(context.Background(), req)
 	if err == nil {
 		return nil
 	}
@@ -174,14 +186,10 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		return err
 	}
 	defer os.Remove(tmpPath)
-	if err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
-		Source:   rootSource,
-		Target:   tmpPath,
-		FsType:   mountFstype,
-		Options:  combinedOptions,
-		Secrets:  secrets,
-		VolumeID: volumeId,
-	}); err != nil {
+
+	req.Source = rootSource
+	req.Target = targetPath
+	if err := m.ExtendedMount(context.Background(), req); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Join(tmpPath, relPath), os.ModePerm); err != nil {
@@ -190,14 +198,10 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	if err := cleanupMountpoint(m, tmpPath); err != nil {
 		klog.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
 	}
-	return m.ExtendedMount(context.Background(), &mounter.MountOperation{
-		Source:   source,
-		Target:   targetPath,
-		FsType:   mountFstype,
-		Options:  combinedOptions,
-		Secrets:  secrets,
-		VolumeID: volumeId,
-	})
+
+	req.Source = source
+	req.Target = targetPath
+	return m.ExtendedMount(context.Background(), req)
 }
 
 func isEFCPathNotFoundError(err error) bool {

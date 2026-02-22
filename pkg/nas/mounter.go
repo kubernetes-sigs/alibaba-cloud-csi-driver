@@ -5,6 +5,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
@@ -16,18 +17,18 @@ type NasMounter struct {
 
 var _ mounter.Mounter = &NasMounter{}
 
-func (m *NasMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) (err error) {
+func (m *NasMounter) ExtendedMount(ctx context.Context, req *utils.MountRequest) (err error) {
 	logger := klog.Background().WithValues(
-		"source", op.Source,
-		"target", op.Target,
-		"options", op.Options,
-		"fstype", op.FsType,
+		"source", req.Source,
+		"target", req.Target,
+		"options", req.Options,
+		"fstype", req.Fstype,
 	)
-	switch op.FsType {
+	switch req.Fstype {
 	case "alinas", "cpfs", "cpfs-nfs":
-		err = m.alinasMounter.ExtendedMount(ctx, op)
+		err = m.alinasMounter.ExtendedMount(ctx, req)
 	default:
-		err = m.Mount(op.Source, op.Target, op.FsType, op.Options)
+		err = m.Mount(req.Source, req.Target, req.Fstype, req.Options)
 	}
 	if err != nil {
 		logger.Error(err, "failed to mount")
@@ -37,7 +38,7 @@ func (m *NasMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperati
 	return err
 }
 
-func newNasMounter(agentMode bool, socketPath string) mounter.Mounter {
+func newNasMounter(agentMode bool, socketPath, regionID string) mounter.Mounter {
 	inner := mountutils.NewWithoutSystemd("")
 	m := &NasMounter{
 		Interface: inner,
@@ -48,7 +49,13 @@ func newNasMounter(agentMode bool, socketPath string) mounter.Mounter {
 	case !agentMode: // normal case, use connector mounter to ensure backward compatibility
 		m.alinasMounter = mounter.NewConnectorMounter(inner, "")
 	default:
-		m.alinasMounter = mounter.NewForMounter(mounter.NewAdaptorMounter(inner), interceptors.AlinasSecretInterceptor)
+		interceptor, err := interceptors.NewAlinasSecretInterceptor(regionID)
+		if err != nil {
+			klog.ErrorS(err, "failed to create alinas secret interceptor")
+			m.alinasMounter = mounter.NewForMounter(mounter.NewAdaptorMounter(inner))
+		} else {
+			m.alinasMounter = mounter.NewForMounter(mounter.NewAdaptorMounter(inner), interceptor.Intercept)
+		}
 	}
 	return m
 }
