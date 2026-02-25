@@ -8,14 +8,13 @@ import (
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/prometheus/client_golang/prometheus"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 )
 
-func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	logger := klog.FromContext(ctx).WithValues("method", info.FullMethod)
+func logGRPC[TReq any, TResp any](handler func(context.Context, TReq) (TResp, error), ctx context.Context, req TReq) (TResp, error) {
+	logger := klog.FromContext(ctx)
 	logger.Info("GRPC call start")
 	logger.V(4).Info("GRPC request", "request", protosanitizer.StripSecrets(req))
 	resp, err := handler(klog.NewContext(ctx, logger), req)
