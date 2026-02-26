@@ -81,12 +81,12 @@ type rawRequest struct {
 }
 
 func parseRawRequest(data []byte) (*rawRequest, error) {
-	end := bytes.IndexByte(data, proxy.MessageEnd)
-	if end == -1 {
+	before, _, ok := bytes.Cut(data, []byte{proxy.MessageEnd})
+	if !ok {
 		return nil, errors.New("invalid message")
 	}
 	var req rawRequest
-	return &req, json.Unmarshal(data[:end], &req)
+	return &req, json.Unmarshal(before, &req)
 }
 
 func handle(ctx context.Context, req *rawRequest) proxy.Response {

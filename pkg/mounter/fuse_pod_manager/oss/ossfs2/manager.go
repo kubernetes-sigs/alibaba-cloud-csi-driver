@@ -265,7 +265,7 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
-			Privileged: tea.Bool(true),
+			Privileged: new(true),
 		},
 		ReadinessProbe: &corev1.Probe{
 			ProbeHandler: corev1.ProbeHandler{

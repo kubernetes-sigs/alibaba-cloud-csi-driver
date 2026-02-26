@@ -100,10 +100,10 @@ func (c *accesspointController) CreateVolume(ctx context.Context, req *csi.Creat
 		resp.Volume.VolumeContext["volumeCapacity"] = "true"
 		if err := c.nasClient.SetDirQuota(&sdk.SetDirQuotaRequest{
 			FileSystemId: &cnfs.Status.FsAttributes.FilesystemID,
-			Path:         tea.String(path.Join(basePath, req.Name)),
+			Path:         new(path.Join(basePath, req.Name)),
 			SizeLimit:    &quota,
-			QuotaType:    tea.String("Enforcement"),
-			UserType:     tea.String("AllUsers"),
+			QuotaType:    new("Enforcement"),
+			UserType:     new("AllUsers"),
 		}); err != nil {
 			return nil, status.Errorf(codes.Internal, "nas:SetDirQuota failed: %v", err)
 		}
@@ -136,7 +136,7 @@ func (c *accesspointController) createAccesspoint(ctx context.Context, name, bas
 		VpcId:           &vpcId,
 		VswId:           &vswId,
 		AccessPointName: &name,
-		RootDirectory:   tea.String(path.Join(basePath, name)),
+		RootDirectory:   new(path.Join(basePath, name)),
 		OwnerUserId:     tea.Int32(0),
 		OwnerGroupId:    tea.Int32(0),
 	}
@@ -220,7 +220,7 @@ func (c *accesspointController) DeleteVolume(ctx context.Context, req *csi.Delet
 		if err := c.nasClient.CancelDirQuota(&sdk.CancelDirQuotaRequest{
 			FileSystemId: &filesystemId,
 			Path:         apInfo.Body.AccessPoint.RootPath,
-			UserType:     tea.String("AllUsers"),
+			UserType:     new("AllUsers"),
 		}); err != nil {
 			return nil, status.Errorf(codes.Internal, "nas:CancelDirQuota failed: %v", err)
 		}
@@ -264,8 +264,8 @@ func (c *accesspointController) ControllerExpandVolume(ctx context.Context, req 
 			FileSystemId: &filesystemId,
 			Path:         apInfo.Body.AccessPoint.RootPath,
 			SizeLimit:    &quota,
-			QuotaType:    tea.String("Enforcement"),
-			UserType:     tea.String("AllUsers"),
+			QuotaType:    new("Enforcement"),
+			UserType:     new("AllUsers"),
 		}); err != nil {
 			return nil, status.Errorf(codes.Internal, "nas:SetDirQuota failed: %v", err)
 		}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -107,7 +108,7 @@ func ExtractFuseContainerConfig(csiCfg utils.Config, name string) (config FuseCo
 	config.Resources.Limits = make(corev1.ResourceList)
 
 	content := csiCfg.Get("fuse-"+name, "OSS_FUSE_"+strings.ToUpper(name), "")
-	for _, line := range strings.Split(content, "\n") {
+	for line := range strings.SplitSeq(content, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -274,9 +275,7 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string) (*corev1.Pod
 		if rawPod.Labels == nil {
 			rawPod.Labels = labels
 		} else {
-			for key, value := range labels {
-				rawPod.Labels[key] = value
-			}
+			maps.Copy(rawPod.Labels, labels)
 		}
 		// make ack drain skip fuse pods
 		rawPod.Labels[ACKDrainLabelKey] = "skip"
@@ -345,7 +344,7 @@ func (fpm *FusePodManager) Delete(c *FusePodContext) error {
 	deleteNotify := make(chan struct{}, 1)
 	deleteNotify <- struct{}{}
 	_, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			select {
 			case deleteNotify <- struct{}{}:
 				logger.V(4).Info("pod deleted")

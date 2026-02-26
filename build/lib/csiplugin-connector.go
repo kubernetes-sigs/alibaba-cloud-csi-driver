@@ -22,9 +22,7 @@ func main() {
 	log.Print("OSS Connector Daemon Is Starting...")
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		EnsureSocketPath(OSSSocketPath)
 		log.Printf("Socket path is ready: %s", OSSSocketPath)
 		ln, err := net.Listen("unix", OSSSocketPath)
@@ -44,7 +42,7 @@ func main() {
 			}
 			go echoServer(fd)
 		}
-	}()
+	})
 	wg.Wait()
 }
 

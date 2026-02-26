@@ -1,6 +1,8 @@
 package oss
 
 import (
+	"maps"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -36,11 +38,7 @@ func GetFuseMounterPath(fstype string) (string, bool) {
 
 // GetAllFuseMounterPaths returns a map of all registered fuse types to their executable paths
 func GetAllFuseMounterPaths() map[string]string {
-	result := make(map[string]string, len(fstypeToPath))
-	for fstype, path := range fstypeToPath {
-		result[fstype] = path
-	}
-	return result
+	return maps.Clone(fstypeToPath)
 }
 
 // GetFuseMountInterceptors returns the mount interceptors for a given fstype

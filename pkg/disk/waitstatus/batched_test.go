@@ -16,7 +16,7 @@ import (
 
 func TestPoll(t *testing.T) {
 	client := &testdesc.FakeClient{}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		diskID := fmt.Sprintf("d%d", i)
 		client.Disks.Store(diskID, disk(diskID, "Available"))
 	}
@@ -114,8 +114,7 @@ func (*noBatchClient) BatchSize() int {
 func TestWaitTimeUpperBound(t *testing.T) {
 	clk := testclock.NewFakeClock(time.Now())
 	waiter := NewBatched(&noBatchClient{}, clk, 5*time.Second, 7*time.Second)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go waiter.Run(ctx)
 
 	var iter atomic.Int32

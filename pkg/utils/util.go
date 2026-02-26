@@ -27,6 +27,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -306,7 +307,7 @@ func GetAccessModes(caps []*csi.VolumeCapability) *[]string {
 }
 
 // WriteJSONFile save json data to file
-func WriteJSONFile(obj interface{}, file string) error {
+func WriteJSONFile(obj any, file string) error {
 	rankingsJSON, err := json.Marshal(obj)
 	if err != nil {
 		return err
@@ -547,13 +548,7 @@ func IsPathAvailable(path string) error {
 // formatAndMount uses unix utils to format and mount the given disk
 func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, target string, fstype string, mkfsOptions []string, mountOptions []string, omitFsCheck bool) error {
 	klog.Infof("formatAndMount: mount options : %+v", mountOptions)
-	readOnly := false
-	for _, option := range mountOptions {
-		if option == "ro" {
-			readOnly = true
-			break
-		}
-	}
+	readOnly := slices.Contains(mountOptions, "ro")
 
 	// check device fs
 	mountOptions = append(mountOptions, "defaults")
@@ -680,8 +675,7 @@ func GetDiskFStypePTtype(disk string) (fstype string, pttype string, err error) 
 		return "", "", err
 	}
 
-	lines := strings.Split(output, "\n")
-	for _, l := range lines {
+	for l := range strings.SplitSeq(output, "\n") {
 		if len(l) <= 0 {
 			// Ignore empty line.
 			continue
@@ -729,7 +723,7 @@ func IsPrivateCloud() bool {
 }
 
 func parseUdevadmInfoSerial(out string) string {
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		const prefix = "ID_SERIAL_SHORT="
 		if strings.HasPrefix(line, prefix) {
 			return line[len(prefix):]

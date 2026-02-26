@@ -15,16 +15,16 @@ var GVR = schema.GroupVersionResource{
 // ContainerNetworkFileSystem define cnfs crd
 type ContainerNetworkFileSystem struct {
 	metaV1.TypeMeta   `json:",inline"`
-	metaV1.ObjectMeta `json:"metadata,omitempty"`
+	metaV1.ObjectMeta `json:"metadata"`
 
-	Spec   ContainerNetworkFileSystemSpec   `json:"spec,omitempty"`
-	Status ContainerNetworkFileSystemStatus `json:"status,omitempty"`
+	Spec   ContainerNetworkFileSystemSpec   `json:"spec"`
+	Status ContainerNetworkFileSystemStatus `json:"status"`
 }
 
 // ContainerNetworkFileSystemStatus define cnfs status field
 type ContainerNetworkFileSystemStatus struct {
 	Status       string                                `json:"status,omitempty"`
-	FsAttributes FsAttributes                          `json:"fsAttributes,omitempty"`
+	FsAttributes FsAttributes                          `json:"fsAttributes"`
 	Conditions   []ContainerNetworkFileSystemCondition `json:"conditions,omitempty"`
 }
 
@@ -47,11 +47,11 @@ type ContainerNetworkFileSystemCondition struct {
 
 // ContainerNetworkFileSystemSpec define cnfs spec field
 type ContainerNetworkFileSystemSpec struct {
-	Fallback      Fallback   `json:"fallback,omitempty"`
+	Fallback      Fallback   `json:"fallback"`
 	StorageType   string     `json:"type,omitempty"`
 	ReclaimPolicy string     `json:"reclaimPolicy,omitempty"`
 	Description   string     `json:"description,omitempty"`
-	Parameters    Parameters `json:"parameters,omitempty"`
+	Parameters    Parameters `json:"parameters"`
 }
 
 type Fallback struct {
@@ -123,7 +123,7 @@ type Secret struct {
 // ContainerNetworkFileSystemList define cnfs list
 type ContainerNetworkFileSystemList struct {
 	metaV1.TypeMeta `json:",inline"`
-	metaV1.ListMeta `json:"metadata,omitempty"`
+	metaV1.ListMeta `json:"metadata"`
 
 	Items []ContainerNetworkFileSystem `json:"items"`
 }

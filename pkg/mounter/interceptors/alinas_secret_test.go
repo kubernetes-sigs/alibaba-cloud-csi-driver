@@ -104,9 +104,7 @@ func TestAlinasSecretInterceptor(t *testing.T) {
 			} else {
 				var wg sync.WaitGroup
 				for range 10 {
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
+					wg.Go(func() {
 						time.Sleep(time.Millisecond)
 						err := AlinasSecretInterceptor(context.Background(), deepCopyMountOperation(tt.op), tt.handler)
 						mutex.Lock()
@@ -114,7 +112,7 @@ func TestAlinasSecretInterceptor(t *testing.T) {
 							errs = append(errs, err)
 						}
 						mutex.Unlock()
-					}()
+					})
 				}
 				wg.Wait()
 			}

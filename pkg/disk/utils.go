@@ -327,10 +327,10 @@ func prepareMountInfos(req *csi.NodePublishVolumeRequest) ([]string, string) {
 func GetVolumeIDByDevice(device string) (volumeID string, err error) {
 	// get volume by serial number feature
 	deviceName := device
-	if strings.HasPrefix(device, "/dev/") {
-		deviceName = strings.TrimPrefix(device, "/dev/")
-	} else if strings.HasPrefix(device, "/") {
-		deviceName = strings.TrimPrefix(device, "/")
+	if after, ok := strings.CutPrefix(device, "/dev/"); ok {
+		deviceName = after
+	} else if after, ok := strings.CutPrefix(device, "/"); ok {
+		deviceName = after
 	}
 
 	virtioSerialFile := filepath.Join("/sys/block/", deviceName, "/serial")
@@ -372,7 +372,7 @@ func parseTags(params map[string]string) (map[string]string, error) {
 	seenTags := map[string]string{}
 	// process old diskTags format first, so that new custom tags can override them consistently
 	if v := params["diskTags"]; v != "" {
-		for _, tag := range strings.Split(v, ",") {
+		for tag := range strings.SplitSeq(v, ",") {
 			k, v, found := strings.Cut(tag, ":")
 			if !found {
 				return nil, fmt.Errorf("invalid diskTags %q, no \":\" found", tag)
@@ -656,7 +656,7 @@ func validateDiskType(opts map[string]string) (diskType []Category, err error) {
 		diskType = []Category{DiskSSD, DiskEfficiency}
 		return
 	}
-	for _, cusType := range strings.Split(opts["type"], ",") {
+	for cusType := range strings.SplitSeq(opts["type"], ",") {
 		c := Category(cusType)
 		if _, ok := AllCategories[c]; ok {
 			diskType = append(diskType, c)
@@ -899,8 +899,8 @@ func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
 	if !needUpdate {
 		return nil
 	}
-	patch, err := json.Marshal(map[string]interface{}{
-		"metadata": map[string]interface{}{
+	patch, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{
 			"labels": instanceStorageLabels,
 			"annotations": map[string]string{
 				nodeDiskCountAnnotation: maxVolumesNumStr,
@@ -1242,16 +1242,6 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 	}
 
 	return availableCount, nil
-}
-
-// hasMountOption return boolean value indicating whether the slice contains a mount option
-func hasMountOption(options []string, opt string) bool {
-	for _, o := range options {
-		if o == opt {
-			return true
-		}
-	}
-	return false
 }
 
 // checkRundVolumeExpand

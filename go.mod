@@ -1,6 +1,6 @@
 module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
-go 1.25
+go 1.26
 
 tool github.com/golang/mock/mockgen
 

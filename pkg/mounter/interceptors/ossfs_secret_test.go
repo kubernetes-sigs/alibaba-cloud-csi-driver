@@ -1338,7 +1338,7 @@ func TestRotatePasswdFile(t *testing.T) {
 		done := make(chan bool, numWrites)
 		errChan := make(chan error, numWrites)
 
-		for i := 0; i < numWrites; i++ {
+		for i := range numWrites {
 			go func(idx int) {
 				content := fmt.Sprintf("content-%d", idx)
 				rotated, e := rotatePasswdFile(filePath, []byte(content), 0o600)
@@ -1352,7 +1352,7 @@ func TestRotatePasswdFile(t *testing.T) {
 		// Wait for all writes to complete
 		writeCount := 0
 		errorCount := 0
-		for i := 0; i < numWrites; i++ {
+		for range numWrites {
 			select {
 			case rotated := <-done:
 				if rotated {

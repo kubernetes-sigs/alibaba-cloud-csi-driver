@@ -3,7 +3,6 @@ package ens
 import (
 	http "github.com/alibabacloud-go/darabonba-openapi/client"
 	ensCli "github.com/alibabacloud-go/ens-20171110/v3/client"
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"k8s.io/klog/v2"
 )
@@ -19,7 +18,7 @@ func newENSClient() ENSClient {
 	}
 
 	config := http.Config{
-		Endpoint:   tea.String("ens.aliyuncs.com"),
+		Endpoint:   new("ens.aliyuncs.com"),
 		Credential: cred,
 	}
 
@@ -32,7 +31,7 @@ func newENSClient() ENSClient {
 
 func (ec *ENSClient) DescribeInstance(instanceId string) ([]*ensCli.DescribeInstancesResponseBodyInstancesInstance, error) {
 	dir := &ensCli.DescribeInstancesRequest{
-		InstanceId: tea.String(instanceId),
+		InstanceId: new(instanceId),
 	}
 	resp, err := ec.c.DescribeInstances(dir)
 	if err != nil {
@@ -44,10 +43,10 @@ func (ec *ENSClient) DescribeInstance(instanceId string) ([]*ensCli.DescribeInst
 
 func (ec *ENSClient) CreateVolume(regionID, diskType, size string) (string, error) {
 	cdr := &ensCli.CreateDiskRequest{
-		InstanceChargeType: tea.String("PostPaid"),
-		EnsRegionId:        tea.String(regionID),
-		Category:           tea.String(diskType),
-		Size:               tea.String(size),
+		InstanceChargeType: new("PostPaid"),
+		EnsRegionId:        new(regionID),
+		Category:           new(diskType),
+		Size:               new(size),
 	}
 
 	resp, err := ec.c.CreateDisk(cdr)
@@ -64,8 +63,8 @@ func (ec *ENSClient) DeleteVolume(diskID string) {
 
 func (ec *ENSClient) AttachVolume(diskID, instanceID string) error {
 	adr := &ensCli.AttachDiskRequest{
-		DiskId:     tea.String(diskID),
-		InstanceId: tea.String(instanceID),
+		DiskId:     new(diskID),
+		InstanceId: new(instanceID),
 	}
 
 	resp, err := ec.c.AttachDisk(adr)
@@ -80,8 +79,8 @@ func (ec *ENSClient) AttachVolume(diskID, instanceID string) error {
 
 func (ec *ENSClient) DescribeVolume(diskID string) (*ensCli.DescribeDisksResponseBodyDisksDisks, error) {
 	ddr := &ensCli.DescribeDisksRequest{
-		DiskId:      tea.String(diskID),
-		EnsRegionId: tea.String(GlobalConfigVar.RegionID),
+		DiskId:      new(diskID),
+		EnsRegionId: new(GlobalConfigVar.RegionID),
 	}
 	resp, err := ec.c.DescribeDisks(ddr)
 	if err != nil {
@@ -93,8 +92,8 @@ func (ec *ENSClient) DescribeVolume(diskID string) (*ensCli.DescribeDisksRespons
 
 func (ec *ENSClient) DetachVolume(diskID, instanceID string) error {
 	ddr := &ensCli.DetachDiskRequest{
-		DiskId:     tea.String(diskID),
-		InstanceId: tea.String(instanceID),
+		DiskId:     new(diskID),
+		InstanceId: new(instanceID),
 	}
 	resp, err := ec.c.DetachDisk(ddr)
 	klog.Infof("DetachVolume: detach disk resp: %+v", resp)

@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/klog/v2"
 )
@@ -39,8 +38,8 @@ func TestParseHttpHeaderEnvEmpty(t *testing.T) {
 
 func TestToV2SDKHeader(t *testing.T) {
 	assert.Equal(t, map[string]*string{
-		"X-Key1": tea.String("value1"),
-		"X-Key2": tea.String("value2"),
+		"X-Key1": new("value1"),
+		"X-Key2": new("value2"),
 	}, MustToV2SDKHeaders(http.Header{
 		"X-Key1":  {"value1"},
 		"X-Key2":  {"value2"},

@@ -35,7 +35,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		klog.Errorf("Couldn't create filtered metrics handler, err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(fmt.Sprintf("Couldn't create filtered metrics handler: %s", err)))
+		_, _ = w.Write(fmt.Appendf(nil, "Couldn't create filtered metrics handler: %s", err))
 		return
 	}
 	handler.ServeHTTP(w, r)
@@ -52,7 +52,7 @@ type logger struct {
 	logr.Logger
 }
 
-func (l logger) Println(v ...interface{}) {
+func (l logger) Println(v ...any) {
 	if len(v) == 2 {
 		msg, ok1 := v[0].(string)
 		err, ok2 := v[1].(error)
