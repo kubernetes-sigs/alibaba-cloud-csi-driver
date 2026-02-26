@@ -417,7 +417,7 @@ type backendPosixCounterDesc struct {
 }
 
 func init() {
-	registerCollector("fuse_stat", NewFuseStatCollector, ossDriverName, nasDriverName)
+	registerCollector("fuse_stat", NewFuseStatCollector, ossDriverName, nasDriverName, bmcpfsDriverName)
 }
 
 // NewUsFsStatCollector returns a new Collector exposing user space fs stats.
