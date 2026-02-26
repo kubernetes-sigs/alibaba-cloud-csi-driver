@@ -324,7 +324,7 @@ spec:
           hostPath:
             path: /run/fuse.ossfs
             type: DirectoryOrCreate
-{{- end -}}
+{{- end }}
         - name: run-csi
           hostPath:
             path: /run/csi-tool
