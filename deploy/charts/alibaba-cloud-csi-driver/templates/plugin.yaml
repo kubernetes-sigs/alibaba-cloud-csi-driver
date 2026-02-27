@@ -324,6 +324,12 @@ spec:
           hostPath:
             path: /run/fuse.ossfs
             type: DirectoryOrCreate
+{{- end -}}
+{{- if $nodePool.csi.nas.enabled }}
+        - name: efc-metrics-dir
+          hostPath:
+            path: /var/run/efc
+            type: DirectoryOrCreate
 {{- end }}
         - name: run-csi
           hostPath:

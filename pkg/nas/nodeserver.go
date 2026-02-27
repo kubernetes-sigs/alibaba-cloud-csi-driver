@@ -131,8 +131,6 @@ const (
 	MountProtocolAliNas = "alinas"
 	// MountProtocolTag tag
 	MountProtocolTag = "mountProtocol"
-	// metricsPathPrefix
-	metricsPathPrefix = "/host/var/run/efc/"
 	//EFCClient
 	EFCClient = "efcclient"
 	//NFSClient
@@ -448,6 +446,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if opt.MountProtocol == "efc" {
+		metricsPathPrefix := getMetricsPathPrefix()
 		if strings.Contains(opt.Server, ".nas.aliyuncs.com") {
 			fsID := getNASIDFromMapOrServer(req.VolumeContext, opt.Server)
 			if len(fsID) != 0 {
@@ -497,6 +496,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	klog.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func getMetricsPathPrefix() string {
+	if features.FunctionalMutableFeatureGate.Enabled(features.AlinasMountProxy) {
+		return "/run/cnfs/efc/"
+	}
+	return "/host/var/run/efc/"
 }
 
 func isValidServer(server string) bool {

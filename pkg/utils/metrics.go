@@ -196,7 +196,9 @@ func WriteMetricsInfo(metricsPathPrefix string,
 			req.VolumeContext["csi.storage.k8s.io/pod.name"] + " " +
 			req.VolumeContext["csi.storage.k8s.io/pod.uid"] + " " +
 			metricsTop
-		_ = WriteAndSyncFile(podUIDPath+PodInfoFile, []byte(info), os.FileMode(0644))
+		if err := WriteAndSyncFile(podUIDPath+PodInfoFile, []byte(info), os.FileMode(0644)); err != nil {
+			klog.ErrorS(err, "Failed to write pod info file", "file", podUIDPath+PodInfoFile, "volumeId", req.VolumeId)
+		}
 	}
 
 	if !IsFileExisting(mountPointPath + MountPointInfoFile) {
@@ -205,7 +207,9 @@ func WriteMetricsInfo(metricsPathPrefix string,
 			fsName + " " +
 			req.GetVolumeId() + " " +
 			req.TargetPath
-		_ = WriteAndSyncFile(mountPointPath+MountPointInfoFile, []byte(info), os.FileMode(0644))
+		if err := WriteAndSyncFile(mountPointPath+MountPointInfoFile, []byte(info), os.FileMode(0644)); err != nil {
+			klog.ErrorS(err, "Failed to write mount point info file", "file", mountPointPath+MountPointInfoFile, "volumeId", req.VolumeId)
+		}
 	}
 	return strings.TrimPrefix(mountPointPath, hostPrefix)
 }
