@@ -113,7 +113,9 @@ func (b *OAuthCredentialsProviderBuilder) Build() (provider *OAuthCredentialsPro
 
 func (provider *OAuthCredentialsProvider) getCredentials() (session *sessionCredentials, err error) {
 
-	if provider.accessToken == "" || provider.accessTokenExpire == 0 || provider.accessTokenExpire-time.Now().Unix() <= 180 {
+	// OAuth token 必须提前足够时间刷新，确保有效期 >= 15分钟用于后续 exchange 操作
+	// 设置为20分钟（1200秒）提前量，留有5分钟余量
+	if provider.accessToken == "" || provider.accessTokenExpire == 0 || provider.accessTokenExpire-time.Now().Unix() <= 1200 {
 		err = provider.tryRefreshOauthToken()
 		if err != nil {
 			return nil, err
