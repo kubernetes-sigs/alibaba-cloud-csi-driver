@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -28,10 +29,11 @@ func NewCSIAgent() *CSIAgent {
 
 	return &CSIAgent{
 		ns: &nodeServer{
-			mounter:    utils.NewMounter(),
-			k8smounter: k8smount.NewWithoutSystemd(""),
-			podCGroup:  podCgroup,
-			locks:      utils.NewVolumeLocks(),
+			mounter:     utils.NewMounter(),
+			k8smounter:  k8smount.NewWithoutSystemd(""),
+			unixMounter: mounter.UnixMounter{},
+			podCGroup:   podCgroup,
+			locks:       utils.NewVolumeLocks(),
 			ad: DiskAttachDetach{
 				dev:    DefaultDeviceManager,
 				devMap: &devMap{}, // Nobody will add to this map.
@@ -93,7 +95,7 @@ func (a *CSIAgent) NodePublishVolume(ctx context.Context, req *csi.NodePublishVo
 }
 
 func (a *CSIAgent) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	err := utils.CleanupSimpleMount(req.TargetPath)
+	err := mounter.CleanupSimpleMount(a.ns.unixMounter, req.TargetPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to cleanup %s: %v", req.TargetPath, err)
 	}
