@@ -2,10 +2,8 @@ package nas
 
 import (
 	"context"
-	"errors"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 )
 
@@ -19,7 +17,6 @@ func NewCSIAgent(socketPath string) *CSIAgent {
 		AgentMode:        true,
 		EnablePortCheck:  true,
 		MountProxySocket: socketPath,
-		CNFSGetter:       unsupportedCNFSGetter{},
 	}
 	ns := newNodeServer(config)
 	return &CSIAgent{
@@ -37,10 +34,4 @@ func (a *CSIAgent) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpubli
 
 func (a *CSIAgent) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return a.ns.NodeGetCapabilities(ctx, req)
-}
-
-type unsupportedCNFSGetter struct{}
-
-func (g unsupportedCNFSGetter) GetCNFS(ctx context.Context, name string) (*cnfsv1beta1.ContainerNetworkFileSystem, error) {
-	return nil, errors.New("CNFS not supported in csi-agent")
 }
