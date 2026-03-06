@@ -16,7 +16,7 @@ type iCreateFileSystemResponseBody interface {
 }
 
 type CreateFileSystemResponseBody struct {
-	// The ID of the file system that is created.
+	// The ID of the created file system.
 	//
 	// example:
 	//

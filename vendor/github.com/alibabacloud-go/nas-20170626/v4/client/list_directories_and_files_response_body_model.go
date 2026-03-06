@@ -158,7 +158,9 @@ type ListDirectoriesAndFilesResponseBodyEntries struct {
 	// example:
 	//
 	// file.txt
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
+	Name                     *string `json:"Name,omitempty" xml:"Name,omitempty"`
+	OfflineDuration          *int64  `json:"OfflineDuration,omitempty" xml:"OfflineDuration,omitempty"`
+	OfflineUnchangedDuration *int64  `json:"OfflineUnchangedDuration,omitempty" xml:"OfflineUnchangedDuration,omitempty"`
 	// The ID of the portable account. This parameter is returned and valid only if the value of the ProtocolType parameter is SMB and RAM-based access control is enabled.
 	//
 	// example:
@@ -253,6 +255,14 @@ func (s *ListDirectoriesAndFilesResponseBodyEntries) GetName() *string {
 	return s.Name
 }
 
+func (s *ListDirectoriesAndFilesResponseBodyEntries) GetOfflineDuration() *int64 {
+	return s.OfflineDuration
+}
+
+func (s *ListDirectoriesAndFilesResponseBodyEntries) GetOfflineUnchangedDuration() *int64 {
+	return s.OfflineUnchangedDuration
+}
+
 func (s *ListDirectoriesAndFilesResponseBodyEntries) GetOwner() *string {
 	return s.Owner
 }
@@ -310,6 +320,16 @@ func (s *ListDirectoriesAndFilesResponseBodyEntries) SetMtime(v string) *ListDir
 
 func (s *ListDirectoriesAndFilesResponseBodyEntries) SetName(v string) *ListDirectoriesAndFilesResponseBodyEntries {
 	s.Name = &v
+	return s
+}
+
+func (s *ListDirectoriesAndFilesResponseBodyEntries) SetOfflineDuration(v int64) *ListDirectoriesAndFilesResponseBodyEntries {
+	s.OfflineDuration = &v
+	return s
+}
+
+func (s *ListDirectoriesAndFilesResponseBodyEntries) SetOfflineUnchangedDuration(v int64) *ListDirectoriesAndFilesResponseBodyEntries {
+	s.OfflineUnchangedDuration = &v
 	return s
 }
 

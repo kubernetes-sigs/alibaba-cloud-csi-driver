@@ -22,13 +22,13 @@ type iDescribeAccessPointsResponseBody interface {
 type DescribeAccessPointsResponseBody struct {
 	// The information about the access point.
 	AccessPoints []*DescribeAccessPointsResponseBodyAccessPoints `json:"AccessPoints,omitempty" xml:"AccessPoints,omitempty" type:"Repeated"`
-	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	// A pagination token. It can be used in the next request to retrieve a new page of results. If NextToken is empty, no next page exists.
 	//
 	// example:
 	//
 	// MTY4NzcxOTcwMjAzMDk2Nzc0MyM4MDM4****
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The request ID.
+	// Request ID.
 	//
 	// This parameter is required.
 	//
@@ -118,7 +118,7 @@ type DescribeAccessPointsResponseBodyAccessPoints struct {
 	//
 	// example:
 	//
-	// ap-ie15yd****
+	// ap-ie15y*****
 	AccessPointId *string `json:"AccessPointId,omitempty" xml:"AccessPointId,omitempty"`
 	// The name of the access point.
 	//
@@ -197,9 +197,10 @@ type DescribeAccessPointsResponseBodyAccessPoints struct {
 	// example:
 	//
 	// Active
-	Status *string                                             `json:"Status,omitempty" xml:"Status,omitempty"`
-	Tags   []*DescribeAccessPointsResponseBodyAccessPointsTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
-	// The vSwitch ID.
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The tags of the access point.
+	Tags []*DescribeAccessPointsResponseBodyAccessPointsTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	// Switch ID.
 	//
 	// example:
 	//
@@ -514,10 +515,14 @@ func (s *DescribeAccessPointsResponseBodyAccessPointsRootPathPermission) Validat
 }
 
 type DescribeAccessPointsResponseBodyAccessPointsTags struct {
+	// The key of the tag that is added to the resource.
+	//
 	// example:
 	//
 	// TestKey
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// Tag value
+	//
 	// example:
 	//
 	// TestValue

@@ -125,8 +125,9 @@ type CreateAccessPointRequest struct {
 	// example:
 	//
 	// /
-	RootDirectory *string                        `json:"RootDirectory,omitempty" xml:"RootDirectory,omitempty"`
-	Tag           []*CreateAccessPointRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
+	RootDirectory *string `json:"RootDirectory,omitempty" xml:"RootDirectory,omitempty"`
+	// The tags of the access point.
+	Tag []*CreateAccessPointRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 	// The VPC ID.
 	//
 	// This parameter is required.
@@ -293,10 +294,28 @@ func (s *CreateAccessPointRequest) Validate() error {
 }
 
 type CreateAccessPointRequestTag struct {
+	// The key of a tag. Limits:
+	//
+	// 	- Cannot be null or an empty string.
+	//
+	// 	- Can be up to 128 characters in length.
+	//
+	// 	- Cannot start with aliyun or acs:.
+	//
+	// 	- Cannot contain http:// or https://.
+	//
 	// example:
 	//
 	// TestKey
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of a tag. Limits:
+	//
+	// 	- Cannot be null or an empty string.
+	//
+	// 	- Can be up to 128 characters in length.
+	//
+	// 	- Cannot contain http:// or https://.
+	//
 	// example:
 	//
 	// TestValue

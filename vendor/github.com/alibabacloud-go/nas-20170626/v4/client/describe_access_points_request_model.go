@@ -24,7 +24,7 @@ type iDescribeAccessPointsRequest interface {
 type DescribeAccessPointsRequest struct {
 	// The name of the permission group.
 	//
-	// This parameter is required for a General-purpose File Storage NAS (NAS) file system.
+	// This parameter is required for a General-purpose NAS file system.
 	//
 	// The default permission group for virtual private clouds (VPCs) is named DEFAULT_VPC_GROUP_NAME.
 	//
@@ -46,13 +46,14 @@ type DescribeAccessPointsRequest struct {
 	//
 	// 10
 	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	// The token used to retrieve the next page of results. Do not specify this parameter for the first request. For subsequent requests, set this value to the NextToken returned in the previous response.
 	//
 	// example:
 	//
 	// MTY4NzcxOTcwMjAzMDk2Nzc0MyM4MDM4****
-	NextToken *string                           `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	Tag       []*DescribeAccessPointsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The tags of the access point.
+	Tag []*DescribeAccessPointsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 }
 
 func (s DescribeAccessPointsRequest) String() string {
@@ -122,10 +123,34 @@ func (s *DescribeAccessPointsRequest) Validate() error {
 }
 
 type DescribeAccessPointsRequestTag struct {
+	// The key of the tag.
+	//
+	// Limits:
+	//
+	// 	- Valid values of N: 1 to 20.
+	//
+	// 	- Maximum length is 128 characters.
+	//
+	// 	- Cannot start with aliyun or acs:.
+	//
+	// 	- Cannot contain http:// or https://.
+	//
 	// example:
 	//
 	// TestKey
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of the tag.
+	//
+	// Limits:
+	//
+	// 	- Valid values of N: 1 to 20.
+	//
+	// 	- Maximum length is 128 characters.
+	//
+	// 	- Cannot start with aliyun or acs:.
+	//
+	// 	- Cannot contain http:// or https://.
+	//
 	// example:
 	//
 	// TestValue
