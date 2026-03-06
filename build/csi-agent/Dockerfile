@@ -38,8 +38,8 @@ RUN set -ex; \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
     elif [ "${ARCH}" = "aarch_64" ]; then \
-        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_ARM_VERSION}.aarch64.rpm; \
-        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_ARM_VERSION}.aarch64.rpm; \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/efc-release/2.1/aliyun-alinas-utils-${ALINAS_UTILS_ARM_VERSION}.aarch64.rpm; \
+        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/efc-release/2.1/alinas-efc-${EFC_ARM_VERSION}.aarch64.rpm; \
     fi; \
     cp -r /etc/aliyun /etc/aliyun-defaults; \
     yum clean all; \
