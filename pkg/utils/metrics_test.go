@@ -101,11 +101,12 @@ func TestWriteMetricsInfo(t *testing.T) {
 	podUID := "pod-uid-12345"
 	podNamespace := "test-namespace"
 	podName := "test-pod"
+	pvName := "test-pv"
 
 	// Create test request
 	req := &csi.NodePublishVolumeRequest{
 		VolumeId:   "test-volume-456",
-		TargetPath: "/mnt/test-target",
+		TargetPath: "/mnt/" + pvName + "/mount",
 		VolumeContext: map[string]string{
 			"csi.storage.k8s.io/pod.uid":       podUID,
 			"csi.storage.k8s.io/pod.namespace": podNamespace,
@@ -135,7 +136,7 @@ func TestWriteMetricsInfo(t *testing.T) {
 	assert.Equal(t, expectedPodInfo, string(podInfoContent))
 
 	// Verify mount point directory was created
-	expectedMountDir := podUIDPath + req.GetVolumeId() + "/"
+	expectedMountDir := podUIDPath + pvName + "/"
 	assert.True(t, IsFileExisting(expectedMountDir))
 
 	// Verify mount_point_info file was created with correct content

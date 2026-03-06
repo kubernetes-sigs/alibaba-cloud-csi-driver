@@ -1,7 +1,6 @@
 package metric
 
 import (
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,8 +11,6 @@ import (
 )
 
 var (
-	fsClientPathPrefix      = "/host/var/run/"
-	fsClientTypeArray       = []string{"ossfs", "efc"}
 	counterTypeArray        = utils.CounterTypeMetricsArray
 	backendCounterTypeArray = []string{"backend_throughput_counter", "backend_iops_counter", "backend_latency_counter", "backend_meta_qps_ounter"}
 	hotSpotArray            = utils.HotSpotMetricsArray
@@ -417,7 +414,7 @@ type backendPosixCounterDesc struct {
 }
 
 func init() {
-	registerCollector("fuse_stat", NewFuseStatCollector, ossDriverName, nasDriverName)
+	registerCollector("fuse_stat", NewFuseStatCollector, ossDriverName, nasDriverName, bmcpfsDriverName)
 }
 
 // NewUsFsStatCollector returns a new Collector exposing user space fs stats.
@@ -526,14 +523,6 @@ func NewFuseStatCollector() (Collector, error) {
 		mountPointFailoverTotalCounter: &typedFactorDesc{desc: mountPointFailoverTotalCountDesc, valueType: prometheus.CounterValue},
 		lastFuseClientExitReason:       &typedFactorDesc{desc: lastFuseClientExitReasonDesc, valueType: prometheus.GaugeValue},
 	}, nil
-}
-
-func getSubDirArray(fsClientPathPrefix string, fsClientType string) ([]string, error) {
-	fsClientPath := fsClientPathPrefix + fsClientType
-	if !utils.IsFileExisting(fsClientPath) {
-		_ = os.MkdirAll(fsClientPath, os.FileMode(0755))
-	}
-	return listDirectory(fsClientPathPrefix + fsClientType)
 }
 
 func (p *usFsStatCollector) postHotTopFileMetrics(hotSpotType string, fsClientInfo *fuseInfo, metricsArray []string, ch chan<- prometheus.Metric) {
@@ -691,34 +680,55 @@ func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsCli
 	}
 }
 
+var (
+	fuseMetricDirs = map[string][]string{
+		"ossfs": {"/host/var/run/ossfs", "/var/run/ossfs"},
+		"efc":   {"/host/var/run/efc", "/var/run/efc", "/run/cnfs/efc"},
+	}
+)
+
+func getFuseMetricDirs() map[string]string {
+	metricsDirs := make(map[string]string)
+	for fsType, dirs := range fuseMetricDirs {
+		for _, dir := range dirs {
+			if utils.IsFileExisting(dir) {
+				metricsDirs[fsType] = dir
+				break
+			}
+		}
+	}
+	return metricsDirs
+}
+
 func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
+	metricDirs := getFuseMetricDirs()
 	fsClientInfo := new(fuseInfo)
-	// foreach fuse client type
-	for _, fsClientType := range fsClientTypeArray {
-		// exclusive case: podid
-		// shared case: sha256(pvname)
-		subDirArray, err := getSubDirArray(fsClientPathPrefix, fsClientType)
-		if err != nil {
+	for _, dir := range metricDirs {
+		if !utils.IsFileExisting(dir) {
 			continue
 		}
-		//foreach pod uid
-		for _, subDir := range subDirArray {
-			//stat pod_info, if exists, updateExclusiveMetrics; else updateSharedMetrics
-			if utils.IsFileExisting(filepath.Join(fsClientPathPrefix, fsClientType, subDir, utils.PodInfoFile)) {
-				// subDir -> podUid
-				p.updateExclusiveMetrics(fsClientType, subDir, fsClientInfo, ch)
+		subdirs, err := listDirectory(dir)
+		if err != nil {
+			klog.ErrorS(err, "Failed to list directory", "dir", dir)
+			continue
+		}
+
+		for _, subdir := range subdirs {
+			if utils.IsFileExisting(filepath.Join(dir, subdir, utils.PodInfoFile)) {
+				// exclusive metrics case, subdir is podUid
+				p.updateExclusiveMetrics(dir, subdir, fsClientInfo, ch)
 				continue
 			}
-			// subDir -> shaVol
-			p.updateSharedMetrics(fsClientType, subDir, fsClientInfo, ch)
+			// shared metrics case, subdir is sha256(pvname)
+			p.updateSharedMetrics(dir, subdir, fsClientInfo, ch)
 		}
 	}
 	return nil
 }
 
-func (p *usFsStatCollector) updateExclusiveMetrics(fsClientType, podUid string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) updateExclusiveMetrics(fuseMetricsDir, podUid string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
 	//get pod info
-	podInfoArray, err := readFirstLines(filepath.Join(fsClientPathPrefix, fsClientType, podUid, utils.PodInfoFile))
+	podInfoArray, err := readFirstLines(filepath.Join(fuseMetricsDir, podUid, utils.PodInfoFile))
 	if err != nil {
 		return
 	}
@@ -730,20 +740,20 @@ func (p *usFsStatCollector) updateExclusiveMetrics(fsClientType, podUid string, 
 	fsClientInfo.PodName = podInfoArray[1]
 	fsClientInfo.PodUID = podInfoArray[2]
 	// list volume from pod
-	volumeArray, err := listDirectory(filepath.Join(fsClientPathPrefix, fsClientType, podUid))
+	volumeArray, err := listDirectory(filepath.Join(fuseMetricsDir, podUid))
 	if err != nil {
 		return
 	}
 	// foreach volume
 	for _, volume := range volumeArray {
-		volPath := filepath.Join(fsClientPathPrefix, fsClientType, podUid, volume)
+		volPath := filepath.Join(fuseMetricsDir, podUid, volume)
 		p.postVolMetrics(volPath, fsClientInfo, ch)
 	}
 }
 
-func (p *usFsStatCollector) updateSharedMetrics(fsClientType, subDir string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) updateSharedMetrics(fuseMetricsDir, subDir string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
 	// /var/run/fsType/sha256(pvname)
-	volPath := filepath.Join(fsClientPathPrefix, fsClientType, subDir)
+	volPath := filepath.Join(fuseMetricsDir, subDir)
 	p.postVolMetrics(volPath, fsClientInfo, ch)
 }
 

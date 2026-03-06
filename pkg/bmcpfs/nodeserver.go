@@ -43,7 +43,7 @@ type nodeServer struct {
 const (
 	LingjunConfigFile             = "/host/etc/eflo_config/lingjun_config"
 	defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
-	metricsPathPrefix             = "/host/var/run/efc/"
+	metricsPathPrefix             = "/run/cnfs/efc/"
 )
 
 func newNodeServer() (*nodeServer, error) {
