@@ -10,11 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -30,132 +27,32 @@ const (
 	GiBSize         = 1024 * 1024 * 1024
 )
 
+func nfsMetricDesc(name, help string) *MetaDesc {
+	return NewMetaDesc(nodeNamespace, volumeSubsystem, name, help, nfsStatLabelNames, nil)
+}
+
 var (
-	//0 - reads completed successfully
-	nfsReadsCompletedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_completed_total"),
-		"The total number of reads completed successfully.",
-		nfsStatLabelNames, nil,
-	)
-	//1 - reads transmissions successfully
-	nfsReadsTransDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_transmissions_total"),
-		"How many transmissions of this op type have been sent.",
-		nfsStatLabelNames, nil,
-	)
-	//2 - read timeout
-	nfsReadsTimeOutDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_timeouts_total"),
-		"How many timeouts of this op type have occurred.",
-		nfsStatLabelNames, nil,
-	)
-	//3 - read send bytes
-	nfsReadsSentBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_sent_bytes_total"),
-		"How many bytes have been sent for this op type.",
-		nfsStatLabelNames, nil,
-	)
-	//4 - read recv bytes
-	nfsReadsRecvBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_bytes_total"),
-		"The total number of bytes read successfully.",
-		nfsStatLabelNames, nil,
-	)
-	//5 - read queue time
-	nfsReadsQueueTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_queue_time_milliseconds_total"),
-		"How long ops of this type have waited in queue before being transmitted (microsecond).",
-		nfsStatLabelNames, nil,
-	)
-	//6 - read rtt time
-	nfsReadsRttTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_rtt_time_milliseconds_total"),
-		"How long the client waited to receive replies of this op type from the server (microsecond).",
-		nfsStatLabelNames, nil,
-	)
-	//7 - read execute time
-	nfsReadsExecuteTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_time_milliseconds_total"),
-		"The total number of milliseconds spent by all reads.",
-		nfsStatLabelNames, nil,
-	)
-	//8 - writes completed successfully
-	nfsWritesCompletedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_completed_total"),
-		"The total number of writes completed successfully.",
-		nfsStatLabelNames, nil,
-	)
-	//9 - writes transmissions successfully
-	nfsWritesTransDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_transmissions_total"),
-		"How many transmissions of this op type have been sent.",
-		nfsStatLabelNames, nil,
-	)
-	//10 - writes timeout
-	nfsWritesTimeOutDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_timeouts_total"),
-		"How many timeouts of this op type have occurred.",
-		nfsStatLabelNames, nil,
-	)
-	//11 - writes send bytes
-	nfsWritesSentBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_bytes_total"),
-		"The total number of bytes written successfully.",
-		nfsStatLabelNames, nil,
-	)
-	//12 - writes recv bytes
-	nfsWritesRecvBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_recv_bytes_total"),
-		"How many bytes have been received for this op type.",
-		nfsStatLabelNames, nil,
-	)
-	//13 - writes queue time
-	nfsWritesQueueTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_queue_time_milliseconds_total"),
-		"How long ops of this type have waited in queue before being transmitted (microsecond).",
-		nfsStatLabelNames, nil,
-	)
-	//14 - writes rtt time
-	nfsWritesRttTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_rtt_time_milliseconds_total"),
-		"How long the client waited to receive replies of this op type from the server (microsecond).",
-		nfsStatLabelNames, nil,
-	)
-	//15 - writes execute time
-	nfsWritesExecuteTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_time_milliseconds_total"),
-		"The total number of milliseconds spent by all writes.",
-		nfsStatLabelNames, nil,
-	)
-	//16 - capacity available
-	nfsCapacityAvailableDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_available"),
-		"The number of available size(bytes).",
-		nfsStatLabelNames,
-		nil,
-	)
-
-	//17 - capacity total
-	nfsCapacityTotalDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_total"),
-		"The number of total size(bytes).",
-		nfsStatLabelNames,
-		nil,
-	)
-
-	//18 - capacity used
-	nfsCapacityUsedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_used"),
-		"The number of used size(bytes).",
-		nfsStatLabelNames,
-		nil,
-	)
+	nfsReadsCompletedDesc                = nfsMetricDesc("read_completed_total", "The total number of reads completed successfully.")
+	nfsReadsTransDesc                    = nfsMetricDesc("read_transmissions_total", "How many transmissions of this op type have been sent.")
+	nfsReadsTimeoutDesc                  = nfsMetricDesc("read_timeouts_total", "How many timeouts of this op type have occurred.")
+	nfsReadsSentBytesDesc                = nfsMetricDesc("read_sent_bytes_total", "How many bytes have been sent for this op type.")
+	nfsReadsRecvBytesDesc                = nfsMetricDesc("read_bytes_total", "The total number of bytes read successfully.")
+	nfsReadsQueueTimeMilliSecondsDesc    = nfsMetricDesc("read_queue_time_milliseconds_total", "How long ops of this type have waited in queue before being transmitted (microsecond).")
+	nfsReadsRttTimeMilliSecondsDesc      = nfsMetricDesc("read_rtt_time_milliseconds_total", "How long the client waited to receive replies of this op type from the server (microsecond).")
+	nfsReadsExecuteTimeMilliSecondsDesc  = nfsMetricDesc("read_time_milliseconds_total", "The total number of milliseconds spent by all reads.")
+	nfsWritesCompletedDesc               = nfsMetricDesc("write_completed_total", "The total number of writes completed successfully.")
+	nfsWritesTransDesc                   = nfsMetricDesc("write_transmissions_total", "How many transmissions of this op type have been sent.")
+	nfsWritesTimeoutDesc                 = nfsMetricDesc("write_timeouts_total", "How many timeouts of this op type have occurred.")
+	nfsWritesSentBytesDesc               = nfsMetricDesc("write_bytes_total", "The total number of bytes written successfully.")
+	nfsWritesRecvBytesDesc               = nfsMetricDesc("write_recv_bytes_total", "How many bytes have been received for this op type.")
+	nfsWritesQueueTimeMilliSecondsDesc   = nfsMetricDesc("write_queue_time_milliseconds_total", "How long ops of this type have waited in queue before being transmitted (microsecond).")
+	nfsWritesRttTimeMilliSecondsDesc     = nfsMetricDesc("write_rtt_time_milliseconds_total", "How long the client waited to receive replies of this op type from the server (microsecond).")
+	nfsWritesExecuteTimeMilliSecondsDesc = nfsMetricDesc("write_time_milliseconds_total", "The total number of milliseconds spent by all writes.")
 )
 
 type nfsInfo struct {
 	PvcNamespace string
 	PvcName      string
-	ServerName   string
 	VolDataPath  string
 }
 
@@ -169,135 +66,93 @@ type nfsCapacityInfo struct {
 }
 
 type nfsStatCollector struct {
-	descs                       []typedFactorDesc
-	pvInfoLock                  sync.Mutex
-	lastPvNfsInfoMap            map[string]nfsInfo
-	lastPvStatsMap              sync.Map
-	clientSet                   *kubernetes.Clientset
-	crdClient                   dynamic.Interface
-	monitorClient               *StorageMonitorClient
-	recorder                    record.EventRecorder
-	capacityPercentageThreshold float64
-	mounter                     mount.Interface
+	descs            []typedFactorDesc
+	pvInfoLock       sync.Mutex
+	lastPvNfsInfoMap map[string]nfsInfo
+	lastPvStatsMap   sync.Map
+	client           kubernetes.Interface
+	recorder         record.EventRecorder
+	mounter          mount.Interface
 }
 
 func init() {
 	registerCollector("nfs_stat", NewNfsStatCollector, nasDriverName)
 }
 
-func getNfsCapacityThreshold() float64 {
-	capacityStr := strings.ToLower(strings.Trim(os.Getenv("NFS_CAPACITY_THRESHOLD_PERCENTAGE"), " "))
-	if len(capacityStr) != 0 {
-		capacity, _ := parseCapacityThreshold(capacityStr, nfsDefaultsCapacityPercentageThreshold)
-		return capacity
-	}
-	return 0
-}
-
 // NewNfsStatCollector returns a new Collector exposing nfs stats.
 func NewNfsStatCollector() (Collector, error) {
-	config, err := options.GetRestConfig()
-	if err != nil {
-		return nil, err
-	}
 	recorder := utils.NewEventRecorder()
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	client, err := newK8sClient()
 	if err != nil {
 		return nil, err
-	}
-
-	crdCfg := options.GetRestConfigForCRD(*config)
-	crdClient, err := dynamic.NewForConfig(crdCfg)
-	if err != nil {
-		klog.Fatalf("Failed to create crd client: %v", err)
 	}
 
 	return &nfsStatCollector{
 		descs: []typedFactorDesc{
 			//read
-			{desc: nfsReadsCompletedDesc, valueType: prometheus.CounterValue},
-			{desc: nfsReadsTransDesc, valueType: prometheus.CounterValue},
-			{desc: nfsReadsTimeOutDesc, valueType: prometheus.CounterValue},
-			{desc: nfsReadsSentBytesDesc, valueType: prometheus.CounterValue},
-			{desc: nfsReadsRecvBytesDesc, valueType: prometheus.CounterValue},
-			{desc: nfsReadsQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
-			{desc: nfsReadsRttTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
-			{desc: nfsReadsExecuteTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsReadsCompletedDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsReadsTransDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsReadsTimeoutDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsReadsSentBytesDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsReadsRecvBytesDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsReadsQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsReadsRttTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsReadsExecuteTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
 			//write
-			{desc: nfsWritesCompletedDesc, valueType: prometheus.CounterValue},
-			{desc: nfsWritesTransDesc, valueType: prometheus.CounterValue},
-			{desc: nfsWritesTimeOutDesc, valueType: prometheus.CounterValue},
-			{desc: nfsWritesSentBytesDesc, valueType: prometheus.CounterValue},
-			{desc: nfsWritesRecvBytesDesc, valueType: prometheus.CounterValue},
-			{desc: nfsWritesQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
-			{desc: nfsWritesRttTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
-			{desc: nfsWritesExecuteTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
-			// capacity
-			{desc: nfsCapacityTotalDesc, valueType: prometheus.GaugeValue},
-			{desc: nfsCapacityUsedDesc, valueType: prometheus.GaugeValue},
-			{desc: nfsCapacityAvailableDesc, valueType: prometheus.GaugeValue},
+			{MetaDesc: nfsWritesCompletedDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsWritesTransDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsWritesTimeoutDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsWritesSentBytesDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsWritesRecvBytesDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsWritesQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsWritesRttTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
+			{MetaDesc: nfsWritesExecuteTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
 		},
-		lastPvNfsInfoMap:            make(map[string]nfsInfo, 0),
-		lastPvStatsMap:              sync.Map{},
-		clientSet:                   clientset,
-		crdClient:                   crdClient,
-		recorder:                    recorder,
-		monitorClient:               NewStorageMonitorClient(clientset),
-		capacityPercentageThreshold: getNfsCapacityThreshold(),
-		mounter:                     mount.NewWithoutSystemd(""),
+		lastPvNfsInfoMap: make(map[string]nfsInfo, 0),
+		lastPvStatsMap:   sync.Map{},
+		client:           client,
+		recorder:         recorder,
+		mounter:          mount.NewWithoutSystemd(""),
 	}, nil
 }
 
 func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
-	//startTime := time.Now()
-	pvNameStatsMap, err := getNfsStat()
-	if len(pvNameStatsMap) == 0 {
-		return nil
+	metrics := p.Get()
+	for _, metric := range metrics {
+		ch <- prometheus.MustNewConstMetric(metric.Desc, metric.ValueType, metric.Value, convertLabelsToString(metric.VariableLabelPairs)...)
 	}
-
-	if err != nil {
-		return fmt.Errorf("couldn't get nfsstats: %s", err)
-	}
-	volJSONPaths, err := findVolJSON(podsRootPath)
-	if err != nil {
-		return err
-	}
-	//log.Infof("volJSONPaths:%+v", volJSONPaths)
-	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName)
-	//log.Infof("lastPvNfsInfoMap:%+v", p.lastPvNfsInfoMap)
-	wg := sync.WaitGroup{}
-	for pvName, stats := range pvNameStatsMap {
-		nfsInfo := p.lastPvNfsInfoMap[pvName]
-		//klog.Infof("pv: %s, stats: %v, nfsInfo: %+v", pvName, stats, nfsInfo)
-		capacityStats, err := getNfsCapacityStat(pvName, nfsInfo, p)
-		if err != nil {
-			//klog.Errorf("get capacity of PV %s: %v", pvName, err)
-			stats = append(stats, UnknownValue, UnknownValue, UnknownValue)
-		} else {
-			stats = append(stats, capacityStats...)
-		}
-
-		wg.Add(1)
-		go func(pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, serverNameArgs string, statsArgs []string) {
-			defer wg.Done()
-			p.setNfsMetric(pvNameArgs, pvcNamespaceArgs, pvcNameArgs, serverNameArgs, statsArgs, ch)
-		}(pvName, nfsInfo.PvcNamespace, nfsInfo.PvcName, nfsInfo.ServerName, stats)
-	}
-	wg.Wait()
-	//elapsedTime := time.Since(startTime)
-	//logrus.Info("Nfsstat spent time:", elapsedTime)
 	return nil
 }
 
-func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcName string, serverName string, stats []string, ch chan<- prometheus.Metric) {
+func (p *nfsStatCollector) Get() (metrics []*Metric) {
+	pvNameServerMap, pvNameStatsMap, err := getNfsStat()
+	if len(pvNameStatsMap) == 0 {
+		klog.V(2).InfoS("No nfs stats found")
+		return
+	}
+
+	if err != nil {
+		klog.ErrorS(err, "couldn't get nfsstats")
+		return
+	}
+	volJSONPaths, err := findVolJSON(podsRootPath)
+	if err != nil {
+		klog.ErrorS(err, "couldn't find vol json", "podRootPath", podsRootPath)
+		return
+	}
+	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName)
+	for pvName, stats := range pvNameStatsMap {
+		nfsInfo := p.lastPvNfsInfoMap[pvName]
+		metrics = append(metrics, p.getNfsMetrics(pvName, nfsInfo.PvcNamespace, nfsInfo.PvcName, pvNameServerMap[pvName], stats)...)
+	}
+	return
+}
+
+func (p *nfsStatCollector) getNfsMetrics(pvName string, pvcNamespace string, pvcName string, serverName string, stats []string) (metrics []*Metric) {
 	defer p.lastPvStatsMap.Store(pvName, stats)
 	for i, value := range stats {
 		if i >= len(p.descs) {
 			return
-		}
-		if value == UnknownValue {
-			continue
 		}
 
 		valueFloat64, err := strconv.ParseFloat(value, 64)
@@ -306,8 +161,9 @@ func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcN
 			continue
 		}
 
-		ch <- p.descs[i].mustNewConstMetric(valueFloat64, pvcNamespace, pvcName, serverName, nasStorageName)
+		metrics = append(metrics, MustNewMetricWithTypedFactorDesc(p.descs[i], valueFloat64, pvcNamespace, pvcName, serverName, nasStorageName))
 	}
+	return
 }
 
 func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonPaths []string, deriverName string) {
@@ -352,7 +208,7 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 		lastInfo, ok := (*lastPvNfsInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcNamespace, pvcName, serverName, err := getNasPvcByPvName(p.clientSet, p.crdClient, pv)
+			pvcNamespace, pvcName, err := getNasPvcByPvName(p.client, pv, thisInfo.VolDataPath)
 			if err != nil {
 				continue
 			}
@@ -360,7 +216,6 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 				VolDataPath:  thisInfo.VolDataPath,
 				PvcName:      pvcName,
 				PvcNamespace: pvcNamespace,
-				ServerName:   serverName,
 			}
 			(*lastPvNfsInfoMap)[pv] = updateInfo
 		}
@@ -374,36 +229,53 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 	}
 }
 
-func getNfsStat() (map[string][]string, error) {
+func getNfsStat() (map[string]string, map[string][]string, error) {
+	pvServerMapping := make(map[string]string, 0)
 	pvNameStatMapping := make(map[string][]string, 0)
 	mountStatsFile, err := os.Open(nfsStatsFileName)
 	if mountStatsFile == nil {
-		return nil, fmt.Errorf("File %s is not found.", nfsStatsFileName)
+		return nil, nil, fmt.Errorf("file %s not found", nfsStatsFileName)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Open file %s is error, err:%s", nfsStatsFileName, err)
+		return nil, nil, fmt.Errorf("failed to open file %s: %s", nfsStatsFileName, err)
 	}
 	defer mountStatsFile.Close()
 	mountArr, err := parseMountStats(mountStatsFile)
 	if err != nil {
-		return nil, fmt.Errorf("ParseMountStats %s is error, err:%s.", nfsStatsFileName, err)
+		return nil, nil, fmt.Errorf("failed to parse mount stats %s: %s", nfsStatsFileName, err)
 	}
 	for _, mount := range mountArr {
+		pvName := getPVName(mount)
+		segments := strings.Split(mount.Device, ":")
+		if len(segments) >= 2 {
+			pvServerMapping[pvName] = segments[0]
+		} else {
+			pvServerMapping[pvName] = mount.Device
+		}
 		nfsOperationStats := mount.Stats.operationStats()
 		for _, operation := range nfsOperationStats {
-			addNfsStat(&pvNameStatMapping, mount.Mount, operation, "READ")
+			addNfsStat(&pvNameStatMapping, pvName, operation, "READ")
 		}
 		for _, operation := range nfsOperationStats {
-			addNfsStat(&pvNameStatMapping, mount.Mount, operation, "WRITE")
+			addNfsStat(&pvNameStatMapping, pvName, operation, "WRITE")
 		}
 	}
-	return pvNameStatMapping, nil
+	return pvServerMapping, pvNameStatMapping, nil
 }
 
-func addNfsStat(pvNameStatMapping *map[string][]string, mountPath string, operationStat NFSOperationStats, keyWord string) {
+func getPVName(mount *Mount) string {
+	if mount == nil {
+		return ""
+	}
+	paths := strings.Split(mount.Mount, "/")
+	if len(paths) < 2 {
+		return ""
+	}
+	return paths[len(paths)-2]
+}
+
+func addNfsStat(pvNameStatMapping *map[string][]string, pvName string, operationStat NFSOperationStats, keyWord string) {
 	if operationStat.Operation == keyWord {
-		pathArr := strings.Split(mountPath, "/")
-		pvName := pathArr[len(pathArr)-2]
 		if len((*pvNameStatMapping)[pvName]) >= NFSMetricsCount {
 			return
 		}
@@ -415,49 +287,5 @@ func addNfsStat(pvNameStatMapping *map[string][]string, mountPath string, operat
 		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.CumulativeQueueMilliseconds)))
 		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.CumulativeTotalResponseMilliseconds)))
 		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.CumulativeTotalRequestMilliseconds)))
-	}
-}
-
-func getNfsCapacityStat(pvName string, info nfsInfo, p *nfsStatCollector) ([]string, error) {
-	capacityInfo, err := p.monitorClient.GetNasCapacityInfo(pvName)
-	if err != nil {
-		return nil, err
-	}
-	if capacityInfo != nil && capacityInfo.TotalSize != -1 && capacityInfo.UsedSize != -1 {
-		total, used := getTotalAndUsedSize(capacityInfo)
-		p.capacityEventAlert(total, used, pvName, info)
-		return []string{
-			strconv.FormatInt(total, 10),
-			strconv.FormatInt(used, 10),
-			strconv.FormatInt(total-used, 10),
-		}, nil
-	}
-	// NOTE: The system is unable to extract the capacity statistics because the capacity of the NFS mount point is based
-	// on the overall quota of the NAS filesystem, rather than the specific path that is mounted.
-	return nil, errors.New("capacity metrics from storage-monitor missing or invalid")
-}
-
-func getTotalAndUsedSize(info *nfsCapacityInfo) (int64, int64) {
-	if info.TotalSizeInBytes != nil && info.UsedSizeInBytes != nil {
-		return *info.TotalSizeInBytes, *info.UsedSizeInBytes
-	}
-	return info.TotalSize * GiBSize, info.UsedSize * GiBSize
-}
-
-func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, pvName string, info nfsInfo) {
-	total, used, gibSize := float64(totalSize), float64(usedSize), float64(GiBSize)
-	if p.capacityPercentageThreshold > 0 {
-		usedPercentage := 100 * used / total
-		if usedPercentage >= float64(p.capacityPercentageThreshold) {
-			ref := &v1.ObjectReference{
-				Kind:      "PersistentVolumeClaim",
-				Name:      info.PvcName,
-				UID:       "",
-				Namespace: info.PvcNamespace,
-			}
-			reason := fmt.Sprintf("PVC %s/%s (PV %s) is running out of capacity, totalSize:%fGi, usedSize:%fGi, usedPercentage:%.2f%%, threshold:%.2f%%",
-				info.PvcNamespace, info.PvcName, pvName, total/gibSize, used/gibSize, usedPercentage, p.capacityPercentageThreshold)
-			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, capacityNotEnough, reason)
-		}
 	}
 }
