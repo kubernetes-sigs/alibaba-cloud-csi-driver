@@ -1284,44 +1284,6 @@ func checkOption(opt string) bool {
 	}
 }
 
-// getPvPvcFromDiskId returns a pv instance with specified disk ID
-func getPvPvcFromDiskId(diskId string) (*v1.PersistentVolume, *v1.PersistentVolumeClaim, error) {
-	ctx := context.Background()
-	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(ctx, diskId, metav1.GetOptions{})
-	if err != nil {
-		klog.Errorf("getPvcFromDiskId: failed to get pv from apiserver: %v", err)
-		return nil, nil, err
-	}
-	pvcName, pvcNamespace := pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace
-	pvc, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
-	if err != nil {
-		klog.Errorf("getPvcFromDiskId: failed to get pvc from apiserver: %v", err)
-		return nil, nil, err
-	}
-	return pv, pvc, nil
-}
-
-// UpdatePvcWithAnnotations update pvc
-func updatePvcWithAnnotations(ctx context.Context, pvc *v1.PersistentVolumeClaim, annotations map[string]string, option string) (*v1.PersistentVolumeClaim, error) {
-	switch option {
-	case "add":
-		for key, value := range annotations {
-			if pvc.Annotations == nil {
-				pvc.Annotations = map[string]string{key: value}
-			} else {
-				pvc.Annotations[key] = value
-			}
-		}
-	case "delete":
-		if pvc.Annotations != nil {
-			for key := range annotations {
-				delete(pvc.Annotations, key)
-			}
-		}
-	}
-	return GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvc.Namespace).Update(ctx, pvc, metav1.UpdateOptions{})
-}
-
 func makeVolumeSnapshot(snapName string, snapContentName string) *volumeSnapshotV1.VolumeSnapshot {
 	vs := &volumeSnapshotV1.VolumeSnapshot{
 		ObjectMeta: metav1.ObjectMeta{
