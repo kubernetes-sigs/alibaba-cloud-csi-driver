@@ -26,6 +26,7 @@ spec:
   - port: disk-p-http
   - port: disk-a-http
   - port: disk-r-http
+  - port: disk-s-http
 {{- end }}
 {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
   - port: nas-p-http
@@ -42,6 +43,9 @@ spec:
 {{- if and .Values.csi.bmcpfs.enabled .Values.csi.bmcpfs.controller.enabled }}
   - port: bmcpfs-p-http
   - port: bmcpfs-a-http
+{{- end }}
+{{ if .Values.volumeSnapshot.controller.enabled }}
+  - port: snap-con-http
 {{- end }}
   selector:
     matchLabels:

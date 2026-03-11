@@ -1,6 +1,6 @@
 {{- if .Values.defaultVolumeSnapshotClass.enabled }}
 {{- if .Values.csi.disk.enabled }}
-apiVersion: groupsnapshot.storage.k8s.io/v1alpha1
+apiVersion: groupsnapshot.storage.k8s.io/v1beta2
 kind: VolumeGroupSnapshotClass
 metadata:
   name: alibabacloud-disk-group-snapshot
