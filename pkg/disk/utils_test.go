@@ -1528,3 +1528,128 @@ func TestGetNodeTypeFromEFLOOpenAPI(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckOption(t *testing.T) {
+	tests := []struct {
+		opt      string
+		expected bool
+	}{
+		{opt: "enable", expected: true},
+		{opt: "true", expected: true},
+		{opt: "yes", expected: true},
+		{opt: "false", expected: false},
+		{opt: "disabled", expected: false},
+		{opt: "no", expected: false},
+		{opt: "", expected: false},
+		{opt: "something", expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.opt, func(t *testing.T) {
+			assert.Equal(t, tt.expected, checkOption(tt.opt))
+		})
+	}
+}
+
+func TestPrepareMountInfos(t *testing.T) {
+	tests := []struct {
+		name            string
+		req             *csi.NodePublishVolumeRequest
+		expectedOptions []string
+		expectedFsType  string
+	}{
+		{
+			name: "basic request with mount capability",
+			req: &csi.NodePublishVolumeRequest{
+				VolumeCapability: &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{
+							FsType:     "ext4",
+							MountFlags: []string{"noatime"},
+						},
+					},
+				},
+				Readonly: false,
+			},
+			expectedOptions: []string{"bind", "noatime"},
+			expectedFsType:  "ext4",
+		},
+		{
+			name: "readonly request",
+			req: &csi.NodePublishVolumeRequest{
+				VolumeCapability: &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{
+							FsType: "ext4",
+						},
+					},
+				},
+				Readonly: true,
+			},
+			expectedOptions: []string{"bind", "ro"},
+			expectedFsType:  "ext4",
+		},
+		{
+			name: "default fsType when not specified",
+			req: &csi.NodePublishVolumeRequest{
+				VolumeCapability: &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{},
+					},
+				},
+			},
+			expectedOptions: []string{"bind"},
+			expectedFsType:  "ext4",
+		},
+		{
+			name: "xfs filesystem",
+			req: &csi.NodePublishVolumeRequest{
+				VolumeCapability: &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{
+							FsType:     "xfs",
+							MountFlags: []string{"rw"},
+						},
+					},
+				},
+			},
+			expectedOptions: []string{"bind", "rw"},
+			expectedFsType:  "xfs",
+		},
+		{
+			name: "block volume (nil mount)",
+			req: &csi.NodePublishVolumeRequest{
+				VolumeCapability: &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Block{
+						Block: &csi.VolumeCapability_BlockVolume{},
+					},
+				},
+			},
+			expectedOptions: []string{"bind"},
+			expectedFsType:  "ext4",
+		},
+		{
+			name: "multiple mount flags",
+			req: &csi.NodePublishVolumeRequest{
+				VolumeCapability: &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{
+							FsType:     "ext4",
+							MountFlags: []string{"noatime", "nodiratime", "discard"},
+						},
+					},
+				},
+			},
+			expectedOptions: []string{"bind", "noatime", "nodiratime", "discard"},
+			expectedFsType:  "ext4",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			options, fsType := prepareMountInfos(tt.req)
+			assert.Equal(t, tt.expectedOptions, options)
+			assert.Equal(t, tt.expectedFsType, fsType)
+		})
+	}
+}

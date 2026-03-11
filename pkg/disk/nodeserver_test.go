@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -220,4 +221,161 @@ func TestUnmountTargetPath_FalseInvalid(t *testing.T) {
 	err = ns.unmountTargetPath(logger, p, "d-xxx")
 	assert.ErrorContains(t, err, "still mounted after unmount")
 	assert.Len(t, mounter.MountPoints, 1)
+}
+
+func TestParseVolumeCountEnv(t *testing.T) {
+	tests := []struct {
+		name        string
+		envValue    string
+		expected    int
+		expectError bool
+	}{
+		{
+			name:     "empty env returns 0",
+			envValue: "",
+			expected: 0,
+		},
+		{
+			name:     "valid positive number",
+			envValue: "10",
+			expected: 10,
+		},
+		{
+			name:     "zero is valid",
+			envValue: "0",
+			expected: 0,
+		},
+		{
+			name:        "negative number is invalid",
+			envValue:    "-1",
+			expectError: true,
+		},
+		{
+			name:        "non-numeric value is invalid",
+			envValue:    "abc",
+			expectError: true,
+		},
+		{
+			name:        "float value is invalid",
+			envValue:    "10.5",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("MAX_VOLUMES_PERNODE", tt.envValue)
+			result, err := parseVolumeCountEnv()
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestCollectMountOptions(t *testing.T) {
+	tests := []struct {
+		name     string
+		fsType   string
+		mntFlags []string
+		expected []string
+	}{
+		{
+			name:     "ext4 with no flags",
+			fsType:   "ext4",
+			mntFlags: nil,
+			expected: nil,
+		},
+		{
+			name:     "ext4 with flags",
+			fsType:   "ext4",
+			mntFlags: []string{"rw", "noatime"},
+			expected: []string{"rw", "noatime"},
+		},
+		{
+			name:     "xfs adds nouuid automatically",
+			fsType:   "xfs",
+			mntFlags: []string{"rw"},
+			expected: []string{"rw", "nouuid"},
+		},
+		{
+			name:     "xfs with nouuid already present",
+			fsType:   "xfs",
+			mntFlags: []string{"rw", "nouuid"},
+			expected: []string{"rw", "nouuid"},
+		},
+		{
+			name:     "deduplicate mount options",
+			fsType:   "ext4",
+			mntFlags: []string{"rw", "rw", "noatime"},
+			expected: []string{"rw", "noatime"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := collectMountOptions(tt.fsType, tt.mntFlags)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestNodeGetCapabilities(t *testing.T) {
+	tests := []struct {
+		name          string
+		metricEnable  bool
+		expectedCount int
+	}{
+		{
+			name:          "metrics disabled",
+			metricEnable:  false,
+			expectedCount: 2, // STAGE_UNSTAGE_VOLUME and EXPAND_VOLUME
+		},
+		{
+			name:          "metrics enabled",
+			metricEnable:  true,
+			expectedCount: 3, // STAGE_UNSTAGE_VOLUME, EXPAND_VOLUME, and GET_VOLUME_STATS
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save and restore global config
+			originalMetricEnable := GlobalConfigVar.MetricEnable
+			defer func() { GlobalConfigVar.MetricEnable = originalMetricEnable }()
+
+			GlobalConfigVar.MetricEnable = tt.metricEnable
+
+			ns := &nodeServer{}
+
+			resp, err := ns.NodeGetCapabilities(t.Context(), &csi.NodeGetCapabilitiesRequest{})
+
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			assert.Len(t, resp.Capabilities, tt.expectedCount)
+
+			// Verify STAGE_UNSTAGE_VOLUME is always present
+			hasStageUnstage := false
+			hasExpand := false
+			hasGetStats := false
+			for _, cap := range resp.Capabilities {
+				if cap.GetRpc().GetType() == csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME {
+					hasStageUnstage = true
+				}
+				if cap.GetRpc().GetType() == csi.NodeServiceCapability_RPC_EXPAND_VOLUME {
+					hasExpand = true
+				}
+				if cap.GetRpc().GetType() == csi.NodeServiceCapability_RPC_GET_VOLUME_STATS {
+					hasGetStats = true
+				}
+			}
+			assert.True(t, hasStageUnstage, "STAGE_UNSTAGE_VOLUME should always be present")
+			assert.True(t, hasExpand, "EXPAND_VOLUME should always be present")
+			assert.Equal(t, tt.metricEnable, hasGetStats, "GET_VOLUME_STATS should match metricEnable")
+		})
+	}
 }
