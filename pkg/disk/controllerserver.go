@@ -99,6 +99,7 @@ func NewControllerServer(csiCfg utils.Config, ecs cloud.ECSInterface, m metadata
 		meta:     m,
 		ecs:      ecs,
 		ad: DiskAttachDetach{
+			ecs:     ecs,
 			waiter:  waiter,
 			batcher: batcher,
 

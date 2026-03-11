@@ -140,7 +140,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 		servers.ControllerServer = NewControllerServer(csiCfg, client, m)
 	}
 	if serviceType&utils.Node != 0 {
-		servers.NodeServer = NewNodeServer(m)
+		servers.NodeServer = NewNodeServer(client, m)
 	}
 	if features.FunctionalMutableFeatureGate.Enabled(features.EnableVolumeGroupSnapshots) {
 		servers.GroupControllerServer = NewGroupControllerServer()
