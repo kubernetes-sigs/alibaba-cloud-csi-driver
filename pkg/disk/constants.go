@@ -1,9 +1,6 @@
 package disk
 
 const (
-
-	// ESSD_PERFORMANCE_LEVEL is storage class
-	ESSD_PERFORMANCE_LEVEL = "performanceLevel"
 	// DISKTAGKEY1 tag
 	DISKTAGKEY1 = "k8s.aliyun.com"
 	// DISKTAGVALUE1 value
@@ -16,6 +13,16 @@ const (
 	DISKTAGKEY3 = "ack.aliyun.com"
 	// ECS snapshot tag from old version, keep it for compatibility
 	SNAPSHOTTAGKEY1 = "force.delete.snapshot.k8s.aliyun.com"
+)
+
+// keys used in CreateVolumeRequest.Parameters and MutableParameters
+const (
+	DISK_TYPE              = "type"
+	ESSD_PERFORMANCE_LEVEL = "performanceLevel"
+	PROVISIONED_IOPS_KEY   = "provisionedIops"
+	BURSTING_ENABLED_KEY   = "burstingEnabled"
+	DISK_TAG_PREFIX        = "diskTags/"
+	REMOVE_DISK_TAG_PREFIX = "-diskTags/"
 )
 
 // keys used in CreateSnapshotRequest.Parameters
@@ -103,9 +110,6 @@ const (
 
 	VolumeDeleteAutoSnapshotKey                    = "csi.alibabacloud.com/volume-delete-autosnapshot-retentiondays"
 	VOLUME_DELETE_AUTO_SNAPSHOT_OP_RETENT_DAYS_KEY = "volumeDeleteSnapshotRetentionDays"
-
-	PROVISIONED_IOPS_KEY = "provisionedIops"
-	BURSTING_ENABLED_KEY = "burstingEnabled"
 
 	EXT4_FSTYPE  = "ext4"
 	EXT3_FSTYPE  = "ext3"
