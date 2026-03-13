@@ -163,8 +163,9 @@ type DescribeAccessPointResponseBodyAccessPoint struct {
 	// example:
 	//
 	// Active
-	Status *string                                           `json:"Status,omitempty" xml:"Status,omitempty"`
-	Tags   []*DescribeAccessPointResponseBodyAccessPointTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The tags of the access point.
+	Tags []*DescribeAccessPointResponseBodyAccessPointTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 	// The vSwitch ID.
 	//
 	// example:
@@ -491,10 +492,14 @@ func (s *DescribeAccessPointResponseBodyAccessPointRootPathPermission) Validate(
 }
 
 type DescribeAccessPointResponseBodyAccessPointTags struct {
+	// The key of a tag.
+	//
 	// example:
 	//
 	// TestKey
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of a tag.
+	//
 	// example:
 	//
 	// TestValue

@@ -229,13 +229,15 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The file system type.
 	//
-	// The following information is displayed:
+	// Valid values:
 	//
-	// 	- standard: General-purpose NAS file system.
+	// 	- standard: General-purpose NAS
 	//
-	// 	- extreme: Extreme NAS file system.
+	// 	- extreme: Extreme NAS
 	//
-	// 	- cpfs: CPFS file system.
+	// 	- cpfs: CPFS (locally redundant storage)
+	//
+	// 	- cpfsse: CPFS SE (zone-redundant storage)
 	//
 	// example:
 	//
@@ -283,7 +285,7 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	Packages *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackages `json:"Packages,omitempty" xml:"Packages,omitempty" type:"Struct"`
 	// The protocol type of the file system.
 	//
-	// The following information is displayed:
+	// Valid values:
 	//
 	// 	- NFS: Network File System.
 	//
@@ -301,10 +303,13 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	//
 	// vsw-2ze37k6jh8ums2fw2****
 	QuorumVswId *string `json:"QuorumVswId,omitempty" xml:"QuorumVswId,omitempty"`
+	// Storage redundancy type. Returned only for CPFS SE.
+	//
 	// example:
 	//
 	// LRS
-	RedundancyType       *string                                                                   `json:"RedundancyType,omitempty" xml:"RedundancyType,omitempty"`
+	RedundancyType *string `json:"RedundancyType,omitempty" xml:"RedundancyType,omitempty"`
+	// A list of IDs for the zone-redundant vSwitches.
 	RedundancyVSwitchIds *DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds `json:"RedundancyVSwitchIds,omitempty" xml:"RedundancyVSwitchIds,omitempty" type:"Struct"`
 	// The region ID.
 	//
@@ -336,15 +341,17 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	//
 	// Pending
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The type of the storage.
+	// The storage type.
 	//
-	// The following information is displayed:
+	// Valid values:
 	//
-	// 	- Valid values for General-purpose NAS file systems: Capacity, Performance, and Premium
+	// 	- General-purpose NAS: Capacity, Performance, Premium
 	//
-	// 	- Valid values for Extreme NAS file systems: standard and advance
+	// 	- Extreme NAS: standard, advance
 	//
-	// 	- Valid values for Cloud Parallel File Storage (CPFS) file systems: advance_100 (100 MB/s/TiB baseline) and advance_200 (200 MB/s/TiB baseline)
+	// 	- CPFS: advance_100 (100 MB/s/TiB Baseline), advance_200 (200 MB/s/TiB Baseline), economic
+	//
+	// 	- CPFS SE: advance_100 (100 MB/s/TiB Baseline)
 	//
 	// example:
 	//
@@ -1180,6 +1187,7 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions struct {
+	EnableABE *bool `json:"EnableABE,omitempty" xml:"EnableABE,omitempty"`
 	// Specifies whether to enable the oplock feature. Valid values:
 	//
 	// 	- true: enables the feature.
@@ -1202,8 +1210,17 @@ func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions) GoString() 
 	return s.String()
 }
 
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions) GetEnableABE() *bool {
+	return s.EnableABE
+}
+
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions) GetEnableOplock() *bool {
 	return s.EnableOplock
+}
+
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions) SetEnableABE(v bool) *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions {
+	s.EnableABE = &v
+	return s
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions) SetEnableOplock(v bool) *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions {

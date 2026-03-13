@@ -4,7 +4,7 @@ github.com/alibabacloud-go/alibabacloud-gateway-spi/client
 # github.com/alibabacloud-go/darabonba-openapi v0.1.16
 ## explicit; go 1.14
 github.com/alibabacloud-go/darabonba-openapi/client
-# github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.13
+# github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.14
 ## explicit; go 1.14
 github.com/alibabacloud-go/darabonba-openapi/v2/client
 github.com/alibabacloud-go/darabonba-openapi/v2/models
@@ -24,7 +24,7 @@ github.com/alibabacloud-go/endpoint-util/service
 # github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
 ## explicit; go 1.15
 github.com/alibabacloud-go/ens-20171110/v3/client
-# github.com/alibabacloud-go/nas-20170626/v4 v4.2.0
+# github.com/alibabacloud-go/nas-20170626/v4 v4.3.1
 ## explicit; go 1.14
 github.com/alibabacloud-go/nas-20170626/v4/client
 # github.com/alibabacloud-go/openapi-util v0.1.1
