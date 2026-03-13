@@ -23,8 +23,8 @@ ARG EFC_VERSION=1.9-20250822095129.f34347.release
 # v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch.
 # It's temporarily unavailable for all ACK clusters,
 # catering only to ARM for compatibility. An update to all CPFS storage cluster versions is required.
-ARG EFC_ARM_VERSION=2.1-20251105164215.8422bf.release
-ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20260114190446.d3e4f6.generic
+ARG EFC_ARM_VERSION=2.1-20260225174948.1aad5e.release
+ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20260312105719.3df09a.generic
 RUN set -ex; \
     case "${TARGETPLATFORM}" in \
         linux/amd64) ARCH="x86_64" ;; \
@@ -38,8 +38,8 @@ RUN set -ex; \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
     elif [ "${ARCH}" = "aarch_64" ]; then \
-        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/efc-release/2.1/aliyun-alinas-utils-${ALINAS_UTILS_ARM_VERSION}.aarch64.rpm; \
-        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/efc-release/2.1/alinas-efc-${EFC_ARM_VERSION}.aarch64.rpm; \
+        yum install -y https://aliyun-alinas-eac-cn-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/efc-release/2.1/aliyun-alinas-utils-${ALINAS_UTILS_ARM_VERSION}.aarch64.rpm; \
+        yum install -y https://aliyun-alinas-eac-cn-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/efc-release/2.1/alinas-efc-${EFC_ARM_VERSION}.aarch64.rpm; \
     fi; \
     cp -r /etc/aliyun /etc/aliyun-defaults; \
     yum clean all; \
