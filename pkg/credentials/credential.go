@@ -7,6 +7,7 @@ import (
 	alicred_v1 "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	alicred "github.com/aliyun/credentials-go/credentials/providers"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 )
@@ -38,6 +39,13 @@ func NewProvider() (alicred.CredentialsProvider, error) {
 	}
 
 	MigrateEnv()
+
+	if _, ok := os.LookupEnv("ALIBABA_CLOUD_VPC_ENDPOINT_ENABLED"); !ok && utils.GetNetworkType() == "vpc" {
+		// OIDC recognize this env to enable vpc endpoint
+		if err := os.Setenv("ALIBABA_CLOUD_VPC_ENDPOINT_ENABLED", "true"); err != nil {
+			return nil, err
+		}
+	}
 
 	// try managed token credential
 	provider, err := NewManagedTokenProvider(clock.RealClock{}, GetManagedTokenPath())

@@ -160,15 +160,23 @@ func main() {
 		}
 	}
 
+	regionID, err := meta.Get(metadata.RegionID)
+	if err != nil {
+		klog.ErrorS(err, "failed to get regionID for metadata, use cn-hangzhou")
+		regionID = "cn-hangzhou"
+	} else {
+		// OIDC recognize this env to enable vpc endpoint
+		if _, ok := os.LookupEnv("ALIBABA_CLOUD_STS_REGION"); !ok {
+			if err := os.Setenv("ALIBABA_CLOUD_STS_REGION", regionID); err != nil {
+				klog.ErrorS(err, "failed to set ALIBABA_CLOUD_STS_REGION")
+			}
+		}
+	}
+
 	provider, err := credentials.NewProvider()
 	if err != nil {
 		klog.ErrorS(err, "failed to get credential for metadata, will not enable OpenAPI")
 	} else {
-		regionID, err := meta.Get(metadata.RegionID)
-		if err != nil {
-			klog.ErrorS(err, "failed to get regionID for metadata, use cn-hangzhou")
-			regionID = "cn-hangzhou"
-		}
 		cred := alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider)
 
 		ecsClient, err := ecs20140526.NewClient(utils.GetEcsConfig(regionID).SetCredential(cred))
