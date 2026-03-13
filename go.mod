@@ -12,7 +12,7 @@ require (
 	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
 	github.com/alibabacloud-go/nas-20170626/v4 v4.2.0
 	github.com/alibabacloud-go/sts-20150401/v2 v2.0.4
-	github.com/alibabacloud-go/tea v1.3.13
+	github.com/alibabacloud-go/tea v1.4.0
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
 	github.com/aliyun/credentials-go v1.4.10
 	github.com/container-storage-interface/spec v1.10.0
