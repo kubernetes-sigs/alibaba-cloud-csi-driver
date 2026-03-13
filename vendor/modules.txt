@@ -15,7 +15,7 @@ github.com/alibabacloud-go/debug/debug
 # github.com/alibabacloud-go/ecs-20140526/v7 v7.4.2
 ## explicit; go 1.14
 github.com/alibabacloud-go/ecs-20140526/v7/client
-# github.com/alibabacloud-go/eflo-controller-20221215/v3 v3.0.0
+# github.com/alibabacloud-go/eflo-controller-20221215/v3 v3.0.4
 ## explicit; go 1.14
 github.com/alibabacloud-go/eflo-controller-20221215/v3/client
 # github.com/alibabacloud-go/endpoint-util v1.1.0
