@@ -54,6 +54,7 @@ var regionsCanUseVpcEndpoint = sets.NewString(
 	"cn-shenzhen-finance-1",
 	"ap-southeast-6",
 	"cn-zhongwei",
+	"me-east-1",
 )
 
 func GetEndpointForRegion(region string) string {
