@@ -217,8 +217,7 @@ spec:
 {{- end -}}
 {{- if $nodePool.csi.nas.enabled }}
             - mountPath: /host/var/run/efc
-              name: run-cnfs
-              subPath: efc
+              name: efc-metrics-dir
 {{- end }}
             - mountPath: /host/run/csi-tool
               name: run-csi
