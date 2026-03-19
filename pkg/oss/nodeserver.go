@@ -50,9 +50,11 @@ type nodeServer struct {
 	skipAttach bool
 }
 
-const (
-	// metricsPathPrefix
-	metricsPathPrefix = "/host/var/run/ossfs/"
+var (
+	possibleMetricsPathPrefixes = []string{
+		"/host/var/run/ossfs/",
+		"/var/run/ossfs/",
+	}
 )
 
 // for cases where fuseType does not affect like UnPublishVolume,
@@ -240,6 +242,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// - If mount point exists and token rotation is needed: update token files and return ErrSkipMount
 	// - If mount point doesn't exist: proceed with normal mount
 
+	metricsPathPrefix := getMetricsPathPrefixByRuntimeType(runtimeType)
 	// When work as csi-agent, directly mount on the target path.
 	if runtimeType == RuntimeTypeRunD || runtimeType == RuntimeTypeMicroVM {
 		var metricsPath string
@@ -313,6 +316,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
+func getMetricsPathPrefixByRuntimeType(runtimeType RuntimeType) string {
+	if runtimeType == RuntimeTypeMicroVM {
+		return possibleMetricsPathPrefixes[1]
+	}
+	return possibleMetricsPathPrefixes[0]
+}
+
 func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
 	valid, err := utils.ValidatePath(req.GetTargetPath())
 	if !valid {
@@ -368,7 +378,9 @@ func (ns *nodeServer) NodeUnstageVolume(
 	}
 
 	// The metricsPath in fuse Pod will be cleaned and not allowed to update the metrics
-	utils.RemoveMetrics(metricsPathPrefix, req)
+	if metricsPathPrefix := getExistingMetricsPathPrefix(); metricsPathPrefix != "" {
+		utils.RemoveMetrics(metricsPathPrefix, req)
+	}
 
 	// In the legacy mount process, NodePublishVolume creates ossfs pods in kube-system namespace to mount ossfpm.
 	// We still need to umount the mountpoint in case csi-plugin is upgraded from these versions.
@@ -385,6 +397,15 @@ func (ns *nodeServer) NodeUnstageVolume(
 		return nil, status.Errorf(codes.Internal, "failed to cleanup ossfs credential secret: %v", err)
 	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
+}
+
+func getExistingMetricsPathPrefix() string {
+	for _, path := range possibleMetricsPathPrefixes {
+		if utils.IsFileExisting(path) {
+			return path
+		}
+	}
+	return ""
 }
 
 type publishRequest interface {
