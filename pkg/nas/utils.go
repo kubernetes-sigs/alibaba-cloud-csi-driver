@@ -155,15 +155,10 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		return err
 	}
 
-	rootPath := "/"
-	if opt.FSType == "cpfs" || mountFstype == MountProtocolCPFSNFS {
-		rootPath = "/share"
-	}
-	relPath, relErr := filepath.Rel(rootPath, opt.Path)
-	if relErr != nil || relPath == "." {
+	rootSource, relPath := getMountRootAndRelPath(mountFstype, opt)
+	if rootSource == "" {
 		return err
 	}
-	rootSource := fmt.Sprintf("%s:%s", opt.Server, rootPath)
 	klog.Infof("trying to create subpath %s in %s", opt.Path, opt.Server)
 	tmpPath := filepath.Join(utils.KubeletRootDir, "csi-plugins", driverName, "node")
 	if err := os.MkdirAll(tmpPath, 0o700); err != nil {
@@ -198,6 +193,24 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		Secrets:  secrets,
 		VolumeID: volumeId,
 	})
+}
+
+func getMountRootAndRelPath(mountFsType string, opt *Options) (rootPath, relPath string) {
+	if opt == nil {
+		return
+	}
+	rootPath = "/"
+	if opt.FSType == "cpfs" || mountFsType == MountProtocolCPFSNFS {
+		rootPath = "/share"
+	}
+	relPath, relErr := filepath.Rel(rootPath, opt.Path)
+	if relErr != nil || relPath == "." {
+		return "", ""
+	}
+	if isExtremeNAS(opt.FSType, opt.Server) {
+		relPath, _ = strings.CutPrefix(relPath, "share")
+	}
+	return fmt.Sprintf("%s:%s", opt.Server, rootPath), relPath
 }
 
 func isEFCPathNotFoundError(err error) bool {
@@ -384,7 +397,7 @@ func getFilesystemTypeFromAPIOrServer(filesystemID, server string, client interf
 	return cloud.GetFilesystemTypeByMountTargetDomain(server)
 }
 
-func isExtrameNAS(filesystemType, server string) bool {
+func isExtremeNAS(filesystemType, server string) bool {
 	if filesystemType != "" {
 		return filesystemType == "extreme"
 	}
