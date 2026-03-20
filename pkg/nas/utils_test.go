@@ -102,3 +102,53 @@ func Test_addTLSMountOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMountRootAndRelPath(t *testing.T) {
+	tests := []struct {
+		name             string
+		mountFsType      string
+		opt              *Options
+		expectedRootPath string
+		expectedRelpath  string
+	}{
+		{
+			name: "nil options",
+		},
+		{
+			name:             "general nas",
+			mountFsType:      "nfs",
+			opt:              &Options{FSType: "general", Path: "/test", Server: "test-server"},
+			expectedRootPath: "test-server:/",
+			expectedRelpath:  "test",
+		},
+		{
+			name:             "extreme nas with share-prefixed path",
+			mountFsType:      "nfs",
+			opt:              &Options{FSType: "extreme", Path: "/share/test", Server: "test-server"},
+			expectedRootPath: "test-server:/",
+			expectedRelpath:  "/test",
+		},
+		{
+			name:             "extreme nas with plain path",
+			mountFsType:      "nfs",
+			opt:              &Options{FSType: "extreme", Path: "/test", Server: "test-server"},
+			expectedRootPath: "test-server:/",
+			expectedRelpath:  "test",
+		},
+		{
+			name:             "cpfs",
+			mountFsType:      "cpfs-nfs",
+			opt:              &Options{Path: "/share/test", Server: "test-server"},
+			expectedRootPath: "test-server:/share",
+			expectedRelpath:  "test",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualRootPath, actualRelpath := getMountRootAndRelPath(tt.mountFsType, tt.opt)
+			assert.Equal(t, tt.expectedRootPath, actualRootPath)
+			assert.Equal(t, tt.expectedRelpath, actualRelpath)
+		})
+	}
+}

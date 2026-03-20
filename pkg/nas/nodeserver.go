@@ -343,7 +343,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		opt.Vers = "4.0"
 	}
 
-	if isExtrameNAS(opt.FSType, opt.Server) {
+	if isExtremeNAS(opt.FSType, opt.Server) {
 		if opt.Vers != "3" {
 			return nil, errors.New("Extreme nas only support nfs v3 " + opt.Server)
 		}
