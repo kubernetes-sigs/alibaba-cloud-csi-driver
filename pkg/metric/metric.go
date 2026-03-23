@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -15,13 +16,27 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const maxRequestsInFlight = 8
+
 // Handler is a package of promHttp,metric entry
 type Handler struct {
-	collectors map[string]Collector
+	collectors  map[string]Collector
+	inFlightSem chan struct{}
 }
 
 // ServeHTTP implements http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Limit concurrent requests to prevent OOM
+	select {
+	case h.inFlightSem <- struct{}{}:
+		defer func() { <-h.inFlightSem }()
+	default:
+		http.Error(w, fmt.Sprintf(
+			"Limit of concurrent requests reached (%d), try again later.", maxRequestsInFlight,
+		), http.StatusServiceUnavailable)
+		return
+	}
+
 	var pvcs sets.Set[string]
 	if r.URL != nil && len(r.URL.RawQuery) != 0 {
 		values, err := url.ParseQuery(r.URL.RawQuery)
@@ -62,8 +77,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // NewMetricHandler method returns a promHttp object
 func NewMetricHandler(driverNames []string, serviceType utils.ServiceType) *Handler {
-	collectors := registeredCollectors(driverNames, serviceType)
-	return &Handler{collectors}
+	return &Handler{
+		collectors:  registeredCollectors(driverNames, serviceType),
+		inFlightSem: make(chan struct{}, maxRequestsInFlight),
+	}
 }
 
 type logger struct {

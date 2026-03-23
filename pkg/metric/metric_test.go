@@ -41,3 +41,20 @@ func TestHandler_ServeHTTP_InvalidQuery(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Failed to parse query")
 }
+
+func TestHandler_ServeHTTP_ConcurrencyLimit(t *testing.T) {
+	handler := NewMetricHandler(nil, utils.Node)
+
+	// Fill the semaphore to simulate max concurrent requests
+	for range maxRequestsInFlight {
+		handler.inFlightSem <- struct{}{}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Limit of concurrent requests reached")
+}
