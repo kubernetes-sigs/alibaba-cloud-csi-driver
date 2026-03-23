@@ -9,8 +9,8 @@ import (
 )
 
 // GetCnfsObject get cnfs's object
-func GetCnfsObject(client dynamic.Interface, name string) (*ContainerNetworkFileSystem, error) {
-	return NewCNFSGetter(client).GetCNFS(context.TODO(), name)
+func GetCnfsObject(ctx context.Context, client dynamic.Interface, name string) (*ContainerNetworkFileSystem, error) {
+	return NewCNFSGetter(client).GetCNFS(ctx, name)
 }
 
 type CNFSGetter interface {

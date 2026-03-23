@@ -1,13 +1,16 @@
 package metric
 
 import (
+	"context"
 	"errors"
 	"runtime/debug"
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 )
 
@@ -37,75 +40,66 @@ func registerCollector(collector string, factory collectorFactoryFunc, relatedDr
 // Collector is the interface a collector has to implement.
 type Collector interface {
 	// Get new metrics and expose them via prometheus registry.
-	Update(ch chan<- prometheus.Metric) error
+	Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error
 }
 
 // CSICollector implements the prometheus.Collector interface.
 type CSICollector struct {
 	Collectors map[string]Collector
+
+	ctx  context.Context
+	pvcs sets.Set[string]
 }
 
-// newCSICollector method returns the CSICollector object
-func newCSICollector(driverNames []string, serviceType utils.ServiceType) {
-	if csiCollectorInstance != nil {
-		return
+func registeredCollectors(driverNames []string, serviceType utils.ServiceType) map[string]Collector {
+	if serviceType&utils.Node == 0 {
+		return nil
 	}
+
 	collectors := make(map[string]Collector)
-	if serviceType&utils.Node != 0 {
-		enabledDrivers := map[string]struct{}{}
-		for _, d := range driverNames {
-			enabledDrivers[d] = struct{}{}
-		}
-		for _, reg := range registry {
-			enabled := len(reg.RelatedDrivers) == 0
-			for _, d := range reg.RelatedDrivers {
-				if _, ok := enabledDrivers[d]; ok {
-					enabled = true
-					break
-				}
-			}
-			if enabled {
-				collector, err := reg.Factory()
-				if err != nil {
-					klog.ErrorS(err, "Failed to create collector")
-				} else {
-					collectors[reg.Name] = collector
-				}
+	enabledDrivers := sets.New(driverNames...)
+	for _, reg := range registry {
+		if len(reg.RelatedDrivers) == 0 ||
+			slices.ContainsFunc(reg.RelatedDrivers, func(d string) bool { return enabledDrivers.Has(d) }) {
+
+			collector, err := reg.Factory()
+			if err != nil {
+				klog.ErrorS(err, "Failed to create collector")
+			} else {
+				collectors[reg.Name] = collector
 			}
 		}
 	}
-	collectors[CsiGrpcExecTimeCollectorName] = &CsiGrpcExecTimeCollector
-	csiCollectorInstance = &CSICollector{Collectors: collectors}
+	return collectors
 }
 
 // Describe implements the prometheus.Collector interface.
-func (csi CSICollector) Describe(ch chan<- *prometheus.Desc) {
+func (csi *CSICollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- scrapeDurationDesc
 	ch <- scrapeSuccessDesc
 }
 
 // Collect implements the prometheus.Collector interface.
-func (csi CSICollector) Collect(ch chan<- prometheus.Metric) {
-	defer func() { scalerPvcMap = nil }()
+func (csi *CSICollector) Collect(ch chan<- prometheus.Metric) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(csi.Collectors))
 	for name, c := range csi.Collectors {
 		go func(name string, c Collector) {
-			execute(name, c, ch)
+			csi.execute(name, c, ch)
 			wg.Done()
 		}(name, c)
 	}
 	wg.Wait()
 }
 
-func execute(name string, c Collector, ch chan<- prometheus.Metric) {
+func (csi *CSICollector) execute(name string, c Collector, ch chan<- prometheus.Metric) {
 	defer func() {
 		if err := recover(); err != nil {
-			klog.Errorf("Collecotor panic occurred: %v. stacktrace: %s", err, string(debug.Stack()))
+			klog.Errorf("Collector panic occurred: %v. stacktrace: %s", err, string(debug.Stack()))
 		}
 	}()
 	begin := time.Now()
-	err := c.Update(ch)
+	err := c.Update(csi.ctx, csi.pvcs, ch)
 	duration := time.Since(begin)
 	var success float64
 	if err != nil {

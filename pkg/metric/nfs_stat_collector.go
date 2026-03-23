@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -14,6 +15,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -249,7 +251,7 @@ func NewNfsStatCollector() (Collector, error) {
 	}, nil
 }
 
-func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
+func (p *nfsStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
 	//startTime := time.Now()
 	pvNameStatsMap, err := getNfsStat()
 	if len(pvNameStatsMap) == 0 {
@@ -264,10 +266,13 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 		return err
 	}
 	//log.Infof("volJSONPaths:%+v", volJSONPaths)
-	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName)
+	p.updateMap(ctx, &p.lastPvNfsInfoMap, volJSONPaths, nasDriverName)
 	//log.Infof("lastPvNfsInfoMap:%+v", p.lastPvNfsInfoMap)
 	wg := sync.WaitGroup{}
 	for pvName, stats := range pvNameStatsMap {
+		if err := ctx.Err(); err != nil {
+			break
+		}
 		nfsInfo := p.lastPvNfsInfoMap[pvName]
 		//klog.Infof("pv: %s, stats: %v, nfsInfo: %+v", pvName, stats, nfsInfo)
 		capacityStats, err := getNfsCapacityStat(pvName, nfsInfo, p)
@@ -310,9 +315,12 @@ func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcN
 	}
 }
 
-func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonPaths []string, deriverName string) {
+func (p *nfsStatCollector) updateMap(ctx context.Context, lastPvNfsInfoMap *map[string]nfsInfo, jsonPaths []string, deriverName string) {
 	thisPvNfsInfoMap := make(map[string]nfsInfo, 0)
 	for _, path := range jsonPaths {
+		if ctx.Err() != nil {
+			break
+		}
 		//Get nfs pvName
 		pvName, _, err := getVolumeInfoByJSON(path, deriverName)
 		if err != nil {
@@ -341,10 +349,10 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 	}
 
 	//If there is a change: add, modify, delete
-	p.updateNfsInfoMap(thisPvNfsInfoMap, lastPvNfsInfoMap)
+	p.updateNfsInfoMap(ctx, thisPvNfsInfoMap, lastPvNfsInfoMap)
 }
 
-func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo, lastPvNfsInfoMap *map[string]nfsInfo) {
+func (p *nfsStatCollector) updateNfsInfoMap(ctx context.Context, thisPvNfsInfoMap map[string]nfsInfo, lastPvNfsInfoMap *map[string]nfsInfo) {
 	p.pvInfoLock.Lock()
 	defer p.pvInfoLock.Unlock()
 
@@ -352,7 +360,7 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 		lastInfo, ok := (*lastPvNfsInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcNamespace, pvcName, serverName, err := getNasPvcByPvName(p.clientSet, p.crdClient, pv)
+			pvcNamespace, pvcName, serverName, err := getNasPvcByPvName(ctx, p.clientSet, p.crdClient, pv)
 			if err != nil {
 				continue
 			}
