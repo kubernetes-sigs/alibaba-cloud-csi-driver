@@ -126,7 +126,7 @@ func TestGetMountRootAndRelPath(t *testing.T) {
 			mountFsType:      "nfs",
 			opt:              &Options{FSType: "extreme", Path: "/share/test", Server: "test-server"},
 			expectedRootPath: "test-server:/",
-			expectedRelpath:  "/test",
+			expectedRelpath:  "test",
 		},
 		{
 			name:             "extreme nas with plain path",
@@ -136,11 +136,25 @@ func TestGetMountRootAndRelPath(t *testing.T) {
 			expectedRelpath:  "test",
 		},
 		{
-			name:             "cpfs",
+			name:             "cpfs with share-prefixed path",
 			mountFsType:      "cpfs-nfs",
-			opt:              &Options{Path: "/share/test", Server: "test-server"},
+			opt:              &Options{FSType: "cpfs", Path: "/share/test", Server: "test-server"},
 			expectedRootPath: "test-server:/share",
 			expectedRelpath:  "test",
+		},
+		{
+			name:             "cpfs with root path",
+			mountFsType:      "cpfs-nfs",
+			opt:              &Options{FSType: "cpfs", Path: "/", Server: "test-server"},
+			expectedRootPath: "",
+			expectedRelpath:  "",
+		},
+		{
+			name:             "cpfs with plain path",
+			mountFsType:      "cpfs-nfs",
+			opt:              &Options{FSType: "cpfs", Path: "/test", Server: "test-server"},
+			expectedRootPath: "",
+			expectedRelpath:  "",
 		},
 	}
 
@@ -149,6 +163,74 @@ func TestGetMountRootAndRelPath(t *testing.T) {
 			actualRootPath, actualRelpath := getMountRootAndRelPath(tt.mountFsType, tt.opt)
 			assert.Equal(t, tt.expectedRootPath, actualRootPath)
 			assert.Equal(t, tt.expectedRelpath, actualRelpath)
+		})
+	}
+}
+
+func TestIsSubDir(t *testing.T) {
+	tests := []struct {
+		name            string
+		parent          string
+		child           string
+		expected        bool
+		expectedRelPath string
+	}{
+		{
+			name:            "child is subdir of parent",
+			parent:          "/parent",
+			child:           "/parent/child",
+			expected:        true,
+			expectedRelPath: "child",
+		},
+		{
+			name:            "child is subdir of parent with trailing slash",
+			parent:          "/parent/",
+			child:           "/parent/child",
+			expected:        true,
+			expectedRelPath: "child",
+		},
+		{
+			name:            "child is not subdir of parent",
+			parent:          "/parent",
+			child:           "/child",
+			expected:        false,
+			expectedRelPath: "",
+		},
+		{
+			name:            "parent equals child",
+			parent:          "/parent",
+			child:           "/parent",
+			expected:        false,
+			expectedRelPath: "",
+		},
+		{
+			name:            "parent and child has the same prefix",
+			parent:          "/parent",
+			child:           "/parent-child",
+			expected:        false,
+			expectedRelPath: "",
+		},
+		{
+			name:            "parent equals child with trailing slash",
+			parent:          "/parent/",
+			child:           "/parent",
+			expected:        false,
+			expectedRelPath: "",
+		},
+		{
+			name:            "child with relative path",
+			parent:          "/parent",
+			child:           "parent",
+			expected:        false,
+			expectedRelPath: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualRelpath, actual := extractSubDir(tt.parent, tt.child)
+			assert.Equal(t, tt.expected, actual)
+			assert.Equal(t, tt.expectedRelPath, actualRelpath)
 		})
 	}
 }

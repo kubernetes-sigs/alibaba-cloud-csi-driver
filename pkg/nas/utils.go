@@ -195,22 +195,41 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	})
 }
 
-func getMountRootAndRelPath(mountFsType string, opt *Options) (rootPath, relPath string) {
+func getMountRootAndRelPath(mountFsType string, opt *Options) (rootSource, relPath string) {
 	if opt == nil {
 		return
 	}
-	rootPath = "/"
+	rootPath := "/"
 	if opt.FSType == "cpfs" || mountFsType == MountProtocolCPFSNFS {
 		rootPath = "/share"
 	}
-	relPath, relErr := filepath.Rel(rootPath, opt.Path)
-	if relErr != nil || relPath == "." {
+	relPath, isSubDir := extractSubDir(rootPath, opt.Path)
+	if !isSubDir || relPath == "" {
 		return "", ""
 	}
 	if isExtremeNAS(opt.FSType, opt.Server) {
-		relPath, _ = strings.CutPrefix(relPath, "share")
+		if opt.Path == "/share" {
+			return "", ""
+		}
+		relPath, _ = strings.CutPrefix(relPath, "share/")
 	}
 	return fmt.Sprintf("%s:%s", opt.Server, rootPath), relPath
+}
+
+func extractSubDir(parent, child string) (string, bool) {
+	child = filepath.Clean(child)
+	if parent == child {
+		return "", false
+	}
+	// Ensure parent ends with '/', to avoid /foo matching /foobar
+	if !strings.HasSuffix(parent, "/") {
+		parent += "/"
+	}
+	sub, found := strings.CutPrefix(child, parent)
+	if !found {
+		return "", false
+	}
+	return sub, true
 }
 
 func isEFCPathNotFoundError(err error) bool {
