@@ -1,12 +1,14 @@
 package metric
 
 import (
+	"context"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 )
 
@@ -700,10 +702,13 @@ func getFuseMetricDirs() map[string]string {
 	return metricsDirs
 }
 
-func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
+func (p *usFsStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
 	metricDirs := getFuseMetricDirs()
 	fsClientInfo := new(fuseInfo)
 	for _, dir := range metricDirs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if !utils.IsFileExisting(dir) {
 			continue
 		}
@@ -714,6 +719,9 @@ func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 		}
 
 		for _, subdir := range subdirs {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if utils.IsFileExisting(filepath.Join(dir, subdir, utils.PodInfoFile)) {
 				// exclusive metrics case, subdir is podUid
 				p.updateExclusiveMetrics(dir, subdir, fsClientInfo, ch)

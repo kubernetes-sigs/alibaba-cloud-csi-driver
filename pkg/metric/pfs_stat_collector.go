@@ -1,9 +1,11 @@
 package metric
 
 import (
+	"context"
 	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 type pfsRawBlockStatCollector struct {
@@ -21,6 +23,6 @@ func NewPfsRawBlockStatCollector() (Collector, error) {
 	return &pfsRawBlockStatCollector{}, nil
 }
 
-func (p *pfsRawBlockStatCollector) Update(ch chan<- prometheus.Metric) error {
+func (p *pfsRawBlockStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
 	return nil
 }

@@ -56,8 +56,8 @@ func readAllContent(path string) (string, error) {
 	return result, nil
 }
 
-func getDiskPvcByPvName(clientSet *kubernetes.Clientset, pvName string) (*apicorev1.ObjectReference, error) {
-	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
+func getDiskPvcByPvName(ctx context.Context, clientSet *kubernetes.Clientset, pvName string) (*apicorev1.ObjectReference, error) {
+	pv, err := clientSet.CoreV1().PersistentVolumes().Get(ctx, pvName, apismetav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -67,8 +67,8 @@ func getDiskPvcByPvName(clientSet *kubernetes.Clientset, pvName string) (*apicor
 	return nil, errors.New("pvName:" + pv.Name + " status is not bound.")
 }
 
-func getNasPvcByPvName(clientSet *kubernetes.Clientset, cnfsClient dynamic.Interface, pvName string) (string, string, string, error) {
-	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
+func getNasPvcByPvName(ctx context.Context, clientSet *kubernetes.Clientset, cnfsClient dynamic.Interface, pvName string) (string, string, string, error) {
+	pv, err := clientSet.CoreV1().PersistentVolumes().Get(ctx, pvName, apismetav1.GetOptions{})
 	if err != nil {
 		return "", "", "", err
 	}
@@ -78,7 +78,7 @@ func getNasPvcByPvName(clientSet *kubernetes.Clientset, cnfsClient dynamic.Inter
 				return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, val, nil
 			}
 		} else if value, ok := pv.Spec.CSI.VolumeAttributes[containerNetworkFileSystem]; ok {
-			cnfs, err := v1beta1.GetCnfsObject(cnfsClient, value)
+			cnfs, err := v1beta1.GetCnfsObject(ctx, cnfsClient, value)
 			if err != nil {
 				klog.Errorf("Get cnfs %s server is failed, err:%s", value, err)
 				return "", "", "", err

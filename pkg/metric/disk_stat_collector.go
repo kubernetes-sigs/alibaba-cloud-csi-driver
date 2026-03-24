@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -29,7 +30,6 @@ import (
 var (
 	diskStatLabelNames  = []string{"namespace", "pvc", "device"}
 	diskStatConstLabels = prometheus.Labels{"type": diskStorageName}
-	scalerPvcMap        *sync.Map
 )
 
 func diskMetricDesc(name, help string) *prometheus.Desc {
@@ -149,13 +149,13 @@ func NewDiskStatCollector() (Collector, error) {
 	}, nil
 }
 
-func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
+func (p *diskStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
 	//startTime := time.Now()
 	volJSONPaths, err := findVolJSON(podsRootPath)
 	if err != nil {
 		return err
 	}
-	p.updateMap(&p.lastPvDiskInfoMap, volJSONPaths, diskDriverName)
+	p.updateMap(ctx, &p.lastPvDiskInfoMap, volJSONPaths, diskDriverName)
 
 	diskStats, err := p.diskStats.GetStats()
 	if err != nil {
@@ -179,10 +179,11 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	}
 
 	for pvName, info := range p.lastPvDiskInfoMap {
-		if scalerPvcMap != nil {
-			if _, ok := scalerPvcMap.Load(info.PVCRef.Name); !ok {
-				continue
-			}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if pvcs != nil && !pvcs.Has(info.PVCRef.Name) {
+			continue
 		}
 		stats, ok := deviceNameStatsMap[info.Dev]
 		if !ok {
@@ -271,9 +272,12 @@ func (p *diskStatCollector) sendCapStats(stats []*csi.VolumeUsage, labels []stri
 	}
 }
 
-func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, driverName string) {
+func (p *diskStatCollector) updateMap(ctx context.Context, lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, driverName string) {
 	thisPvDiskInfoMap := make(map[string]diskInfo, 0)
 	for _, path := range jsonPaths {
+		if ctx.Err() != nil {
+			break
+		}
 		//Get disk pvName
 		pvName, diskID, err := getVolumeInfoByJSON(path, driverName)
 		if err != nil {
@@ -310,10 +314,10 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 	}
 
 	//If there is a change: add, modify, delete
-	p.updateDiskInfoMap(thisPvDiskInfoMap, lastPvDiskInfoMap)
+	p.updateDiskInfoMap(ctx, thisPvDiskInfoMap, lastPvDiskInfoMap)
 }
 
-func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskInfo, lastPvDiskInfoMap *map[string]diskInfo) {
+func (p *diskStatCollector) updateDiskInfoMap(ctx context.Context, thisPvDiskInfoMap map[string]diskInfo, lastPvDiskInfoMap *map[string]diskInfo) {
 	p.pvInfoLock.Lock()
 	defer p.pvInfoLock.Unlock()
 
@@ -321,7 +325,7 @@ func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskI
 		lastInfo, ok := (*lastPvDiskInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcRef, err := getDiskPvcByPvName(p.clientSet, pv)
+			pvcRef, err := getDiskPvcByPvName(ctx, p.clientSet, pv)
 			if err != nil {
 				continue
 			}

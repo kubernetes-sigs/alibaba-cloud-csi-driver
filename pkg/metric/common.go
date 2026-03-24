@@ -8,25 +8,17 @@ import (
 )
 
 const (
-	//OssStorageName represents the storage type name of Oss
-	ossStorageName string = "oss"
 	//NasStorageName represents the storage type name of Nas
 	nasStorageName string = "nas"
-	//aliNasStorageName represents the storage type name of AliNas
-	aliNasStorageName string = "alinas"
 	//diskStorageName represents the storage type name of Disk
 	diskStorageName string = "disk"
-	pfsBlockName    string = "pfsblock"
-	//unknownStorageName represents the storage type name of Unknown
-	unknownStorageName string = "unknown"
 	//ossDriverName represents the csi storage type name of Oss
 	ossDriverName string = "ossplugin.csi.alibabacloud.com"
 	//nasDriverName represents the csi storage type name of Nas
 	nasDriverName    string = "nasplugin.csi.alibabacloud.com"
 	bmcpfsDriverName string = "bmcpfsplugin.csi.alibabacloud.com"
 	//diskDriverName represents the csi storage type name of Disk
-	diskDriverName  string = "diskplugin.csi.alibabacloud.com"
-	localDriverName string = "localplugin.csi.alibabacloud.com"
+	diskDriverName string = "diskplugin.csi.alibabacloud.com"
 	// unknown metric value
 	UnknownValue string = "unknown"
 )
@@ -60,12 +52,9 @@ type collectorRegistryItem struct {
 	RelatedDrivers []string
 }
 
-// csiCollectorInstance is a single instance of CSICollector
-// Factories are the mapping between monitoring types and collectorFactoryFunc
 var (
-	csiCollectorInstance *CSICollector
-	registry             = []collectorRegistryItem{}
-	podsRootPath         = filepath.Join(utils.KubeletRootDir, "/pods")
+	registry     = []collectorRegistryItem{}
+	podsRootPath = filepath.Join(utils.KubeletRootDir, "/pods")
 )
 
 type typedFactorDesc struct {

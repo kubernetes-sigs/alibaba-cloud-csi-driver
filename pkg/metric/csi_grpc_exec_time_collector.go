@@ -36,18 +36,14 @@ var CsiGrpcExecTimeCollector = csiGrpcExecTimeCollector{
 	}, csiGrpcExecTimeLabels),
 }
 
-func init() {
-	registerCollector(CsiGrpcExecTimeCollectorName, GetCsiGrpcExecTimeCollector)
-}
-
-func GetCsiGrpcExecTimeCollector() (Collector, error) {
-	return &CsiGrpcExecTimeCollector, nil
-}
-
-func (c *csiGrpcExecTimeCollector) Update(ch chan<- prometheus.Metric) error {
+func (c *csiGrpcExecTimeCollector) Collect(ch chan<- prometheus.Metric) {
 	c.ExecCountMetric.Collect(ch)
 	c.ExecTimeTotalMetric.Collect(ch)
-	return nil
+}
+
+func (c *csiGrpcExecTimeCollector) Describe(ch chan<- *prometheus.Desc) {
+	c.ExecCountMetric.Describe(ch)
+	c.ExecTimeTotalMetric.Describe(ch)
 }
 
 // InitGRPC fills each possible method with OK code and 0 value

@@ -1,6 +1,11 @@
 package metric
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"context"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/apimachinery/pkg/util/sets"
+)
 
 const (
 	VolumeStatsCollectorName = "volume_stats"
@@ -41,7 +46,7 @@ func GetVolumeStatCollector() (Collector, error) {
 	return &VolumeStatCollector, nil
 }
 
-func (c *volumeStatCollector) Update(ch chan<- prometheus.Metric) error {
+func (c *volumeStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
 	c.AttachmentCountMetric.Collect(ch)
 	c.AttachmentTimeTotalMetric.Collect(ch)
 	return nil

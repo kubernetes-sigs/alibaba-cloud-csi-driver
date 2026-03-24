@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
 	statsapi "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
@@ -82,8 +84,12 @@ type kubeletStatsSummaryCollector struct {
 	client *http.Client
 }
 
-func (c *kubeletStatsSummaryCollector) Update(ch chan<- prometheus.Metric) error {
-	resp, err := c.client.Get(kubeletStatsSummaryUrl)
+func (c *kubeletStatsSummaryCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, kubeletStatsSummaryUrl, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}
