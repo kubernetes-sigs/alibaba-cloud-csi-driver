@@ -75,12 +75,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Errorf(codes.InvalidArgument, "ReclaimPolicy must be Retain. The current reclaimPolicy is %q", reclaimPolicy)
 	}
 
-	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, req.GetName(), false, cs.metadata)
+	path := parsePathOptions(req.Parameters, req.GetName())
 	volumeContext := req.GetParameters()
 	if volumeContext == nil {
 		volumeContext = map[string]string{}
 	}
-	volumeContext["path"] = ossVol.Path
+	volumeContext["path"] = path
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	csiTargetVolume := &csi.Volume{
 		VolumeId:      req.Name,
@@ -165,8 +165,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// parse options
 	nodeName := req.NodeId
 	// ensure fuseType is not empty
-	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", false, cs.metadata)
-	if err := setCNFSOptions(ctx, cs.cnfsGetter, opts); err != nil {
+	opts, err := parseOptions(ctx, cs.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", false, cs.metadata)
+	if err != nil {
 		return nil, err
 	}
 

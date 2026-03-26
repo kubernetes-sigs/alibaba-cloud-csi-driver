@@ -141,9 +141,8 @@ func parseCredentialsFromSecret(secrets map[string]string) (ossfpm.AccessKey, os
 // region: for signature v4
 // reqName: for subpath generating, CreateVolumeRequest.GetName
 // onNode: run on nodeserver mode
-func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, reqName string, onNode bool, m metadata.MetadataProvider) *ossfpm.Options {
-
+func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
+	readOnly bool, reqName string, onNode bool, m metadata.MetadataProvider) (*ossfpm.Options, error) {
 	if volOptions == nil {
 		volOptions = map[string]string{}
 	}
@@ -155,12 +154,11 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	accessKey, tokenSecret := parseCredentialsFromSecret(secrets)
 	opts := &ossfpm.Options{
 		UseSharedPath: true,
-		Path:          "/",
+		Path:          parsePathOptions(volOptions, reqName),
 		AccessKey:     accessKey,
 		TokenSecret:   tokenSecret,
 	}
 
-	var volumeAsSubpath bool
 	var runtimeClassValue, directAssignedValue string
 	for k, v := range volOptions {
 		key := strings.TrimSpace(strings.ToLower(k))
@@ -177,8 +175,6 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			opts.OtherOpts = value
 		case "secretref":
 			opts.SecretRef = value
-		case "path":
-			opts.Path = value
 		case "usesharedpath":
 			if res, err := strconv.ParseBool(value); err == nil {
 				opts.UseSharedPath = res
@@ -219,15 +215,6 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 				opts.SigVersion = ossfpm.SigVersion(value)
 			default:
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support v1 and v4", v, k).Error())
-			}
-		case "volumeas":
-			switch VolumeAsType(value) {
-			case VolumeAsDirect, VolumeAsSharePath:
-				// do nothing
-			case VolumeAsSubpath:
-				volumeAsSubpath = true
-			default:
-				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support direct and subpath", v, k).Error())
 			}
 		case "dnspolicy":
 			switch strings.ToLower(value) {
@@ -270,24 +257,14 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		opts.FuseType = mounterutils.OssFsType
 	}
 
-	url := opts.URL
-	region, _ := m.Get(metadata.RegionID)
-	if region != "" && utils.GetNetworkType() == "vpc" {
-		url, _ = setNetworkType(url, region)
-	}
-	url, _ = setTransmissionProtocol(url)
-	if url != opts.URL {
-		klog.Infof("Changed oss URL from %s to %s", opts.URL, url)
-		opts.URL = url
+	if err := setCNFSOptions(ctx, cnfsGetter, opts, m); err != nil {
+		return nil, err
 	}
 
-	// only work for CreateVolume
-	if volumeAsSubpath {
-		opts.Path = path.Join(opts.Path, reqName)
-	}
+	opts.URL = normalizeOSSURL(opts.URL, m)
 
 	if !onNode || features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
-		return opts
+		return opts, nil
 	}
 	// get auth config from ENV / metadata service
 	switch opts.AuthType {
@@ -321,10 +298,43 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		}
 	}
 
-	return opts
+	return opts, nil
 }
 
-func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts *ossfpm.Options) error {
+// parsePathOptions parses path-related options from volOptions.
+// It only handles:
+// - path: base OSS path (default "/")
+// - volumeAs=subpath: append reqName to base path (for CreateVolume)
+func parsePathOptions(volOptions map[string]string, reqName string) string {
+	parsedPath := "/"
+	var volumeAsSubpath bool
+	for k, v := range volOptions {
+		key := strings.TrimSpace(strings.ToLower(k))
+		value := strings.TrimSpace(v)
+		if value == "" {
+			continue
+		}
+		switch key {
+		case "path":
+			parsedPath = value
+		case "volumeas":
+			switch VolumeAsType(value) {
+			case VolumeAsDirect, VolumeAsSharePath:
+				// do nothing
+			case VolumeAsSubpath:
+				volumeAsSubpath = true
+			default:
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support direct and subpath", v, k).Error())
+			}
+		}
+	}
+	if volumeAsSubpath {
+		parsedPath = path.Join(parsedPath, reqName)
+	}
+	return parsedPath
+}
+
+func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts *ossfpm.Options, m metadata.MetadataProvider) error {
 	if opts.CNFSName == "" || cnfsGetter == nil {
 		return nil
 	}
@@ -332,12 +342,30 @@ func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts
 	if err != nil {
 		return err
 	}
-	if cnfs.Status.FsAttributes.EndPoint == nil {
-		return fmt.Errorf("missing endpoint in status of CNFS %s", opts.CNFSName)
+	if opts.Bucket == "" {
+		opts.Bucket = cnfs.Status.FsAttributes.BucketName
 	}
-	opts.Bucket = cnfs.Status.FsAttributes.BucketName
-	opts.URL = cnfs.Status.FsAttributes.EndPoint.Internal
+	if opts.URL == "" {
+		if cnfs.Status.FsAttributes.EndPoint == nil {
+			return fmt.Errorf("missing endpoint in status of CNFS %s", opts.CNFSName)
+		}
+		// TODO: keep compatible with the former logic temporarily
+		opts.URL = cnfs.Status.FsAttributes.EndPoint.Internal
+	}
 	return nil
+}
+
+func normalizeOSSURL(originURL string, m metadata.MetadataProvider) string {
+	url := originURL
+	region, _ := m.Get(metadata.RegionID)
+	if region != "" && utils.GetNetworkType() == "vpc" {
+		url, _ = setNetworkType(url, region)
+	}
+	url, _ = setTransmissionProtocol(url)
+	if url != originURL {
+		klog.Infof("Changed oss URL from %s to %s", originURL, url)
+	}
+	return url
 }
 
 // parseOtherOpts extracts mount options from parameters.otherOpts string.

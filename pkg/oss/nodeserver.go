@@ -125,8 +125,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Parse options and ensure fuseType is not empty
-	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", true, ns.metadata)
-	if err := setCNFSOptions(ctx, ns.cnfsGetter, opts); err != nil {
+	opts, err := parseOptions(ctx, ns.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", true, ns.metadata)
+	if err != nil {
 		return nil, err
 	}
 
