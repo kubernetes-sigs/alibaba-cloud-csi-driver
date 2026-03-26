@@ -167,7 +167,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// ensure fuseType is not empty
 	opts, err := parseOptions(ctx, cs.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", false, cs.metadata)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	// Note: Skip controller publish for direct=true.

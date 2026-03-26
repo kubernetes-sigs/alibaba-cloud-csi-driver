@@ -257,10 +257,15 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 		opts.FuseType = mounterutils.OssFsType
 	}
 
+	// Resolve CNFS fallback before URL normalization:
+	// 1) Keep StorageClass/request values as the source of truth.
+	// 2) Fill only missing bucket/url from CNFS defaults.
+	// Then normalize protocol/network based on the final endpoint.
+	// This must happen before the onNode early-return branch, otherwise
+	// controller-side flows may skip URL normalization unexpectedly.
 	if err := setCNFSOptions(ctx, cnfsGetter, opts, m); err != nil {
 		return nil, err
 	}
-
 	opts.URL = normalizeOSSURL(opts.URL, m)
 
 	if !onNode || features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
@@ -344,13 +349,22 @@ func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts
 	}
 	if opts.Bucket == "" {
 		opts.Bucket = cnfs.Status.FsAttributes.BucketName
+	} else if cnfs.Status.FsAttributes.BucketName != "" && opts.Bucket != cnfs.Status.FsAttributes.BucketName {
+		return fmt.Errorf("bucket conflict for CNFS %s: storageClass bucket %q != cnfs bucket %q", opts.CNFSName, opts.Bucket, cnfs.Status.FsAttributes.BucketName)
 	}
+	cnfsURLValid := cnfs.Status.FsAttributes.EndPoint != nil && cnfs.Status.FsAttributes.EndPoint.Internal != ""
 	if opts.URL == "" {
-		if cnfs.Status.FsAttributes.EndPoint == nil {
+		if !cnfsURLValid {
 			return fmt.Errorf("missing endpoint in status of CNFS %s", opts.CNFSName)
 		}
-		// TODO: keep compatible with the former logic temporarily
+		// Keep backward compatibility: use CNFS INTERNAL endpoint when StorageClass
+		// does not provide a custom endpoint.
 		opts.URL = cnfs.Status.FsAttributes.EndPoint.Internal
+	} else if cnfsURLValid && opts.URL != cnfs.Status.FsAttributes.EndPoint.Internal {
+		// If both are set but conflict, keep the StorageClass endpoint.
+		// CNFS endpoint is a default endpoint, while users may configure
+		// accelerator or PrivateLink endpoints in StorageClass.
+		klog.Infof("CNFS endpoint overridden by StorageClass endpoint: cnfs=%q, storageClass=%q", cnfs.Status.FsAttributes.EndPoint.Internal, opts.URL)
 	}
 	return nil
 }

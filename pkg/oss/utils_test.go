@@ -69,6 +69,11 @@ func mustParseOptionsWithCNFS(t *testing.T, getter cnfsv1beta1.CNFSGetter, volOp
 	return opts
 }
 
+func parseOptionsWithCNFSError(getter cnfsv1beta1.CNFSGetter, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
+	readOnly bool, reqName string, onNode bool, provider metadata.MetadataProvider) (*ossfpm.Options, error) {
+	return parseOptions(context.Background(), getter, volOptions, secrets, volCaps, readOnly, reqName, onNode, provider)
+}
+
 func TestParseCredentialsFromSecret(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -833,7 +838,7 @@ func Test_setCNFSOptions(t *testing.T) {
 			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
 				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
 					FsAttributes: cnfsv1beta1.FsAttributes{
-						BucketName: "from-cnfs",
+						BucketName: "from-parse",
 						EndPoint:   &cnfsv1beta1.EndPoint{Internal: "https://from-cnfs.endpoint"},
 					},
 				},
@@ -892,7 +897,7 @@ func Test_setCNFSOptions(t *testing.T) {
 			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
 				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
 					FsAttributes: cnfsv1beta1.FsAttributes{
-						BucketName: "from-cnfs",
+						BucketName: "from-parse",
 						EndPoint:   &cnfsv1beta1.EndPoint{Internal: "https://from-cnfs.endpoint"},
 					},
 				},
@@ -913,7 +918,7 @@ func Test_setCNFSOptions(t *testing.T) {
 			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
 				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
 					FsAttributes: cnfsv1beta1.FsAttributes{
-						BucketName: "from-cnfs",
+						BucketName: "from-parse",
 						EndPoint:   nil,
 					},
 				},
@@ -1008,6 +1013,44 @@ func Test_setCNFSOptions(t *testing.T) {
 				URL:      "oss-cn-beijing-internal.aliyuncs.com",
 			},
 		},
+		{
+			name: "error when storageClass bucket conflicts with cnfs bucket",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "storageclass-bucket",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						BucketName: "cnfs-bucket",
+						EndPoint:   &cnfsv1beta1.EndPoint{Internal: "oss-cn-beijing-internal.aliyuncs.com"},
+					},
+				},
+			},
+			wantErr:   true,
+			errSubstr: "bucket conflict for CNFS cnfs-demo",
+		},
+		{
+			name: "keep storageClass endpoint when endpoint conflicts with cnfs default",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "same-bucket",
+				URL:      "https://custom-endpoint.example.com",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						BucketName: "same-bucket",
+						EndPoint:   &cnfsv1beta1.EndPoint{Internal: "oss-cn-beijing-internal.aliyuncs.com"},
+					},
+				},
+			},
+			want: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "same-bucket",
+				URL:      "https://custom-endpoint.example.com",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1040,14 +1083,24 @@ func Test_parseOptions_CNFSPriorityAndURLNormalization(t *testing.T) {
 		},
 	}
 
-	t.Run("request bucket and url take precedence over cnfs", func(t *testing.T) {
-		opts := mustParseOptionsWithCNFS(t, getter, map[string]string{
+	t.Run("bucket conflict between storageClass and cnfs should return error", func(t *testing.T) {
+		_, err := parseOptionsWithCNFSError(getter, map[string]string{
 			"containernetworkfilesystem": "cnfs-demo",
 			"bucket":                     "req-bucket",
 			"url":                        "oss-cn-beijing.aliyuncs.com",
 		}, nil, nil, false, "", false, m)
-		assert.Equal(t, "req-bucket", opts.Bucket)
-		assert.Equal(t, "http://oss-cn-beijing-internal.aliyuncs.com", opts.URL)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "bucket conflict for CNFS")
+	})
+
+	t.Run("request custom endpoint keeps precedence and still normalizes protocol", func(t *testing.T) {
+		opts := mustParseOptionsWithCNFS(t, getter, map[string]string{
+			"containernetworkfilesystem": "cnfs-demo",
+			"bucket":                     "cnfs-bucket",
+			"url":                        "custom-endpoint.example.com",
+		}, nil, nil, false, "", false, m)
+		assert.Equal(t, "cnfs-bucket", opts.Bucket)
+		assert.Equal(t, "https://custom-endpoint.example.com", opts.URL)
 	})
 
 	t.Run("when request url empty use cnfs endpoint then normalize protocol", func(t *testing.T) {
