@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata/imds"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -24,18 +23,18 @@ type InstanceIdentityDocument struct {
 	OwnerAccountID string `json:"owner-account-id"`
 }
 
-type ECSMetadata struct {
+type IMDSMetadata struct {
 	idDoc InstanceIdentityDocument
 }
 
 var ErrInvalidIdentityDoc = errors.New("invalid ECS instance identity document")
 
-func NewECSMetadata(httpRT http.RoundTripper) (*ECSMetadata, error) {
-	m := &ECSMetadata{}
+func NewECSMetadata(ctx context.Context, httpRT http.RoundTripper) (*IMDSMetadata, error) {
+	m := &IMDSMetadata{}
 
 	imdsClient := imds.NewClient(httpRT)
 
-	data, err := imdsClient.Fetch(context.Background(), ECSIdentityPath)
+	data, err := imdsClient.Fetch(ctx, ECSIdentityPath)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +48,7 @@ func NewECSMetadata(httpRT http.RoundTripper) (*ECSMetadata, error) {
 	return m, nil
 }
 
-func (m *ECSMetadata) Get(key MetadataKey) (string, error) {
+func (m *IMDSMetadata) Get(key MetadataKey) (string, error) {
 	switch key {
 	case RegionID:
 		return m.idDoc.RegionID, nil
@@ -66,24 +65,26 @@ func (m *ECSMetadata) Get(key MetadataKey) (string, error) {
 	}
 }
 
-type EcsFetcher struct {
+type IMDSFetcer struct {
 	httpRT http.RoundTripper
 }
 
-func (f *EcsFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
+func (f *IMDSFetcer) ID() fetcherID { return imdsFetcherID }
+
+func (f *IMDSFetcer) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
 	case RegionID, ZoneID, InstanceID, InstanceType, AccountID:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
 
-	ecs, err := NewECSMetadata(f.httpRT)
+	ecs, err := NewECSMetadata(ctx, f.httpRT)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			klog.Warningf("Hint: ECS metadata is only available when running on Alibaba Cloud ECS. "+
-				"Set %s environment variable to disable ECS metadata for faster initialization.", DISABLE_ECS_ENV)
+			ctx.logger.Info("Hint: ECS metadata is only available when running on Alibaba Cloud ECS. " +
+				"Set " + DISABLE_IMDS_ENV + " environment variable to disable ECS metadata for faster initialization.")
 		}
 		return nil, err
 	}
-	return newImmutableProvider(ecs, "ECS"), nil
+	return newImmutable(strProvider{ecs}, "IMDS"), nil
 }
