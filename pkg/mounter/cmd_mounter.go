@@ -34,7 +34,9 @@ func (m *OssCmdMounter) ExtendedMount(ctx context.Context, op *MountOperation) e
 		return nil
 	}
 
-	cmd := exec.CommandContext(ctx, m.execPath, getArgs(op)...)
+	args := []string{"--scope", "--", m.execPath}
+	args = append(args, getArgs(op)...)
+	cmd := exec.CommandContext(ctx, "systemd-run", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
