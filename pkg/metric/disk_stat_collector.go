@@ -202,7 +202,7 @@ func (p *diskStatCollector) Update(ctx context.Context, pvcs sets.Set[string], c
 
 		capStats, err := getDiskCapacityMetric(info.DiskID)
 		if err != nil {
-			klog.ErrorS(err, "Get disk capacity failed", "disk", info.DiskID, err)
+			klog.ErrorS(err, "Get disk capacity failed", "disk", info.DiskID)
 			continue
 		}
 		p.sendCapStats(capStats, labels, ch)

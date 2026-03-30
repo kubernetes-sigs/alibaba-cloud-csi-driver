@@ -22,7 +22,7 @@ func GetMetrics(path string) (*csi.NodeGetVolumeStatsResponse, error) {
 	statfs := &unix.Statfs_t{}
 	err := unix.Statfs(path, statfs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("statfs %s: %w", path, err)
 	}
 
 	// Available is blocks available * fragment size
