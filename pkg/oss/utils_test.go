@@ -17,6 +17,7 @@ limitations under the License.
 package oss
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs"
@@ -31,14 +33,45 @@ import (
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 )
+
+type fakeCNFSGetter struct {
+	cnfs *cnfsv1beta1.ContainerNetworkFileSystem
+	err  error
+}
+
+func (f *fakeCNFSGetter) GetCNFS(ctx context.Context, name string) (*cnfsv1beta1.ContainerNetworkFileSystem, error) {
+	return f.cnfs, f.err
+}
 
 var m = metadata.FakeProvider{
 	Values: map[metadata.MetadataKey]string{
 		metadata.RegionID:    "cn-beijing",
 		metadata.RAMRoleName: "worker-role",
 	},
+}
+
+func mustParseOptions(t *testing.T, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
+	readOnly bool, reqName string, onNode bool, provider metadata.MetadataProvider) *ossfpm.Options {
+	t.Helper()
+	opts, err := parseOptions(context.Background(), nil, volOptions, secrets, volCaps, readOnly, reqName, onNode, provider)
+	require.NoError(t, err)
+	return opts
+}
+
+func mustParseOptionsWithCNFS(t *testing.T, getter cnfsv1beta1.CNFSGetter, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
+	readOnly bool, reqName string, onNode bool, provider metadata.MetadataProvider) *ossfpm.Options {
+	t.Helper()
+	opts, err := parseOptions(context.Background(), getter, volOptions, secrets, volCaps, readOnly, reqName, onNode, provider)
+	require.NoError(t, err)
+	return opts
+}
+
+func parseOptionsWithCNFSError(getter cnfsv1beta1.CNFSGetter, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
+	readOnly bool, reqName string, onNode bool, provider metadata.MetadataProvider) (*ossfpm.Options, error) {
+	return parseOptions(context.Background(), getter, volOptions, secrets, volCaps, readOnly, reqName, onNode, provider)
 }
 
 func TestParseCredentialsFromSecret(t *testing.T) {
@@ -255,7 +288,7 @@ func TestParseOptions_credentialsCompatibility(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotOptions := parseOptions(tt.options,
+			gotOptions := mustParseOptions(t, tt.options,
 				tt.secrets, []*csi.VolumeCapability{},
 				false, "", false, m)
 			assert.Equal(t, tt.akID, gotOptions.AkID)
@@ -300,7 +333,7 @@ func Test_parseOptions(t *testing.T) {
 		UseSharedPath: true,
 		MetricsTop:    "20",
 	}
-	gotOptions = parseOptions(testCVReq.GetParameters(),
+	gotOptions = mustParseOptions(t, testCVReq.GetParameters(),
 		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "volume-id", false, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
@@ -328,7 +361,7 @@ func Test_parseOptions(t *testing.T) {
 		FuseType:      "ossfs",
 		UseSharedPath: true,
 	}
-	gotOptions = parseOptions(options, Secrets, nil, false, "volume-id", false, m)
+	gotOptions = mustParseOptions(t, options, Secrets, nil, false, "volume-id", false, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// ControllerPublishVolume
@@ -364,7 +397,7 @@ func Test_parseOptions(t *testing.T) {
 		Path:          "/test",
 		ReadOnly:      true,
 	}
-	gotOptions = parseOptions(testCPVReq.GetVolumeContext(),
+	gotOptions = mustParseOptions(t, testCPVReq.GetVolumeContext(),
 		testCPVReq.GetSecrets(), []*csi.VolumeCapability{testCPVReq.GetVolumeCapability()},
 		testCPVReq.Readonly, "", false, m)
 	assert.Equal(t, expectedOptions, gotOptions)
@@ -401,7 +434,7 @@ func Test_parseOptions(t *testing.T) {
 		ReadOnly:      true,
 		UseSharedPath: false,
 	}
-	gotOptions = parseOptions(testNPReq.GetVolumeContext(),
+	gotOptions = mustParseOptions(t, testNPReq.GetVolumeContext(),
 		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
 		testNPReq.Readonly, "", true, m)
 	assert.Equal(t, expectedOptions, gotOptions)
@@ -412,7 +445,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	t.Setenv("ACCESS_KEY_ID", "test-akid")
 	t.Setenv("ACCESS_KEY_SECRET", "test-aksecret")
-	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
+	gotOptions = mustParseOptions(t, options, nil, nil, true, "", true, m)
 	expectedOptions = &ossfpm.Options{
 		AccessKey: ossfpm.AccessKey{
 			AkID:     "test-akid",
@@ -431,7 +464,7 @@ func Test_parseOptions(t *testing.T) {
 		"roleName": "test-rolename",
 		"url":      "oss-cn-beijing.aliyuncs.com",
 	}
-	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
+	gotOptions = mustParseOptions(t, options, nil, nil, true, "", true, m)
 	expectedOptions = &ossfpm.Options{
 		AuthType:      ossfpm.AuthTypeSTS,
 		FuseType:      "ossfs",
@@ -448,7 +481,7 @@ func Test_parseOptions(t *testing.T) {
 		"authType": "sts",
 		"url":      "oss-cn-beijing.aliyuncs.com",
 	}
-	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
+	gotOptions = mustParseOptions(t, options, nil, nil, true, "", true, m)
 	expectedOptions = &ossfpm.Options{
 		AuthType:      ossfpm.AuthTypeSTS,
 		FuseType:      "ossfs",
@@ -524,6 +557,55 @@ func Test_parseOtherOpts(t *testing.T) {
 			if !reflect.DeepEqual(gotMountOptions, tt.wantMountOptions) {
 				t.Errorf("parseOtherOpts() = %v, want %v", gotMountOptions, tt.wantMountOptions)
 			}
+		})
+	}
+}
+
+func Test_parsePathOptions(t *testing.T) {
+	tests := []struct {
+		name       string
+		volOptions map[string]string
+		reqName    string
+		wantPath   string
+	}{
+		{
+			name:       "default path",
+			volOptions: map[string]string{},
+			reqName:    "pv-a",
+			wantPath:   "/",
+		},
+		{
+			name: "explicit path",
+			volOptions: map[string]string{
+				"path": "/base",
+			},
+			reqName:  "pv-a",
+			wantPath: "/base",
+		},
+		{
+			name: "subpath uses reqName",
+			volOptions: map[string]string{
+				"path":     "/base",
+				"volumeAs": "subpath",
+			},
+			reqName:  "pv-a",
+			wantPath: "/base/pv-a",
+		},
+		{
+			name: "subpath with empty reqName keeps base path",
+			volOptions: map[string]string{
+				"path":     "/base",
+				"volumeAs": "subpath",
+			},
+			reqName:  "",
+			wantPath: "/base",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotPath := parsePathOptions(tt.volOptions, tt.reqName)
+			assert.Equal(t, tt.wantPath, gotPath)
 		})
 	}
 }
@@ -735,6 +817,299 @@ func Test_validateEndpoint(t *testing.T) {
 			assert.Equal(t, tt.expectedError, err != nil)
 		})
 	}
+}
+
+func Test_setCNFSOptions(t *testing.T) {
+	tests := []struct {
+		name      string
+		opts      *ossfpm.Options
+		cnfs      *cnfsv1beta1.ContainerNetworkFileSystem
+		wantErr   bool
+		errSubstr string
+		want      *ossfpm.Options
+	}{
+		{
+			name: "keep parseOptions values when bucket and url are already set",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-parse",
+				URL:      "https://from-parse.endpoint",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						BucketName: "from-parse",
+						EndPoint:   &cnfsv1beta1.EndPoint{Internal: "https://from-cnfs.endpoint"},
+					},
+				},
+			},
+			want: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-parse",
+				URL:      "https://from-parse.endpoint",
+			},
+		},
+		{
+			name: "fill bucket and url from cnfs when parseOptions values are empty",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						BucketName: "from-cnfs",
+						EndPoint:   &cnfsv1beta1.EndPoint{Internal: "https://from-cnfs.endpoint"},
+					},
+				},
+			},
+			want: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-cnfs",
+				URL:      "https://from-cnfs.endpoint",
+			},
+		},
+		{
+			name: "fill only missing bucket from cnfs",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				URL:      "https://from-parse.endpoint",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						BucketName: "from-cnfs",
+						EndPoint:   &cnfsv1beta1.EndPoint{Internal: "https://from-cnfs.endpoint"},
+					},
+				},
+			},
+			want: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-cnfs",
+				URL:      "https://from-parse.endpoint",
+			},
+		},
+		{
+			name: "fill only missing url from cnfs",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-parse",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						BucketName: "from-parse",
+						EndPoint:   &cnfsv1beta1.EndPoint{Internal: "https://from-cnfs.endpoint"},
+					},
+				},
+			},
+			want: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-parse",
+				URL:      "https://from-cnfs.endpoint",
+			},
+		},
+		{
+			name: "no error when endpoint missing but url already provided by parseOptions",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-parse",
+				URL:      "https://from-parse.endpoint",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						BucketName: "from-parse",
+						EndPoint:   nil,
+					},
+				},
+			},
+			want: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-parse",
+				URL:      "https://from-parse.endpoint",
+			},
+		},
+		{
+			name: "error when endpoint missing and url is empty",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						BucketName: "from-cnfs",
+						EndPoint:   nil,
+					},
+				},
+			},
+			wantErr:   true,
+			errSubstr: "missing endpoint in status of CNFS cnfs-demo",
+		},
+		{
+			name: "setCNFSOptions keeps compatibility and uses internal endpoint",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						RegionID:   "cn-beijing",
+						BucketName: "from-cnfs",
+						EndPoint: &cnfsv1beta1.EndPoint{
+							Internal: "oss-cn-beijing-internal.aliyuncs.com",
+							Extranet: "oss-cn-beijing.aliyuncs.com",
+						},
+					},
+				},
+			},
+			want: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-cnfs",
+				URL:      "oss-cn-beijing-internal.aliyuncs.com",
+			},
+		},
+		{
+			name: "setCNFSOptions ignores region and keeps internal endpoint for compatibility",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						RegionID:   "cn-shanghai",
+						BucketName: "from-cnfs",
+						EndPoint: &cnfsv1beta1.EndPoint{
+							Internal: "oss-cn-shanghai-internal.aliyuncs.com",
+							Extranet: "oss-cn-shanghai.aliyuncs.com",
+						},
+					},
+				},
+			},
+			want: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-cnfs",
+				URL:      "oss-cn-shanghai-internal.aliyuncs.com",
+			},
+		},
+		{
+			name: "setCNFSOptions should keep raw cnfs endpoint without protocol normalization",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						RegionID:   "cn-beijing",
+						BucketName: "from-cnfs",
+						EndPoint: &cnfsv1beta1.EndPoint{
+							Internal: "oss-cn-beijing-internal.aliyuncs.com",
+						},
+					},
+				},
+			},
+			want: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "from-cnfs",
+				URL:      "oss-cn-beijing-internal.aliyuncs.com",
+			},
+		},
+		{
+			name: "error when storageClass bucket conflicts with cnfs bucket",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "storageclass-bucket",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						BucketName: "cnfs-bucket",
+						EndPoint:   &cnfsv1beta1.EndPoint{Internal: "oss-cn-beijing-internal.aliyuncs.com"},
+					},
+				},
+			},
+			wantErr:   true,
+			errSubstr: "bucket conflict for CNFS cnfs-demo",
+		},
+		{
+			name: "keep storageClass endpoint when endpoint conflicts with cnfs default",
+			opts: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "same-bucket",
+				URL:      "https://custom-endpoint.example.com",
+			},
+			cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+				Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+					FsAttributes: cnfsv1beta1.FsAttributes{
+						BucketName: "same-bucket",
+						EndPoint:   &cnfsv1beta1.EndPoint{Internal: "oss-cn-beijing-internal.aliyuncs.com"},
+					},
+				},
+			},
+			want: &ossfpm.Options{
+				CNFSName: "cnfs-demo",
+				Bucket:   "same-bucket",
+				URL:      "https://custom-endpoint.example.com",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := setCNFSOptions(context.Background(), &fakeCNFSGetter{cnfs: tt.cnfs}, tt.opts, m)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errSubstr)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, tt.opts)
+		})
+	}
+}
+
+func Test_parseOptions_CNFSPriorityAndURLNormalization(t *testing.T) {
+	t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
+
+	getter := &fakeCNFSGetter{
+		cnfs: &cnfsv1beta1.ContainerNetworkFileSystem{
+			Status: cnfsv1beta1.ContainerNetworkFileSystemStatus{
+				FsAttributes: cnfsv1beta1.FsAttributes{
+					BucketName: "cnfs-bucket",
+					EndPoint: &cnfsv1beta1.EndPoint{
+						Internal: "oss-cn-beijing-internal.aliyuncs.com",
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("bucket conflict between storageClass and cnfs should return error", func(t *testing.T) {
+		_, err := parseOptionsWithCNFSError(getter, map[string]string{
+			"containernetworkfilesystem": "cnfs-demo",
+			"bucket":                     "req-bucket",
+			"url":                        "oss-cn-beijing.aliyuncs.com",
+		}, nil, nil, false, "", false, m)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "bucket conflict for CNFS")
+	})
+
+	t.Run("request custom endpoint keeps precedence and still normalizes protocol", func(t *testing.T) {
+		opts := mustParseOptionsWithCNFS(t, getter, map[string]string{
+			"containernetworkfilesystem": "cnfs-demo",
+			"bucket":                     "cnfs-bucket",
+			"url":                        "custom-endpoint.example.com",
+		}, nil, nil, false, "", false, m)
+		assert.Equal(t, "cnfs-bucket", opts.Bucket)
+		assert.Equal(t, "https://custom-endpoint.example.com", opts.URL)
+	})
+
+	t.Run("when request url empty use cnfs endpoint then normalize protocol", func(t *testing.T) {
+		opts := mustParseOptionsWithCNFS(t, getter, map[string]string{
+			"containernetworkfilesystem": "cnfs-demo",
+		}, nil, nil, false, "", false, m)
+		assert.Equal(t, "cnfs-bucket", opts.Bucket)
+		assert.Equal(t, "http://oss-cn-beijing-internal.aliyuncs.com", opts.URL)
+	})
 }
 
 func TestSetFsType(t *testing.T) {
@@ -1235,7 +1610,7 @@ func TestParseOptions_DirectAssigned(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeMeta := metadata.NewMetadata()
 			t.Setenv("DEFAULT_RUNTIME_CLASS", tt.default_runtime_class)
-			opt := parseOptions(tt.volOptions, nil, nil, false, "", false, fakeMeta)
+			opt := mustParseOptions(t, tt.volOptions, nil, nil, false, "", false, fakeMeta)
 			assert.Equal(t, tt.wantDirectAssigned, opt.DirectAssigned)
 		})
 	}
