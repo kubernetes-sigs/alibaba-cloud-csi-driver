@@ -85,6 +85,105 @@ spec:
         runAsNonRoot: true
         runAsUser: 65532  # TODO: remove this when we set the user in all the images
       containers:
+        - name: csi-provisioner
+          image: {{ include "imageSpec" (list .Values "controller") }}
+          args:
+            - --endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock
+            - --v=2
+            - --logging-format={{ .Values.logging.format }}
+            - "--driver={{ include "enabledControllers" .Values.csi }}"
+            - --run-controller-service=true
+            - --run-node-service=false
+            - --kube-api-qps=100
+            - --kube-api-burst=200
+{{- if .Values.deploy.featureGates }}
+            - "--feature-gates={{ .Values.deploy.featureGates }}"
+{{- end -}}
+{{- if not .Values.deploy.ecs }}
+            - --nodeid=$(KUBE_NODE_NAME)
+{{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          env:
+            {{- include "networkEnv" .Values.deploy | nindent 12 }}
+            - name: "DEFAULT_REGISTRY"
+              value: {{ include "registry" .Values | quote }}
+{{- if .Values.deploy.ack }}
+            - name: "CLUSTER_ID"
+              value: {{ .Values.deploy.clusterID | quote }}
+{{- end }}
+{{- if .Values.deploy.regionID }}
+            - name: REGION_ID
+              value: {{ .Values.deploy.regionID | quote }}
+{{- end }}
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+{{- if .Values.deploy.ecsEndpoint }}
+            - name: ECS_ENDPOINT
+              value: {{ .Values.deploy.ecsEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.stsEndpoint }}
+            - name: STS_ENDPOINT
+              value: {{ .Values.deploy.stsEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.nasEndpoint }}
+            - name: NAS_ENDPOINT
+              value: {{ .Values.deploy.nasEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.privateCloud }}
+            - name: ALICLOUD_CLIENT_SCHEME
+              value: HTTP
+            - name: PRIVATE_CLOUD_TAG
+              value: "true"
+            - name: ALIBABA_CLOUD_HTTP_HEADERS
+              value: |
+                X-Acsproxy-Ascm-Context: {{ .Values.deploy.acsProxyASCMContext }}
+{{- end }}
+{{- if .Values.deploy.withStorageController }}
+            - name: ENABLE_NAS_SUBPATH_FINALIZER
+              value: "true"
+{{- end }}
+{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            periodSeconds: 10
+          ports:
+            - name: healthz
+              containerPort: 11270
+          volumeMounts:
+{{- range $key := tuple "disk" "nas" "oss" "bmcpfs" }}
+  {{- with index $.Values.csi $key -}}
+    {{- if and .enabled .controller.enabled }}
+            - name: {{ $key }}-provisioner-dir
+              mountPath: /csi/{{ $key }}plugin.csi.alibabacloud.com
+    {{- end -}}
+  {{- end -}}
+{{- end }}
+{{- if .Values.deploy.ack }}
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
+{{- end }}
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
 {{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled }}
         - name: external-disk-provisioner
           image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
@@ -453,174 +552,6 @@ spec:
               mountPath: /csi
 {{- end -}}
 {{- if and .Values.csi.local.enabled .Values.csi.local.controller.enabled }}
-        - name: external-local-provisioner
-          image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
-          args:
-            - --csi-address=/csi/csi.sock
-            - --http-endpoint=:8110
-            - --volume-name-prefix=local
-            - --strict-topology=true
-            - --timeout=150s
-            - --extra-create-metadata=true
-            - --leader-election=true
-            - --retry-interval-start=500ms
-            - --default-fstype=ext4
-            - --kube-api-qps=100
-            - --kube-api-burst=200
-            - --v=5
-            - --logging-format={{ .Values.logging.format }}
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 500m
-              memory: 1024Mi
-          ports:
-            - containerPort: 8110
-              name: local-p-http
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /healthz/leader-election
-              port: local-p-http
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-          volumeMounts:
-            - name: local-provisioner-dir
-              mountPath: /csi
-        - name: external-local-resizer
-          image: {{ include "imageSpec" (list .Values "externalResizer") }}
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 500m
-              memory: 1Gi
-          ports:
-            - containerPort: 8112
-              name: local-r-http
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /healthz/leader-election
-              port: local-r-http
-          args:
-            - --v=5
-            - --logging-format={{ .Values.logging.format }}
-            - --csi-address=/csi/csi.sock
-            - --http-endpoint=:8112
-            - --leader-election
-            - --handle-volume-inuse-error=false
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-          volumeMounts:
-            - name: local-provisioner-dir
-              mountPath: /csi
-{{- end }}
-        - name: csi-provisioner
-          image: {{ include "imageSpec" (list .Values "controller") }}
-          args:
-            - --endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock
-            - --v=2
-            - --logging-format={{ .Values.logging.format }}
-            - "--driver={{ include "enabledControllers" .Values.csi }}"
-            - --run-controller-service=true
-            - --run-node-service=false
-            - --kube-api-qps=100
-            - --kube-api-burst=200
-{{- if .Values.deploy.featureGates }}
-            - "--feature-gates={{ .Values.deploy.featureGates }}"
-{{- end -}}
-{{- if not .Values.deploy.ecs }}
-            - --nodeid=$(KUBE_NODE_NAME)
-{{- end }}
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-          env:
-            {{- include "networkEnv" .Values.deploy | nindent 12 }}
-            - name: "DEFAULT_REGISTRY"
-              value: {{ include "registry" .Values | quote }}
-{{- if .Values.deploy.ack }}
-            - name: "CLUSTER_ID"
-              value: {{ .Values.deploy.clusterID | quote }}
-{{- end }}
-{{- if .Values.deploy.regionID }}
-            - name: REGION_ID
-              value: {{ .Values.deploy.regionID | quote }}
-{{- end }}
-            - name: KUBE_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: spec.nodeName
-{{- if .Values.deploy.ecsEndpoint }}
-            - name: ECS_ENDPOINT
-              value: {{ .Values.deploy.ecsEndpoint | quote }}
-{{- end }}
-{{- if .Values.deploy.stsEndpoint }}
-            - name: STS_ENDPOINT
-              value: {{ .Values.deploy.stsEndpoint | quote }}
-{{- end }}
-{{- if .Values.deploy.nasEndpoint }}
-            - name: NAS_ENDPOINT
-              value: {{ .Values.deploy.nasEndpoint | quote }}
-{{- end }}
-{{- if .Values.deploy.privateCloud }}
-            - name: ALICLOUD_CLIENT_SCHEME
-              value: HTTP
-            - name: PRIVATE_CLOUD_TAG
-              value: "true"
-            - name: ALIBABA_CLOUD_HTTP_HEADERS
-              value: |
-                X-Acsproxy-Ascm-Context: {{ .Values.deploy.acsProxyASCMContext }}
-{{- end }}
-{{- if .Values.deploy.withStorageController }}
-            - name: ENABLE_NAS_SUBPATH_FINALIZER
-              value: "true"
-{{- end }}
-{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: healthz
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 5
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: healthz
-            periodSeconds: 10
-          ports:
-            - name: healthz
-              containerPort: 11270
-          volumeMounts:
-{{- range $key := tuple "disk" "nas" "oss" "bmcpfs" }}
-  {{- with index $.Values.csi $key -}}
-    {{- if and .enabled .controller.enabled }}
-            - name: {{ $key }}-provisioner-dir
-              mountPath: /csi/{{ $key }}plugin.csi.alibabacloud.com
-    {{- end -}}
-  {{- end -}}
-{{- end }}
-{{- if .Values.deploy.ack }}
-            - mountPath: /var/addon
-              name: addon-token
-              readOnly: true
-{{- end }}
-          resources:
-            limits:
-              cpu: 500m
-              memory: 1024Mi
-            requests:
-              cpu: 100m
-              memory: 128Mi
-{{- if .Values.csi.local.enabled }}
         - name: local-csi-provisioner
           image: {{ include "imageSpec" (list .Values "localController") }}
           args:
@@ -688,6 +619,73 @@ spec:
             requests:
               cpu: 100m
               memory: 128Mi
+        - name: external-local-provisioner
+          image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
+          args:
+            - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8110
+            - --volume-name-prefix=local
+            - --strict-topology=true
+            - --timeout=150s
+            - --extra-create-metadata=true
+            - --leader-election=true
+            - --retry-interval-start=500ms
+            - --default-fstype=ext4
+            - --kube-api-qps=100
+            - --kube-api-burst=200
+            - --v=5
+            - --logging-format={{ .Values.logging.format }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          ports:
+            - containerPort: 8110
+              name: local-p-http
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: local-p-http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: local-provisioner-dir
+              mountPath: /csi
+        - name: external-local-resizer
+          image: {{ include "imageSpec" (list .Values "externalResizer") }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          ports:
+            - containerPort: 8112
+              name: local-r-http
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: local-r-http
+          args:
+            - --v=5
+            - --logging-format={{ .Values.logging.format }}
+            - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8112
+            - --leader-election
+            - --handle-volume-inuse-error=false
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: local-provisioner-dir
+              mountPath: /csi
 {{- end }}
       volumes:
 {{- range $key, $val := .Values.csi }}

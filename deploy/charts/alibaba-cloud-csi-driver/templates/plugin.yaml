@@ -86,29 +86,6 @@ spec:
               mountPath: /host/usr/
 {{- end }}
       containers:
-{{- range $key, $val := $nodePool.csi }}
-{{- if $val.enabled }}
-        - name: {{$key}}-driver-registrar
-          image: {{ include "imageSpec" (list $nodePool "pluginRegistrar") }}
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 500m
-              memory: 1024Mi
-          args:
-            - "--v=5"
-            - "--csi-address=/csi/csi.sock"
-            - --logging-format={{ $nodePool.logging.format }}
-            - {{ printf "--kubelet-registration-path=%s/csi-plugins/%splugin.csi.alibabacloud.com/csi.sock" (clean $nodePool.deploy.kubeletRootDir) $key | quote }}
-          volumeMounts:
-            - name: {{$key}}-plugin-dir
-              mountPath: /csi
-            - name: registration-dir
-              mountPath: /registration
-{{- end -}}
-{{- end }}
         - name: csi-plugin
           securityContext:
             privileged: true
@@ -312,6 +289,29 @@ spec:
             - name: host-mnt
               mountPath: /mnt
               mountPropagation: HostToContainer
+{{- end }}
+{{- range $key, $val := $nodePool.csi }}
+{{- if $val.enabled }}
+        - name: {{$key}}-driver-registrar
+          image: {{ include "imageSpec" (list $nodePool "pluginRegistrar") }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/csi.sock"
+            - --logging-format={{ $nodePool.logging.format }}
+            - {{ printf "--kubelet-registration-path=%s/csi-plugins/%splugin.csi.alibabacloud.com/csi.sock" (clean $nodePool.deploy.kubeletRootDir) $key | quote }}
+          volumeMounts:
+            - name: {{$key}}-plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+{{- end -}}
 {{- end }}
       volumes:
 {{- if $nodePool.csi.oss.enabled }}
