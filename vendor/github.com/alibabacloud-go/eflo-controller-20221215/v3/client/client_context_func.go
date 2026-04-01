@@ -9,7 +9,7 @@ import (
 
 // Summary:
 //
-// Approves an O\\&M operation.
+// Approves an O\\\\\\&M operation.
 //
 // @param request - ApproveOperationRequest
 //
@@ -855,7 +855,7 @@ func (client *Client) DeleteNodeWithContext(ctx context.Context, request *Delete
 
 // Summary:
 //
-// 删除节点分组
+// # Delete Node Group
 //
 // @param request - DeleteNodeGroupRequest
 //
@@ -1089,7 +1089,7 @@ func (client *Client) DescribeHyperNodeWithContext(ctx context.Context, request 
 
 // Summary:
 //
-// Queries the execution list and status of O\\&M Assistant commands.
+// Queries the execution list and status of O\\\\\\&M Assistant commands.
 //
 // @param request - DescribeInvocationsRequest
 //
@@ -1277,7 +1277,7 @@ func (client *Client) DescribeNodeGroupWithContext(ctx context.Context, request 
 
 // Summary:
 //
-// 创建Web Terminal会话
+// 查询节点规格详情
 //
 // @param request - DescribeNodeTypeRequest
 //
@@ -1365,7 +1365,7 @@ func (client *Client) DescribeRegionsWithContext(ctx context.Context, request *D
 
 // Summary:
 //
-// Queries the files that are sent by an O\\&M assistant and the status of the files.
+// Queries the files that are sent by an O\\\\\\&M assistant and the status of the files.
 //
 // @param request - DescribeSendFileResultsRequest
 //
@@ -2013,18 +2013,41 @@ func (client *Client) ListFreeNodesWithContext(ctx context.Context, request *Lis
 //
 // 机器列表
 //
-// @param request - ListHyperNodesRequest
+// @param tmpReq - ListHyperNodesRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListHyperNodesResponse
-func (client *Client) ListHyperNodesWithContext(ctx context.Context, request *ListHyperNodesRequest, runtime *dara.RuntimeOptions) (_result *ListHyperNodesResponse, _err error) {
+func (client *Client) ListHyperNodesWithContext(ctx context.Context, tmpReq *ListHyperNodesRequest, runtime *dara.RuntimeOptions) (_result *ListHyperNodesResponse, _err error) {
 	if dara.BoolValue(client.EnableValidate) == true {
-		_err = request.Validate()
+		_err = tmpReq.Validate()
 		if _err != nil {
 			return _result, _err
 		}
 	}
+	request := &ListHyperNodesShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.HyperNodeIds) {
+		request.HyperNodeIdsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.HyperNodeIds, dara.String("HyperNodeIds"), dara.String("json"))
+	}
+
+	if !dara.IsNil(tmpReq.OperatingStates) {
+		request.OperatingStatesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.OperatingStates, dara.String("OperatingStates"), dara.String("json"))
+	}
+
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.CommodityCode) {
+		query["CommodityCode"] = request.CommodityCode
+	}
+
+	if !dara.IsNil(request.HyperNodeIdsShrink) {
+		query["HyperNodeIds"] = request.HyperNodeIdsShrink
+	}
+
+	if !dara.IsNil(request.OperatingStatesShrink) {
+		query["OperatingStates"] = request.OperatingStatesShrink
+	}
+
 	body := map[string]interface{}{}
 	if !dara.IsNil(request.ClusterName) {
 		body["ClusterName"] = request.ClusterName
@@ -2067,7 +2090,8 @@ func (client *Client) ListHyperNodesWithContext(ctx context.Context, request *Li
 	}
 
 	req := &openapiutil.OpenApiRequest{
-		Body: openapiutil.ParseToMap(body),
+		Query: openapiutil.Query(query),
+		Body:  openapiutil.ParseToMap(body),
 	}
 	params := &openapiutil.Params{
 		Action:      dara.String("ListHyperNodes"),
@@ -3001,7 +3025,7 @@ func (client *Client) ShrinkClusterWithContext(ctx context.Context, tmpReq *Shri
 
 // Summary:
 //
-// Stops the O\\&M assistant command execution.
+// Stops the O\\\\\\&M assistant command execution.
 //
 // @param tmpReq - StopInvocationRequest
 //
@@ -3262,6 +3286,10 @@ func (client *Client) UpdateNodeGroupWithContext(ctx context.Context, request *U
 
 	if !dara.IsNil(request.NodeGroupId) {
 		body["NodeGroupId"] = request.NodeGroupId
+	}
+
+	if !dara.IsNil(request.RamRoleName) {
+		body["RamRoleName"] = request.RamRoleName
 	}
 
 	if !dara.IsNil(request.UserData) {

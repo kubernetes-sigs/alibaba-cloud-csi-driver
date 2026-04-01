@@ -567,13 +567,15 @@ type DescribeNodeResponseBodyNetworks struct {
 	// example:
 	//
 	// 47.254.235.44
-	Ip *string `json:"Ip,omitempty" xml:"Ip,omitempty"`
+	Ip              *string `json:"Ip,omitempty" xml:"Ip,omitempty"`
+	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
 	// The subnet ID.
 	//
 	// example:
 	//
 	// vsw-uf68v51fldm5egmui5a6k
-	SubnetId *string `json:"SubnetId,omitempty" xml:"SubnetId,omitempty"`
+	SubnetId  *string `json:"SubnetId,omitempty" xml:"SubnetId,omitempty"`
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
 	// The ID of the cluster network.
 	//
 	// example:
@@ -598,8 +600,16 @@ func (s *DescribeNodeResponseBodyNetworks) GetIp() *string {
 	return s.Ip
 }
 
+func (s *DescribeNodeResponseBodyNetworks) GetSecurityGroupId() *string {
+	return s.SecurityGroupId
+}
+
 func (s *DescribeNodeResponseBodyNetworks) GetSubnetId() *string {
 	return s.SubnetId
+}
+
+func (s *DescribeNodeResponseBodyNetworks) GetVSwitchId() *string {
+	return s.VSwitchId
 }
 
 func (s *DescribeNodeResponseBodyNetworks) GetVpdId() *string {
@@ -616,8 +626,18 @@ func (s *DescribeNodeResponseBodyNetworks) SetIp(v string) *DescribeNodeResponse
 	return s
 }
 
+func (s *DescribeNodeResponseBodyNetworks) SetSecurityGroupId(v string) *DescribeNodeResponseBodyNetworks {
+	s.SecurityGroupId = &v
+	return s
+}
+
 func (s *DescribeNodeResponseBodyNetworks) SetSubnetId(v string) *DescribeNodeResponseBodyNetworks {
 	s.SubnetId = &v
+	return s
+}
+
+func (s *DescribeNodeResponseBodyNetworks) SetVSwitchId(v string) *DescribeNodeResponseBodyNetworks {
+	s.VSwitchId = &v
 	return s
 }
 
