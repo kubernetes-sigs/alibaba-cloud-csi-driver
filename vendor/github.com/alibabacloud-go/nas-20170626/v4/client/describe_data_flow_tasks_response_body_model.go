@@ -29,9 +29,8 @@ type DescribeDataFlowTasksResponseBody struct {
 	// example:
 	//
 	// 2D69A58F-345C-4FDE-88E4-BF518948****
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The information about dataflow tasks.
-	TaskInfo *DescribeDataFlowTasksResponseBodyTaskInfo `json:"TaskInfo,omitempty" xml:"TaskInfo,omitempty" type:"Struct"`
+	RequestId *string                                    `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	TaskInfo  *DescribeDataFlowTasksResponseBodyTaskInfo `json:"TaskInfo,omitempty" xml:"TaskInfo,omitempty" type:"Struct"`
 }
 
 func (s DescribeDataFlowTasksResponseBody) String() string {
@@ -113,230 +112,33 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfo) Validate() error {
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
-	// The conflict policy for files with the same name. Valid values:
-	//
-	// 	- SKIP_THE_FILE: skips files with the same name.
-	//
-	// 	- KEEP_LATEST: compares the update time and keeps the latest version.
-	//
-	// 	- OVERWRITE_EXISTING: forcibly overwrites the existing file.
-	//
 	// example:
 	//
 	// KEEP_LATEST
-	ConflictPolicy *string `json:"ConflictPolicy,omitempty" xml:"ConflictPolicy,omitempty"`
-	// The time when the task was created.
-	//
-	// example:
-	//
-	// 2021-08-04 18:27:35
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The ID of the dataflow.
-	//
-	// example:
-	//
-	// dfid-194433a5be3****
-	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// The type of data on which operations are performed by the dataflow task. The following information is displayed:
-	//
-	// 	- Metadata: the metadata of a file, including the timestamp, ownership, and permission information of the file. If you select Metadata, only the metadata of the file is imported. You can only query the file. When you access the file data, the file is loaded from the source storage as required.
-	//
-	// 	- Data: the data blocks of the file.
-	//
-	// 	- MetaAndData: the metadata and data blocks of the file.
-	//
-	// >  CPFS for Lingjun supports only the MetaAndData type.
-	//
-	// example:
-	//
-	// Metadata
-	DataType *string `json:"DataType,omitempty" xml:"DataType,omitempty"`
-	// The directory in which the dataflow task is executed.
-	//
-	// example:
-	//
-	// /path_in_cpfs/
-	Directory *string `json:"Directory,omitempty" xml:"Directory,omitempty"`
-	// The directory mapped to the dataflow task.
-	//
-	// example:
-	//
-	// /path_in_cpfs/
-	DstDirectory *string `json:"DstDirectory,omitempty" xml:"DstDirectory,omitempty"`
-	// The end time of the task.
-	//
-	// example:
-	//
-	// 2021-08-04 18:27:35
-	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	// The cause of the task exception.
-	//
-	// >  If this parameter is not returned or the return value is empty, no error occurs.
-	ErrorMsg *string `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
-	// The directory of the fileset in the CPFS file system.
-	//
-	// Limits:
-	//
-	// 	- The directory must be 2 to 1024 characters in length.
-	//
-	// 	- The directory must be encoded in UTF-8.
-	//
-	// 	- The directory must start and end with a forward slash (/).
-	//
-	// 	- The directory must be a fileset directory in the CPFS file system.
-	//
-	// >  Only CPFS supports this parameter.
-	//
-	// example:
-	//
-	// /a/b/c/
-	FileSystemPath *string `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
-	// The ID of the file system.
-	//
-	// example:
-	//
-	// cpfs-099394bd928c****
-	FilesystemId *string `json:"FilesystemId,omitempty" xml:"FilesystemId,omitempty"`
-	// The path of the smart directory.
-	//
-	// example:
-	//
-	// /aa/
-	FsPath *string `json:"FsPath,omitempty" xml:"FsPath,omitempty"`
-	// Filters subdirectories and transfers their contents.
-	//
-	// >  Only CPFS for Lingjun supports this operation.
-	//
-	// example:
-	//
-	// ["/test/","/test1/"]
-	Includes *string `json:"Includes,omitempty" xml:"Includes,omitempty"`
-	// The initiator of the dataflow task. The following information is displayed:
-	//
-	// 	- User: The task is initiated by a user.
-	//
-	// 	- System: The task is automatically initiated by CPFS based on the automatic update interval.
-	//
-	// >  Only CPFS supports this parameter.
-	//
-	// example:
-	//
-	// User
-	Originator *string `json:"Originator,omitempty" xml:"Originator,omitempty"`
-	// The progress of the dataflow task. The number of operations that have been performed by the dataflow task.
-	//
-	// example:
-	//
-	// 240
-	Progress *int64 `json:"Progress,omitempty" xml:"Progress,omitempty"`
-	// The progress of the dataflow task.
-	ProgressStats *DescribeDataFlowTasksResponseBodyTaskInfoTaskProgressStats `json:"ProgressStats,omitempty" xml:"ProgressStats,omitempty" type:"Struct"`
+	ConflictPolicy *string                                                     `json:"ConflictPolicy,omitempty" xml:"ConflictPolicy,omitempty"`
+	CreateTime     *string                                                     `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	DataFlowId     *string                                                     `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
+	DataType       *string                                                     `json:"DataType,omitempty" xml:"DataType,omitempty"`
+	Directory      *string                                                     `json:"Directory,omitempty" xml:"Directory,omitempty"`
+	DstDirectory   *string                                                     `json:"DstDirectory,omitempty" xml:"DstDirectory,omitempty"`
+	EndTime        *string                                                     `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
+	ErrorMsg       *string                                                     `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
+	FileSystemPath *string                                                     `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
+	FilesystemId   *string                                                     `json:"FilesystemId,omitempty" xml:"FilesystemId,omitempty"`
+	FsPath         *string                                                     `json:"FsPath,omitempty" xml:"FsPath,omitempty"`
+	Includes       *string                                                     `json:"Includes,omitempty" xml:"Includes,omitempty"`
+	Originator     *string                                                     `json:"Originator,omitempty" xml:"Originator,omitempty"`
+	Progress       *int64                                                      `json:"Progress,omitempty" xml:"Progress,omitempty"`
+	ProgressStats  *DescribeDataFlowTasksResponseBodyTaskInfoTaskProgressStats `json:"ProgressStats,omitempty" xml:"ProgressStats,omitempty" type:"Struct"`
 	// Deprecated
-	//
-	// The save path of dataflow task reports in the CPFS file system.
-	//
-	// 	- The task reports for a CPFS file system are generated in the `.dataflow_report` directory of the CPFS file system.
-	//
-	// 	- CPFS for Lingjun returns an OSS download link for you to download the task reports.
-	//
-	// example:
-	//
-	// /path_in_cpfs/reportfile.cvs
-	ReportPath *string `json:"ReportPath,omitempty" xml:"ReportPath,omitempty"`
-	// The reports.
-	//
-	// >
-	//
-	// 	- Streaming tasks do not support reports.
-	//
-	// 	- If the WithReport parameter is set to True, the CPFS for Lingjun report data is returned.
-	//
-	// 	- Only CPFS for Lingjun supports the WithReport parameter.
-	Reports *DescribeDataFlowTasksResponseBodyTaskInfoTaskReports `json:"Reports,omitempty" xml:"Reports,omitempty" type:"Struct"`
-	// The access path of the source storage. Format: `<storage type>://[<account id>:]<path>`.
-	//
-	// Among them:
-	//
-	// 	- storage type: Only Object Storage Service (OSS) is supported.
-	//
-	// 	- account id: the UID of the account of the source storage.
-	//
-	// 	- path: the name of the OSS bucket. Limits:
-	//
-	//     	- The name can contain only lowercase letters, digits, and hyphens (-). The name must start and end with a lowercase letter or digit.
-	//
-	//     	- The name can be up to 128 characters in length.
-	//
-	//     	- The name must be encoded in UTF-8.
-	//
-	// >
-	//
-	// 	- The OSS bucket must be an existing bucket in the region.
-	//
-	// 	- Only CPFS for Lingjun V2.6.0 and later support the account id parameter.
-	//
-	// example:
-	//
-	// oss://bucket1
-	SourceStorage *string `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
-	// The start time of the task.
-	//
-	// example:
-	//
-	// 2021-08-04 18:27:35
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The status of the dataflow task. The following information is displayed:
-	//
-	// 	- Pending: The dataflow task has been created and has not started.
-	//
-	// 	- Executing: The dataflow task is being executed.
-	//
-	// 	- Failed: The dataflow task failed to be executed. You can view the cause of the failure in the dataflow task report.
-	//
-	// 	- Completed: The dataflow task is completed. You can check that all the files have been correctly transferred in the dataflow task report.
-	//
-	// 	- Canceled: The dataflow task is canceled and is not completed.
-	//
-	// 	- Canceling: The dataflow task is being canceled.
-	//
-	// example:
-	//
-	// Executing
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The type of the dataflow task. The following information is displayed:
-	//
-	// 	- Import: imports data stored in the source storage to a CPFS file system.
-	//
-	// 	- Export: exports specified data from a CPFS file system to the source storage.
-	//
-	// 	- StreamImport: imports the specified data from the source storage to a CPFS file system in streaming mode.
-	//
-	// 	- StreamExport: exports specified data from a CPFS file system to the source storage in streaming mode.
-	//
-	// 	- Evict: releases the data blocks of a file in a CPFS file system. After the eviction, only the metadata of the file is retained in the CPFS file system. You can still query the file. However, the data blocks of the file are cleared and do not occupy the storage space in the CPFS file system. When you access the file data, the file is loaded from the source storage as required.
-	//
-	// 	- Inventory: obtains the inventory list managed by a dataflow from the CPFS file system, providing the cache status of inventories in the dataflow.
-	//
-	// >  Only CPFS for Lingjun V2.6.0 and later support StreamImport and StreamExport.
-	//
-	// example:
-	//
-	// Import
-	TaskAction *string `json:"TaskAction,omitempty" xml:"TaskAction,omitempty"`
-	// The ID of the dataflow task.
-	//
-	// example:
-	//
-	// taskId-12345678
-	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
-	// Specify the OSS directory and synchronize data based on the content of the CSV file in the OSS directory.
-	//
-	// >  Only CPFS for Lingjun supports this operation.
-	//
-	// example:
-	//
-	// /path_in_cpfs/
-	TransferFileListPath *string `json:"TransferFileListPath,omitempty" xml:"TransferFileListPath,omitempty"`
+	ReportPath           *string                                               `json:"ReportPath,omitempty" xml:"ReportPath,omitempty"`
+	Reports              *DescribeDataFlowTasksResponseBodyTaskInfoTaskReports `json:"Reports,omitempty" xml:"Reports,omitempty" type:"Struct"`
+	SourceStorage        *string                                               `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
+	StartTime            *string                                               `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	Status               *string                                               `json:"Status,omitempty" xml:"Status,omitempty"`
+	TaskAction           *string                                               `json:"TaskAction,omitempty" xml:"TaskAction,omitempty"`
+	TaskId               *string                                               `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
+	TransferFileListPath *string                                               `json:"TransferFileListPath,omitempty" xml:"TransferFileListPath,omitempty"`
 }
 
 func (s DescribeDataFlowTasksResponseBodyTaskInfoTask) String() string {
@@ -569,54 +371,14 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) Validate() error {
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfoTaskProgressStats struct {
-	// The actual amount of data for which the dataflow task is complete. Unit: bytes.
-	//
-	// example:
-	//
-	// 131092971520
-	ActualBytes *int64 `json:"ActualBytes,omitempty" xml:"ActualBytes,omitempty"`
-	// The actual number of files for which the dataflow task is complete.
-	//
-	// example:
-	//
-	// 3
-	ActualFiles *int64 `json:"ActualFiles,omitempty" xml:"ActualFiles,omitempty"`
-	// The average flow velocity. Unit: bytes/s.
-	//
-	// example:
-	//
-	// 342279299
+	ActualBytes  *int64 `json:"ActualBytes,omitempty" xml:"ActualBytes,omitempty"`
+	ActualFiles  *int64 `json:"ActualFiles,omitempty" xml:"ActualFiles,omitempty"`
 	AverageSpeed *int64 `json:"AverageSpeed,omitempty" xml:"AverageSpeed,omitempty"`
-	// The amount of data (including skipped data) for which the dataflow task is complete. Unit: bytes.
-	//
-	// example:
-	//
-	// 131092971520
-	BytesDone *int64 `json:"BytesDone,omitempty" xml:"BytesDone,omitempty"`
-	// The amount of data scanned on the source. Unit: bytes.
-	//
-	// example:
-	//
-	// 131092971520
-	BytesTotal *int64 `json:"BytesTotal,omitempty" xml:"BytesTotal,omitempty"`
-	// The number of files (including skipped files) for which the dataflow task is complete.
-	//
-	// example:
-	//
-	// 3
-	FilesDone *int64 `json:"FilesDone,omitempty" xml:"FilesDone,omitempty"`
-	// The number of files scanned on the source.
-	//
-	// example:
-	//
-	// 3
-	FilesTotal *int64 `json:"FilesTotal,omitempty" xml:"FilesTotal,omitempty"`
-	// The estimated remaining execution time. Unit: seconds.
-	//
-	// example:
-	//
-	// 437
-	RemainTime *int64 `json:"RemainTime,omitempty" xml:"RemainTime,omitempty"`
+	BytesDone    *int64 `json:"BytesDone,omitempty" xml:"BytesDone,omitempty"`
+	BytesTotal   *int64 `json:"BytesTotal,omitempty" xml:"BytesTotal,omitempty"`
+	FilesDone    *int64 `json:"FilesDone,omitempty" xml:"FilesDone,omitempty"`
+	FilesTotal   *int64 `json:"FilesTotal,omitempty" xml:"FilesTotal,omitempty"`
+	RemainTime   *int64 `json:"RemainTime,omitempty" xml:"RemainTime,omitempty"`
 }
 
 func (s DescribeDataFlowTasksResponseBodyTaskInfoTaskProgressStats) String() string {
@@ -738,25 +500,7 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfoTaskReports) Validate() error 
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfoTaskReportsReport struct {
-	// The name of the report.
-	//
-	// 	- CPFS:
-	//
-	//     TotalFilesReport: task reports.
-	//
-	// 	- CPFS for Lingjun:
-	//
-	//     	- FailedFilesReport: failed file reports.
-	//
-	//     	- SkippedFilesReport: skipped file reports.
-	//
-	//     	- SuccessFilesReport: successful file reports.
-	//
-	// example:
-	//
-	// TotalFilesReport
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The report URL.
 	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
 }
 

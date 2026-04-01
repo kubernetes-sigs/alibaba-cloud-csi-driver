@@ -11,6 +11,8 @@ type iModifyLifecyclePolicyRequest interface {
 	GoString() string
 	SetFileSystemId(v string) *ModifyLifecyclePolicyRequest
 	GetFileSystemId() *string
+	SetLifecyclePolicyId(v string) *ModifyLifecyclePolicyRequest
+	GetLifecyclePolicyId() *string
 	SetLifecyclePolicyName(v string) *ModifyLifecyclePolicyRequest
 	GetLifecyclePolicyName() *string
 	SetLifecycleRuleName(v string) *ModifyLifecyclePolicyRequest
@@ -30,11 +32,15 @@ type ModifyLifecyclePolicyRequest struct {
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The ID of the lifecycle policy.
+	//
+	// example:
+	//
+	// lc-xxx
+	LifecyclePolicyId *string `json:"LifecyclePolicyId,omitempty" xml:"LifecyclePolicyId,omitempty"`
 	// The name of the lifecycle policy.
 	//
 	// The name must be 3 to 64 characters in length and can contain letters, digits, underscores (_), and hyphens (-). The name must start with a letter.
-	//
-	// This parameter is required.
 	//
 	// example:
 	//
@@ -44,13 +50,17 @@ type ModifyLifecyclePolicyRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- DEFAULT_ATIME_14: Files that are not accessed in the last 14 days are dumped to the IA storage medium.
+	// 	- DEFAULT_ATIME_14: Files not accessed for 14 days.
 	//
-	// 	- DEFAULT_ATIME_30: Files that are not accessed in the last 30 days are dumped to the IA storage medium.
+	// 	- DEFAULT_ATIME_30: Files not accessed for 30 days.
 	//
-	// 	- DEFAULT_ATIME_60: Files that are not accessed in the last 60 days are dumped to the IA storage medium.
+	// 	- DEFAULT_ATIME_60: Files not accessed for 60 days.
 	//
-	// 	- DEFAULT_ATIME_90: Files that are not accessed in the last 90 days are dumped to the IA storage medium.
+	// 	- DEFAULT_ATIME_90: Files not accessed for 90 days.
+	//
+	// 	- DEFAULT_ATIME_180: Files not accessed for 180 days. DEFAULT_ATIME_180 is supported only when the StorageType parameter is set to Archive.
+	//
+	// >  If an IA policy has already been set for the directory, any subsequent archival policy must have a longer duration than the IA policy.
 	//
 	// example:
 	//
@@ -64,9 +74,11 @@ type ModifyLifecyclePolicyRequest struct {
 	//
 	// /pathway/to/folder
 	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
-	// The storage type of the data that is dumped to the IA storage medium.
+	// The storage class.
 	//
-	// Default value: InfrequentAccess (IA).
+	// 	- InfrequentAccess: the Infrequent Access (IA) storage class.
+	//
+	// 	- Archive: the Archive storage class.
 	//
 	// example:
 	//
@@ -84,6 +96,10 @@ func (s ModifyLifecyclePolicyRequest) GoString() string {
 
 func (s *ModifyLifecyclePolicyRequest) GetFileSystemId() *string {
 	return s.FileSystemId
+}
+
+func (s *ModifyLifecyclePolicyRequest) GetLifecyclePolicyId() *string {
+	return s.LifecyclePolicyId
 }
 
 func (s *ModifyLifecyclePolicyRequest) GetLifecyclePolicyName() *string {
@@ -104,6 +120,11 @@ func (s *ModifyLifecyclePolicyRequest) GetStorageType() *string {
 
 func (s *ModifyLifecyclePolicyRequest) SetFileSystemId(v string) *ModifyLifecyclePolicyRequest {
 	s.FileSystemId = &v
+	return s
+}
+
+func (s *ModifyLifecyclePolicyRequest) SetLifecyclePolicyId(v string) *ModifyLifecyclePolicyRequest {
+	s.LifecyclePolicyId = &v
 	return s
 }
 
