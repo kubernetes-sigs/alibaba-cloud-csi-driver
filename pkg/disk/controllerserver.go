@@ -78,6 +78,7 @@ type diskVolumeArgs struct {
 	ProvisionedIops  int64
 	BurstingEnabled  bool
 	RequestGB        int64
+	DataCache        dataCache
 }
 
 var delVolumeSnap sync.Map

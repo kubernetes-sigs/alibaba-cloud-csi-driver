@@ -398,7 +398,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
 		}
 	}
-	if realDevice != "tmpfs" {
+	if realDevice != "tmpfs" && realDevice != dataCacheDevicePath(req.VolumeId) {
 		matched := false
 		if realDevice != "" {
 			realMajor, realMinor, err := DefaultDeviceManager.DevTmpFS.DevFor(realDevice)
@@ -629,6 +629,17 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 		omitfsck = true
 	}
 
+	// Setup DataCache
+	volumeId := req.GetVolumeId()
+	var d dataCache
+	if err := getDataCacheOpts(volumeContext, &d); err != nil {
+		return err
+	}
+	device, err := setupDataCache(logger, &d, device, volumeId)
+	if err != nil {
+		return err
+	}
+
 	// Block volume not need to format
 	if req.GetVolumeCapability().GetBlock() != nil {
 		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
@@ -660,7 +671,6 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 		mkfsOptions = strings.Split(value, " ")
 	}
 
-	volumeId := req.GetVolumeId()
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if err := utils.FormatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, mountOptions, omitfsck); err != nil {
@@ -749,6 +759,11 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			klog.Errorf("NodeUnstagedVolume: clear disk bdf info %s with err: %s", req.VolumeId, err)
 			return nil, err
 		}
+	}
+
+	// Teardown DataCache
+	if cacheErr := teardownDataCache(logger, req.VolumeId); cacheErr != nil {
+		return nil, status.Errorf(codes.Internal, "teardown DataCache for %s: %v", req.VolumeId, cacheErr)
 	}
 
 	// All device related errors are not fatal, just log it
@@ -931,6 +946,13 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 	}
 	logger = logger.WithValues("device", devicePath)
 	ctx = klog.NewContext(ctx, logger)
+
+	err = resizeDmCache(logger, uint64((requestBytes-1)/512+1), diskID)
+	if err == nil {
+		devicePath = dataCacheDevicePath(diskID)
+	} else if !errors.Is(err, unix.ENXIO) {
+		return nil, status.Errorf(codes.Internal, "resize dm-cache error: %v", err)
+	}
 
 	rootPath, index, err := DefaultDeviceManager.GetDeviceRootAndPartitionIndex(devicePath)
 	if err != nil {
