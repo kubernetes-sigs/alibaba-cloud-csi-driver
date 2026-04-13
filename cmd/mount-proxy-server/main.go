@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,15 +23,17 @@ import (
 )
 
 var (
-	socketPath    string
-	drivers       []string
-	handleTimeout time.Duration
+	socketPath     string
+	drivers        []string
+	handleTimeout  time.Duration
+	enableNftables bool
 )
 
 func main() {
 	flag.StringVar(&socketPath, "socket", "/var/run/csi/mounter.sock", "socket path")
 	flag.StringSliceVar(&drivers, "driver", nil, "drivers to enable (e.g. 'ossfs,alinas')")
 	flag.DurationVar(&handleTimeout, "timeout", time.Second*30, "timeout for connection")
+	flag.BoolVar(&enableNftables, "enable-nftables", false, "enable nftables rules to restrict mount proxy port access (default: false)")
 	utils.AddKlogFlags(flag.CommandLine)
 	utils.AddGoFlags(flag.CommandLine)
 	flag.Parse()
@@ -45,6 +49,16 @@ func main() {
 	defer os.Remove(socketPath)
 
 	klog.InfoS("Listening on socket", "socket", socketPath)
+
+	if enableNftables {
+		klog.InfoS("Init nftables", "enabled", true)
+		if err := setupNftables(); err != nil {
+			klog.ErrorS(err, "Failed to setup nftables")
+			os.Exit(1)
+		}
+	} else {
+		klog.InfoS("Skipping nftables setup", "enabled", false)
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
@@ -103,4 +117,31 @@ func listen(socketPath string) (net.Listener, error) {
 	}()
 
 	return net.Listen("unix", filepath.Base(socketPath))
+}
+
+const (
+	nftablesTableName  = "csi_mount_proxy"
+	nftablesChainName  = "early_filter"
+	nftablesTargetPort = 12049
+)
+
+// setupNftables configures nftables to block local access to the mount proxy port
+// from processes outside the target cgroup. This prevents unauthorized access.
+func setupNftables() error {
+	commands := []string{
+		fmt.Sprintf("add table inet %s", nftablesTableName),
+		fmt.Sprintf("add chain inet %s %s { type filter hook output priority -150 ; policy accept ; }", nftablesTableName, nftablesChainName),
+		fmt.Sprintf("add rule inet %s %s oif lo tcp dport %d meta cgroup != 0 drop", nftablesTableName, nftablesChainName, nftablesTargetPort),
+	}
+
+	for _, cmd := range commands {
+		c := exec.Command("nft", strings.Split(cmd, " ")...)
+		if output, err := c.CombinedOutput(); err != nil {
+			// Ignore table/chain already exists errors
+			if !strings.Contains(string(output), "File exists") {
+				return fmt.Errorf("nft error: %w, output: %s", err, string(output))
+			}
+		}
+	}
+	return nil
 }
