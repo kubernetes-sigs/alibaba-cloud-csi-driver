@@ -110,7 +110,7 @@ RUN set -ex; \
         linux/arm64) ARCH="aarch_64" ;; \
         *) echo "unsupported platform"; exit 1 ;; \
     esac; \
-    yum install -y util-linux procps python38 tini; \
+    yum install -y util-linux procps python38 tini nftables; \
     if [ "${ARCH}" = "x86_64" ]; then \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
