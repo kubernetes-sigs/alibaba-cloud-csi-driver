@@ -1,18 +1,20 @@
 package main
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/google/nftables"
+	"github.com/google/nftables/expr"
 	flag "github.com/spf13/pflag"
+	"golang.org/x/sys/unix"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server/alinas"
@@ -128,20 +130,75 @@ const (
 // setupNftables configures nftables to block local access to the mount proxy port
 // from processes outside the target cgroup. This prevents unauthorized access.
 func setupNftables() error {
-	commands := []string{
-		fmt.Sprintf("add table inet %s", nftablesTableName),
-		fmt.Sprintf("add chain inet %s %s { type filter hook output priority -150 ; policy accept ; }", nftablesTableName, nftablesChainName),
-		fmt.Sprintf("add rule inet %s %s oif lo tcp dport %d meta cgroup != 0 drop", nftablesTableName, nftablesChainName, nftablesTargetPort),
+	conn, err := nftables.New()
+	if err != nil {
+		return fmt.Errorf("failed to create nftables connection: %w", err)
 	}
 
-	for _, cmd := range commands {
-		c := exec.Command("nft", strings.Split(cmd, " ")...)
-		if output, err := c.CombinedOutput(); err != nil {
-			// Ignore table/chain already exists errors
-			if !strings.Contains(string(output), "File exists") {
-				return fmt.Errorf("nft error: %w, output: %s", err, string(output))
+	// Check if table already exists — if so, log existing chains/rules and skip
+	tables, err := conn.ListTablesOfFamily(nftables.TableFamilyINet)
+	if err != nil {
+		return fmt.Errorf("failed to list nftables tables: %w", err)
+	}
+	for _, t := range tables {
+		if t.Name == nftablesTableName {
+			chains, _ := conn.ListChainsOfTableFamily(nftables.TableFamilyINet)
+			for _, c := range chains {
+				if c.Table.Name == nftablesTableName {
+					rules, _ := conn.GetRules(t, c)
+					klog.InfoS("nftables table already exists, skipping setup",
+						"table", t.Name, "chain", c.Name, "ruleCount", len(rules))
+				}
 			}
+			return nil
 		}
+	}
+
+	// Create table
+	table := conn.AddTable(&nftables.Table{
+		Family: nftables.TableFamilyINet,
+		Name:   nftablesTableName,
+	})
+
+	// Create chain: type filter, hook output, priority -150, policy accept
+	policy := nftables.ChainPolicyAccept
+	chain := conn.AddChain(&nftables.Chain{
+		Name:     nftablesChainName,
+		Table:    table,
+		Type:     nftables.ChainTypeFilter,
+		Hooknum:  nftables.ChainHookOutput,
+		Priority: nftables.ChainPriorityRef(-150),
+		Policy:   &policy,
+	})
+
+	// Build port bytes (big-endian)
+	portBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(portBytes, nftablesTargetPort)
+
+	// Add rule: oif lo tcp dport 12049 meta cgroup != 0 drop
+	conn.AddRule(&nftables.Rule{
+		Table: table,
+		Chain: chain,
+		Exprs: []expr.Any{
+			// Match output interface "lo"
+			&expr.Meta{Key: expr.MetaKeyOIFNAME, Register: 1},
+			&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte("lo\x00")},
+			// Match TCP protocol
+			&expr.Meta{Key: expr.MetaKeyL4PROTO, Register: 1},
+			&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{unix.IPPROTO_TCP}},
+			// Match destination port 12049
+			&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseTransportHeader, Offset: 2, Len: 2},
+			&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: portBytes},
+			// Match cgroup != 0
+			&expr.Meta{Key: expr.MetaKeyCGROUP, Register: 1},
+			&expr.Cmp{Op: expr.CmpOpNeq, Register: 1, Data: []byte{0, 0, 0, 0}},
+			// Verdict: drop
+			&expr.Verdict{Kind: expr.VerdictDrop},
+		},
+	})
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("failed to apply nftables rules: %w", err)
 	}
 	return nil
 }
