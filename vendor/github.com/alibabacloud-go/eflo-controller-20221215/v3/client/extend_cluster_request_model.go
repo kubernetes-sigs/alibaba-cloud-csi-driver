@@ -747,6 +747,7 @@ type ExtendClusterRequestNodeGroupsHyperNodes struct {
   Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
   HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
   LoginPassword *string `json:"LoginPassword,omitempty" xml:"LoginPassword,omitempty"`
+  SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
   VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
   VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
@@ -775,6 +776,10 @@ func (s *ExtendClusterRequestNodeGroupsHyperNodes) GetLoginPassword() *string  {
   return s.LoginPassword
 }
 
+func (s *ExtendClusterRequestNodeGroupsHyperNodes) GetSecurityGroupId() *string  {
+  return s.SecurityGroupId
+}
+
 func (s *ExtendClusterRequestNodeGroupsHyperNodes) GetVSwitchId() *string  {
   return s.VSwitchId
 }
@@ -800,6 +805,11 @@ func (s *ExtendClusterRequestNodeGroupsHyperNodes) SetHyperNodeId(v string) *Ext
 
 func (s *ExtendClusterRequestNodeGroupsHyperNodes) SetLoginPassword(v string) *ExtendClusterRequestNodeGroupsHyperNodes {
   s.LoginPassword = &v
+  return s
+}
+
+func (s *ExtendClusterRequestNodeGroupsHyperNodes) SetSecurityGroupId(v string) *ExtendClusterRequestNodeGroupsHyperNodes {
+  s.SecurityGroupId = &v
   return s
 }
 
@@ -967,6 +977,7 @@ type ExtendClusterRequestNodeGroupsNodes struct {
   // 
   // e01-cn-zvp2zdpy601
   NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+  SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
   // VSwitch ID
   // 
   // example:
@@ -1005,6 +1016,10 @@ func (s *ExtendClusterRequestNodeGroupsNodes) GetNodeId() *string  {
   return s.NodeId
 }
 
+func (s *ExtendClusterRequestNodeGroupsNodes) GetSecurityGroupId() *string  {
+  return s.SecurityGroupId
+}
+
 func (s *ExtendClusterRequestNodeGroupsNodes) GetVSwitchId() *string  {
   return s.VSwitchId
 }
@@ -1030,6 +1045,11 @@ func (s *ExtendClusterRequestNodeGroupsNodes) SetLoginPassword(v string) *Extend
 
 func (s *ExtendClusterRequestNodeGroupsNodes) SetNodeId(v string) *ExtendClusterRequestNodeGroupsNodes {
   s.NodeId = &v
+  return s
+}
+
+func (s *ExtendClusterRequestNodeGroupsNodes) SetSecurityGroupId(v string) *ExtendClusterRequestNodeGroupsNodes {
+  s.SecurityGroupId = &v
   return s
 }
 

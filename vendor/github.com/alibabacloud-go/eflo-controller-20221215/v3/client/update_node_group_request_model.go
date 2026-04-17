@@ -21,6 +21,8 @@ type iUpdateNodeGroupRequest interface {
 	GetNewNodeGroupName() *string
 	SetNodeGroupId(v string) *UpdateNodeGroupRequest
 	GetNodeGroupId() *string
+	SetRamRoleName(v string) *UpdateNodeGroupRequest
+	GetRamRoleName() *string
 	SetUserData(v string) *UpdateNodeGroupRequest
 	GetUserData() *string
 }
@@ -62,6 +64,7 @@ type UpdateNodeGroupRequest struct {
 	//
 	// i120021051733814190732
 	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	RamRoleName *string `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
 	// User-defined script
 	//
 	// example:
@@ -106,6 +109,10 @@ func (s *UpdateNodeGroupRequest) GetNodeGroupId() *string {
 	return s.NodeGroupId
 }
 
+func (s *UpdateNodeGroupRequest) GetRamRoleName() *string {
+	return s.RamRoleName
+}
+
 func (s *UpdateNodeGroupRequest) GetUserData() *string {
 	return s.UserData
 }
@@ -137,6 +144,11 @@ func (s *UpdateNodeGroupRequest) SetNewNodeGroupName(v string) *UpdateNodeGroupR
 
 func (s *UpdateNodeGroupRequest) SetNodeGroupId(v string) *UpdateNodeGroupRequest {
 	s.NodeGroupId = &v
+	return s
+}
+
+func (s *UpdateNodeGroupRequest) SetRamRoleName(v string) *UpdateNodeGroupRequest {
+	s.RamRoleName = &v
 	return s
 }
 
