@@ -22,7 +22,6 @@ type iDescribeStoragePackagesResponseBody interface {
 }
 
 type DescribeStoragePackagesResponseBody struct {
-	// The list of storage plans.
 	Packages *DescribeStoragePackagesResponseBodyPackages `json:"Packages,omitempty" xml:"Packages,omitempty" type:"Struct"`
 	// The page number of the returned page.
 	//
@@ -147,62 +146,13 @@ func (s *DescribeStoragePackagesResponseBodyPackages) Validate() error {
 }
 
 type DescribeStoragePackagesResponseBodyPackagesPackage struct {
-	// The end time of the validity period for the storage plan.
-	//
-	// example:
-	//
-	// 2020-01-05T16:00:00Z
-	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The ID of the file system that is bound to the storage plan.
-	//
-	// example:
-	//
-	// 109c****66
+	ExpiredTime  *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The ID of the storage plan.
-	//
-	// example:
-	//
-	// naspackage-@string(\\"*****\\", *)-@string(\\"*****\\", *)
-	PackageId *string `json:"PackageId,omitempty" xml:"PackageId,omitempty"`
-	// The capacity of the storage plan.
-	//
-	// Unit: bytes.
-	//
-	// example:
-	//
-	// 10
-	Size *int64 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The start time of the validity period for the storage plan.
-	//
-	// example:
-	//
-	// 2019-12-05T01:40:56Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The status of the storage plan.
-	//
-	// Valid values:
-	//
-	// 	- free: The storage plan is not bound to a file system. You can bind the storage plan to a file system of the same storage type.
-	//
-	// 	- bound: The storage plan is bound to a file system.
-	//
-	// example:
-	//
-	// free
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The type of the storage plan.
-	//
-	// Valid values:
-	//
-	// 	- Performance
-	//
-	// 	- Capacity
-	//
-	// example:
-	//
-	// Capacity
-	StorageType *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
+	PackageId    *string `json:"PackageId,omitempty" xml:"PackageId,omitempty"`
+	Size         *int64  `json:"Size,omitempty" xml:"Size,omitempty"`
+	StartTime    *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	Status       *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	StorageType  *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
 }
 
 func (s DescribeStoragePackagesResponseBodyPackagesPackage) String() string {

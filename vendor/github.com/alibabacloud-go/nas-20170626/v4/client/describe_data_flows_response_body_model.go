@@ -18,7 +18,6 @@ type iDescribeDataFlowsResponseBody interface {
 }
 
 type DescribeDataFlowsResponseBody struct {
-	// The dataflow details.
 	DataFlowInfo *DescribeDataFlowsResponseBodyDataFlowInfo `json:"DataFlowInfo,omitempty" xml:"DataFlowInfo,omitempty" type:"Struct"`
 	// A pagination token. It can be used in the next request to retrieve a new page of results.
 	//
@@ -113,208 +112,24 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfo) Validate() error {
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
-	// The details about automatic update policies.
-	//
-	// >  Only CPFS supports this parameter.
-	AutoRefresh *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh `json:"AutoRefresh,omitempty" xml:"AutoRefresh,omitempty" type:"Struct"`
-	// The automatic update interval. CPFS checks whether data is updated in the directory at the interval specified by this parameter. If data is updated, CPFS starts an automatic update task. Unit: minutes.
-	//
-	// Valid values: 5 to 526600. Default value: 10.
-	//
-	// >  Only CPFS supports this parameter.
-	//
-	// example:
-	//
-	// 10
-	AutoRefreshInterval *int64 `json:"AutoRefreshInterval,omitempty" xml:"AutoRefreshInterval,omitempty"`
-	// The automatic update policy. The updated data in the source storage is imported into the CPFS file system based on the policy. The following information is displayed:
-	//
-	// 	- None: Updated data in the source storage is not automatically imported into the CPFS file system. You can run a dataflow task to import the updated data from the source storage.
-	//
-	// 	- ImportChanged: Updated data in the source storage is automatically imported into the CPFS file system.
-	//
-	// >  Only CPFS is supported.
-	//
-	// example:
-	//
-	// None
-	AutoRefreshPolicy *string `json:"AutoRefreshPolicy,omitempty" xml:"AutoRefreshPolicy,omitempty"`
-	// The time when the fileset was created.
-	//
-	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
-	//
-	// >  Only CPFS supports this parameter.
-	//
-	// example:
-	//
-	// 2021-09-30T10:08:08Z
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The ID of the dataflow.
-	//
-	// example:
-	//
-	// df-194433a5be31****
-	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// The description of the dataflow.
-	//
-	// Limits:
-	//
-	// 	- The name must be 2 to 128 characters in length and
-	//
-	// 	- start with a letter but cannot start with `http://` or `https://`.
-	//
-	// 	- The name can contain digits, letters, colons (:), underscores (_), and hyphens (-).
-	//
-	// example:
-	//
-	// test
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The error message. Valid values:
-	//
-	// 	- None (default): The dataflow status is normal.
-	//
-	// 	- SourceStorageUnreachable: The access path of the source storage is not found.
-	//
-	// 	- ThroughputTooLow: The dataflow throughput is low.
-	//
-	// example:
-	//
-	// SourceStorageUnreachable
-	ErrorMessage *string `json:"ErrorMessage,omitempty" xml:"ErrorMessage,omitempty"`
-	// The ID of the file system.
-	//
-	// example:
-	//
-	// cpfs-099394bd928c****
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The directory of the fileset in the CPFS file system.
-	//
-	// Limits:
-	//
-	// 	- The directory must be 2 to 1024 characters in length.
-	//
-	// 	- The directory must be encoded in UTF-8.
-	//
-	// 	- The directory must start and end with a forward slash (/).
-	//
-	// 	- The directory must be a fileset directory in the CPFS file system.
-	//
-	// >  Only CPFS is supported.
-	//
-	// example:
-	//
-	// /a/b/c/
-	FileSystemPath *string `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
-	// The description of the automatic update.
-	//
-	// >  Only CPFS supports this parameter.
-	//
-	// example:
-	//
-	// FsetTest
-	FsetDescription *string `json:"FsetDescription,omitempty" xml:"FsetDescription,omitempty"`
-	// The fileset ID.
-	//
-	// >  Only CPFS supports this parameter.
-	//
-	// example:
-	//
-	// fset-1902718ea0ae****
-	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
-	// The type of security mechanism for the source storage. This parameter must be specified if the source storage is accessed with a security mechanism. Valid value:
-	//
-	// 	- Null (default): The OSS bucket can be accessed without a security mechanism.
-	//
-	// 	- SSL: The source storage must be accessed with an SSL certificate.
-	//
-	// example:
-	//
-	// SSL
-	SourceSecurityType *string `json:"SourceSecurityType,omitempty" xml:"SourceSecurityType,omitempty"`
-	// The access path of the source storage. Format: `<storage type>://[<account id>:]<path>`.
-	//
-	// Among them:
-	//
-	// 	- storage type: Only OSS is supported.
-	//
-	// 	- account id: The UID of the account of the source storage.
-	//
-	// 	- path: The name of the OSS bucket.
-	//
-	//     	- The name can contain only lowercase letters, digits, and hyphens (-). The name must start and end with a lowercase letter or digit.
-	//
-	//     	- The name must be 8 to 128 characters in length.
-	//
-	//     	- Must be encoded in UTF-8.
-	//
-	//     	- The name cannot start with http:// or https://.
-	//
-	// >
-	//
-	// 	- The OSS bucket must be an existing bucket in the region.
-	//
-	// 	- Only CPFS for Lingjun V2.6.0 and later support the account id parameter.
-	//
-	// example:
-	//
-	// oss://bucket1
-	SourceStorage *string `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
-	// The access path in the bucket of the source storage.
-	//
-	// >  Only CPFS for Lingjun supports this parameter.
-	//
-	// example:
-	//
-	// /prefix/
+	AutoRefresh         *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh `json:"AutoRefresh,omitempty" xml:"AutoRefresh,omitempty" type:"Struct"`
+	AutoRefreshInterval *int64                                                        `json:"AutoRefreshInterval,omitempty" xml:"AutoRefreshInterval,omitempty"`
+	AutoRefreshPolicy   *string                                                       `json:"AutoRefreshPolicy,omitempty" xml:"AutoRefreshPolicy,omitempty"`
+	CreateTime          *string                                                       `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	DataFlowId          *string                                                       `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
+	Description         *string                                                       `json:"Description,omitempty" xml:"Description,omitempty"`
+	ErrorMessage        *string                                                       `json:"ErrorMessage,omitempty" xml:"ErrorMessage,omitempty"`
+	FileSystemId        *string                                                       `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	FileSystemPath      *string                                                       `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
+	FsetDescription     *string                                                       `json:"FsetDescription,omitempty" xml:"FsetDescription,omitempty"`
+	FsetId              *string                                                       `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	SourceSecurityType  *string                                                       `json:"SourceSecurityType,omitempty" xml:"SourceSecurityType,omitempty"`
+	SourceStorage       *string                                                       `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
+	// 源端存储内的访问路径。
 	SourceStoragePath *string `json:"SourceStoragePath,omitempty" xml:"SourceStoragePath,omitempty"`
-	// The dataflow status. The following information is displayed:
-	//
-	// 	- Starting: The dataflow is being created or enabled.
-	//
-	// 	- Running: The dataflow has been created and is running properly.
-	//
-	// 	- Updating: The dataflow is being modified. For example, the dataflow throughput is increased and the automatic update interval is modified.
-	//
-	// 	- Deleting: The dataflow is being deleted.
-	//
-	// 	- Stopping: The dataflow is being disabled.
-	//
-	// 	- Stopped: The dataflow has been disabled.
-	//
-	// 	- Misconfigured: The dataflow configuration is abnormal. For example, the source storage is inaccessible, and the automatic update cannot be completed due to low dataflow throughput.
-	//
-	// example:
-	//
-	// Running
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The maximum dataflow throughput. Unit: MB/s. Valid value:
-	//
-	// 	- 600
-	//
-	// 	- 1200
-	//
-	// 	- 1500
-	//
-	// >
-	//
-	// 	- The dataflow throughput must be less than the I/O throughput of the file system.
-	//
-	// 	- Only CPFS supports this parameter.
-	//
-	// example:
-	//
-	// 600
-	Throughput *int64 `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
-	// The time when the fileset was last updated.
-	//
-	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
-	//
-	// >  Only CPFS supports this parameter.
-	//
-	// example:
-	//
-	// 2021-09-30T10:08:08Z
-	UpdateTime *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
+	Status            *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	Throughput        *int64  `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
+	UpdateTime        *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
 }
 
 func (s DescribeDataFlowsResponseBodyDataFlowInfoDataFlow) String() string {
@@ -522,21 +337,6 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh) Validate(
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefreshAutoRefresh struct {
-	// The automatic update directory. CPFS automatically checks whether the source data only in the directory is updated and imports the updated data.
-	//
-	// Limits:
-	//
-	// 	- The directory must be 2 to 1,024 characters in length.
-	//
-	// 	- The directory must be encoded in UTF-8.
-	//
-	// 	- The directory must start and end with a forward slash (/).
-	//
-	// >  The directory must be an existing directory in the CPFS file system and must be in a fileset where the dataflow is enabled.
-	//
-	// example:
-	//
-	// /prefix1/prefix2/
 	RefreshPath *string `json:"RefreshPath,omitempty" xml:"RefreshPath,omitempty"`
 }
 

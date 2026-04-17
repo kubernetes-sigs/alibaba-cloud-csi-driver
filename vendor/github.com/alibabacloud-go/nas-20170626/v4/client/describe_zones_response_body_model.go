@@ -21,9 +21,8 @@ type DescribeZonesResponseBody struct {
 	// example:
 	//
 	// A70BEE5D-76D3-49FB-B58F-1F398211****
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The queried zones.
-	Zones *DescribeZonesResponseBodyZones `json:"Zones,omitempty" xml:"Zones,omitempty" type:"Struct"`
+	RequestId *string                         `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	Zones     *DescribeZonesResponseBodyZones `json:"Zones,omitempty" xml:"Zones,omitempty" type:"Struct"`
 }
 
 func (s DescribeZonesResponseBody) String() string {
@@ -96,18 +95,10 @@ func (s *DescribeZonesResponseBodyZones) Validate() error {
 }
 
 type DescribeZonesResponseBodyZonesZone struct {
-	// This parameter is reserved. You can ignore this parameter.
-	Capacity *DescribeZonesResponseBodyZonesZoneCapacity `json:"Capacity,omitempty" xml:"Capacity,omitempty" type:"Struct"`
-	// The details about file system types.
+	Capacity      *DescribeZonesResponseBodyZonesZoneCapacity      `json:"Capacity,omitempty" xml:"Capacity,omitempty" type:"Struct"`
 	InstanceTypes *DescribeZonesResponseBodyZonesZoneInstanceTypes `json:"InstanceTypes,omitempty" xml:"InstanceTypes,omitempty" type:"Struct"`
-	// This parameter is reserved. You can ignore this parameter.
-	Performance *DescribeZonesResponseBodyZonesZonePerformance `json:"Performance,omitempty" xml:"Performance,omitempty" type:"Struct"`
-	// The zone ID.
-	//
-	// example:
-	//
-	// cn-hangzhou-b
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	Performance   *DescribeZonesResponseBodyZonesZonePerformance   `json:"Performance,omitempty" xml:"Performance,omitempty" type:"Struct"`
+	ZoneId        *string                                          `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeZonesResponseBodyZonesZone) String() string {
@@ -233,30 +224,8 @@ func (s *DescribeZonesResponseBodyZonesZoneInstanceTypes) Validate() error {
 }
 
 type DescribeZonesResponseBodyZonesZoneInstanceTypesInstanceType struct {
-	// The protocol type.
-	//
-	// 	- If the FileSystemType parameter is set to standard, the protocol type is nfs or smb.
-	//
-	// 	- If the FileSystemType parameter is set to extreme, the protocol type is nfs.
-	//
-	// 	- If the FileSystemType parameter is set to cpfs, the protocol type is cpfs.
-	//
-	// example:
-	//
-	// nfs
 	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-	// The storage type.
-	//
-	// 	- If the FileSystemType parameter is set to standard, the storage type is Performance or Capacity.
-	//
-	// 	- If the FileSystemType parameter is set to extreme, the storage type is standard or advance.
-	//
-	// 	- If the FileSystemType parameter is set to cpfs, the storage type is advance_100 (100 MB/s/TiB baseline) or advance_200 (200 MB/s/TiB baseline).
-	//
-	// example:
-	//
-	// Capacity
-	StorageType *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
+	StorageType  *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
 }
 
 func (s DescribeZonesResponseBodyZonesZoneInstanceTypesInstanceType) String() string {
