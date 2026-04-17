@@ -18,6 +18,7 @@ package oss
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
@@ -88,12 +89,18 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 		}
 	}
 	if serviceType&utils.Node != 0 {
+		var skipGlobalMount bool
+		if value := os.Getenv("OSS_SKIP_GLOBAL_MOUNT"); value != "" {
+			skipGlobalMount, _ = strconv.ParseBool(value)
+		}
+
 		servers.NodeServer = &nodeServer{
 			metadata:        m,
 			locks:           utils.NewVolumeLocks(),
 			nodeName:        nodeName,
 			clientset:       clientset,
 			cnfsGetter:      cnfsGetter,
+			skipGlobalMount: skipGlobalMount,
 			rawMounter:      mountutils.NewWithoutSystemd(""),
 			fusePodManagers: fusePodManagers,
 			GenericNodeServer: common.GenericNodeServer{
