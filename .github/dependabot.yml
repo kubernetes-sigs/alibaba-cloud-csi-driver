@@ -1,5 +1,11 @@
 version: 2
 updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+    - "ok-to-test"
   - package-ecosystem: gomod
     directory: /
     open-pull-requests-limit: 10
