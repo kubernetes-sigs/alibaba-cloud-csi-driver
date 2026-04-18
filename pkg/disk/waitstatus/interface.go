@@ -16,6 +16,8 @@ const (
 
 type StatusWaiter[T any] interface {
 	// WaitFor waits until the pred returns true for the specified id.
+	//
+	// returns (nil, nil) if the specified id is not found.
 	WaitFor(ctx context.Context, id string, pred StatusPredicate[*T]) (*T, error)
 }
 
