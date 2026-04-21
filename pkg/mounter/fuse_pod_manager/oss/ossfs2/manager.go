@@ -1,6 +1,7 @@
 package ossfs2
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"os"
@@ -112,6 +113,9 @@ func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvide
 			return nil, fmt.Errorf("Get RoleArn and OidcProviderArn for RRSA error: %v", err)
 		}
 		authCfg.RrsaConfig = rrsaCfg
+		authCfg.RRSAEndpoint = o.RRSAEndpoint
+		authCfg.RRSACaSecret = o.RRSACaSecret
+		authCfg.RRSAAudience = o.RRSAAudience
 	case ossfpm.AuthTypeSTS:
 		authCfg.RoleName = o.RoleName
 	case ossfpm.AuthTypeAgentIdentity:
@@ -203,11 +207,18 @@ func (f *fuseOssfs) PodTemplateSpec(c *fpm.FusePodContext, target string) (*core
 func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptions []string, err error) {
 	switch o.AuthType {
 	case ossfpm.AuthTypeRRSA:
-		ep, err := utils.GetSTSEndpoint(region)
-		if err != nil {
-			return nil, fmt.Errorf("sts endpoint: %w", err)
+		rrsaEndpoint := o.RRSAEndpoint
+		if rrsaEndpoint == "" {
+			ep, err := utils.GetSTSEndpoint(region)
+			if err != nil {
+				return nil, fmt.Errorf("sts endpoint: %w", err)
+			}
+			rrsaEndpoint = ep
 		}
-		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", ep))
+		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", rrsaEndpoint))
+		if o.RRSACaSecret != "" {
+			mountOptions = append(mountOptions, "rrsa_ca_file=/etc/ssl/certs/rrsa-ca/ca.crt")
+		}
 		if o.AssumeRoleArn != "" {
 			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", o.AssumeRoleArn))
 			if o.ExternalId != "" {
@@ -451,7 +462,7 @@ func (f *fuseOssfs) buildAuthSpec(c *fpm.FusePodContext, target string, spec *co
 					Sources: []corev1.VolumeProjection{
 						{
 							ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
-								Audience:          "sts.aliyuncs.com",
+								Audience:          cmp.Or(authCfg.RRSAAudience, "sts.aliyuncs.com"),
 								ExpirationSeconds: tea.Int64(3600),
 								Path:              "token",
 							},
@@ -483,6 +494,32 @@ func (f *fuseOssfs) buildAuthSpec(c *fpm.FusePodContext, target string, spec *co
 				Name:  "ROLE_SESSION_NAME",
 				Value: mounterutils.GetRoleSessionName(c.VolumeId, target, c.FuseType),
 			},
+		}
+		// Support custom CA secret for RRSA endpoint (e.g., oidc-proxy)
+		// Note: Secret must be in the same namespace as the fuse pod (ack-csi-fuse)
+		if authCfg.RRSACaSecret != "" {
+			caVolume := corev1.Volume{
+				Name: "rrsa-ca",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: authCfg.RRSACaSecret,
+						Items: []corev1.KeyToPath{
+							{
+								Key:  "ca.crt",
+								Path: "ca.crt",
+								Mode: tea.Int32(0644),
+							},
+						},
+					},
+				},
+			}
+			spec.Volumes = append(spec.Volumes, caVolume)
+			caVolumeMount := corev1.VolumeMount{
+				Name:      caVolume.Name,
+				MountPath: "/etc/ssl/certs/rrsa-ca",
+				ReadOnly:  true,
+			}
+			container.VolumeMounts = append(container.VolumeMounts, caVolumeMount)
 		}
 		container.Env = append(container.Env, envs...)
 	case ossfpm.AuthTypeAgentIdentity:

@@ -36,6 +36,7 @@ const (
 	FuseVolumeIdLabelKey      = "csi.alibabacloud.com/volume-id"
 	FuseMountPathHashLabelKey = "csi.alibabacloud.com/mount-path-hash"
 	FuseMountPathAnnoKey      = "csi.alibabacloud.com/mount-path"
+	FuseMountTargetAnnoKey    = "csi.alibabacloud.com/mount-target" // oss://bucket/path format
 	FuseSafeToEvictAnnoKey    = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 	ACKDrainLabelKey          = "alibabacloud.com/drain-pod"
 )
@@ -56,6 +57,10 @@ type AuthConfig struct {
 	AuthType string
 	// for RRSA
 	RrsaConfig *RrsaConfig
+	// RRSA oidc-proxy options (from PV volumeAttributes)
+	RRSAEndpoint string // oidc-proxy service endpoint (e.g., https://oidc-proxy.ns.svc)
+	RRSACaSecret string // Secret containing CA cert
+	RRSAAudience string // Token audience (e.g., oidc-proxy.alibabacloud.com)
 	// for csi-secret-store
 	SecretProviderClassName string
 	// for AK/SK with or without token
@@ -115,6 +120,9 @@ type FusePodContext struct {
 	Recovery          bool
 	AuthConfig        *AuthConfig
 	PodTemplateConfig *PodTemplateConfig
+	// OSS mount target for oidc-proxy policy generation
+	Bucket string
+	Path   string
 	// EntrypointConfig is the name of a ConfigMap (in the fuse pod namespace)
 	// to mount at /etc/fuse-config/ inside the fuse container.
 	EntrypointConfig string
@@ -364,6 +372,14 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string) (*corev1.Pod
 		}
 		rawPod.Annotations[FuseMountPathAnnoKey] = target
 		rawPod.Annotations[FuseSafeToEvictAnnoKey] = "true"
+		// Add mount-target annotation for oidc-proxy: oss://bucket/path
+		if c.Bucket != "" {
+			mountTarget := "oss://" + c.Bucket
+			if c.Path != "" && c.Path != "/" {
+				mountTarget += "/" + strings.TrimPrefix(c.Path, "/")
+			}
+			rawPod.Annotations[FuseMountTargetAnnoKey] = mountTarget
+		}
 
 		logger.V(2).Info("creating fuse pod", "target", target)
 		createdPod, err := podClient.Create(ctx, &rawPod, metav1.CreateOptions{})
