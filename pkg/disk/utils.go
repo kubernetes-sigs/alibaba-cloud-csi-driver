@@ -729,6 +729,10 @@ func getMountedVolumeDevice(mnts []k8smount.MountInfo, targetPath string) string
 	return ""
 }
 
+func allowSysConfigKey(key string) bool {
+	return strings.HasPrefix(key, "queue/")
+}
+
 func isDeviceMountedAt(mnts []k8smount.MountInfo, device, targetPath string) bool {
 	for _, mnt := range mnts {
 		if mnt.MountPoint == targetPath && mnt.Source == device {

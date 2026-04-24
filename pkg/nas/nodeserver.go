@@ -37,6 +37,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -95,6 +96,7 @@ type Options struct {
 	MountProtocol string `json:"mountProtocol"`
 	ClientType    string `json:"clientType"`
 	FSType        string `json:"fsType"`
+	SysConfigs    map[string]string
 	AkID          string
 	AkSecret      string
 }
@@ -252,6 +254,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	opt.AkID = req.Secrets[akIDKey]
 	opt.AkSecret = req.Secrets[akSecretKey]
+
+	var err error
+	opt.SysConfigs, err = utilsio.ParseSysConfigs(req.VolumeContext["sysConfig"], allowSysConfigKey)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	if cnfsName != "" && ns.config.CNFSGetter != nil {
 		cnfs, err := ns.getCNFS(ctx, req, cnfsName)
@@ -412,6 +420,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	if !notMounted {
 		klog.Infof("NodePublishVolume: %s already mounted", mountPath)
+		if err := setSysConfigs(mountPath, opt.SysConfigs); err != nil {
+			return nil, status.Errorf(codes.Aborted, "set sysconfig: %v", err)
+		}
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -494,6 +505,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	klog.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
+
+	// set sysconfigs
+	if err := setSysConfigs(mountPath, opt.SysConfigs); err != nil {
+		return nil, status.Errorf(codes.Aborted, "set sysconfig: %v", err)
+	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }

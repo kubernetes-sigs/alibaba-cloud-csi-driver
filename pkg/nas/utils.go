@@ -33,6 +33,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
+	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
@@ -428,4 +430,44 @@ func isCPFS(filesystemType, server string) bool {
 		return filesystemType == "cpfs"
 	}
 	return strings.HasSuffix(server, "cpfs.aliyuncs.com")
+}
+
+const bdiReadAheadKB = "bdi/read_ahead_kb"
+
+func setSysConfigs(mountPath string, sysConfigs map[string]string) error {
+	if len(sysConfigs) == 0 {
+		return nil
+	}
+	var stat unix.Stat_t
+	err := unix.Stat(mountPath, &stat)
+	if err != nil {
+		return err
+	}
+
+	manager := utilsio.NewSysConfigManager(uint32(unix.Major(uint64(stat.Dev))), uint32(unix.Minor(uint64(stat.Dev))))
+	for key, value := range sysConfigs {
+		if key != bdiReadAheadKB {
+			err := manager.Set(key, value)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if value, ok := sysConfigs[bdiReadAheadKB]; ok {
+		// nfs-utils versions later than nfs-utils-2.3.3-57.0.1.al8.1 have udev rules for nfsrahead enabled,
+		// which automatically set a default read_ahead_kb after the bdi subsystem add event.
+		// To avoid conflicts, we need to introduce a delay here.
+		time.Sleep(time.Second * 2)
+		err := manager.Set(bdiReadAheadKB, value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func allowSysConfigKey(key string) bool {
+	// only support setting bdi/read_ahead_kb
+	return key == bdiReadAheadKB
 }
