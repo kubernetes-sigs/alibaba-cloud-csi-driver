@@ -23,6 +23,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,10 +67,17 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	defer cs.locks.Release(req.Name)
 
+	sysConfigs := req.Parameters["sysConfig"]
+	_, err := utilsio.ParseSysConfigs(sysConfigs, allowSysConfigKey)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	controller, err := cs.VolumeAs(req.Parameters["volumeAs"])
 	if err != nil {
 		return nil, err
 	}
+
 	resp, err := controller.CreateVolume(ctx, req)
 	if err != nil {
 		return nil, err
@@ -87,6 +95,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	if options := parameters["options"]; options != "" {
 		resp.Volume.VolumeContext["options"] = options
+	}
+	if sysConfigs != "" {
+		resp.Volume.VolumeContext["sysConfigs"] = sysConfigs
 	}
 
 	klog.V(2).InfoS("CreateVolume: succeeded", "response", resp)
