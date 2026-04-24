@@ -101,8 +101,8 @@ ARG EFC_VERSION=1.9-20250822095129.f34347.release
 # v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch.
 # It's temporarily unavailable for all ACK clusters,
 # catering only to ARM for compatibility. An update to all CPFS storage cluster versions is required.
-ARG EFC_ARM_VERSION=2.1-20260225174948.1aad5e.release
-ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20260312105719.3df09a.generic
+ARG EFC_ARM_VERSION=2.1-20260318190316.34c388.release
+ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20260316154701.b0a52a.generic
 
 RUN set -ex; \
     case "${TARGETPLATFORM}" in \
