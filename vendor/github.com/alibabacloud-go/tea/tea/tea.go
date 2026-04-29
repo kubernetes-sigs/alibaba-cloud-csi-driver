@@ -386,7 +386,7 @@ func DoRequest(request *Request, requestRuntime map[string]interface{}) (respons
 		if !defaultClient.ifInit || defaultClient.httpClient.Transport == nil {
 			defaultClient.httpClient.Transport = trans
 		}
-		defaultClient.httpClient.Timeout = time.Duration(IntValue(runtimeObject.ReadTimeout)) * time.Millisecond
+		defaultClient.httpClient.Timeout = time.Duration(IntValue(runtimeObject.ConnectTimeout)+IntValue(runtimeObject.ReadTimeout)) * time.Millisecond
 		defaultClient.ifInit = true
 		defaultClient.Unlock()
 	}
@@ -442,6 +442,7 @@ func DoRequest(request *Request, requestRuntime map[string]interface{}) (respons
 
 func getHttpTransport(req *Request, runtime *RuntimeObject) (*http.Transport, error) {
 	trans := new(http.Transport)
+	trans.ResponseHeaderTimeout = time.Duration(IntValue(runtime.ReadTimeout)) * time.Millisecond
 	httpProxy, err := getHttpProxy(StringValue(req.Protocol), StringValue(req.Domain), runtime)
 	if err != nil {
 		return nil, err
@@ -495,7 +496,7 @@ func getHttpTransport(req *Request, runtime *RuntimeObject) (*http.Transport, er
 					Password: password,
 				}
 			}
-			dialer, err := proxy.SOCKS5(strings.ToLower(StringValue(runtime.Socks5NetWork)), socks5Proxy.String(), auth,
+			dialer, err := proxy.SOCKS5(strings.ToLower(StringValue(runtime.Socks5NetWork)), socks5Proxy.Host, auth,
 				&net.Dialer{
 					Timeout:   time.Duration(IntValue(runtime.ConnectTimeout)) * time.Millisecond,
 					DualStack: true,
@@ -602,7 +603,7 @@ func getSocks5Proxy(runtime *RuntimeObject) (proxy *url.URL, err error) {
 func getLocalAddr(localAddr string) (addr *net.TCPAddr) {
 	if localAddr != "" {
 		addr = &net.TCPAddr{
-			IP: []byte(localAddr),
+			IP: net.ParseIP(localAddr),
 		}
 	}
 	return addr
@@ -610,20 +611,18 @@ func getLocalAddr(localAddr string) (addr *net.TCPAddr) {
 
 func setDialContext(runtime *RuntimeObject) func(cxt context.Context, net, addr string) (c net.Conn, err error) {
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
-		if runtime.LocalAddr != nil && StringValue(runtime.LocalAddr) != "" {
-			netAddr := &net.TCPAddr{
-				IP: []byte(StringValue(runtime.LocalAddr)),
-			}
-			return (&net.Dialer{
-				Timeout:   time.Duration(IntValue(runtime.ConnectTimeout)) * time.Second,
-				DualStack: true,
-				LocalAddr: netAddr,
-			}).DialContext(ctx, network, address)
-		}
-		return (&net.Dialer{
-			Timeout:   time.Duration(IntValue(runtime.ConnectTimeout)) * time.Second,
+		timeout := time.Duration(IntValue(runtime.ConnectTimeout)) * time.Millisecond
+		dialer := &net.Dialer{
+			Timeout: timeout,
+			Resolver: &net.Resolver{
+				PreferGo: false,
+			},
 			DualStack: true,
-		}).DialContext(ctx, network, address)
+		}
+		if runtime.LocalAddr != nil && StringValue(runtime.LocalAddr) != "" {
+			dialer.LocalAddr = getLocalAddr(StringValue(runtime.LocalAddr))
+		}
+		return dialer.DialContext(ctx, network, address)
 	}
 }
 
