@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	MaxMsgSize = 1 << 11
+	MaxMsgSize = 1 << 14
 	MessageEnd = '\n'
 )
 
