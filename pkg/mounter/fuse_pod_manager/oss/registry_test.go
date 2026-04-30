@@ -10,6 +10,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	k8sver "k8s.io/apimachinery/pkg/util/version"
 )
 
 func TestGetFuseMounterPath(t *testing.T) {
@@ -71,6 +72,71 @@ func TestGetAllRegisteredFuseTypes(t *testing.T) {
 	assert.True(t, typeMap[testType], "test type should be registered")
 }
 
+func TestShouldConstrainResourceVersion(t *testing.T) {
+	tests := []struct {
+		name           string
+		k8sVersion     *k8sver.Version
+		envValue       string
+		expectedResult bool
+	}{
+		{
+			name:           "K8s 1.31 should not constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 31),
+			expectedResult: false,
+		},
+		{
+			name:           "K8s 1.32 should not constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 32),
+			expectedResult: false,
+		},
+		{
+			name:           "K8s 1.30 should constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 30),
+			expectedResult: true,
+		},
+		{
+			name:           "K8s 1.28 should constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 28),
+			expectedResult: true,
+		},
+		{
+			name:           "nil version should constrain RV",
+			k8sVersion:     nil,
+			expectedResult: true,
+		},
+		{
+			name:           "ENV=true should override K8s 1.31",
+			k8sVersion:     k8sver.MajorMinor(1, 31),
+			envValue:       "true",
+			expectedResult: true,
+		},
+		{
+			name:           "ENV=false should override K8s 1.30",
+			k8sVersion:     k8sver.MajorMinor(1, 30),
+			envValue:       "false",
+			expectedResult: false,
+		},
+		{
+			name:           "ENV invalid value should be ignored",
+			k8sVersion:     k8sver.MajorMinor(1, 30),
+			envValue:       "invalid",
+			expectedResult: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set ENV if specified
+			if tt.envValue != "" {
+				t.Setenv("OSS_FUSE_CONSTRAIN_RV", tt.envValue)
+			}
+
+			result := ShouldConstrainResourceVersion(tt.k8sVersion)
+			assert.Equal(t, tt.expectedResult, result)
+		})
+	}
+}
+
 func TestGetAllOSSFusePodManagers(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
 
@@ -82,7 +148,7 @@ func TestGetAllOSSFusePodManagers(t *testing.T) {
 	RegisterFuseMounter(testType, testFactory)
 
 	// Test with nil configmap and nil client (CSI agent mode)
-	managers := GetAllOSSFusePodManagers(utils.Config{}, fakeMeta, nil)
+	managers := GetAllOSSFusePodManagers(utils.Config{}, fakeMeta, nil, nil)
 
 	// Should have at least the test manager
 	assert.GreaterOrEqual(t, len(managers), 1, "Should have at least 1 fuse pod manager")

@@ -1153,8 +1153,8 @@ func Test_checkOssOptions(t *testing.T) {
 	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
 	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
 	fusePodManagers := map[string]*ossfpm.OSSFusePodManager{
-		mounterutils.OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil),
-		mounterutils.OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil),
+		mounterutils.OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil, false),
+		mounterutils.OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil, false),
 	}
 
 	tests := []struct {
@@ -1279,7 +1279,7 @@ func Test_checkOssOptions(t *testing.T) {
 func TestMakeAuthConfig(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
 	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
-	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil)
+	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil, false)
 	opt := &ossfpm.Options{
 		URL:    "1.1.1.1",
 		Bucket: "aliyun",
@@ -1300,7 +1300,7 @@ func TestMakeAuthConfig(t *testing.T) {
 	assert.Equal(t, want, authCfg)
 
 	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
-	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil)
+	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil, false)
 	opt2 := &ossfpm.Options{
 		URL:    "1.1.1.1",
 		Bucket: "aliyun",
@@ -1325,7 +1325,7 @@ func TestMakeMountOptions(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-beijing")
 	fakeMeta := metadata.NewMetadata()
 	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
-	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil)
+	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil, false)
 	opt := &ossfpm.Options{
 		URL:    "1.1.1.1",
 		Bucket: "aliyun",
@@ -1360,7 +1360,7 @@ func TestMakeMountOptions(t *testing.T) {
 	assert.Equal(t, want, got)
 
 	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
-	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil)
+	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil, false)
 	opt2 := &ossfpm.Options{
 		URL:    "1.1.1.1",
 		Bucket: "aliyun",
