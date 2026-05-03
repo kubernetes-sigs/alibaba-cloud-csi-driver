@@ -209,6 +209,12 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 			opts.AssumeRoleArn = value
 		case "externalid":
 			opts.ExternalId = value
+		case "rrsaendpoint":
+			opts.RRSAEndpoint = value
+		case "rrsacasecret":
+			opts.RRSACaSecret = value
+		case "rrsaaudience":
+			opts.RRSAAudience = value
 		case "sigversion":
 			switch ossfpm.SigVersion(value) {
 			case ossfpm.SigV1, ossfpm.SigV4:
