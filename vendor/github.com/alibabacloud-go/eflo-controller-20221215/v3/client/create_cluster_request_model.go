@@ -1154,7 +1154,8 @@ type CreateClusterRequestNodeGroups struct {
 	// emr-default
 	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
 	// Node list
-	Nodes []*CreateClusterRequestNodeGroupsNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
+	Nodes       []*CreateClusterRequestNodeGroupsNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
+	RamRoleName *string                                `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
 	// System disk information
 	SystemDisk *CreateClusterRequestNodeGroupsSystemDisk `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
 	// Instance custom data. It needs to be encoded in Base64, and the original data should not exceed 16 KB.
@@ -1221,6 +1222,10 @@ func (s *CreateClusterRequestNodeGroups) GetNodes() []*CreateClusterRequestNodeG
 	return s.Nodes
 }
 
+func (s *CreateClusterRequestNodeGroups) GetRamRoleName() *string {
+	return s.RamRoleName
+}
+
 func (s *CreateClusterRequestNodeGroups) GetSystemDisk() *CreateClusterRequestNodeGroupsSystemDisk {
 	return s.SystemDisk
 }
@@ -1279,6 +1284,11 @@ func (s *CreateClusterRequestNodeGroups) SetNodeGroupName(v string) *CreateClust
 
 func (s *CreateClusterRequestNodeGroups) SetNodes(v []*CreateClusterRequestNodeGroupsNodes) *CreateClusterRequestNodeGroups {
 	s.Nodes = v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroups) SetRamRoleName(v string) *CreateClusterRequestNodeGroups {
+	s.RamRoleName = &v
 	return s
 }
 

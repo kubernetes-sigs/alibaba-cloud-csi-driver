@@ -37,6 +37,8 @@ type iDescribeNodeGroupResponseBody interface {
 	GetNodeGroupId() *string
 	SetNodeGroupName(v string) *DescribeNodeGroupResponseBody
 	GetNodeGroupName() *string
+	SetRamRoleName(v string) *DescribeNodeGroupResponseBody
+	GetRamRoleName() *string
 	SetRequestId(v string) *DescribeNodeGroupResponseBody
 	GetRequestId() *string
 	SetSystemDisk(v *DescribeNodeGroupResponseBodySystemDisk) *DescribeNodeGroupResponseBody
@@ -64,6 +66,7 @@ type DescribeNodeGroupResponseBody struct {
 	NodeGroupDescription   *string `json:"NodeGroupDescription,omitempty" xml:"NodeGroupDescription,omitempty"`
 	NodeGroupId            *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
 	NodeGroupName          *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
+	RamRoleName            *string `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
 	// Id of the request
 	RequestId         *string                                  `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	SystemDisk        *DescribeNodeGroupResponseBodySystemDisk `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
@@ -134,6 +137,10 @@ func (s *DescribeNodeGroupResponseBody) GetNodeGroupId() *string {
 
 func (s *DescribeNodeGroupResponseBody) GetNodeGroupName() *string {
 	return s.NodeGroupName
+}
+
+func (s *DescribeNodeGroupResponseBody) GetRamRoleName() *string {
+	return s.RamRoleName
 }
 
 func (s *DescribeNodeGroupResponseBody) GetRequestId() *string {
@@ -223,6 +230,11 @@ func (s *DescribeNodeGroupResponseBody) SetNodeGroupId(v string) *DescribeNodeGr
 
 func (s *DescribeNodeGroupResponseBody) SetNodeGroupName(v string) *DescribeNodeGroupResponseBody {
 	s.NodeGroupName = &v
+	return s
+}
+
+func (s *DescribeNodeGroupResponseBody) SetRamRoleName(v string) *DescribeNodeGroupResponseBody {
+	s.RamRoleName = &v
 	return s
 }
 
