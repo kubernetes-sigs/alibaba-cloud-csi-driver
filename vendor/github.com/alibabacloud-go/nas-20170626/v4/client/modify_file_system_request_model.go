@@ -95,6 +95,7 @@ func (s *ModifyFileSystemRequest) Validate() error {
 }
 
 type ModifyFileSystemRequestOptions struct {
+	EnableABE *bool `json:"EnableABE,omitempty" xml:"EnableABE,omitempty"`
 	// Specifies whether to enable the oplock feature. Valid values:
 	//
 	// 	- true: enables the feature.
@@ -117,8 +118,17 @@ func (s ModifyFileSystemRequestOptions) GoString() string {
 	return s.String()
 }
 
+func (s *ModifyFileSystemRequestOptions) GetEnableABE() *bool {
+	return s.EnableABE
+}
+
 func (s *ModifyFileSystemRequestOptions) GetEnableOplock() *bool {
 	return s.EnableOplock
+}
+
+func (s *ModifyFileSystemRequestOptions) SetEnableABE(v bool) *ModifyFileSystemRequestOptions {
+	s.EnableABE = &v
+	return s
 }
 
 func (s *ModifyFileSystemRequestOptions) SetEnableOplock(v bool) *ModifyFileSystemRequestOptions {

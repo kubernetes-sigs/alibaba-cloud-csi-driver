@@ -22,7 +22,6 @@ type iDescribeMountTargetsResponseBody interface {
 }
 
 type DescribeMountTargetsResponseBody struct {
-	// The queried mount targets.
 	MountTargets *DescribeMountTargetsResponseBodyMountTargets `json:"MountTargets,omitempty" xml:"MountTargets,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,78 +146,16 @@ func (s *DescribeMountTargetsResponseBodyMountTargets) Validate() error {
 }
 
 type DescribeMountTargetsResponseBodyMountTargetsMountTarget struct {
-	// The name of the permission group that is attached to the mount target.
-	//
-	// example:
-	//
-	// DEFAULT_VPC_GROUP_NAME
-	AccessGroup *string `json:"AccessGroup,omitempty" xml:"AccessGroup,omitempty"`
-	// The information about client management nodes.
-	ClientMasterNodes *DescribeMountTargetsResponseBodyMountTargetsMountTargetClientMasterNodes `json:"ClientMasterNodes,omitempty" xml:"ClientMasterNodes,omitempty" type:"Struct"`
-	// The dual-stack (IPv4 and IPv6) domain name of the mount target.
-	//
-	// example:
-	//
-	// 1ca404****-x****.dualstack.cn-hangzhou.nas.aliyuncs.com
-	DualStackMountTargetDomain *string `json:"DualStackMountTargetDomain,omitempty" xml:"DualStackMountTargetDomain,omitempty"`
-	// The type of the mount target.
-	//
-	// 	- IPv4: an IPv4 mount target
-	//
-	// 	- DualStack: a dual-stack mount target
-	//
-	// example:
-	//
-	// IPv4
-	IPVersion *string `json:"IPVersion,omitempty" xml:"IPVersion,omitempty"`
-	// The IPv4 domain name of the mount target.
-	//
-	// example:
-	//
-	// 1ca404****-w****.cn-hangzhou.nas.aliyuncs.com
-	MountTargetDomain *string `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
-	// The network type. Valid value: **Vpc**.
-	//
-	// example:
-	//
-	// Vpc
-	NetworkType *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
-	// The status of the mount target.
-	//
-	// Valid values:
-	//
-	// 	- Active: The mount target is available.
-	//
-	// 	- Inactive: The mount target is unavailable.
-	//
-	// 	- Pending: The mount target is being created or modified.
-	//
-	// 	- Deleting: The mount target is being deleted.
-	//
-	// 	- Hibernating: The mount target is being hibernated.
-	//
-	// 	- Hibernated: The mount target is hibernated.
-	//
-	// > You can mount a file system only when the mount target of the file system is in the Active state.
-	//
-	// example:
-	//
-	// Active
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// An array of tags. The array may contain up to 20 tags. If the array contains multiple tags, each tag key is unique.
-	Tags *DescribeMountTargetsResponseBodyMountTargetsMountTargetTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The ID of the virtual private cloud (VPC).
-	//
-	// example:
-	//
-	// vpc-2zesj9afh3y518k9o****
-	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
-	// The ID of the vSwitch.
-	//
-	// example:
-	//
-	// vsw-2zevmwkwyztjuoffg****
-	VswId *string `json:"VswId,omitempty" xml:"VswId,omitempty"`
+	AccessGroup                *string                                                                   `json:"AccessGroup,omitempty" xml:"AccessGroup,omitempty"`
+	ClientMasterNodes          *DescribeMountTargetsResponseBodyMountTargetsMountTargetClientMasterNodes `json:"ClientMasterNodes,omitempty" xml:"ClientMasterNodes,omitempty" type:"Struct"`
+	DualStackMountTargetDomain *string                                                                   `json:"DualStackMountTargetDomain,omitempty" xml:"DualStackMountTargetDomain,omitempty"`
+	IPVersion                  *string                                                                   `json:"IPVersion,omitempty" xml:"IPVersion,omitempty"`
+	MountTargetDomain          *string                                                                   `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
+	NetworkType                *string                                                                   `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
+	Status                     *string                                                                   `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags                       *DescribeMountTargetsResponseBodyMountTargetsMountTargetTags              `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	VpcId                      *string                                                                   `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	VswId                      *string                                                                   `json:"VswId,omitempty" xml:"VswId,omitempty"`
 }
 
 func (s DescribeMountTargetsResponseBodyMountTargetsMountTarget) String() string {
@@ -368,24 +305,9 @@ func (s *DescribeMountTargetsResponseBodyMountTargetsMountTargetClientMasterNode
 }
 
 type DescribeMountTargetsResponseBodyMountTargetsMountTargetClientMasterNodesClientMasterNode struct {
-	// The default logon password of the ECS instance.
-	//
-	// example:
-	//
-	// 12****
 	DefaultPasswd *string `json:"DefaultPasswd,omitempty" xml:"DefaultPasswd,omitempty"`
-	// The ID of the ECS instance on the client management node.
-	//
-	// example:
-	//
-	// i-hp3i3odi5ory1buo****
-	EcsId *string `json:"EcsId,omitempty" xml:"EcsId,omitempty"`
-	// The IP address of the ECS instance on the client management node.
-	//
-	// example:
-	//
-	// 192.168.1.0
-	EcsIp *string `json:"EcsIp,omitempty" xml:"EcsIp,omitempty"`
+	EcsId         *string `json:"EcsId,omitempty" xml:"EcsId,omitempty"`
+	EcsIp         *string `json:"EcsIp,omitempty" xml:"EcsIp,omitempty"`
 }
 
 func (s DescribeMountTargetsResponseBodyMountTargetsMountTargetClientMasterNodesClientMasterNode) String() string {
@@ -462,31 +384,7 @@ func (s *DescribeMountTargetsResponseBodyMountTargetsMountTargetTags) Validate()
 }
 
 type DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag struct {
-	// The tag key. Limits:
-	//
-	// 	- The tag key cannot be null or an empty string.
-	//
-	// 	- The tag key can be up to 128 characters in length.
-	//
-	// 	- The key value cannot start with aliyun or acs:.
-	//
-	// 	- The key value cannot contain http:// or https://.
-	//
-	// example:
-	//
-	// nastest
-	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The tag value.
-	//
-	// Limits:
-	//
-	// 	- The tag value can be up to 128 characters in length.
-	//
-	// 	- The tag value cannot contain http:// or https://.
-	//
-	// example:
-	//
-	// mounttargettest
+	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

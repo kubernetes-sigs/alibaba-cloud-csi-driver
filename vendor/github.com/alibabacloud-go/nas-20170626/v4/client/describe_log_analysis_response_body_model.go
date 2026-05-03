@@ -24,7 +24,6 @@ type iDescribeLogAnalysisResponseBody interface {
 }
 
 type DescribeLogAnalysisResponseBody struct {
-	// The collection of log dump information.
 	Analyses *DescribeLogAnalysisResponseBodyAnalyses `json:"Analyses,omitempty" xml:"Analyses,omitempty" type:"Struct"`
 	// The HTTP status code.
 	//
@@ -164,13 +163,7 @@ func (s *DescribeLogAnalysisResponseBodyAnalyses) Validate() error {
 }
 
 type DescribeLogAnalysisResponseBodyAnalysesAnalysis struct {
-	// The ID of the file system.
-	//
-	// example:
-	//
-	// 0c7154xxxx
-	MetaKey *string `json:"MetaKey,omitempty" xml:"MetaKey,omitempty"`
-	// The log dump information of the file system.
+	MetaKey   *string                                                   `json:"MetaKey,omitempty" xml:"MetaKey,omitempty"`
 	MetaValue *DescribeLogAnalysisResponseBodyAnalysesAnalysisMetaValue `json:"MetaValue,omitempty" xml:"MetaValue,omitempty" type:"Struct"`
 }
 
@@ -210,30 +203,10 @@ func (s *DescribeLogAnalysisResponseBodyAnalysesAnalysis) Validate() error {
 }
 
 type DescribeLogAnalysisResponseBodyAnalysesAnalysisMetaValue struct {
-	// The name of the dedicated Logstore that is used to store NAS operation logs.
-	//
-	// example:
-	//
-	// nas-nfs
 	Logstore *string `json:"Logstore,omitempty" xml:"Logstore,omitempty"`
-	// The name of the project where the dedicated Logstore resides.
-	//
-	// example:
-	//
-	// nas-1746495857602745-cn-hangzhou
-	Project *string `json:"Project,omitempty" xml:"Project,omitempty"`
-	// The region where the dedicated Logstore resides.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	Region *string `json:"Region,omitempty" xml:"Region,omitempty"`
-	// The role that is used by NAS to access Simple Log Service.
-	//
-	// example:
-	//
-	// acs:ram::162165525211xxxx:role/aliyunnaslogarchiverole
-	RoleArn *string `json:"RoleArn,omitempty" xml:"RoleArn,omitempty"`
+	Project  *string `json:"Project,omitempty" xml:"Project,omitempty"`
+	Region   *string `json:"Region,omitempty" xml:"Region,omitempty"`
+	RoleArn  *string `json:"RoleArn,omitempty" xml:"RoleArn,omitempty"`
 }
 
 func (s DescribeLogAnalysisResponseBodyAnalysesAnalysisMetaValue) String() string {

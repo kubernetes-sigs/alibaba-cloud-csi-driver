@@ -60,6 +60,8 @@ type DescribeProtocolMountTargetRequest struct {
 	//
 	// aBcdg==
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// Protocol service ID list
+	//
 	// example:
 	//
 	// ptc-123xxx
@@ -144,19 +146,17 @@ func (s *DescribeProtocolMountTargetRequest) Validate() error {
 type DescribeProtocolMountTargetRequestFilters struct {
 	// The filter name.
 	//
-	// 	- ProtocolServiceIds: filters export directories by protocol service ID.
+	// 	- ProtocolServiceIds: Filters export directories by protocol service ID.
 	//
-	// 	- ExportIds: filters export directories by export directory ID.
+	// 	- ExportIds: Filters export directories by export directory ID.
 	//
-	// 	- VpcIds: filters export directories by virtual private cloud (VPC) ID.
+	// 	- VpcIds: Filters export directories by VPC ID.
 	//
-	// 	- VSwitchIds: filters export directories by vSwitch ID.
+	// 	- FsetIds: Filters export directories by fileset ID.
 	//
-	// 	- FsetIds: filters export directories by fileset ID.
+	// 	- Paths: Filters export directories based on the path of the file system corresponding to the mount target.
 	//
-	// 	- Paths: filters export directories based on the path of the file system corresponding to the mount target.
-	//
-	// 	- AccessGroupNames: filters export directories by permission group name.
+	// 	- AccessGroupNames: Filters export directories by permission group name.
 	//
 	// example:
 	//

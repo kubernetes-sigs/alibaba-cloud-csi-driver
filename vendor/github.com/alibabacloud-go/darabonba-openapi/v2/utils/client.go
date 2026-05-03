@@ -827,3 +827,125 @@ func StringifyMapValue(a map[string]interface{}) map[string]*string {
 	}
 	return res
 }
+
+// MapToFlatStyle transforms a map to a flat style map where keys are prefixed with length info.
+// Map keys are transformed from "key" to "#length#key" format.
+func MapToFlatStyle(object interface{}) interface{} {
+	if object == nil {
+		return object
+	}
+
+	val := reflect.ValueOf(object)
+	if !val.IsValid() {
+		return object
+	}
+
+	// Handle pointer types
+	if val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return object
+		}
+		val = val.Elem()
+	}
+
+	// Handle slice/array (List)
+	if val.Kind() == reflect.Slice || val.Kind() == reflect.Array {
+		result := make([]interface{}, val.Len())
+		for i := 0; i < val.Len(); i++ {
+			result[i] = MapToFlatStyle(val.Index(i).Interface())
+		}
+		return result
+	}
+
+	// Handle struct (TeaModel equivalent)
+	if val.Kind() == reflect.Struct {
+		// Create a pointer to the struct so we can modify it
+		if reflect.TypeOf(object).Kind() == reflect.Ptr {
+			// Already a pointer
+			val = reflect.ValueOf(object).Elem()
+		} else {
+			// Make a copy and work with pointer
+			ptrVal := reflect.New(val.Type())
+			ptrVal.Elem().Set(val)
+			val = ptrVal.Elem()
+			object = ptrVal.Interface()
+		}
+
+		valType := val.Type()
+		for i := 0; i < val.NumField(); i++ {
+			field := val.Field(i)
+			fieldType := valType.Field(i)
+
+			// Skip unexported fields
+			if !field.CanSet() {
+				continue
+			}
+
+			fieldValue := field.Interface()
+
+			// Check if field is a map
+			if field.Kind() == reflect.Map {
+				flatMap := make(map[string]interface{})
+				iter := field.MapRange()
+				for iter.Next() {
+					key := iter.Key()
+					value := iter.Value()
+					keyStr := fmt.Sprintf("%v", key.Interface())
+					flatKey := fmt.Sprintf("#%d#%s", len(keyStr), keyStr)
+					flatMap[flatKey] = MapToFlatStyle(value.Interface())
+				}
+
+				// Set the flattened map back to the field
+				newMapValue := reflect.MakeMap(field.Type())
+				for k, v := range flatMap {
+					keyVal := reflect.ValueOf(k)
+					valVal := reflect.ValueOf(v)
+					if valVal.IsValid() && valVal.Type().AssignableTo(field.Type().Elem()) {
+						newMapValue.SetMapIndex(keyVal, valVal)
+					} else if valVal.IsValid() {
+						// Try to convert the value
+						if field.Type().Elem().Kind() == reflect.Interface {
+							newMapValue.SetMapIndex(keyVal, valVal)
+						}
+					}
+				}
+				if newMapValue.Len() > 0 {
+					field.Set(newMapValue)
+				}
+			} else {
+				// Recursively process other fields
+				processed := MapToFlatStyle(fieldValue)
+				if processed != nil && field.CanSet() {
+					processedVal := reflect.ValueOf(processed)
+					if processedVal.IsValid() {
+						// Only set if types are compatible
+						if processedVal.Type().AssignableTo(fieldType.Type) {
+							field.Set(processedVal)
+						} else if fieldType.Type.Kind() == reflect.Interface {
+							field.Set(processedVal)
+						} else if processedVal.Type().ConvertibleTo(fieldType.Type) {
+							field.Set(processedVal.Convert(fieldType.Type))
+						}
+					}
+				}
+			}
+		}
+		return object
+	}
+
+	// Handle map
+	if val.Kind() == reflect.Map {
+		flatMap := make(map[string]interface{})
+		iter := val.MapRange()
+		for iter.Next() {
+			key := iter.Key()
+			value := iter.Value()
+			keyStr := fmt.Sprintf("%v", key.Interface())
+			flatKey := fmt.Sprintf("#%d#%s", len(keyStr), keyStr)
+			flatMap[flatKey] = MapToFlatStyle(value.Interface())
+		}
+		return flatMap
+	}
+
+	return object
+}
