@@ -34,6 +34,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	k8sver "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
@@ -55,6 +56,7 @@ type controllerServer struct {
 	fusePodManagers map[string]*ossfpm.OSSFusePodManager
 	legacyPods      sets.Set[podLoc]
 	legacyPodsMu    sync.Mutex
+	k8sVersion      *k8sver.Version
 	common.GenericControllerServer
 }
 

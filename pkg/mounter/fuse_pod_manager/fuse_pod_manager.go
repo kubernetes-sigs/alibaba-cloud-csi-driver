@@ -16,8 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
-	informercorev1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
@@ -192,14 +192,16 @@ func ExtractFuseContainerConfig(csiCfg utils.Config, name string) (config FuseCo
 }
 
 type FusePodManager struct {
-	client kubernetes.Interface
+	client                   kubernetes.Interface
+	constrainResourceVersion bool
 	FuseMounterType
 }
 
-func NewFusePodManager(fuseType FuseMounterType, client kubernetes.Interface) *FusePodManager {
+func NewFusePodManager(fuseType FuseMounterType, client kubernetes.Interface, constrainResourceVersion bool) *FusePodManager {
 	return &FusePodManager{
-		client:          client,
-		FuseMounterType: fuseType,
+		client:                   client,
+		constrainResourceVersion: constrainResourceVersion,
+		FuseMounterType:          fuseType,
 	}
 }
 
@@ -337,10 +339,35 @@ func (fpm *FusePodManager) Delete(c *FusePodContext) error {
 	logger := klog.FromContext(ctx).WithValues("namespace", c.Namespace)
 
 	_, listOptions := fpm.labelsAndListOptionsFor(c, "")
-	informer := informercorev1.NewFilteredPodInformer(fpm.client, c.Namespace, 0, nil, func(options *metav1.ListOptions) {
-		options.FieldSelector = listOptions.FieldSelector
-		options.LabelSelector = listOptions.LabelSelector
-	})
+
+	podClient := fpm.client.CoreV1().Pods(c.Namespace)
+
+	// Determine ResourceVersion strategy based on constrainResourceVersion flag
+	// true:  Constrain RV="0" to read from watch cache (K8s < 1.31, avoids etcd pressure)
+	// false: Use RV="" for consistent reads (K8s >= 1.31, Consistent Reads from Cache)
+	resourceVersion := "0"
+	if !fpm.constrainResourceVersion {
+		resourceVersion = ""
+	}
+
+	// Create custom ListWatch with ResourceVersion override
+	// Important: We must override ResourceVersion in the ListFunc because
+	// the Reflector will set it to relistResourceVersion() which returns "0"
+	// for initial list. We override it based on our strategy.
+	lw := &cache.ListWatch{
+		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			options.ResourceVersion = resourceVersion
+			options.FieldSelector = listOptions.FieldSelector
+			options.LabelSelector = listOptions.LabelSelector
+			return podClient.List(ctx, options)
+		},
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			options.FieldSelector = listOptions.FieldSelector
+			options.LabelSelector = listOptions.LabelSelector
+			return podClient.Watch(ctx, options)
+		},
+	}
+	informer := cache.NewSharedIndexInformer(lw, &corev1.Pod{}, 0, nil)
 	deleteNotify := make(chan struct{}, 1)
 	deleteNotify <- struct{}{}
 	_, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -362,7 +389,6 @@ func (fpm *FusePodManager) Delete(c *FusePodContext) error {
 		return fmt.Errorf("failed to wait for caches to sync: %w", ctx.Err())
 	}
 
-	podClient := fpm.client.CoreV1().Pods(c.Namespace)
 	for _, obj := range informer.GetStore().List() {
 		pod := obj.(*corev1.Pod)
 		if pod.DeletionTimestamp == nil {

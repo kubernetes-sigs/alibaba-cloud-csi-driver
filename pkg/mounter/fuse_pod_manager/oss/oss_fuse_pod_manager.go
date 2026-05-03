@@ -19,8 +19,8 @@ type OSSFusePodManager struct {
 	OSSFuseMounterType
 }
 
-func NewOSSFusePodManager(fuseType OSSFuseMounterType, client kubernetes.Interface) *OSSFusePodManager {
-	manager := fpm.NewFusePodManager(fuseType, client)
+func NewOSSFusePodManager(fuseType OSSFuseMounterType, client kubernetes.Interface, constrainResourceVersion bool) *OSSFusePodManager {
+	manager := fpm.NewFusePodManager(fuseType, client, constrainResourceVersion)
 	return &OSSFusePodManager{
 		*manager,
 		fuseType,

@@ -50,6 +50,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"golang.org/x/sys/unix"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
 	logsapi "k8s.io/component-base/logs/api/v1"
@@ -149,14 +150,22 @@ func main() {
 	meta.EnableEcs(http.DefaultTransport)
 
 	cfg, err := options.GetRestConfig()
+	var kubeClient kubernetes.Interface
+	var k8sVersion *k8sversion.Version
 	if err != nil {
 		klog.Warningf("newGlobalConfig: build kubeconfig failed: %v", err)
 	} else {
-		kubeClient, err := kubernetes.NewForConfig(cfg)
+		kubeClient, err = kubernetes.NewForConfig(cfg)
 		if err != nil {
 			klog.Warningf("Error building kubernetes clientset: %v", err)
 		} else {
 			meta.EnableKubernetes(kubeClient)
+
+			// Detect Kubernetes version for feature compatibility
+			k8sVersion, err = detectKubernetesVersion(kubeClient)
+			if err != nil {
+				klog.Warningf("Failed to detect kubernetes version: %v", err)
+			}
 		}
 	}
 
@@ -217,7 +226,7 @@ func main() {
 		case TypePluginOSS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := oss.NewDriver(endPoint, meta, serviceType, csiCfg)
+				driver := oss.NewDriver(endPoint, meta, serviceType, csiCfg, k8sVersion)
 				driver.Run()
 			}(endPointName)
 		case TypePluginDISK:
@@ -334,4 +343,20 @@ func getCSIPluginConfig() (config utils.Config) {
 
 	config.ConfigMap = cm.Data
 	return
+}
+
+// detectKubernetesVersion detects the Kubernetes server version
+func detectKubernetesVersion(clientset kubernetes.Interface) (*k8sversion.Version, error) {
+	serverVersion, err := clientset.Discovery().ServerVersion()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get server version: %w", err)
+	}
+
+	// Parse the version string (format: "v1.31.0" or "v1.31.0-eks-...")
+	k8sVersion, err := k8sversion.ParseSemantic(serverVersion.GitVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse version %q: %w", serverVersion.GitVersion, err)
+	}
+
+	return k8sVersion, nil
 }
