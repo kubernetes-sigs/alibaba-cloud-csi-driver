@@ -164,7 +164,7 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 				URL:       "1.1.1.1",
 				Bucket:    "aliyun",
 				Path:      "/path",
-				SecretRef: mounterutils.GetCredientialsSecretName(mounterutils.OssFsType),
+				SecretRef: mounterutils.GetCredentialsSecretName(mounterutils.OssFsType),
 				FuseType:  mounterutils.OssFsType,
 			},
 			wantErr: true,

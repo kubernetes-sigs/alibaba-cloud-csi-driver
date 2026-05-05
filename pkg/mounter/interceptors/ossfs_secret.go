@@ -300,7 +300,7 @@ func rotatePasswdFile(path string, data []byte, perm os.FileMode) (done bool, er
 //  2. dir:     directory of ossfs credential files for token
 //  4. error
 func prepareCredentialFiles(fuseType, target string, secrets map[string]string) (file, dir string, err error) {
-	// fixed credientials
+	// fixed credentials
 	hashDir := mounterutils.GetPasswdHashDir(target)
 
 	if passwd := secrets[mounterutils.GetPasswdFileName(fuseType)]; passwd != "" {

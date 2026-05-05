@@ -84,7 +84,7 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 			if o.AkID != "" || o.AkSecret != "" {
 				return fmt.Errorf("AK and secretRef cannot be set at the same time")
 			}
-			if o.SecretRef == mounterutils.GetCredientialsSecretName(mounterutils.OssFsType) {
+			if o.SecretRef == mounterutils.GetCredentialsSecretName(mounterutils.OssFsType) {
 				return fmt.Errorf("invalid SecretRef name")
 			}
 			return nil
