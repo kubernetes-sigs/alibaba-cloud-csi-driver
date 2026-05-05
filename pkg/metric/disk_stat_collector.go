@@ -228,7 +228,7 @@ func (p *diskStatCollector) latencyEventAlert(stat, lastStat *blockdevice.IOStat
 		if l <= p.milliSecondsLatencyThreshold {
 			return
 		}
-		p.recorder.Eventf(ref, v1.EventTypeWarning, latencyTooHigh, "PVC %s/%s latency is too high, nodeName: %s, latency:%.2f ms, threshold:%.2f ms",
+		p.recorder.Eventf(ref, v1.EventTypeWarning, latencyTooHigh, "PVC %s/%s %s latency is too high, nodeName: %s, latency:%.2f ms, threshold:%.2f ms",
 			ref.Namespace, ref.Name, op, p.nodeName, l, p.milliSecondsLatencyThreshold)
 	}
 	// Note that this `lastStat.ReadTicks-stat.ReadTicks` even works when the counter overflows and wraps around.

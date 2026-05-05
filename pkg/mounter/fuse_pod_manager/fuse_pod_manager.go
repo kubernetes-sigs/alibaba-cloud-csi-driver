@@ -305,12 +305,12 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string) (*corev1.Pod
 
 	logger.V(2).Info("wait until pod is ready", "pod", fusePod.Name)
 	fieldSelector := fields.OneTermEqualSelector("metadata.name", fusePod.Name).String()
-	lw := &cache.ListWatch{
+	lw := cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 			options.FieldSelector = fieldSelector
 			return podClient.Watch(ctx, options)
 		},
-	}
+	}, fpm.client)
 	_, err = watchtools.Until(ctx, fusePod.ResourceVersion, lw, func(event watch.Event) (bool, error) {
 		if event.Type == watch.Deleted {
 			return false, fmt.Errorf("fuse pod %s was deleted", fusePod.Name)
@@ -354,7 +354,7 @@ func (fpm *FusePodManager) Delete(c *FusePodContext) error {
 	// Important: We must override ResourceVersion in the ListFunc because
 	// the Reflector will set it to relistResourceVersion() which returns "0"
 	// for initial list. We override it based on our strategy.
-	lw := &cache.ListWatch{
+	lw := cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.ResourceVersion = resourceVersion
 			options.FieldSelector = listOptions.FieldSelector
@@ -366,7 +366,7 @@ func (fpm *FusePodManager) Delete(c *FusePodContext) error {
 			options.LabelSelector = listOptions.LabelSelector
 			return podClient.Watch(ctx, options)
 		},
-	}
+	}, fpm.client)
 	informer := cache.NewSharedIndexInformer(lw, &corev1.Pod{}, 0, nil)
 	deleteNotify := make(chan struct{}, 1)
 	deleteNotify <- struct{}{}
