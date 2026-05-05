@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"strings"
@@ -9,6 +8,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
@@ -58,7 +58,6 @@ var MetadataLabels = map[MetadataKey][]string{
 	InstanceType: InstanceTypeLabels,
 	InstanceID:   InstanceIdLabels,
 	VmocType:     VmocLabels,
-	machineKind:  {"alibabacloud.com/lingjun-worker"},
 }
 
 func init() {
@@ -69,12 +68,25 @@ func init() {
 	}
 }
 
-func NewKubernetesNodeMetadata(ctx context.Context, nodeName string, nodeClient corev1.NodeInterface) (*KubernetesNodeMetadata, error) {
-	node, err := nodeClient.Get(ctx, nodeName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
+// LingjunWorkerLabel is the label key used to identify Lingjun nodes.
+const LingjunWorkerLabel = "alibabacloud.com/lingjun-worker"
 
+// NodeMetadataLabelKeys returns the set of label keys needed for metadata extraction.
+func NodeMetadataLabelKeys() sets.Set[string] {
+	keys := sets.New[string]()
+	for _, candidates := range MetadataLabels {
+		keys.Insert(candidates...)
+	}
+	keys.Insert(LingjunWorkerLabel)
+	return keys
+}
+
+// NodeMetadataAnnotationKeys returns the set of annotation keys needed for metadata extraction.
+func NodeMetadataAnnotationKeys() sets.Set[string] {
+	return sets.New(instanceTypeInfoAnnotation)
+}
+
+func NewKubernetesNodeMetadata(node *v1.Node) *KubernetesNodeMetadata {
 	instanceType := func() (*instanceTypeInfo, error) {
 		return nil, ErrUnknownMetadataKey
 	}
@@ -85,30 +97,15 @@ func NewKubernetesNodeMetadata(ctx context.Context, nodeName string, nodeClient 
 			return &info, err
 		})
 	}
-
-	return &KubernetesNodeMetadata{node: node, instanceType: instanceType}, nil
+	return &KubernetesNodeMetadata{node: node, instanceType: instanceType}
 }
 
-func (m *KubernetesNodeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
+// Get returns the string metadata value for the given key.
+func (m *KubernetesNodeMetadata) Get(key MetadataKey) (string, error) {
 	labels := MetadataLabels[key]
 	for _, label := range labels {
 		if value := m.node.Labels[label]; value != "" {
-			switch key {
-			case machineKind:
-				if value == "true" {
-					return MachineKindLingjun, nil
-				}
-			default:
-				return value, nil
-			}
-		}
-	}
-
-	if key == diskQuantity {
-		if i, err := m.instanceType(); err == nil {
-			return i.DiskQuantity, nil
-		} else {
-			return nil, err
+			return value, nil
 		}
 	}
 
@@ -122,7 +119,35 @@ func (m *KubernetesNodeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, erro
 		}
 	}
 
-	return nil, ErrUnknownMetadataKey
+	return "", ErrUnknownMetadataKey
+}
+
+// DiskQuantity returns the DiskQuantity decoded from the
+// "alibabacloud.com/instance-type-info" annotation, or [ErrUnknownMetadataKey]
+// if the annotation is absent.
+func (m *KubernetesNodeMetadata) DiskQuantity() (int32, error) {
+	if i, err := m.instanceType(); err == nil {
+		return i.DiskQuantity, nil
+	} else {
+		return 0, err
+	}
+}
+
+func (m *KubernetesNodeMetadata) MachineKind() (MachineKind, error) {
+	if m.node.Labels[LingjunWorkerLabel] == "true" {
+		return MachineKindLingjun, nil
+	}
+	return MachineKindUnknown, ErrUnknownMetadataKey
+}
+
+func (m *KubernetesNodeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
+	switch key {
+	case diskQuantity:
+		return m.DiskQuantity()
+	case machineKind:
+		return m.MachineKind()
+	}
+	return m.Get(key)
 }
 
 type KubernetesNodeMetadataFetcher struct {
@@ -136,14 +161,14 @@ func (f *KubernetesNodeMetadataFetcher) FetchFor(ctx *mcontext, key MetadataKey)
 	_, ok := MetadataLabels[key]
 	if !ok {
 		switch key {
-		case diskQuantity: // supported
+		case diskQuantity, machineKind: // supported
 		default:
 			return nil, ErrUnknownMetadataKey
 		}
 	}
-	p, err := NewKubernetesNodeMetadata(ctx, f.nodeName, f.client)
+	node, err := f.client.Get(ctx, f.nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return newImmutable(p, "Kubernetes"), nil
+	return newImmutable(NewKubernetesNodeMetadata(node), "Kubernetes"), nil
 }

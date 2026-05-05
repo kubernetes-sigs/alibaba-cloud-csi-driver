@@ -99,9 +99,7 @@ func TestGetK8s(t *testing.T) {
 			node.Spec.ProviderID = c.ProviderID
 			node.Labels = c.Labels
 
-			client := fake.NewSimpleClientset(node).CoreV1().Nodes()
-			m, err := NewKubernetesNodeMetadata(testMContext(t), node.Name, client)
-			assert.NoError(t, err)
+			m := NewKubernetesNodeMetadata(node)
 
 			for k, v := range expectedValues {
 				t.Log(k, v)

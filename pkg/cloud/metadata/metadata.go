@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
@@ -312,6 +313,10 @@ func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
 			client: client,
 		},
 	})
+}
+
+func (m *Metadata) AddKubernetesNode(node *v1.Node) {
+	m.providers = append(m.providers, inferMachineKind{NewKubernetesNodeMetadata(node)})
 }
 
 func (m *Metadata) enableKubernetesNode(client kubernetes.Interface, nodeName string) {

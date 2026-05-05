@@ -58,6 +58,7 @@ import (
 
 type nodeServer struct {
 	metadata     metadata.MetadataProvider
+	ecsV2        cloud.ECSv2Interface
 	mounter      utils.Mounter
 	kataBMIOType MachineType
 	k8smounter   k8smount.Interface
@@ -162,7 +163,7 @@ func parseVolumeCountEnv() (int, error) {
 }
 
 // NewNodeServer creates node server
-func NewNodeServer(ecs cloud.ECSInterface, m metadata.MetadataProvider) csi.NodeServer {
+func NewNodeServer(ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadata.MetadataProvider) csi.NodeServer {
 	// Create Directory
 	err := os.MkdirAll(RundSocketDir, os.FileMode(0755))
 	if err != nil {
@@ -206,6 +207,7 @@ func NewNodeServer(ecs cloud.ECSInterface, m metadata.MetadataProvider) csi.Node
 	waiter, batcher := newBatcher(true)
 	return &nodeServer{
 		metadata:     m,
+		ecsV2:        ecsV2,
 		mounter:      utils.NewMounter(),
 		kataBMIOType: kataBMIOType,
 		unixMounter:  mounter.UnixMounter{},
@@ -814,8 +816,23 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		return nil, status.Errorf(codes.Internal, "cannot determine current machine kind: %v", err)
 	}
 
-	c := GlobalConfigVar.EcsClient
-	if maxVolumesNum == 0 {
+	// Check if the labeler has already provisioned max-disk annotation on
+	// the node. If present and parseable, use it directly and skip all
+	// OpenAPI calls below (DescribeInstance/Disks/AvailableResource). This
+	// is the credential-less path for nodes.
+	skipOpenAPI := false
+	if maxVolumesNum == 0 && machineKind != metadata.MachineKindLingjun {
+		if _, err = getNode(); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get current node: %v", err)
+		}
+		if n, ok := getVolumeCountFromLabelerAnnotation(node); ok {
+			maxVolumesNum = n
+			skipOpenAPI = true
+			klog.InfoS("NodeGetInfo: using labeler annotation", "maxVolumesPerNode", n)
+		}
+	}
+
+	if !skipOpenAPI && maxVolumesNum == 0 {
 		quantity, err := m.DiskQuantity()
 		if err != nil {
 			if errors.Is(err, metadata.ErrUnknownMetadataKey) {
@@ -825,7 +842,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 				return nil, status.Errorf(codes.Internal, "cannot determine disk quantity: %v", err)
 			}
 		} else {
-			unmanaged, err := getUnmanagedDiskCount(getNode, c, m, utilsio.RealDevTmpFS{})
+			unmanaged, err := getUnmanagedDiskCount(getNode, ns.ecsV2, metadata.MustGet(m, metadata.InstanceID), metadata.MustGet(m, metadata.RegionID), utilsio.RealDevTmpFS{})
 			if err != nil {
 				return nil, err
 			}
@@ -840,7 +857,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}
 
 	var diskTypes []string
-	if !GlobalConfigVar.DiskAllowAllType {
+	if !GlobalConfigVar.DiskAllowAllType && !skipOpenAPI {
 		// If it's a Lingjun node, reuse Lingjun detection and report configured supported types
 		if machineKind == metadata.MachineKindLingjun {
 			logger.V(2).Info("lingjun node detected")
@@ -850,7 +867,9 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 			logger.V(2).Info("Lingjun supported disk types", "diskTypes", diskTypes)
 		} else {
 			// Non-Lingjun: query ECS API for supported types
-			diskTypes, err = GetAvailableDiskTypes(ctx, c, m)
+			instanceType := metadata.MustGet(m, metadata.InstanceType)
+			zoneID := metadata.MustGet(m, metadata.ZoneID)
+			diskTypes, err = GetAvailableDiskTypes(ctx, ns.ecsV2, instanceType, zoneID, GlobalConfigVar.Region)
 			if err != nil {
 				if hasDiskTypeLabel(node) {
 					logger.Error(err, "failed to get available disk types, will use existing config")
@@ -863,19 +882,23 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 				logger.V(2).Info("Supported disk types", "diskTypes", diskTypes)
 			}
 		}
-	} else {
+	} else if GlobalConfigVar.DiskAllowAllType {
 		logger.Info("DISK_ALLOW_ALL_TYPE is set, you need to ensure the EBS disk type is compatible with the ECS instance type yourself!")
 	}
 
-	patch := patchForNode(node, maxVolumesNum, diskTypes)
-	if patch != nil {
-		_, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("failed to update node: %w", err)
+	if !skipOpenAPI {
+		patch := patchForNode(node, maxVolumesNum, diskTypes)
+		if patch != nil {
+			_, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+			if err != nil {
+				return nil, fmt.Errorf("failed to update node: %w", err)
+			}
+			klog.Infof("NodeGetInfo: node updated")
+		} else {
+			klog.Info("NodeGetInfo: no need to update node")
 		}
-		logger.V(2).Info("node updated")
 	} else {
-		logger.V(2).Info("no need to update node")
+		logger.Info("skip OpenAPI, labeler annotation used")
 	}
 
 	segments := map[string]string{
@@ -1042,7 +1065,7 @@ func (ns *nodeServer) unmountDuplicateMountPoint(logger klog.Logger, targetPath,
 		// V2 used in Kubernetes 1.24 and later, see https://github.com/kubernetes/kubernetes/pull/107065
 		// If a volume is mounted at globalPathV1 then kubelet is upgraded, kubelet will also mount the same volume at globalPathV2.
 		volSha := fmt.Sprintf("%x", sha256.Sum256([]byte(volumeId)))
-		globalPathV2 := filepath.Join(utils.KubeletRootDir, "plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
+		globalPathV2 := filepath.Join(utils.KubeletRootDir, "plugins/kubernetes.io/csi/", DriverName, volSha, "/globalmount")
 
 		v1Exists := utils.IsFileExisting(globalPathV1)
 		v2Exists := utils.IsFileExisting(globalPathV2)
@@ -1056,7 +1079,7 @@ func (ns *nodeServer) unmountDuplicateMountPoint(logger klog.Logger, targetPath,
 		// Unmount it if it is propagated to data disk, or kubelet with version < 1.26 will refuse to unstage the volume.
 		// Unmounting may also be propagated back to KubeletRootDir, we will fix that in NodePublishVolume.
 		globalPath2 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
-		globalPath3 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
+		globalPath3 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/", DriverName, volSha, "/globalmount")
 		if utils.IsFileExisting(globalPath2) {
 			err = ns.unmountDuplicationPath(logger, globalPath2)
 		}

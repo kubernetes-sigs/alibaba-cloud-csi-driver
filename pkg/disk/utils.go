@@ -36,10 +36,10 @@ import (
 	"sync"
 	"time"
 
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	v1_credentials "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
-	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/ttrpc"
@@ -60,6 +60,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	k8smount "k8s.io/mount-utils"
+	"k8s.io/utils/ptr"
 )
 
 var (
@@ -102,7 +103,7 @@ var ecsOpenAPITransport = http.Transport{
 
 var ecsEndpointOnce sync.Once
 
-func newEcsClient(regionID string, cred v1_credentials.CredentialsProvider) (ecsClient *ecs.Client) {
+func NewEcsClient(regionID string, cred v1_credentials.CredentialsProvider) (ecsClient *ecs.Client) {
 	scheme := "HTTPS"
 	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
 		scheme = e
@@ -738,103 +739,124 @@ func getBlockDeviceCapacity(devicePath string) int64 {
 	return pos
 }
 
-func appendDiskTypes(resp *ecs.DescribeAvailableResourceResponse, zoneID string, types []string) []string {
-	for _, zone := range resp.AvailableZones.AvailableZone {
-		if zone.ZoneId != zoneID {
+func appendDiskTypes(resp *ecs20140526.DescribeAvailableResourceResponse, zoneID string, types []string) []string {
+	if resp == nil || resp.Body == nil || resp.Body.AvailableZones == nil {
+		return types
+	}
+	for _, zone := range resp.Body.AvailableZones.AvailableZone {
+		if zone == nil || zone.AvailableResources == nil {
+			continue
+		}
+		if ptr.Deref(zone.ZoneId, "") != zoneID {
 			continue
 		}
 		for _, resource := range zone.AvailableResources.AvailableResource {
-			if resource.Type != describeResourceType {
+			if resource == nil || resource.SupportedResources == nil {
 				continue
 			}
-			for _, supportedResource := range resource.SupportedResources.SupportedResource {
-				types = append(types, supportedResource.Value)
+			if ptr.Deref(resource.Type, "") != describeResourceType {
+				continue
+			}
+			for _, supported := range resource.SupportedResources.SupportedResource {
+				if supported == nil || supported.Value == nil {
+					continue
+				}
+				types = append(types, *supported.Value)
 			}
 		}
 	}
 	return types
 }
 
-func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSInterface, m metadata.MetadataProvider) (types []string, err error) {
+// GetAvailableDiskTypes queries ECS for the disk categories supported by the
+// given instance type, combining zonal and regional results. zoneID may be
+// empty to skip the zonal query.
+func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSv2Interface, instanceType, zoneID, regionID string) ([]string, error) {
 	logger := klog.FromContext(ctx)
-	instanceType := metadata.MustGet(m, metadata.InstanceType)
 
-	request := ecs.CreateDescribeAvailableResourceRequest()
-	request.InstanceType = instanceType
-	request.DestinationResource = describeResourceType
-	request.ZoneId = metadata.MustGet(m, metadata.ZoneID)
-	request.ResourceType = "disk"
-
-	response, err := c.DescribeAvailableResource(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to DescribeAvailableResource(%s) for instance type %s: %w", request.ZoneId, instanceType, err)
+	var types []string
+	req := &ecs20140526.DescribeAvailableResourceRequest{
+		InstanceType:        &instanceType,
+		DestinationResource: new(describeResourceType),
+		ZoneId:              &zoneID,
+		ResourceType:        new("disk"),
+		RegionId:            &regionID,
 	}
+	resp, err := c.DescribeAvailableResource(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to DescribeAvailableResource(%s) for instance type %s: %w", zoneID, instanceType, err)
+	}
+	logger.V(4).Info("DescribeAvailableResource", "zoneID", zoneID, "response", resp)
+	types = appendDiskTypes(resp, zoneID, types)
 
-	logger.V(4).Info("DescribeAvailableResource", "request", request, "response", response)
-	types = appendDiskTypes(response, request.ZoneId, types)
-
-	// Regional
-	requestRegional := ecs.CreateDescribeAvailableResourceRequest()
-	requestRegional.InstanceType = instanceType
-	requestRegional.DestinationResource = describeResourceType
-	requestRegional.ResourceType = "disk"
-	requestRegional.Scope = "region"
-
-	responseRegional, err := c.DescribeAvailableResource(requestRegional)
+	reqRegional := &ecs20140526.DescribeAvailableResourceRequest{
+		InstanceType:        &instanceType,
+		DestinationResource: new(describeResourceType),
+		ResourceType:        new("disk"),
+		Scope:               new("region"),
+		RegionId:            &regionID,
+	}
+	respRegional, err := c.DescribeAvailableResource(reqRegional)
 	if err != nil {
 		return nil, fmt.Errorf("failed to DescribeAvailableResource(region) for instance type %s: %w", instanceType, err)
 	}
-
-	logger.V(4).Info("DescribeAvailableResource(region)", "request", requestRegional, "response", responseRegional)
-	types = appendDiskTypes(responseRegional, "", types)
+	logger.V(4).Info("DescribeAvailableResource(region)", "response", respRegional)
+	types = appendDiskTypes(respRegional, "", types)
 
 	if len(types) == 0 {
-		return nil, fmt.Errorf("no supported disk type found. zonal response: %s; regional response: %s",
-			response.GetHttpContentString(), responseRegional.GetHttpContentString())
+		return nil, fmt.Errorf("no supported disk type found for instance type %s in zone %q: requestId: %s, %s",
+			instanceType, zoneID, ptr.Deref(resp.Body.RequestId, ""), ptr.Deref(respRegional.Body.RequestId, ""))
 	}
 	return types, nil
 }
 
 func hasDiskTypeLabel(node *v1.Node) bool {
 	for k := range node.Labels {
-		if strings.HasPrefix(k, nodeDiskTypeLabelPrefix) {
+		if strings.HasPrefix(k, NodeDiskTypeLabelPrefix) {
 			return true
 		}
 	}
 	return false
 }
 
-func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
-	maxVolumesNumStr := strconv.Itoa(maxVolumesNum)
-	needUpdate := node.Annotations[nodeDiskCountAnnotation] != maxVolumesNumStr
+// BuildNodePatch returns a strategic-merge patch that sets the given annotation
+// key and disk-type labels, or nil if the node already has the expected values.
+func BuildNodePatch(node *v1.Node, maxVolumes int, diskTypes []string, annotationKey string) []byte {
+	maxStr := strconv.Itoa(maxVolumes)
+	need := node.Annotations[annotationKey] != maxStr
 
-	instanceStorageLabels := map[string]string{}
-	for _, diskType := range diskTypes {
-		labelKey := nodeDiskTypeLabelPrefix + diskType
-		instanceStorageLabels[labelKey] = "available"
+	wantLabels := make(map[string]string, len(diskTypes))
+	for _, t := range diskTypes {
+		wantLabels[NodeDiskTypeLabelPrefix+t] = "available"
 	}
-	for l, v := range instanceStorageLabels {
-		if node.Labels[l] != v {
-			needUpdate = true
-			break
+	if !need {
+		for k, v := range wantLabels {
+			if node.Labels[k] != v {
+				need = true
+				break
+			}
 		}
 	}
-
-	if !needUpdate {
+	if !need {
 		return nil
 	}
-	patch, err := json.Marshal(map[string]any{
+	patch := map[string]any{
 		"metadata": map[string]any{
-			"labels": instanceStorageLabels,
+			"labels": wantLabels,
 			"annotations": map[string]string{
-				nodeDiskCountAnnotation: maxVolumesNumStr,
+				annotationKey: maxStr,
 			},
 		},
-	})
-	if err != nil {
-		klog.Fatalf("failed to marshal patch json")
 	}
-	return patch
+	b, err := json.Marshal(patch)
+	if err != nil {
+		klog.Fatalf("failed to marshal patch json: %v", err)
+	}
+	return b
+}
+
+func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
+	return BuildNodePatch(node, maxVolumesNum, diskTypes, NodeDiskCountAnnotation)
 }
 
 func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
@@ -864,7 +886,7 @@ func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volu
 		// delete(volumeContext, "type")
 
 		// Add PV NodeAffinity
-		labelKey := nodeDiskTypeLabelPrefix + string(attempt.Category)
+		labelKey := NodeDiskTypeLabelPrefix + string(attempt.Category)
 		expressions := []v1.NodeSelectorRequirement{{
 			Key:      labelKey,
 			Operator: v1.NodeSelectorOpIn,
@@ -983,38 +1005,84 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	return cloned
 }
 
-func getAttachedCloudDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (diskIds []string, err error) {
-	req := ecs.CreateDescribeDisksRequest()
-	req.InstanceId = metadata.MustGet(m, metadata.InstanceID)
-	req.RegionId = metadata.MustGet(m, metadata.RegionID)
-	req.MaxResults = requests.NewInteger(100)
+// GetAttachedCloudDisks queries ECS (v2 API) for cloud disks attached to the
+// given instance, excluding detaching disks and local-only categories.
+func GetAttachedCloudDisks(ecsClient cloud.ECSv2Interface, instanceID, regionID string) ([]string, error) {
+	req := &ecs20140526.DescribeDisksRequest{
+		InstanceId: &instanceID,
+		RegionId:   &regionID,
+		MaxResults: new(int32(100)),
+	}
+	var ids []string
 	for {
 		resp, err := ecsClient.DescribeDisks(req)
 		if err != nil {
-			return nil, fmt.Errorf("DescribeDisks failed: %w", err)
+			return nil, fmt.Errorf("DescribeDisks: %w", err)
 		}
-		req.NextToken = resp.NextToken
-
-		for _, disk := range resp.Disks.Disk {
-			// Don't include detaching disks here
-			// The device node for them in /dev may not present
-			if disk.Status == "Detaching" {
-				continue
-			}
-			// local disks have their own quota in LocalStorageAmount, and are not counted for DiskQuantity
-			if strings.HasPrefix(disk.Category, "cloud") || strings.HasPrefix(disk.Category, "elastic_ephemeral_disk") {
-				diskIds = append(diskIds, disk.DiskId)
-			}
-		}
-
-		if len(req.NextToken) == 0 {
+		if resp == nil || resp.Body == nil {
 			break
 		}
+		if resp.Body.Disks != nil {
+			for _, disk := range resp.Body.Disks.Disk {
+				if disk == nil || disk.DiskId == nil {
+					continue
+				}
+				if ptr.Deref(disk.Status, "") == "Detaching" {
+					continue
+				}
+				category := ptr.Deref(disk.Category, "")
+				if strings.HasPrefix(category, "cloud") || strings.HasPrefix(category, "elastic_ephemeral_disk") {
+					ids = append(ids, *disk.DiskId)
+				}
+			}
+		}
+		next := ptr.Deref(resp.Body.NextToken, "")
+		if next == "" {
+			break
+		}
+		req.NextToken = resp.Body.NextToken
 	}
-	return diskIds, nil
+	return ids, nil
 }
 
-func getUnmanagedDiskCount(getNode func() (*v1.Node, error), c cloud.ECSInterface, m metadata.MetadataProvider, dev utilsio.DiskLister) (int, error) {
+// CollectManagedVolumes extracts CSI-managed disk IDs from node status.
+func CollectManagedVolumes(node *v1.Node) sets.Set[string] {
+	prefix := fmt.Sprintf("kubernetes.io/csi/%s^", DriverName)
+	managed := sets.New[string]()
+	extract := func(name string) {
+		if strings.HasPrefix(name, prefix) {
+			managed.Insert(name[len(prefix):])
+		}
+	}
+	for _, v := range node.Status.VolumesInUse {
+		extract(string(v))
+	}
+	for _, v := range node.Status.VolumesAttached {
+		extract(string(v.Name))
+	}
+	return managed
+}
+
+// getVolumeCountFromLabelerAnnotation reads the max-disk annotation written by
+// the centralized labeler (pkg/labeler). If present and parseable, it returns
+// the final max volumes per node; NodeGetInfo will skip all OpenAPI calls.
+func getVolumeCountFromLabelerAnnotation(node *v1.Node) (int, bool) {
+	if node == nil {
+		return 0, false
+	}
+	v, ok := node.Annotations[MaxDiskAnnotation]
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		klog.ErrorS(err, "invalid max-disk annotation", "value", v, "node", node.Name)
+		return 0, false
+	}
+	return n, true
+}
+
+func getUnmanagedDiskCount(getNode func() (*v1.Node, error), ecsV2 cloud.ECSv2Interface, instanceID, regionID string, dev utilsio.DiskLister) (int, error) {
 	// An attached disk is not managed by us if:
 	// 1. it is not in node.Status.VolumesInUse or node.Status.VolumesAttached; and
 	// 2. it does not have the xattr set.
@@ -1035,7 +1103,7 @@ func getUnmanagedDiskCount(getNode func() (*v1.Node, error), c cloud.ECSInterfac
 	// disappear from ListDisks after OpenAPI;
 	// ECS OpenAPI should goes before getNode because the just attached disk should
 	// appear in node before OpenAPI;
-	attachedDisks, err := getAttachedCloudDisks(c, m)
+	attachedDisks, err := GetAttachedCloudDisks(ecsV2, instanceID, regionID)
 	if err != nil {
 		return 0, err
 	}
@@ -1046,23 +1114,8 @@ func getUnmanagedDiskCount(getNode func() (*v1.Node, error), c cloud.ECSInterfac
 		return 0, err
 	}
 
-	prefix := fmt.Sprintf("kubernetes.io/csi/%s^", driverName)
-	getDiskId := func(n v1.UniqueVolumeName) string {
-		if strings.HasPrefix(string(n), prefix) {
-			return string(n[len(prefix):])
-		}
-		return ""
-	}
-
-	for _, volume := range node.Status.VolumesInUse {
-		if disk := getDiskId(volume); disk != "" {
-			managedDisks.Insert(disk)
-		}
-	}
-	for _, volume := range node.Status.VolumesAttached {
-		if disk := getDiskId(volume.Name); disk != "" {
-			managedDisks.Insert(disk)
-		}
+	for id := range CollectManagedVolumes(node) {
+		managedDisks.Insert(id)
 	}
 
 	unmanaged := 0

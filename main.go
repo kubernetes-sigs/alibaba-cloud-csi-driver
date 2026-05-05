@@ -39,6 +39,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/labeler"
 	csilog "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
@@ -92,6 +93,7 @@ var (
 	runAsController      = flag.Bool("run-as-controller", false, "Only run as controller service (deprecated)")
 	runControllerService = flag.Bool("run-controller-service", true, "activate CSI controller service")
 	runNodeService       = flag.Bool("run-node-service", true, "activate CSI node service")
+	runLabeler           = flag.Bool("run-labeler", false, "Run the centralized node metadata labeler (patches max-disk annotation and disk type labels on nodes)")
 	driver               = flag.String("driver", TypePluginDISK, "CSI Driver")
 	// Deprecated: rootDir is instead by KUBELET_ROOT_DIR env.
 	rootDir = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
@@ -150,12 +152,13 @@ func main() {
 	meta := metadata.NewMetadata()
 	meta.EnableIMDS(http.DefaultTransport)
 
+	var kubeClient kubernetes.Interface
 	cfg, err := options.GetRestConfig()
 	var k8sVersion *k8sversion.Version
 	if err != nil {
 		klog.Warningf("newGlobalConfig: build kubeconfig failed: %v", err)
 	} else {
-		kubeClient, err := kubernetes.NewForConfig(cfg)
+		kubeClient, err = kubernetes.NewForConfig(cfg)
 		if err != nil {
 			klog.Warningf("Error building kubernetes clientset: %v", err)
 		} else {
@@ -185,7 +188,9 @@ func main() {
 	provider, err := credentials.NewProvider()
 	if err != nil {
 		klog.ErrorS(err, "failed to get credential for metadata, will not enable OpenAPI")
-	} else {
+	}
+	var ecsClient *ecs20140526.Client
+	if provider != nil {
 		cred := alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider)
 
 		efloClient, err := eflo_controller20221215.NewClient(utils.GetEfloControllerConfig(regionID).SetCredential(cred))
@@ -195,7 +200,7 @@ func main() {
 			meta.EnableEFLO(efloClient)
 		}
 
-		ecsClient, err := ecs20140526.NewClient(utils.GetEcsConfig(regionID).SetCredential(cred))
+		ecsClient, err = ecs20140526.NewClient(utils.GetEcsConfig(regionID).SetCredential(cred))
 		if err != nil {
 			klog.ErrorS(err, "failed to get ecsClient for metadata")
 		} else {
@@ -219,63 +224,81 @@ func main() {
 
 	csiCfg := getCSIPluginConfig()
 
-	for _, driverName := range driverNames {
-		wg.Add(1)
-		endPointName := replaceCsiEndpoint(driverName, *endpoint)
-		klog.Infof("CSI endpoint for driver %s: %s", driverName, endPointName)
+	ctx, cancelSignals := signal.NotifyContext(context.Background(), os.Interrupt, unix.SIGTERM)
+	defer cancelSignals()
 
-		switch driverName {
-		case TypePluginNAS:
-			go func(endPoint string) {
-				defer wg.Done()
-				driver := nas.NewDriver(meta, endPoint, serviceType, csiCfg)
-				driver.Run()
-			}(endPointName)
-		case TypePluginOSS:
-			go func(endPoint string) {
-				defer wg.Done()
-				driver := oss.NewDriver(endPoint, meta, serviceType, csiCfg, k8sVersion)
-				driver.Run()
-			}(endPointName)
-		case TypePluginDISK:
-			go func(endPoint string) {
-				defer wg.Done()
-				driver := disk.NewDriver(meta, endPoint, serviceType, csiCfg)
-				driver.Run()
-			}(endPointName)
+	if *runLabeler {
+		if kubeClient == nil {
+			klog.Fatal("labeler requires Kubernetes client; cluster config unavailable")
+		}
+		if ecsClient == nil {
+			klog.Fatal("labeler requires Alibaba Cloud ECS v2 client; credential may be unavailable")
+		}
+		wg.Go(func() {
+			klog.InfoS("starting metadata labeler")
+			if err := labeler.Run(ctx, kubeClient, ecsClient, regionID, labeler.Options{}); err != nil {
+				klog.ErrorS(err, "labeler exited")
+			}
+		})
+	}
 
-		case TypePluginCPFS:
-			klog.Fatalf("%s is no longer supported, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
-		case TypePluginENS:
-			go func(endpoint string) {
-				defer wg.Done()
-				driver := ens.NewDriver(*nodeID, endpoint, serviceType)
-				driver.Run()
-			}(endPointName)
-		case ExtenderAgent:
-			klog.Fatalf("rund-csi protocol 1.0 is no longer supported.")
-		case TypePluginPOV:
-			go func(endPoint string) {
-				defer wg.Done()
-				driver := pov.NewDriver(meta, endPoint, serviceType)
-				driver.Run()
-			}(endPointName)
-		case TypePluginBMCPFS:
-			go func(endpoint string) {
-				defer wg.Done()
-				driver := bmcpfs.NewDriver(meta, endpoint, serviceType)
-				driver.Run()
-			}(endPointName)
-		default:
-			klog.Fatalf("CSI start failed, not support driver: %s", driverName)
+	if serviceType != 0 {
+		for _, driverName := range driverNames {
+			wg.Add(1)
+			endPointName := replaceCsiEndpoint(driverName, *endpoint)
+			klog.Infof("CSI endpoint for driver %s: %s", driverName, endPointName)
+
+			switch driverName {
+			case TypePluginNAS:
+				go func(endPoint string) {
+					defer wg.Done()
+					driver := nas.NewDriver(meta, endPoint, serviceType, csiCfg)
+					driver.Run()
+				}(endPointName)
+			case TypePluginOSS:
+				go func(endPoint string) {
+					defer wg.Done()
+					driver := oss.NewDriver(endPoint, meta, serviceType, csiCfg)
+					driver.Run()
+				}(endPointName)
+			case TypePluginDISK:
+				go func(endPoint string) {
+					defer wg.Done()
+					driver := disk.NewDriver(meta, ecsClient, endPoint, serviceType, csiCfg)
+					driver.Run()
+				}(endPointName)
+
+			case TypePluginCPFS:
+				klog.Fatalf("%s is no longer supported, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
+			case TypePluginENS:
+				go func(endpoint string) {
+					defer wg.Done()
+					driver := ens.NewDriver(*nodeID, endpoint, serviceType)
+					driver.Run()
+				}(endPointName)
+			case ExtenderAgent:
+				klog.Fatalf("rund-csi protocol 1.0 is no longer supported.")
+			case TypePluginPOV:
+				go func(endPoint string) {
+					defer wg.Done()
+					driver := pov.NewDriver(meta, endPoint, serviceType)
+					driver.Run()
+				}(endPointName)
+			case TypePluginBMCPFS:
+				go func(endpoint string) {
+					defer wg.Done()
+					driver := bmcpfs.NewDriver(meta, endpoint, serviceType)
+					driver.Run()
+				}(endPointName)
+			default:
+				klog.Fatalf("CSI start failed, not support driver: %s", driverName)
+			}
 		}
 	}
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		s := <-c
-		klog.Infof("Got signal: %v, exiting...", s)
+		<-ctx.Done()
+		klog.Infof("%v, exiting...", context.Cause(ctx))
 		os.Exit(0)
 	}()
 

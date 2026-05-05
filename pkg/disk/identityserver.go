@@ -35,7 +35,7 @@ type identityServer struct {
 func NewIdentityServer() csi.IdentityServer {
 	return &identityServer{
 		GenericIdentityServer: common.GenericIdentityServer{
-			Name: driverName,
+			Name: DriverName,
 		},
 	}
 }

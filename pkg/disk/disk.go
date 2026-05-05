@@ -26,6 +26,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/throttle"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
@@ -48,8 +49,8 @@ import (
 // PluginFolder defines the location of diskplugin
 const (
 	driverType        = "disk"
-	driverName        = "diskplugin.csi.alibabacloud.com"
-	TopologyKey       = "topology." + driverName
+	DriverName        = "diskplugin.csi.alibabacloud.com"
+	TopologyKey       = "topology." + DriverName
 	TopologyRegionKey = TopologyKey + "/region"
 	TopologyZoneKey   = TopologyKey + "/zone"
 )
@@ -106,7 +107,7 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *DISK {
+func NewDriver(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
@@ -125,7 +126,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	if err != nil {
 		klog.Fatalf("Error building credential: %s", err.Error())
 	}
-	client := newEcsClient(metadata.MustGet(m, metadata.RegionID), credentials.V1ProviderAdaptor(cred))
+	client := NewEcsClient(metadata.MustGet(m, metadata.RegionID), credentials.V1ProviderAdaptor(cred))
 	GlobalConfigVar.EcsClient = client
 
 	// Create GRPC servers
@@ -135,7 +136,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 		servers.ControllerServer = NewControllerServer(csiCfg, client, m)
 	}
 	if serviceType&utils.Node != 0 {
-		servers.NodeServer = NewNodeServer(client, m)
+		servers.NodeServer = NewNodeServer(client, ecsV2, m)
 	}
 	if features.FunctionalMutableFeatureGate.Enabled(features.EnableVolumeGroupSnapshots) {
 		servers.GroupControllerServer = NewGroupControllerServer()
@@ -147,7 +148,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 
 // Run start a new NodeServer
 func (disk *DISK) Run() {
-	klog.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
+	klog.Infof("Starting csi-plugin Driver: %v version: %v", DriverName, version.VERSION)
 	common.RunCSIServer(driverType, disk.endpoint, disk.servers)
 }
 

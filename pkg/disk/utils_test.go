@@ -26,7 +26,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	gomock "github.com/golang/mock/gomock"
 	fakesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/fake"
@@ -41,6 +41,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2/ktesting"
 	"k8s.io/mount-utils"
+	"k8s.io/utils/ptr"
 )
 
 func TestIsFileExisting(t *testing.T) {
@@ -243,11 +244,11 @@ func TestGetUnmanagedDiskCount(t *testing.T) {
 	testDiskXattr(t)
 
 	ctrl := gomock.NewController(t)
-	c := cloud.NewMockECSInterface(ctrl)
+	c := cloud.NewMockECSv2Interface(ctrl)
 
-	describeDisksResponse := ecs.CreateDescribeDisksResponse()
-	cloud.UnmarshalAcsResponse([]byte(DescribeDisksResponse), describeDisksResponse)
-	c.EXPECT().DescribeDisks(gomock.Any()).Return(describeDisksResponse, nil)
+	var describeDisksResp ecs20140526.DescribeDisksResponse
+	cloud.UnmarshalV2Response([]byte(DescribeDisksResponse), &describeDisksResp)
+	c.EXPECT().DescribeDisks(gomock.Any()).Return(&describeDisksResp, nil)
 
 	dev := MockDisks{base: t.TempDir() + "/dev"}
 	assert.NoError(t, os.MkdirAll(dev.base, 0755))
@@ -260,7 +261,7 @@ func TestGetUnmanagedDiskCount(t *testing.T) {
 	dev.AddDisk(t, "node-for-testinglocaldisk", []byte(longDiskID))
 
 	getNode := func() (*corev1.Node, error) { return testNode(), nil }
-	count, err := getUnmanagedDiskCount(getNode, c, testMetadata, &dev)
+	count, err := getUnmanagedDiskCount(getNode, c, "i-2ze0yyw7rf00yz9fttpg", "cn-beijing", &dev)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, count) // 1 system disk (d-2ze49fivxwkwxl36o1d3) + 1 manually attached (d-2zeh74nnxxrobxz49eug)
 }
@@ -385,20 +386,20 @@ func TestGetAvailableDiskTypes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, ctx := ktesting.NewTestContext(t)
 			ctrl := gomock.NewController(t)
-			c := cloud.NewMockECSInterface(ctrl)
-			c.EXPECT().DescribeAvailableResource(gomock.Any()).DoAndReturn(func(req *ecs.DescribeAvailableResourceRequest) (*ecs.DescribeAvailableResourceResponse, error) {
-				descRes := ecs.CreateDescribeAvailableResourceResponse()
-				if req.ZoneId != "" {
-					cloud.UnmarshalAcsResponse([]byte(tc.resp), descRes)
-				} else if req.Scope == "region" {
-					cloud.UnmarshalAcsResponse([]byte(cmp.Or(tc.regionalResp, `{}`)), descRes)
+			c := cloud.NewMockECSv2Interface(ctrl)
+			c.EXPECT().DescribeAvailableResource(gomock.Any()).DoAndReturn(func(req *ecs20140526.DescribeAvailableResourceRequest) (*ecs20140526.DescribeAvailableResourceResponse, error) {
+				var descRes ecs20140526.DescribeAvailableResourceResponse
+				if ptr.Deref(req.ZoneId, "") != "" {
+					cloud.UnmarshalV2Response([]byte(tc.resp), &descRes)
+				} else if ptr.Deref(req.Scope, "") == "region" {
+					cloud.UnmarshalV2Response([]byte(cmp.Or(tc.regionalResp, `{}`)), &descRes)
 				} else {
 					t.Fatal("invalid request")
 				}
-				return descRes, nil
+				return &descRes, nil
 			}).Times(2)
 
-			diskTypes, err := GetAvailableDiskTypes(ctx, c, testMetadata)
+			diskTypes, err := GetAvailableDiskTypes(ctx, c, "ecs.u1-c1m4.xlarge", "cn-beijing-g", "cn-beijing")
 			if tc.err {
 				assert.Error(t, err)
 			} else {
