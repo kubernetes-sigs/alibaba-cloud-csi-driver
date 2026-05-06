@@ -35,6 +35,7 @@ import (
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
@@ -224,7 +225,7 @@ func main() {
 
 	csiCfg := getCSIPluginConfig()
 
-	ctx, cancelSignals := signal.NotifyContext(context.Background(), os.Interrupt, unix.SIGTERM)
+	ctx, cancelSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancelSignals()
 
 	if *runLabeler {
@@ -244,63 +245,41 @@ func main() {
 
 	if serviceType != 0 {
 		for _, driverName := range driverNames {
-			wg.Add(1)
-			endPointName := replaceCsiEndpoint(driverName, *endpoint)
-			klog.Infof("CSI endpoint for driver %s: %s", driverName, endPointName)
+			endpoint := replaceCsiEndpoint(driverName, *endpoint)
+			klog.Infof("CSI endpoint for driver %s: %s", driverName, endpoint)
 
+			var driver *common.Servers
 			switch driverName {
 			case TypePluginNAS:
-				go func(endPoint string) {
-					defer wg.Done()
-					driver := nas.NewDriver(meta, endPoint, serviceType, csiCfg)
-					driver.Run()
-				}(endPointName)
+				driver = nas.NewServers(meta, endpoint, serviceType, csiCfg)
 			case TypePluginOSS:
-				go func(endPoint string) {
-					defer wg.Done()
-					driver := oss.NewDriver(endPoint, meta, serviceType, csiCfg)
-					driver.Run()
-				}(endPointName)
+				driver = oss.NewServers(endpoint, meta, serviceType, csiCfg, k8sVersion)
 			case TypePluginDISK:
-				go func(endPoint string) {
-					defer wg.Done()
-					driver := disk.NewDriver(meta, ecsClient, endPoint, serviceType, csiCfg)
-					driver.Run()
-				}(endPointName)
-
+				driver = disk.NewServers(meta, ecsClient, endpoint, serviceType, csiCfg)
 			case TypePluginCPFS:
 				klog.Fatalf("%s is no longer supported, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
 			case TypePluginENS:
-				go func(endpoint string) {
-					defer wg.Done()
-					driver := ens.NewDriver(*nodeID, endpoint, serviceType)
-					driver.Run()
-				}(endPointName)
+				driver = ens.NewServers(*nodeID, endpoint, serviceType)
 			case ExtenderAgent:
 				klog.Fatalf("rund-csi protocol 1.0 is no longer supported.")
 			case TypePluginPOV:
-				go func(endPoint string) {
-					defer wg.Done()
-					driver := pov.NewDriver(meta, endPoint, serviceType)
-					driver.Run()
-				}(endPointName)
+				driver = pov.NewServers(meta, endpoint, serviceType)
 			case TypePluginBMCPFS:
-				go func(endpoint string) {
-					defer wg.Done()
-					driver := bmcpfs.NewDriver(meta, endpoint, serviceType)
-					driver.Run()
-				}(endPointName)
+				driver = bmcpfs.NewServers(meta, endpoint, serviceType)
 			default:
 				klog.Fatalf("CSI start failed, not support driver: %s", driverName)
 			}
+
+			server := common.NewCSIServer(driverName, driver)
+			wg.Go(func() {
+				common.Serve(server, endpoint)
+			})
+			wg.Go(func() {
+				<-ctx.Done()
+				server.Stop()
+			})
 		}
 	}
-
-	go func() {
-		<-ctx.Done()
-		klog.Infof("%v, exiting...", context.Cause(ctx))
-		os.Exit(0)
-	}()
 
 	servicePort := os.Getenv("SERVICE_PORT")
 
@@ -327,9 +306,20 @@ func main() {
 		klog.Infof("Metric listening on address: /metrics")
 	}
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%s", servicePort), csiMux); err != nil {
-		klog.Fatalf("Service port listen and serve err:%s", err.Error())
-	}
+	httpServer := &http.Server{Addr: fmt.Sprintf(":%s", servicePort), Handler: csiMux}
+	wg.Go(func() {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			klog.Fatalf("Service port listen and serve err:%s", err.Error())
+		}
+	})
+	wg.Go(func() {
+		<-ctx.Done()
+		klog.Infof("%v, exiting...", context.Cause(ctx))
+		err := httpServer.Shutdown(context.Background())
+		if err != nil {
+			klog.ErrorS(err, "httpServer shutdown failed")
+		}
+	})
 
 	wg.Wait()
 }

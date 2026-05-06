@@ -37,7 +37,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -61,12 +60,6 @@ var (
 	// TODO: currently always set to private topology key to be compactable with old csi-plugin and vk
 	ZonalDiskTopologyKey = TopologyZoneKey
 )
-
-// DISK the DISK object
-type DISK struct {
-	endpoint string
-	servers  common.Servers
-}
 
 // GlobalConfig save global values for plugin
 type GlobalConfig struct {
@@ -101,16 +94,8 @@ var (
 	GlobalConfigVar GlobalConfig
 )
 
-// Init checks for the persistent volume file and loads all found volumes
-// into a memory structure
-func initDriver() {
-}
-
-// NewDriver create the identity/node/controller server and disk driver
-func NewDriver(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *DISK {
-	initDriver()
-	tmpdisk := &DISK{}
-	tmpdisk.endpoint = endpoint
+// NewServers create the identity/node/controller server and disk driver
+func NewServers(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *common.Servers {
 
 	GlobalConfigSet(m, csiCfg)
 
@@ -141,15 +126,8 @@ func NewDriver(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoint
 	if features.FunctionalMutableFeatureGate.Enabled(features.EnableVolumeGroupSnapshots) {
 		servers.GroupControllerServer = NewGroupControllerServer()
 	}
-	tmpdisk.servers = servers
 
-	return tmpdisk
-}
-
-// Run start a new NodeServer
-func (disk *DISK) Run() {
-	klog.Infof("Starting csi-plugin Driver: %v version: %v", DriverName, version.VERSION)
-	common.RunCSIServer(driverType, disk.endpoint, disk.servers)
+	return &servers
 }
 
 // GlobalConfigSet set Global Config
