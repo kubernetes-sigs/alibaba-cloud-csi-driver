@@ -87,7 +87,7 @@ func TestCreate(t *testing.T) {
 		pod.ResourceVersion = "1"
 		return false, pod, nil
 	})
-	fpm := NewFusePodManager(testFuse{}, client)
+	fpm := NewFusePodManager(testFuse{}, client, false)
 
 	go func() {
 		// slimulate kubelet
@@ -124,24 +124,45 @@ func TestCreate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	_, ctx := ktesting.NewTestContext(t)
-	client := fake.NewSimpleClientset(&corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-fuse-pod",
-			Namespace: "test-fuse",
-			Labels:    map[string]string{FuseVolumeIdLabelKey: "test-volume"},
+	tests := []struct {
+		name        string
+		constrainRV bool
+	}{
+		{
+			name:        "Delete with constrainRV=true (K8s < 1.31)",
+			constrainRV: true,
 		},
-	})
+		{
+			name:        "Delete with constrainRV=false (K8s >= 1.31)",
+			constrainRV: false,
+		},
+	}
 
-	fpm := NewFusePodManager(testFuse{}, client)
-	err := fpm.Delete(&FusePodContext{
-		Context:   ctx,
-		Namespace: "test-fuse",
-		VolumeId:  "test-volume",
-		NodeName:  "test-node",
-	})
-	require.NoError(t, err)
-	pods, err := client.CoreV1().Pods("test-fuse").List(ctx, metav1.ListOptions{})
-	require.NoError(t, err)
-	assert.Empty(t, pods.Items)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, ctx := ktesting.NewTestContext(t)
+
+			client := fake.NewSimpleClientset(&corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-fuse-pod",
+					Namespace: "test-fuse",
+					Labels:    map[string]string{FuseVolumeIdLabelKey: "test-volume"},
+				},
+			})
+
+			fpm := NewFusePodManager(testFuse{}, client, tt.constrainRV)
+			err := fpm.Delete(&FusePodContext{
+				Context:   ctx,
+				Namespace: "test-fuse",
+				VolumeId:  "test-volume",
+				NodeName:  "test-node",
+			})
+			require.NoError(t, err)
+
+			// Verify pod was deleted
+			pods, err := client.CoreV1().Pods("test-fuse").List(ctx, metav1.ListOptions{})
+			require.NoError(t, err)
+			assert.Empty(t, pods.Items)
+		})
+	}
 }
