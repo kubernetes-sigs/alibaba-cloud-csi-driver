@@ -434,7 +434,7 @@ func isCPFS(filesystemType, server string) bool {
 
 const bdiReadAheadKB = "bdi/read_ahead_kb"
 
-func setSysConfigs(mountPath string, sysConfigs map[string]string) error {
+func setSysConfigs(mountPath string, sysConfigs []utilsio.SysConfig) error {
 	if len(sysConfigs) == 0 {
 		return nil
 	}
@@ -445,21 +445,26 @@ func setSysConfigs(mountPath string, sysConfigs map[string]string) error {
 	}
 
 	manager := utilsio.NewSysConfigManager(uint32(unix.Major(uint64(stat.Dev))), uint32(unix.Minor(uint64(stat.Dev))))
-	for key, value := range sysConfigs {
-		if key != bdiReadAheadKB {
-			err := manager.Set(key, value)
-			if err != nil {
-				return err
-			}
+	var bdiValue string
+	var hasBdi bool
+	for _, entry := range sysConfigs {
+		if entry.Key == bdiReadAheadKB {
+			bdiValue = entry.Value
+			hasBdi = true
+			continue
+		}
+		err := manager.Set(entry.Key, entry.Value)
+		if err != nil {
+			return err
 		}
 	}
 
-	if value, ok := sysConfigs[bdiReadAheadKB]; ok {
+	if hasBdi {
 		// nfs-utils versions later than nfs-utils-2.3.3-57.0.1.al8.1 have udev rules for nfsrahead enabled,
 		// which automatically set a default read_ahead_kb after the bdi subsystem add event.
 		// To avoid conflicts, we need to introduce a delay here.
 		time.Sleep(time.Second * 2)
-		err := manager.Set(bdiReadAheadKB, value)
+		err := manager.Set(bdiReadAheadKB, bdiValue)
 		if err != nil {
 			return err
 		}

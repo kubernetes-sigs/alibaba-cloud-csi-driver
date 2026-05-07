@@ -1,7 +1,6 @@
 package io
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -12,27 +11,53 @@ import (
 
 const defaultSysfsPath = "/sys"
 
-// ParseSysConfigs accepts s in the format 'key1=value1,key2=value2'.
-func ParseSysConfigs(s string, allow func(key string) bool) (map[string]string, error) {
+type SysConfig struct {
+	Key   string
+	Value string
+}
+
+func ParseSysConfigs(s string, allow func(key string) bool) ([]SysConfig, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil, nil
 	}
-	result := make(map[string]string)
-	for _, kv := range strings.Split(s, ",") {
-		key, value, found := strings.Cut(kv, "=")
-		if !found || key == "" {
-			return nil, errors.New("invalid sysconfig format")
+
+	items := strings.Split(s, ",")
+	result := make([]SysConfig, 0, len(items))
+
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			return nil, fmt.Errorf("invalid empty sysconfig entry")
 		}
-		// Prevent users from accessing unexpected files through:
-		// 1. "subsystem" symlinks like /sys/block/vda/subsystem/vdb
-		// 2. relative paths containing ".." like ../../../root/.ssh/id_rsa
+
+		key, value, found := strings.Cut(item, "=")
+		if !found {
+			return nil, fmt.Errorf("invalid sysconfig entry %q: expected key=value", item)
+		}
+
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key == "" {
+			return nil, fmt.Errorf("invalid sysconfig entry %q: empty key", item)
+		}
+
 		key = filepath.Clean(key)
-		if strings.HasPrefix(key, "../") || strings.Contains(key, "subsystem") || !allow(key) {
+
+		if key == "." || key == ".." || strings.HasPrefix(key, "/") || strings.HasPrefix(key, "../") {
 			return nil, fmt.Errorf("sysconfig key not allowed: %q", key)
 		}
-		result[key] = value
+
+		if !allow(key) {
+			return nil, fmt.Errorf("sysconfig key not allowed: %q", key)
+		}
+
+		result = append(result, SysConfig{
+			Key:   key,
+			Value: value,
+		})
 	}
+
 	return result, nil
 }
 

@@ -18,67 +18,103 @@ func TestParseSysConfigs(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        args
-		wantEntries map[string]string
+		wantEntries []SysConfig
 		wantErr     bool
 	}{
 		{
-			"normal",
-			args{
-				"bdi/read_ahead_kb=128,queue/max_sectors_kb=1024",
-				allowAll,
+			name: "normal",
+			args: args{
+				s:     "bdi/read_ahead_kb=128,queue/max_sectors_kb=1024",
+				allow: allowAll,
 			},
-			map[string]string{
-				"bdi/read_ahead_kb":    "128",
-				"queue/max_sectors_kb": "1024",
+			wantEntries: []SysConfig{
+				{Key: "bdi/read_ahead_kb", Value: "128"},
+				{Key: "queue/max_sectors_kb", Value: "1024"},
 			},
-			false,
 		},
 		{
-			"empty",
-			args{
-				"",
-				allowAll,
+			name: "empty input",
+			args: args{
+				s:     "",
+				allow: allowAll,
 			},
-			nil,
-			false,
+			wantEntries: nil,
 		},
 		{
-			"whitelist",
-			args{
-				"bdi/read_ahead_kb=128,queue/max_sectors_kb=1024",
-				func(key string) bool {
+			name: "whitelist rejection",
+			args: args{
+				s: "bdi/read_ahead_kb=128,queue/max_sectors_kb=1024",
+				allow: func(key string) bool {
 					return key == "bdi/read_ahead_kb"
 				},
 			},
-			nil,
-			true,
+			wantErr: true,
 		},
 		{
-			"subsystem symlink",
-			args{
-				"subsystem/vdb/dev=0",
-				allowAll,
+			name: "path traversal with ../",
+			args: args{
+				s:     "../../../root/.ssh/id_rsa=nothing",
+				allow: allowAll,
 			},
-			nil,
-			true,
+			wantErr: true,
 		},
 		{
-			"relative path containing '..'",
-			args{
-				"../../../root/.ssh/id_rsa=nothing",
-				allowAll,
+			name: "absolute path key",
+			args: args{
+				s:     "/etc/passwd=0",
+				allow: allowAll,
 			},
-			nil,
-			true,
+			wantErr: true,
 		},
 		{
-			"invalid format",
-			args{
-				"this is invalid",
-				allowAll,
+			name: "dot key",
+			args: args{
+				s:     ".=0",
+				allow: allowAll,
 			},
-			nil,
-			true,
+			wantErr: true,
+		},
+		{
+			name: "dotdot key",
+			args: args{
+				s:     "..=0",
+				allow: allowAll,
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing equals sign",
+			args: args{
+				s:     "this is invalid",
+				allow: allowAll,
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty key",
+			args: args{
+				s:     "=value",
+				allow: allowAll,
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty entry",
+			args: args{
+				s:     "key=value,",
+				allow: allowAll,
+			},
+			wantErr: true,
+		},
+		{
+			name: "whitespace trimming",
+			args: args{
+				s:     " bdi/read_ahead_kb = 128 ",
+				allow: allowAll,
+			},
+			wantEntries: []SysConfig{
+				{Key: "bdi/read_ahead_kb", Value: "128"},
+			},
 		},
 	}
 	for _, tt := range tests {

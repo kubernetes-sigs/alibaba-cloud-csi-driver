@@ -96,7 +96,7 @@ type Options struct {
 	MountProtocol string `json:"mountProtocol"`
 	ClientType    string `json:"clientType"`
 	FSType        string `json:"fsType"`
-	SysConfigs    map[string]string
+	SysConfigs    []utilsio.SysConfig
 	AkID          string
 	AkSecret      string
 }

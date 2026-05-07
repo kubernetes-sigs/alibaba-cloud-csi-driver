@@ -77,7 +77,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if err != nil {
 		return nil, err
 	}
-
 	resp, err := controller.CreateVolume(ctx, req)
 	if err != nil {
 		return nil, err

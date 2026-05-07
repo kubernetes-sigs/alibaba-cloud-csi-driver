@@ -517,11 +517,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	defer ns.locks.Release(req.VolumeId)
 
-	sysConfigs, err := utilsio.ParseSysConfigs(req.VolumeContext[SysConfigTag], allowSysConfigKey)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
 	targetPath := req.StagingTargetPath
 	// targetPath format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 
@@ -598,6 +593,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	klog.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.NodeID, device)
 
+	sysConfigs, err := utilsio.ParseSysConfigs(req.VolumeContext[SysConfigTag], allowSysConfigKey)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	// set sysConfigs
 	if len(sysConfigs) > 0 {
 		major, minor, err := DefaultDeviceManager.DevTmpFS.DevFor(device)
@@ -605,8 +604,8 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Errorf(defaultErrCode, "failed to get device number: %v", err)
 		}
 		manager := utilsio.NewSysConfigManager(major, minor)
-		for key, value := range sysConfigs {
-			if err := manager.Set(key, value); err != nil {
+		for _, entry := range sysConfigs {
+			if err := manager.Set(entry.Key, entry.Value); err != nil {
 				return nil, status.Errorf(defaultErrCode, "set sysconfig: %v", err)
 			}
 		}
@@ -1485,4 +1484,9 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) boo
 	}
 
 	return false
+}
+
+// for backward compatibility
+func allowSysConfigKey(key string) bool {
+	return true
 }
