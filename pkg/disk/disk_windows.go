@@ -8,7 +8,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
-func NewServers(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *common.Servers {
+func NewServers(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, useLabeler bool) *common.Servers {
 	panic("Disk driver is not supported on Windows yet")
 }
 

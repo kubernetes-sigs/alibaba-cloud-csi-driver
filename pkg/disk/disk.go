@@ -95,7 +95,7 @@ var (
 )
 
 // NewServers create the identity/node/controller server and disk driver
-func NewServers(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *common.Servers {
+func NewServers(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, useLabeler bool) *common.Servers {
 
 	GlobalConfigSet(m, csiCfg)
 
@@ -121,7 +121,7 @@ func NewServers(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoin
 		servers.ControllerServer = NewControllerServer(csiCfg, client, m)
 	}
 	if serviceType&utils.Node != 0 {
-		servers.NodeServer = NewNodeServer(client, ecsV2, m)
+		servers.NodeServer = NewNodeServer(client, ecsV2, m, useLabeler)
 	}
 	if features.FunctionalMutableFeatureGate.Enabled(features.EnableVolumeGroupSnapshots) {
 		servers.GroupControllerServer = NewGroupControllerServer()
@@ -246,7 +246,7 @@ func defaultThrottler() *throttle.Throttler {
 // parseLingjunNodeDiskTypes parses allowed disk types for Lingjun nodes from a comma-separated string.
 // If value is nil or empty, default to essd_auto & cloud_essd.
 // Example: "cloud_essd,cloud_auto". Unknown entries are ignored.
-func parseLingjunNodeDiskTypes(value string) []string {
+func ParseLingjunNodeDiskTypes(value string) []string {
 	// Defaults per requirement
 	defaultTypes := []string{string(DiskESSDAuto), string(DiskESSD)}
 	s := strings.TrimSpace(value)

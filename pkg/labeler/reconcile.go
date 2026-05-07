@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -32,11 +33,13 @@ import (
 type Reconciler struct {
 	Client     kubernetes.Interface
 	ECS        cloud.ECSv2Interface
+	EFLO       cloud.EFLOInterface
 	RegionID   string
 	NodeLister corev1listers.NodeLister
 	Queue      workqueue.TypedRateLimitingInterface[string]
 
 	instanceTypeCache *TTLCache[string, int32]
+	nodeTypeCache     *TTLCache[string, int32]
 	diskTypesCache    *TTLCache[diskTypeCacheKey, []string]
 }
 
@@ -85,7 +88,6 @@ func (r *Reconciler) processNextItem(ctx context.Context) bool {
 //     OpenAPI calls when labeler restarts / leader changes. Admins who need
 //     recomputation can delete the annotation.
 //  2. ProviderID / labels do not yield an instance id.
-//  3. non-ECS (e.g. Lingjun node).
 func (r *Reconciler) reconcile(ctx context.Context, logger klog.Logger, nodeName string) error {
 	node, err := r.NodeLister.Get(nodeName)
 	if apierrors.IsNotFound(err) {
@@ -102,6 +104,7 @@ func (r *Reconciler) reconcile(ctx context.Context, logger klog.Logger, nodeName
 
 	m := metadata.NewMetadata()
 	m.AddKubernetesNode(node)
+	m.EnableEFLO(r.EFLO)
 	m.EnableOpenAPI(r.ECS)
 	mp := m.WithSession(ctx)
 
@@ -114,29 +117,22 @@ func (r *Reconciler) reconcile(ctx context.Context, logger klog.Logger, nodeName
 		return err
 	}
 
-	machineKind, err := m.MachineKind()
-	if err == nil && machineKind != metadata.MachineKindECS {
-		logger.V(4).Info("skip non-ECS node", "node", nodeName, "kind", machineKind)
-		return nil
+	machineKind, mkErr := m.MachineKind()
+	if mkErr != nil && !errors.Is(mkErr, metadata.ErrUnknownMetadataKey) {
+		return fmt.Errorf("determine machine kind for %s: %w", nodeName, mkErr)
 	}
 
-	instanceType, err := mp.Get(metadata.InstanceType)
+	var diskQuantity int32
+	var diskTypes []string
+	switch machineKind {
+	case metadata.MachineKindLingjun:
+		diskQuantity, diskTypes, err = r.resolveLingjun(ctx, mp)
+	default:
+		// Unknown machine kind (ErrUnknownMetadataKey or other) — treat as ECS.
+		diskQuantity, diskTypes, err = r.resolveECS(ctx, mp)
+	}
 	if err != nil {
 		return err
-	}
-
-	diskQuantity, err := r.resolveDiskQuantity(ctx, mp, instanceType)
-	if err != nil {
-		return fmt.Errorf("get disk quantity for %s: %w", instanceType, err)
-	}
-
-	zoneID, err := mp.Get(metadata.ZoneID)
-	if err != nil {
-		return err
-	}
-	diskTypes, err := r.getDiskTypes(ctx, instanceType, zoneID)
-	if err != nil {
-		return fmt.Errorf("get disk types for %s/%s: %w", instanceType, zoneID, err)
 	}
 
 	attachedDisks, err := disk.GetAttachedCloudDisks(r.ECS, instanceID, r.RegionID)
@@ -171,6 +167,44 @@ func (r *Reconciler) reconcile(ctx context.Context, logger klog.Logger, nodeName
 	return nil
 }
 
+func (r *Reconciler) resolveECS(ctx context.Context, mp metadata.MetadataProvider) (int32, []string, error) {
+	instanceType, err := mp.Get(metadata.InstanceType)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	diskQuantity, err := r.resolveDiskQuantity(ctx, mp, instanceType)
+	if err != nil {
+		return 0, nil, fmt.Errorf("get disk quantity for %s: %w", instanceType, err)
+	}
+
+	zoneID, err := mp.Get(metadata.ZoneID)
+	if err != nil {
+		return 0, nil, err
+	}
+	diskTypes, err := r.getDiskTypes(ctx, instanceType, zoneID)
+	if err != nil {
+		return 0, nil, fmt.Errorf("get disk types for %s/%s: %w", instanceType, zoneID, err)
+	}
+
+	return diskQuantity, diskTypes, nil
+}
+
+func (r *Reconciler) resolveLingjun(ctx context.Context, mp metadata.MetadataProvider) (int32, []string, error) {
+	nodeType, err := mp.Get(metadata.LingjunNodeType)
+	if err != nil {
+		return 0, nil, fmt.Errorf("get nodeType for Lingjun node: %w", err)
+	}
+
+	diskQuantity, err := r.resolveLingjunDiskQuantity(ctx, mp, nodeType)
+	if err != nil {
+		return 0, nil, fmt.Errorf("get disk quantity for Lingjun node: %w", err)
+	}
+
+	diskTypes := disk.ParseLingjunNodeDiskTypes(os.Getenv("EBS_CATEGORY_LINGJUN_SUPPORTED"))
+	return diskQuantity, diskTypes, nil
+}
+
 // resolveDiskQuantity returns the cached disk quantity for instanceType,
 // computing it via nm.DiskQuantity() if not cached.
 func (r *Reconciler) resolveDiskQuantity(ctx context.Context, nm metadata.MetadataProvider, instanceType string) (int32, error) {
@@ -182,5 +216,13 @@ func (r *Reconciler) resolveDiskQuantity(ctx context.Context, nm metadata.Metada
 func (r *Reconciler) getDiskTypes(ctx context.Context, instanceType, zoneID string) ([]string, error) {
 	return r.diskTypesCache.Get(ctx, diskTypeCacheKey{instanceType, zoneID}, func() ([]string, error) {
 		return disk.GetAvailableDiskTypes(ctx, r.ECS, instanceType, zoneID, r.RegionID)
+	})
+}
+
+// resolveLingjunDiskQuantity returns the cached disk quantity for a Lingjun nodeType,
+// computing it via mp.DiskQuantity() if not cached.
+func (r *Reconciler) resolveLingjunDiskQuantity(ctx context.Context, mp metadata.MetadataProvider, nodeType string) (int32, error) {
+	return r.nodeTypeCache.Get(ctx, nodeType, func() (int32, error) {
+		return mp.DiskQuantity()
 	})
 }

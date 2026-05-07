@@ -687,7 +687,7 @@ spec:
             - name: local-provisioner-dir
               mountPath: /csi
 {{- end }}
-{{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled .Values.csi.disk.controller.labeler.enabled }}
+{{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled .Values.deploy.labeler.enabled }}
         - name: csi-metadata-labeler
           image: {{ include "imageSpec" (list .Values "controller") }}
           args:

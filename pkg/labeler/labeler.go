@@ -74,7 +74,7 @@ type Options struct {
 
 // Run starts the labeler. It blocks until ctx is done.
 // It performs leader election, then runs a node informer + reconcile workqueue.
-func Run(ctx context.Context, client kubernetes.Interface, ecsClient cloud.ECSv2Interface, regionID string, opts Options) error {
+func Run(ctx context.Context, client kubernetes.Interface, ecsClient cloud.ECSv2Interface, efloClient cloud.EFLOInterface, regionID string, opts Options) error {
 	if opts.Namespace == "" {
 		opts.Namespace = os.Getenv("POD_NAMESPACE")
 	}
@@ -123,7 +123,7 @@ func Run(ctx context.Context, client kubernetes.Interface, ecsClient cloud.ECSv2
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(leaderCtx context.Context) {
 				logger.Info("became leader", "identity", opts.Identity)
-				if err := runOnce(leaderCtx, client, ecsClient, regionID, opts); err != nil {
+				if err := runOnce(leaderCtx, client, ecsClient, efloClient, regionID, opts); err != nil {
 					logger.Error(err, "exited with error")
 					cancel() // release lease so another instance can take over
 				}
@@ -151,7 +151,7 @@ func Run(ctx context.Context, client kubernetes.Interface, ecsClient cloud.ECSv2
 }
 
 // runOnce runs the labeler loop assuming leadership is held.
-func runOnce(ctx context.Context, client kubernetes.Interface, ecsClient cloud.ECSv2Interface, regionID string, opts Options) error {
+func runOnce(ctx context.Context, client kubernetes.Interface, ecsClient cloud.ECSv2Interface, efloClient cloud.EFLOInterface, regionID string, opts Options) error {
 	factory := informers.NewSharedInformerFactoryWithOptions(
 		client, 0,
 		informers.WithTransform(nodeTransform),
@@ -167,10 +167,12 @@ func runOnce(ctx context.Context, client kubernetes.Interface, ecsClient cloud.E
 	r := &Reconciler{
 		Client:            client,
 		ECS:               ecsClient,
+		EFLO:              efloClient,
 		RegionID:          regionID,
 		NodeLister:        nodeInformer.Lister(),
 		Queue:             queue,
 		instanceTypeCache: NewTTLCache[string, int32](defaultInstanceTypeTTL),
+		nodeTypeCache:     NewTTLCache[string, int32](defaultInstanceTypeTTL),
 		diskTypesCache:    NewTTLCache[diskTypeCacheKey, []string](defaultInstanceTypeTTL),
 	}
 

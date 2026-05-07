@@ -95,6 +95,7 @@ var (
 	runControllerService = flag.Bool("run-controller-service", true, "activate CSI controller service")
 	runNodeService       = flag.Bool("run-node-service", true, "activate CSI node service")
 	runLabeler           = flag.Bool("run-labeler", false, "Run the centralized node metadata labeler (patches max-disk annotation and disk type labels on nodes)")
+	useLabeler           = flag.Bool("use-labeler", false, "Use the label added by the labeler, and disable fetch from OpenAPI")
 	driver               = flag.String("driver", TypePluginDISK, "CSI Driver")
 	// Deprecated: rootDir is instead by KUBELET_ROOT_DIR env.
 	rootDir = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
@@ -191,20 +192,21 @@ func main() {
 		klog.ErrorS(err, "failed to get credential for metadata, will not enable OpenAPI")
 	}
 	var ecsClient *ecs20140526.Client
+	var efloClient *eflo_controller20221215.Client
 	if provider != nil {
 		cred := alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider)
 
-		efloClient, err := eflo_controller20221215.NewClient(utils.GetEfloControllerConfig(regionID).SetCredential(cred))
+		efloClient, err = eflo_controller20221215.NewClient(utils.GetEfloControllerConfig(regionID).SetCredential(cred))
 		if err != nil {
-			klog.ErrorS(err, "failed to get efloClient for metadata")
-		} else {
+			klog.ErrorS(err, "failed to get efloClient")
+		} else if !*useLabeler {
 			meta.EnableEFLO(efloClient)
 		}
 
 		ecsClient, err = ecs20140526.NewClient(utils.GetEcsConfig(regionID).SetCredential(cred))
 		if err != nil {
-			klog.ErrorS(err, "failed to get ecsClient for metadata")
-		} else {
+			klog.ErrorS(err, "failed to get ecsClient")
+		} else if !*useLabeler {
 			// Goes after EFLO, because if EFLO API confirms it's a lingjun instance, we can skip ECS API.
 			meta.EnableOpenAPI(ecsClient)
 		}
@@ -235,9 +237,12 @@ func main() {
 		if ecsClient == nil {
 			klog.Fatal("labeler requires Alibaba Cloud ECS v2 client; credential may be unavailable")
 		}
+		if efloClient == nil {
+			klog.Fatal("labeler requires Alibaba Cloud EFLO client; credential may be unavailable")
+		}
 		wg.Go(func() {
 			klog.InfoS("starting metadata labeler")
-			if err := labeler.Run(ctx, kubeClient, ecsClient, regionID, labeler.Options{}); err != nil {
+			if err := labeler.Run(ctx, kubeClient, ecsClient, efloClient, regionID, labeler.Options{}); err != nil {
 				klog.ErrorS(err, "labeler exited")
 			}
 		})
@@ -255,7 +260,7 @@ func main() {
 			case TypePluginOSS:
 				driver = oss.NewServers(endpoint, meta, serviceType, csiCfg, k8sVersion)
 			case TypePluginDISK:
-				driver = disk.NewServers(meta, ecsClient, endpoint, serviceType, csiCfg)
+				driver = disk.NewServers(meta, ecsClient, endpoint, serviceType, csiCfg, *useLabeler)
 			case TypePluginCPFS:
 				klog.Fatalf("%s is no longer supported, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
 			case TypePluginENS:

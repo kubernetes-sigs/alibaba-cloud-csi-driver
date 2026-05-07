@@ -173,13 +173,9 @@ func TestGetEFLOError(t *testing.T) {
 			client := cloud.NewMockEFLOInterface(ctrl)
 			c.configClient(client)
 
-			m := EfloFetcher{
-				efloClient: client,
-				mPre: fakeMiddleware{
-					InstanceID: "e01-cn-xxxxxxxx",
-				},
-			}
-			_, err := m.FetchFor(testMContext(t), diskQuantity)
+			m := testMetadata(t, fakeMiddleware{InstanceID: "e01-cn-xxxxxxxx"})
+			m.EnableEFLO(client)
+			_, err := m.DiskQuantity()
 			assert.Error(t, err)
 		})
 	}

@@ -1050,8 +1050,8 @@ func CollectManagedVolumes(node *v1.Node) sets.Set[string] {
 	prefix := fmt.Sprintf("kubernetes.io/csi/%s^", DriverName)
 	managed := sets.New[string]()
 	extract := func(name string) {
-		if strings.HasPrefix(name, prefix) {
-			managed.Insert(name[len(prefix):])
+		if id, found := strings.CutPrefix(name, prefix); found {
+			managed.Insert(id)
 		}
 	}
 	for _, v := range node.Status.VolumesInUse {
@@ -1063,26 +1063,19 @@ func CollectManagedVolumes(node *v1.Node) sets.Set[string] {
 	return managed
 }
 
-// getVolumeCountFromLabelerAnnotation reads the max-disk annotation written by
-// the centralized labeler (pkg/labeler). If present and parseable, it returns
-// the final max volumes per node; NodeGetInfo will skip all OpenAPI calls.
-func getVolumeCountFromLabelerAnnotation(node *v1.Node) (int, bool) {
-	if node == nil {
-		return 0, false
-	}
+func getVolumeCountFromLabelerAnnotation(node *v1.Node) (int, error) {
 	v, ok := node.Annotations[MaxDiskAnnotation]
 	if !ok {
-		return 0, false
+		return 0, fmt.Errorf("max-disk annotation not found")
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		klog.ErrorS(err, "invalid max-disk annotation", "value", v, "node", node.Name)
-		return 0, false
+		return 0, fmt.Errorf("invalid max-disk annotation: %w", err)
 	}
-	return n, true
+	return n, nil
 }
 
-func getUnmanagedDiskCount(getNode func() (*v1.Node, error), ecsV2 cloud.ECSv2Interface, instanceID, regionID string, dev utilsio.DiskLister) (int, error) {
+func getUnmanagedDiskCount(getNode func() (*v1.Node, error), ecs cloud.ECSv2Interface, instanceID, regionID string, dev utilsio.DiskLister) (int, error) {
 	// An attached disk is not managed by us if:
 	// 1. it is not in node.Status.VolumesInUse or node.Status.VolumesAttached; and
 	// 2. it does not have the xattr set.
@@ -1103,7 +1096,7 @@ func getUnmanagedDiskCount(getNode func() (*v1.Node, error), ecsV2 cloud.ECSv2In
 	// disappear from ListDisks after OpenAPI;
 	// ECS OpenAPI should goes before getNode because the just attached disk should
 	// appear in node before OpenAPI;
-	attachedDisks, err := GetAttachedCloudDisks(ecsV2, instanceID, regionID)
+	attachedDisks, err := GetAttachedCloudDisks(ecs, instanceID, regionID)
 	if err != nil {
 		return 0, err
 	}

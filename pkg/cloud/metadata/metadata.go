@@ -31,6 +31,7 @@ const (
 	RAMRoleName
 	RRSATokenFile
 	IsVscEnable
+	LingjunNodeType
 
 	// non-string metadata, not public, can only access with corresponding methods
 	machineKind
@@ -63,6 +64,8 @@ func (k MetadataKey) String() string {
 		return "IsVscEnable"
 	case RRSATokenFile:
 		return "RRSATokenFile"
+	case LingjunNodeType:
+		return "LingjunNodeType"
 	case machineKind:
 		return "MachineKind"
 	case diskQuantity:
@@ -121,7 +124,8 @@ type fetcherID uint
 
 const (
 	imdsFetcherID fetcherID = iota
-	efloFetcherID
+	efloNodeFetcherID
+	efloNodeTypeFetcherID
 	kubernetesNodeMetadataFetcherID
 	profileFetcherID
 	openAPIFetcherID
@@ -356,13 +360,20 @@ func (m *Metadata) EnableSts(stsClient cloud.STSInterface) {
 }
 
 func (m *Metadata) EnableEFLO(efloClient cloud.EFLOInterface) {
-	// use the previous providers to get instance id,
-	// do not recurse into ourselves
+	// Step 1: EfloNodeFetcher calls DescribeNode to get nodeType (per-node)
 	mPre := m.providers
 	m.providers = append(m.providers, &lazyInit{
-		fetcher: &EfloFetcher{
+		fetcher: &EfloNodeFetcher{
 			efloClient: efloClient,
 			mPre:       mPre,
+		},
+	})
+	// Step 2: EfloNodeTypeFetcher calls DescribeNodeType to get diskQuantity (per-nodeType)
+	mPre2 := m.providers // include EfloNodeFetcher for nodeType lookup
+	m.providers = append(m.providers, &lazyInit{
+		fetcher: &EfloNodeTypeFetcher{
+			efloClient: efloClient,
+			mPre:       mPre2,
 		},
 	})
 }

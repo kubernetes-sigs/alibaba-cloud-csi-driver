@@ -106,7 +106,7 @@ func TestParseLingjunNodeDiskTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseLingjunNodeDiskTypes(tt.input)
+			result := ParseLingjunNodeDiskTypes(tt.input)
 			assert.ElementsMatch(t, tt.expected, result, "Mismatch between expected and actual disk types")
 		})
 	}

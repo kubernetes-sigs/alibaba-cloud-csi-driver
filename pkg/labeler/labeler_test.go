@@ -79,7 +79,7 @@ func testRunOnce_FullPipelineSync(t *testing.T) {
 	_, ctx := ktesting.NewTestContext(t)
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
-		assert.ErrorIs(t, Run(ctx, client, ecsMock, "cn-test", Options{
+		assert.ErrorIs(t, Run(ctx, client, ecsMock, cloud.NewMockEFLOInterface(ctrl), "cn-test", Options{
 			NumWorkers: 1,
 			Identity:   "test-labeler",
 		}), ctx.Err())

@@ -1,10 +1,11 @@
 package labeler
 
 import (
-	"encoding/json"
+	"errors"
 	"testing"
 
 	ecsv2 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	eflo_controller20221215 "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
@@ -99,14 +100,12 @@ func TestBuildPatch(t *testing.T) {
 		node := &v1.Node{}
 		got := disk.BuildNodePatch(node, 5, []string{"cloud_essd", "cloud_ssd"}, disk.MaxDiskAnnotation)
 		require.NotNil(t, got)
-		var parsed map[string]any
-		require.NoError(t, json.Unmarshal(got, &parsed))
-		meta := parsed["metadata"].(map[string]any)
-		ann := meta["annotations"].(map[string]any)
-		assert.Equal(t, "5", ann[disk.MaxDiskAnnotation])
-		labels := meta["labels"].(map[string]any)
-		assert.Equal(t, "available", labels[disk.NodeDiskTypeLabelPrefix+"cloud_essd"])
-		assert.Equal(t, "available", labels[disk.NodeDiskTypeLabelPrefix+"cloud_ssd"])
+		require.JSONEq(t, `{
+			"metadata": {
+				"annotations": {"node.csi.alibabacloud.com/max-disk": "5"},
+				"labels": {"node.csi.alibabacloud.com/disktype.cloud_essd": "available", "node.csi.alibabacloud.com/disktype.cloud_ssd": "available"}
+			}
+		}`, string(got))
 	})
 
 	t.Run("patch when annotation mismatch", func(t *testing.T) {
@@ -127,6 +126,7 @@ type testFixture struct {
 	r      *Reconciler
 	client *fake.Clientset
 	ecs    *cloud.MockECSv2Interface
+	eflo   *cloud.MockEFLOInterface
 	ctrl   *gomock.Controller
 }
 
@@ -149,6 +149,7 @@ func newTestFixture(t *testing.T, nodes ...*v1.Node) *testFixture {
 
 	ctrl := gomock.NewController(t)
 	ecsMock := cloud.NewMockECSv2Interface(ctrl)
+	efloMock := cloud.NewMockEFLOInterface(ctrl)
 
 	q := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[string]())
 	t.Cleanup(func() { q.ShutDown() })
@@ -157,14 +158,17 @@ func newTestFixture(t *testing.T, nodes ...*v1.Node) *testFixture {
 		r: &Reconciler{
 			Client:            client,
 			ECS:               ecsMock,
+			EFLO:              efloMock,
 			RegionID:          "cn-test",
 			NodeLister:        nodeInformer.Lister(),
 			Queue:             q,
 			instanceTypeCache: NewTTLCache[string, int32](defaultInstanceTypeTTL),
+			nodeTypeCache:     NewTTLCache[string, int32](defaultInstanceTypeTTL),
 			diskTypesCache:    NewTTLCache[diskTypeCacheKey, []string](defaultInstanceTypeTTL),
 		},
 		client: client,
 		ecs:    ecsMock,
+		eflo:   efloMock,
 		ctrl:   ctrl,
 	}
 }
@@ -191,7 +195,7 @@ func TestReconcile_SkipAlreadyAnnotated(t *testing.T) {
 	assertNoPatch(t, f)
 }
 
-func TestReconcile_SkipNonECS(t *testing.T) {
+func TestReconcile_Lingjun(t *testing.T) {
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   "node-lj",
@@ -201,9 +205,44 @@ func TestReconcile_SkipNonECS(t *testing.T) {
 	}
 	f := newTestFixture(t, node)
 
+	f.eflo.EXPECT().DescribeNode(gomock.Any()).Return(&eflo_controller20221215.DescribeNodeResponse{
+		Body: &eflo_controller20221215.DescribeNodeResponseBody{
+			NodeType: new("ebs-enhanced"),
+		},
+	}, nil)
+	f.eflo.EXPECT().DescribeNodeType(gomock.Any()).Return(&eflo_controller20221215.DescribeNodeTypeResponse{
+		Body: &eflo_controller20221215.DescribeNodeTypeResponseBody{
+			DiskQuantity: new(int32(10)),
+		},
+	}, nil)
+
+	f.ecs.EXPECT().DescribeDisks(gomock.Any()).
+		Return(&ecsv2.DescribeDisksResponse{
+			Body: &ecsv2.DescribeDisksResponseBody{
+				Disks: &ecsv2.DescribeDisksResponseBodyDisks{
+					Disk: []*ecsv2.DescribeDisksResponseBodyDisksDisk{
+						{DiskId: new("d-system"), Category: new("cloud_essd"), Status: new("In_use")},
+					},
+				},
+			},
+		}, nil)
+
 	logger, ctx := ktesting.NewTestContext(t)
 	require.NoError(t, f.r.reconcile(ctx, logger, "node-lj"))
-	assertNoPatch(t, f)
+
+	var patchBody []byte
+	for _, a := range f.client.Actions() {
+		if pa, ok := a.(clienttesting.PatchAction); ok {
+			patchBody = pa.GetPatch()
+		}
+	}
+	require.NotNil(t, patchBody, "expected a patch action for Lingjun node")
+	require.JSONEq(t, `{
+		"metadata": {
+			"annotations": {"node.csi.alibabacloud.com/max-disk": "9"},
+			"labels": {"node.csi.alibabacloud.com/disktype.cloud_auto": "available", "node.csi.alibabacloud.com/disktype.cloud_essd": "available"}
+		}
+	}`, string(patchBody))
 }
 
 func TestReconcile_SkipBadProviderID(t *testing.T) {
@@ -272,12 +311,155 @@ func TestReconcile_FullPatch(t *testing.T) {
 		}
 	}
 	require.NotNil(t, patchBody, "expected a patch action")
-	var parsed map[string]any
-	require.NoError(t, json.Unmarshal(patchBody, &parsed))
-	meta := parsed["metadata"].(map[string]any)
-	ann := meta["annotations"].(map[string]any)
-	assert.Equal(t, "7", ann[disk.MaxDiskAnnotation], "8 disk quantity - 1 non-managed system disk = 7")
-	labels := meta["labels"].(map[string]any)
-	assert.Equal(t, "available", labels[disk.NodeDiskTypeLabelPrefix+"cloud_essd"], "zonal disk type must be labeled")
-	assert.Equal(t, "available", labels[disk.NodeDiskTypeLabelPrefix+"cloud_regional_disk_auto"], "regional disk type must be labeled")
+	require.JSONEq(t, `{
+		"metadata": {
+			"annotations": {"node.csi.alibabacloud.com/max-disk": "7"},
+			"labels": {"node.csi.alibabacloud.com/disktype.cloud_essd": "available", "node.csi.alibabacloud.com/disktype.cloud_regional_disk_auto": "available"}
+		}
+	}`, string(patchBody))
+}
+
+func TestReconcile_APIErrors(t *testing.T) {
+	errAPI := errors.New("api error")
+
+	cases := []struct {
+		name           string
+		node           *v1.Node
+		setupMocks     func(ecs *cloud.MockECSv2Interface, eflo *cloud.MockEFLOInterface)
+		wantErr        bool
+		wantErrContain string // substring to match in error message
+	}{
+		{
+			name: "ecs_describe_instance_types_error",
+			node: &v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "node-ecs",
+					Labels: map[string]string{
+						"node.kubernetes.io/instance-type": "ecs.g7.large",
+						"topology.kubernetes.io/zone":      "cn-test-a",
+					},
+				},
+				Spec: v1.NodeSpec{ProviderID: "cn-test.i-bp1ecs"},
+			},
+			setupMocks: func(ecs *cloud.MockECSv2Interface, eflo *cloud.MockEFLOInterface) {
+				ecs.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(nil, errAPI)
+			},
+			wantErr:        true,
+			wantErrContain: "get disk quantity for ecs.g7.large",
+		},
+		{
+			name: "ecs_describe_available_resource_error",
+			node: &v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "node-ecs2",
+					Labels: map[string]string{
+						"node.kubernetes.io/instance-type": "ecs.g7.large",
+						"topology.kubernetes.io/zone":      "cn-test-a",
+					},
+				},
+				Spec: v1.NodeSpec{ProviderID: "cn-test.i-bp1ecs2"},
+			},
+			setupMocks: func(ecs *cloud.MockECSv2Interface, eflo *cloud.MockEFLOInterface) {
+				ecs.EXPECT().DescribeInstanceTypes(gomock.Any()).
+					Return(describeInstanceTypesV2Resp("ecs.g7.large", 8), nil)
+				ecs.EXPECT().DescribeAvailableResource(gomock.Any()).Return(nil, errAPI).AnyTimes()
+			},
+			wantErr:        true,
+			wantErrContain: "get disk types for ecs.g7.large/cn-test-a",
+		},
+		{
+			name: "ecs_describe_disks_error",
+			node: &v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "node-ecs3",
+					Labels: map[string]string{
+						"node.kubernetes.io/instance-type": "ecs.g7.large",
+						"topology.kubernetes.io/zone":      "cn-test-a",
+					},
+				},
+				Spec: v1.NodeSpec{ProviderID: "cn-test.i-bp1ecs3"},
+			},
+			setupMocks: func(ecs *cloud.MockECSv2Interface, eflo *cloud.MockEFLOInterface) {
+				ecs.EXPECT().DescribeInstanceTypes(gomock.Any()).
+					Return(describeInstanceTypesV2Resp("ecs.g7.large", 8), nil)
+				ecs.EXPECT().DescribeAvailableResource(gomock.Any()).
+					Return(makeAvailResp("cn-test-a", "cloud_essd"), nil)
+				ecs.EXPECT().DescribeAvailableResource(gomock.Any()).
+					Return(makeAvailResp("", "cloud_essd"), nil)
+				ecs.EXPECT().DescribeDisks(gomock.Any()).Return(nil, errAPI)
+			},
+			wantErr:        true,
+			wantErrContain: "describe disks for",
+		},
+		{
+			name: "eflo_describe_node_error",
+			node: &v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "node-lj1",
+					Labels: map[string]string{"alibabacloud.com/lingjun-worker": "true"},
+				},
+				Spec: v1.NodeSpec{ProviderID: "cn-test.lingjun-01"},
+			},
+			setupMocks: func(ecs *cloud.MockECSv2Interface, eflo *cloud.MockEFLOInterface) {
+				eflo.EXPECT().DescribeNode(gomock.Any()).Return(nil, errAPI)
+			},
+			wantErr:        true,
+			wantErrContain: "get nodeType for Lingjun node",
+		},
+		{
+			name: "eflo_describe_node_type_error",
+			node: &v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "node-lj2",
+					Labels: map[string]string{"alibabacloud.com/lingjun-worker": "true"},
+				},
+				Spec: v1.NodeSpec{ProviderID: "cn-test.lingjun-02"},
+			},
+			setupMocks: func(ecs *cloud.MockECSv2Interface, eflo *cloud.MockEFLOInterface) {
+				eflo.EXPECT().DescribeNode(gomock.Any()).Return(&eflo_controller20221215.DescribeNodeResponse{
+					Body: &eflo_controller20221215.DescribeNodeResponseBody{
+						NodeType: new("ebs-enhanced"),
+					},
+				}, nil)
+				eflo.EXPECT().DescribeNodeType(gomock.Any()).Return(nil, errAPI)
+			},
+			wantErr:        true,
+			wantErrContain: "get disk quantity for Lingjun node",
+		},
+		{
+			name: "eflo_empty_node_type",
+			node: &v1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "node-lj3",
+					Labels: map[string]string{"alibabacloud.com/lingjun-worker": "true"},
+				},
+				Spec: v1.NodeSpec{ProviderID: "cn-test.lingjun-03"},
+			},
+			setupMocks: func(ecs *cloud.MockECSv2Interface, eflo *cloud.MockEFLOInterface) {
+				eflo.EXPECT().DescribeNode(gomock.Any()).Return(&eflo_controller20221215.DescribeNodeResponse{
+					Body: &eflo_controller20221215.DescribeNodeResponseBody{},
+				}, nil)
+			},
+			wantErr:        true,
+			wantErrContain: "get disk quantity for Lingjun node",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newTestFixture(t, c.node)
+			c.setupMocks(f.ecs, f.eflo)
+
+			logger, ctx := ktesting.NewTestContext(t)
+			err := f.r.reconcile(ctx, logger, c.node.Name)
+
+			if c.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), c.wantErrContain)
+				assertNoPatch(t, f)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
