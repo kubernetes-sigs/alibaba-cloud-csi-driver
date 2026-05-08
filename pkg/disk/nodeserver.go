@@ -593,6 +593,24 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	klog.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.NodeID, device)
 
+	sysConfigs, err := utilsio.ParseSysConfigs(req.VolumeContext[SysConfigTag], allowSysConfigKey)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	// set sysConfigs
+	if len(sysConfigs) > 0 {
+		major, minor, err := DefaultDeviceManager.DevTmpFS.DevFor(device)
+		if err != nil {
+			return nil, status.Errorf(defaultErrCode, "failed to get device number: %v", err)
+		}
+		manager := utilsio.NewSysConfigManager(major, minor)
+		for _, entry := range sysConfigs {
+			if err := manager.Set(entry.Key, entry.Value); err != nil {
+				return nil, status.Errorf(defaultErrCode, "set sysconfig: %v", err)
+			}
+		}
+	}
+
 	err = ns.setupDisk(ctx, device, targetPath, req)
 	if err != nil {
 		return nil, status.Error(defaultErrCode, err.Error())
@@ -609,21 +627,6 @@ type setupRequest interface {
 func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, req setupRequest) error {
 	volumeContext := req.GetVolumeContext()
 	logger := klog.FromContext(ctx)
-	// sysConfig
-	if value, ok := volumeContext[SysConfigTag]; ok {
-		configList := strings.SplitSeq(strings.TrimSpace(value), ",")
-		for configStr := range configList {
-			key, value, found := strings.Cut(configStr, "=")
-			if !found {
-				return fmt.Errorf("invalid sysConfig format %q", configStr)
-			}
-			err := DefaultDeviceManager.WriteSysfs(device, key, []byte(value))
-			if err != nil {
-				return fmt.Errorf("set sysConfig %s=%s failed: %v", key, value, err)
-			}
-			logger.V(2).Info("set sysConfig", "key", key, "value", value)
-		}
-	}
 	omitfsck := false
 	if disable, ok := volumeContext[OmitFilesystemCheck]; ok && disable == "true" {
 		omitfsck = true
@@ -1481,4 +1484,9 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) boo
 	}
 
 	return false
+}
+
+// for backward compatibility
+func allowSysConfigKey(key string) bool {
+	return true
 }
