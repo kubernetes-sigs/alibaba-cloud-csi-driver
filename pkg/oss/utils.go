@@ -150,7 +150,7 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 		secrets = map[string]string{}
 	}
 
-	// credientials
+	// credentials
 	accessKey, tokenSecret := parseCredentialsFromSecret(secrets)
 	opts := &ossfpm.Options{
 		UseSharedPath: true,

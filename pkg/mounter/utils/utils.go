@@ -192,7 +192,7 @@ func GetAttachPath(volumeId string) string {
 	return filepath.Join(GetFuseAttachDir(), hex.EncodeToString(volSha[:]), "globalmount")
 }
 
-func GetCredientialsSecretName(fuseType string) string {
+func GetCredentialsSecretName(fuseType string) string {
 	return fmt.Sprintf("csi-%s-credentials", fuseType)
 }
 
@@ -202,7 +202,7 @@ func CleanupCredentialSecret(ctx context.Context, clientset kubernetes.Interface
 		return nil
 	}
 	key := fmt.Sprintf("%s.%s", node, volumeId)
-	secretName := GetCredientialsSecretName(fuseType)
+	secretName := GetCredentialsSecretName(fuseType)
 	secretClient := clientset.CoreV1().Secrets(LegacyFusePodNamespace)
 	secret, err := secretClient.Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
