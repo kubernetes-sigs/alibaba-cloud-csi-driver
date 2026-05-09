@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -32,7 +33,7 @@ func main() {
 	fmt.Println(string(data))
 
 	dclient := client.NewClient(socketPath)
-	resp, err := dclient.Mount(&req)
+	resp, err := dclient.Mount(context.Background(), &req)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)

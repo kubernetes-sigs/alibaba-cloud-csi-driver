@@ -29,7 +29,7 @@ func (m *ProxyMounter) ExtendedMount(ctx context.Context, op *MountOperation) er
 		return nil
 	}
 	dclient := client.NewClient(m.socketPath)
-	resp, err := dclient.Mount(&proxy.MountRequest{
+	resp, err := dclient.Mount(ctx, &proxy.MountRequest{
 		Source:      op.Source,
 		Target:      op.Target,
 		Fstype:      op.FsType,

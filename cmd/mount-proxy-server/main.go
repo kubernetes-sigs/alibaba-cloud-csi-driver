@@ -2,13 +2,11 @@ package main
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -63,43 +61,24 @@ func main() {
 		klog.InfoS("Skipping nftables setup", "enabled", false)
 	}
 
+	srv := server.NewServer(listener, handleTimeout)
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		sig := <-c
-		klog.InfoS("exiting", "signal", sig)
-		// close socket
-		listener.Close()
-	}()
+	go srv.Serve()
 
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			if errors.Is(err, net.ErrClosed) {
-				break
-			}
-			klog.ErrorS(err, "Failed to accept connection")
-			continue
-		}
-		go handle(conn)
+	sig := <-c
+	klog.InfoS("exiting", "signal", sig)
+	if err := srv.Close(); err != nil {
+		klog.ErrorS(err, "Failed to close server")
 	}
 	server.Terminate(drivers)
 }
 
-var connSeq atomic.Int64
-
-func handle(conn net.Conn) {
-	defer conn.Close()
-	seq := connSeq.Add(1)
-	err := server.Handle(conn, handleTimeout, seq)
-	if err != nil {
-		klog.ErrorS(err, "Failed to handle", "seq", seq)
-	}
-}
-
-func listen(socketPath string) (net.Listener, error) {
+func listen(socketPath string) (*net.UnixListener, error) {
+	addr := net.UnixAddr{Name: socketPath, Net: "unix"}
 	if len(socketPath) < 100 {
-		return net.Listen("unix", socketPath)
+		return net.ListenUnix("unix", &addr)
 	}
 
 	// Need to change the current working directory to the temp volume base path,
@@ -122,7 +101,8 @@ func listen(socketPath string) (net.Listener, error) {
 		}
 	}()
 
-	return net.Listen("unix", filepath.Base(socketPath))
+	addr.Name = filepath.Base(socketPath)
+	return net.ListenUnix("unix", &addr)
 }
 
 const (
