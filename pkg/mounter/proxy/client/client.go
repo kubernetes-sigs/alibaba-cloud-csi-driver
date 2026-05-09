@@ -83,7 +83,12 @@ func (c *client) doRequest(req *proxy.Request) (*proxy.Response, error) {
 	}
 
 	var response proxy.Response
-	return &response, json.Unmarshal(p[:end], &response)
+	err = json.Unmarshal(p[:end], &response)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal response: %w", err)
+	}
+	klog.V(2).InfoS("response from mount-proxy", "seq", response.Seq)
+	return &response, nil
 }
 
 func (c *client) Mount(req *proxy.MountRequest) (*proxy.Response, error) {

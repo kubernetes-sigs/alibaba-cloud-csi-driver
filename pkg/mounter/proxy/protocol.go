@@ -25,6 +25,7 @@ type Request struct {
 }
 
 type Response struct {
+	Seq   int64  `json:"seq,omitempty"`
 	Error string `json:"error,omitempty"`
 }
 

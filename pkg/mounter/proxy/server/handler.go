@@ -17,11 +17,9 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	defaultHandleTimeout = time.Second * 10
-)
-
-func Handle(conn net.Conn, timeout time.Duration) error {
+func Handle(conn net.Conn, timeout time.Duration, seq int64) error {
+	logger := klog.Background().WithValues("seq", seq)
+	ctx := klog.NewContext(context.Background(), logger)
 	deadline := time.Now().Add(timeout)
 
 	unixConn, ok := conn.(*net.UnixConn)
@@ -40,18 +38,18 @@ func Handle(conn net.Conn, timeout time.Duration) error {
 		return err
 	}
 
-	klog.V(4).InfoS("Start to recvmsg")
+	logger.V(4).Info("Start to recvmsg")
 	p := make([]byte, proxy.MaxMsgSize)
 	n, _, _, _, err := unix.Recvmsg(socket, p, nil, 0)
 	if err != nil {
 		return fmt.Errorf("recvmsg: %w", err)
 	}
-	klog.V(4).InfoS("Succeeded to recvmsg", "n", n)
+	logger.V(4).Info("Succeeded to recvmsg", "n", n)
 
-	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 
-	var resp proxy.Response
+	resp := proxy.Response{Seq: seq}
 	req, err := parseRawRequest(p[:n])
 	if err != nil {
 		resp = proxy.Response{
@@ -60,18 +58,21 @@ func Handle(conn net.Conn, timeout time.Duration) error {
 	} else {
 		resp = handle(ctx, req)
 	}
+	if resp.Error != "" {
+		logger.Error(nil, "request failed", "err", resp.Error)
+	}
 
 	data, err := json.Marshal(resp)
 	if err != nil {
 		return fmt.Errorf("encode response: %w", err)
 	}
 
-	klog.V(4).InfoS("Start to sendmsg")
+	logger.V(4).Info("Start to sendmsg")
 	err = unix.Sendmsg(socket, append(data, proxy.MessageEnd), nil, nil, 0)
 	if err != nil {
 		return fmt.Errorf("sendmsg: %w", err)
 	}
-	klog.InfoS("Succeeded to sendmsg", "msg", string(data))
+	logger.Info("Succeeded to sendmsg", "msg", string(data))
 	return nil
 }
 

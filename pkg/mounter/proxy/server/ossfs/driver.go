@@ -101,6 +101,7 @@ type extendedMounter struct {
 var _ mounter.Mounter = &extendedMounter{}
 
 func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
+	logger := klog.FromContext(ctx)
 	options := op.Options
 	target := op.Target
 
@@ -124,12 +125,12 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	}
 
 	pid := cmd.Process.Pid
-	klog.InfoS("Started ossfs", "pid", pid, "args", args)
+	logger.Info("Started ossfs", "pid", pid, "args", args)
 
 	if dumpable := os.Getenv("SET_DUMPABLE"); dumpable == "true" {
 		err = unix.Prctl(unix.PR_SET_DUMPABLE, 1, 0, 0, 0)
 		if err != nil {
-			klog.ErrorS(err, "Failed to set process as dumpable")
+			logger.Error(err, "Failed to set process as dumpable")
 		}
 	}
 
@@ -147,11 +148,11 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 			if stderrContent != "" {
 				err = fmt.Errorf("%w, with stderr: %s", err, stderrContent)
 			}
-			klog.ErrorS(err, "ossfs exited with error",
+			logger.Error(err, "ossfs exited with error",
 				"mountpoint", target,
 				"pid", pid)
 		} else {
-			klog.InfoS("ossfs exited", "mountpoint", target, "pid", pid)
+			logger.Info("ossfs exited", "mountpoint", target, "pid", pid)
 		}
 		// Notify poll loop after metrics are updated
 		ossfsExited <- err
@@ -168,11 +169,11 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 		default:
 			notMnt, err := m.IsLikelyNotMountPoint(target)
 			if err != nil {
-				klog.ErrorS(err, "check mountpoint", "mountpoint", target)
+				logger.Error(err, "check mountpoint", "mountpoint", target)
 				return false, nil
 			}
 			if !notMnt {
-				klog.InfoS("Successfully mounted", "mountpoint", target)
+				logger.Info("Successfully mounted", "mountpoint", target)
 				return true, nil
 			}
 			return false, nil
@@ -191,14 +192,14 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 		// terminate ossfs process when timeout
 		terr := cmd.Process.Signal(syscall.SIGTERM)
 		if terr != nil {
-			klog.ErrorS(err, "Failed to terminate ossfs", "pid", pid)
+			logger.Error(err, "Failed to terminate ossfs", "pid", pid)
 		}
 		select {
 		case <-ossfsExited:
 		case <-time.After(time.Second * 2):
 			kerr := cmd.Process.Kill()
 			if kerr != nil && !errors.Is(kerr, os.ErrProcessDone) {
-				klog.ErrorS(err, "Failed to kill ossfs", "pid", pid)
+				logger.Error(err, "Failed to kill ossfs", "pid", pid)
 			}
 		}
 	}

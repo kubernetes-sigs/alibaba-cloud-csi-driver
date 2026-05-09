@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -85,11 +86,14 @@ func main() {
 	server.Terminate(drivers)
 }
 
+var connSeq atomic.Int64
+
 func handle(conn net.Conn) {
 	defer conn.Close()
-	err := server.Handle(conn, handleTimeout)
+	seq := connSeq.Add(1)
+	err := server.Handle(conn, handleTimeout, seq)
 	if err != nil {
-		klog.ErrorS(err, "Failed to handle")
+		klog.ErrorS(err, "Failed to handle", "seq", seq)
 	}
 }
 
