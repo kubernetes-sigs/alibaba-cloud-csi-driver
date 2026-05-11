@@ -17,8 +17,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update as base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
-ARG OSSFS_IMAGE_TAG=v1.91.9.ack.1-b81059f
-ARG OSSFS2_IMAGE_TAG=v2.0.5.ack.1-663afcf
+ARG OSSFS_IMAGE_TAG=v1.91.10.ack.1-318a02a
+ARG OSSFS2_IMAGE_TAG=v2.0.7.ack.1-2d5bf24
 LABEL defaultOssfsImageTag="${OSSFS_IMAGE_TAG}" defaultOssfs2ImageTag="${OSSFS2_IMAGE_TAG}"
 
 RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace util-linux nc telnet tar cpio lsof && \

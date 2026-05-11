@@ -12,12 +12,12 @@
 # OSSFS image tag (used in Helm values and Go code)
 # Format: v<version>-<commit_hash>
 # The RPM version (v<version>) will be extracted automatically
-OSSFS_IMAGE_TAG=v1.91.9.ack.1-b81059f
+OSSFS_IMAGE_TAG=v1.91.10.ack.1-318a02a
 
 # OSSFS2 image tag (used in Helm values and Go code)
 # Format: v<version>-<commit_hash>
 # The RPM version (v<version>) will be extracted automatically
-OSSFS2_IMAGE_TAG=v2.0.5.ack.1-663afcf
+OSSFS2_IMAGE_TAG=v2.0.7.ack.1-2d5bf24
 
 # ALINAS and EFC Version Configuration
 # This file is the single source of truth for alinas-utils and efc RPM package versions.
