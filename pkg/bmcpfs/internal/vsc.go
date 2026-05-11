@@ -120,12 +120,18 @@ func (m *LingjunVscManager) GetVsc(vscId string) (*Vsc, error) {
 
 type vscWithErr struct {
 	*Vsc
-	err error
+	err      error
+	cachedAt time.Time
+}
+
+func (e vscWithErr) isExpired(ttl time.Duration) bool {
+	return time.Since(e.cachedAt) > ttl
 }
 
 type PrimaryVscManagerWithCache struct {
 	VscManager
 	retryTimes int
+	cacheTTL   time.Duration
 
 	cond *sync.Cond
 	// Instance ID to VSC
@@ -137,12 +143,14 @@ type PrimaryVscManagerWithCache struct {
 const (
 	defaultVscManagerRetryTimes  = 3
 	defaultVscManagerWorkerCount = 3
+	defaultVscCacheTTL           = 5 * time.Minute
 )
 
 func NewPrimaryVscManagerWithCache(efloClient *efloclient.Client) *PrimaryVscManagerWithCache {
 	m := &PrimaryVscManagerWithCache{
 		VscManager: NewVscManager(efloClient),
 		retryTimes: defaultVscManagerRetryTimes,
+		cacheTTL:   defaultVscCacheTTL,
 		cond:       sync.NewCond(&sync.Mutex{}),
 		cache:      make(map[string]vscWithErr),
 		queue: workqueue.NewTypedRateLimitingQueue(
@@ -172,7 +180,7 @@ func (m *PrimaryVscManagerWithCache) handleNext() bool {
 	newVsc, err := m.getOrCreatePrimaryFor(instanceId)
 
 	m.cond.L.Lock()
-	m.cache[instanceId] = vscWithErr{newVsc, err}
+	m.cache[instanceId] = vscWithErr{Vsc: newVsc, err: err, cachedAt: time.Now()}
 	m.cond.L.Unlock()
 
 	if err == nil {
@@ -227,7 +235,7 @@ func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, insta
 
 	if !refresh {
 		vsc, exists := m.cache[instanceId]
-		if exists && vsc.err == nil {
+		if exists && vsc.err == nil && !vsc.isExpired(m.cacheTTL) {
 			return vsc.VscID, nil
 		}
 	}
@@ -255,7 +263,7 @@ func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, insta
 func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
 	m.cond.L.Lock()
 	cachedVsc, exists := m.cache[instanceId]
-	if exists && cachedVsc.Vsc != nil {
+	if exists && cachedVsc.Vsc != nil && !cachedVsc.isExpired(m.cacheTTL) {
 		m.cond.L.Unlock()
 		return cachedVsc.Vsc, nil
 	}
@@ -271,7 +279,7 @@ func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceId string) (*Vsc, e
 		m.cond.L.Lock()
 		clonedVsc := new(Vsc)
 		*clonedVsc = *vsc
-		m.cache[instanceId] = vscWithErr{clonedVsc, nil}
+		m.cache[instanceId] = vscWithErr{Vsc: clonedVsc, cachedAt: time.Now()}
 		m.cond.L.Unlock()
 	}
 
