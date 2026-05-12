@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
@@ -48,7 +49,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
-	"golang.org/x/sys/unix"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
@@ -255,7 +255,7 @@ func main() {
 	}
 
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, unix.SIGTERM)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		s := <-c
 		klog.Infof("Got signal: %v, exiting...", s)
