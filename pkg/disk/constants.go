@@ -128,4 +128,9 @@ const (
 	SNAPSHOT_MIN_RETENTION_DAYS = 1
 
 	PUBLISH_CONTEXT_SERIAL = "serialNumber"
+
+	// DiskBdfTagKey disk bdf tag
+	DiskBdfTagKey = "bdf.csi.aliyun.com"
+	// DiskBdfCheckTagKey disk bdf check tag
+	DiskBdfCheckTagKey = "check.bdf.csi.aliyun.com"
 )
