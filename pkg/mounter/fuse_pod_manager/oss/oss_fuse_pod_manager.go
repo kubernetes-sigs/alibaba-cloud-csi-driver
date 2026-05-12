@@ -43,10 +43,11 @@ const (
 )
 
 const (
-	AuthTypeSTS    = "sts"
-	AuthTypeRRSA   = "rrsa"
-	AuthTypeCSS    = "csi-secret-store"
-	AuthTypePublic = "public"
+	AuthTypeSTS           = "sts"
+	AuthTypeRRSA          = "rrsa"
+	AuthTypeCSS           = "csi-secret-store"
+	AuthTypePublic        = "public"
+	AuthTypeAgentIdentity = "agent-identity"
 )
 
 type AccessKey struct {
@@ -90,6 +91,11 @@ type Options struct {
 	ExternalId    string `json:"externalId"`
 	// csi secret store
 	SecretProviderClass string `json:"secretProviderClass"`
+	// agent identity
+	SandboxId               string `json:"sandboxId"`
+	SandboxCredProviderName string `json:"sandboxCredProviderName"`
+	SandboxTokenSecret      string `json:"sandboxTokenSecret"`
+	SandboxCASecret         string `json:"sandboxCASecret"`
 
 	// ossfs options
 	OtherOpts  string     `json:"otherOpts"`

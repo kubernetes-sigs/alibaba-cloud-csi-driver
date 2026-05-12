@@ -15,6 +15,7 @@ import (
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -91,6 +92,13 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 		if o.SecretProviderClass == "" {
 			return fmt.Errorf("use CsiSecretStore but secretProviderClass is empty")
 		}
+	case ossfpm.AuthTypeAgentIdentity:
+		if o.SandboxId == "" {
+			return fmt.Errorf("missing sandboxId in volume attributes")
+		}
+		if o.SandboxCredProviderName == "" {
+			return fmt.Errorf("missing sandboxCredProviderName in volume attributes")
+		}
 	default:
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 			return nil
@@ -132,6 +140,13 @@ func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvide
 		authCfg.SecretProviderClassName = o.SecretProviderClass
 	case ossfpm.AuthTypeSTS:
 		authCfg.RoleName = o.RoleName
+	case ossfpm.AuthTypeAgentIdentity:
+		authCfg.AgentIdentityConfig = &fpm.AgentIdentityConfig{
+			TokenSecret:      o.SandboxTokenSecret,
+			CASecret:         o.SandboxCASecret,
+			CredProviderName: o.SandboxCredProviderName,
+			SandboxId:        o.SandboxId,
+		}
 	default:
 		// fixed credentials
 		if o.AkID != "" && o.AkSecret != "" {
@@ -322,6 +337,12 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 		if o.RoleName != "" {
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
+	case ossfpm.AuthTypeAgentIdentity:
+		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_endpoint=%s", ossfpm.GetAgentIdentityEndpoint()))
+		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_token_file=%s", ossfpm.GetAgentIdentityTokenFilePath(o.SandboxId)))
+		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_cred_provider=%s", o.SandboxCredProviderName))
+		// agent_identity_ca_file is not added here — it is optional and only appended
+		// by ApplyOptionDefaults if the file is readable. See AgentIdentityConfig for details.
 	default:
 		// fixed credentials
 		if o.AkID != "" && o.AkSecret != "" {
@@ -357,14 +378,7 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
 	}
 
-	tm := map[string]string{}
-	for _, option := range options {
-		if option == "" {
-			continue
-		}
-		k, v, _ := strings.Cut(option, "=")
-		tm[k] = v
-	}
+	tm := mounterutils.IndexMountOptions(options)
 
 	// set default dbg level
 	if _, ok := tm[KeyDbgLevel]; !ok {
@@ -491,6 +505,52 @@ func (f *fuseOssfs) buildAuthSpec(c *fpm.FusePodContext, target string, spec *co
 			ReadOnly:  true,
 		}
 		container.VolumeMounts = append(container.VolumeMounts, secretStoreVolumeMount)
+	case ossfpm.AuthTypeAgentIdentity:
+		if authCfg.AgentIdentityConfig == nil {
+			return
+		}
+		tokenFilePath := ossfpm.GetAgentIdentityTokenFilePath(authCfg.AgentIdentityConfig.SandboxId)
+		defaultMode := tea.Int32(0600)
+
+		if authCfg.AgentIdentityConfig.TokenSecret != "" {
+			spec.Volumes = append(spec.Volumes, corev1.Volume{
+				Name: "agent-identity-token",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName:  authCfg.AgentIdentityConfig.TokenSecret,
+						DefaultMode: defaultMode,
+						Items: []corev1.KeyToPath{
+							{Key: filepath.Base(tokenFilePath), Path: filepath.Base(tokenFilePath)},
+						},
+					},
+				},
+			})
+			container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+				Name:      "agent-identity-token",
+				MountPath: filepath.Dir(tokenFilePath),
+				ReadOnly:  true,
+			})
+		}
+		if authCfg.AgentIdentityConfig.CASecret != "" {
+			caFilePath := server.AgentIdentityCAFilePath
+			spec.Volumes = append(spec.Volumes, corev1.Volume{
+				Name: "agent-identity-ca",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName:  authCfg.AgentIdentityConfig.CASecret,
+						DefaultMode: defaultMode,
+						Items: []corev1.KeyToPath{
+							{Key: filepath.Base(caFilePath), Path: filepath.Base(caFilePath)},
+						},
+					},
+				},
+			})
+			container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+				Name:      "agent-identity-ca",
+				MountPath: filepath.Dir(caFilePath),
+				ReadOnly:  true,
+			})
+		}
 	default:
 		secretVolumeSource := ossfpm.GetPasswdSecretVolume(authCfg.SecretRef, c.FuseType)
 		if secretVolumeSource != nil {

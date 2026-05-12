@@ -101,6 +101,98 @@ func Test_buildAuthSpec_ossfs(t *testing.T) {
 	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
 }
 
+func Test_buildAuthSpec_agentIdentity(t *testing.T) {
+	newCtx := func(authCfg *fpm.AuthConfig) *fpm.FusePodContext {
+		return &fpm.FusePodContext{
+			Context:    context.Background(),
+			Namespace:  mounterutils.LegacyFusePodNamespace,
+			NodeName:   "test-node",
+			VolumeId:   "test-pv",
+			AuthConfig: authCfg,
+			FuseType:   mounterutils.OssFsType,
+		}
+	}
+	newSpecAndContainer := func() (corev1.PodSpec, corev1.Container) {
+		return corev1.PodSpec{}, corev1.Container{}
+	}
+
+	t.Run("token and CA", func(t *testing.T) {
+		spec, container := newSpecAndContainer()
+		authCfg := &fpm.AuthConfig{
+			AuthType: ossfpm.AuthTypeAgentIdentity,
+			AgentIdentityConfig: &fpm.AgentIdentityConfig{
+				TokenSecret: "my-token-secret",
+				CASecret:    "my-ca-secret",
+				SandboxId:   "sandbox-123",
+			},
+		}
+		fakeOssfs := &fuseOssfs{}
+		fakeOssfs.buildAuthSpec(newCtx(authCfg), "target", &spec, &container)
+
+		assert.Len(t, spec.Volumes, 2)
+		assert.Equal(t, "agent-identity-token", spec.Volumes[0].Name)
+		assert.Equal(t, "my-token-secret", spec.Volumes[0].Secret.SecretName)
+		assert.Equal(t, "sandbox-123.token", spec.Volumes[0].Secret.Items[0].Key)
+		assert.Equal(t, "agent-identity-ca", spec.Volumes[1].Name)
+		assert.Equal(t, "my-ca-secret", spec.Volumes[1].Secret.SecretName)
+		assert.Equal(t, "ca.crt", spec.Volumes[1].Secret.Items[0].Key)
+
+		assert.Len(t, container.VolumeMounts, 2)
+		assert.Equal(t, "/var/opt/sandbox/agent-token", container.VolumeMounts[0].MountPath)
+		assert.True(t, container.VolumeMounts[0].ReadOnly)
+		assert.Equal(t, "/var/opt/sandbox/agent-ca", container.VolumeMounts[1].MountPath)
+		assert.True(t, container.VolumeMounts[1].ReadOnly)
+	})
+
+	t.Run("token only", func(t *testing.T) {
+		spec, container := newSpecAndContainer()
+		authCfg := &fpm.AuthConfig{
+			AuthType: ossfpm.AuthTypeAgentIdentity,
+			AgentIdentityConfig: &fpm.AgentIdentityConfig{
+				TokenSecret: "my-token-secret",
+				SandboxId:   "sandbox-123",
+			},
+		}
+		fakeOssfs := &fuseOssfs{}
+		fakeOssfs.buildAuthSpec(newCtx(authCfg), "target", &spec, &container)
+
+		assert.Len(t, spec.Volumes, 1)
+		assert.Equal(t, "agent-identity-token", spec.Volumes[0].Name)
+		assert.Len(t, container.VolumeMounts, 1)
+	})
+
+	t.Run("CA only", func(t *testing.T) {
+		spec, container := newSpecAndContainer()
+		authCfg := &fpm.AuthConfig{
+			AuthType: ossfpm.AuthTypeAgentIdentity,
+			AgentIdentityConfig: &fpm.AgentIdentityConfig{
+				CASecret:  "my-ca-secret",
+				SandboxId: "sandbox-123",
+			},
+		}
+		fakeOssfs := &fuseOssfs{}
+		fakeOssfs.buildAuthSpec(newCtx(authCfg), "target", &spec, &container)
+
+		assert.Len(t, spec.Volumes, 1)
+		assert.Equal(t, "agent-identity-ca", spec.Volumes[0].Name)
+		assert.Len(t, container.VolumeMounts, 1)
+		assert.Equal(t, "/var/opt/sandbox/agent-ca", container.VolumeMounts[0].MountPath)
+	})
+
+	t.Run("nil config", func(t *testing.T) {
+		spec, container := newSpecAndContainer()
+		authCfg := &fpm.AuthConfig{
+			AuthType:            ossfpm.AuthTypeAgentIdentity,
+			AgentIdentityConfig: nil,
+		}
+		fakeOssfs := &fuseOssfs{}
+		fakeOssfs.buildAuthSpec(newCtx(authCfg), "target", &spec, &container)
+
+		assert.Len(t, spec.Volumes, 0)
+		assert.Len(t, container.VolumeMounts, 0)
+	})
+}
+
 func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
 	fakeOssfs := NewFuseOssfs(utils.Config{}, fakeMeta)
@@ -238,6 +330,43 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 				Path:     "/path",
 				AuthType: ossfpm.AuthTypePublic,
 				FuseType: mounterutils.OssFsType,
+			},
+			wantErr: false,
+		},
+		{
+			name: "agent-identity: missing sandboxId",
+			opts: &ossfpm.Options{
+				URL:                     "1.1.1.1",
+				Bucket:                  "aliyun",
+				Path:                    "/path",
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxCredProviderName: "aliyun-one",
+				FuseType:                mounterutils.OssFsType,
+			},
+			wantErr: true,
+		},
+		{
+			name: "agent-identity: missing sandboxCredProviderName",
+			opts: &ossfpm.Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				AuthType:  ossfpm.AuthTypeAgentIdentity,
+				SandboxId: "sandbox-123",
+				FuseType:  mounterutils.OssFsType,
+			},
+			wantErr: true,
+		},
+		{
+			name: "agent-identity: success",
+			opts: &ossfpm.Options{
+				URL:                     "1.1.1.1",
+				Bucket:                  "aliyun",
+				Path:                    "/path",
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxId:               "sandbox-123",
+				SandboxCredProviderName: "aliyun-one",
+				FuseType:                mounterutils.OssFsType,
 			},
 			wantErr: false,
 		},
@@ -404,6 +533,26 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 				AuthType: "",
 				Secrets: map[string]string{
 					mounterutils.GetPasswdFileName(mounterutils.OssFsType): "bucket:test-ak:test-ak-secret",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "AuthTypeAgentIdentity",
+			options: &ossfpm.Options{
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxId:               "sandbox-123",
+				SandboxCredProviderName: "aliyun-one",
+				SandboxTokenSecret:      "token-secret",
+				SandboxCASecret:         "ca-secret",
+			},
+			expectedConfig: &fpm.AuthConfig{
+				AuthType: ossfpm.AuthTypeAgentIdentity,
+				AgentIdentityConfig: &fpm.AgentIdentityConfig{
+					TokenSecret:      "token-secret",
+					CASecret:         "ca-secret",
+					CredProviderName: "aliyun-one",
+					SandboxId:        "sandbox-123",
 				},
 			},
 			expectedError: nil,
@@ -580,6 +729,21 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			},
 		},
 		{
+			name: "AuthTypeAgentIdentity",
+			opts: &ossfpm.Options{
+				URL:                     "oss://bucket",
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxId:               "sandbox-123",
+				SandboxCredProviderName: "aliyun-one",
+			},
+			expected: []string{
+				"url=oss://bucket",
+				"agent_identity_endpoint=https://credential-provider.ack-agent-identity.svc:8443/",
+				"agent_identity_token_file=/var/opt/sandbox/agent-token/sandbox-123.token",
+				"agent_identity_cred_provider=aliyun-one",
+			},
+		},
+		{
 			name: "DefaultAuthType",
 			opts: &ossfpm.Options{
 				URL:       "oss://bucket",
@@ -682,6 +846,19 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 					AkID:     "test-ak",
 					AkSecret: "test-ak-secret",
 				},
+			},
+		},
+		{
+			name: "agent-identity",
+			opts: &ossfpm.Options{
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxId:               "sandbox-123",
+				SandboxCredProviderName: "aliyun-one",
+			},
+			wantOptions: []string{
+				"agent_identity_endpoint=https://credential-provider.ack-agent-identity.svc:8443/",
+				"agent_identity_token_file=/var/opt/sandbox/agent-token/sandbox-123.token",
+				"agent_identity_cred_provider=aliyun-one",
 			},
 		},
 		{

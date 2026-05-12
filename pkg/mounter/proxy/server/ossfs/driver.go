@@ -18,6 +18,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -30,9 +31,10 @@ func init() {
 // Driver manages ossfs mounts and their monitoring
 type Driver struct {
 	mounter.Mounter
-	pids           sync.Map
-	monitorManager *server.MountMonitorManager
-	wg             sync.WaitGroup
+	pids                sync.Map
+	monitorManager      *server.MountMonitorManager
+	wg                  sync.WaitGroup
+	agentIdentityCAPath string // override CA file path for testing; defaults to server.AgentIdentityCAFilePath when empty
 }
 
 func NewDriver() *Driver {
@@ -73,6 +75,33 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 
 func (h *Driver) Init() {}
 
+// ApplyOptionDefaults applies driver-specific option defaults to mount options.
+// Rules are divided into:
+//   - Append: add option only if not already present (user options take precedence)
+//   - Override: force option value regardless of existing (system requirements take precedence)
+func (h *Driver) ApplyOptionDefaults(options []string) []string {
+	// --- Append rules: existing user options take precedence ---
+	var appends []string
+
+	// agent_identity_ca_file: only appended if the file is readable — see AgentIdentityConfig for details
+	caPath := h.agentIdentityCAPath
+	if caPath == "" {
+		caPath = server.AgentIdentityCAFilePath
+	}
+	if unix.Access(caPath, unix.R_OK) == nil {
+		appends = append(appends, fmt.Sprintf("agent_identity_ca_file=%s", caPath))
+	}
+
+	if len(appends) > 0 {
+		options = mounterutils.MergeMountOptions(options, appends)
+	}
+
+	// --- Override rules: system-detected values take precedence ---
+	// (add future override rules here)
+
+	return options
+}
+
 func (h *Driver) Terminate() {
 	// Stop all mount monitoring
 	h.monitorManager.StopAllMonitoring()
@@ -102,7 +131,7 @@ var _ mounter.Mounter = &extendedMounter{}
 
 func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
 	logger := klog.FromContext(ctx)
-	options := op.Options
+	options := m.driver.ApplyOptionDefaults(op.Options)
 	target := op.Target
 
 	args := mount.MakeMountArgs(op.Source, op.Target, "", options)

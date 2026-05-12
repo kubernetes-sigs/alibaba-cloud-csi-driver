@@ -117,6 +117,17 @@ func GetSTSEndpoint(region string) string {
 	return fmt.Sprintf("https://sts-vpc.%s.aliyuncs.com", region)
 }
 
+func GetAgentIdentityTokenFilePath(sandboxId string) string {
+	return fmt.Sprintf("/var/opt/sandbox/agent-token/%s.token", sandboxId)
+}
+
+func GetAgentIdentityEndpoint() string {
+	if ep := os.Getenv("AGENT_IDENTITY_ENDPOINT"); ep != "" {
+		return ep
+	}
+	return "https://credential-provider.ack-agent-identity.svc:8443/"
+}
+
 // keep consistent with RAM response
 var secretRefKeysToParse []string = []string{
 	mounterutils.KeyAccessKeyId,

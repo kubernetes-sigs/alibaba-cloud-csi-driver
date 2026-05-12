@@ -73,6 +73,12 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 
 func (h *Driver) Init() {}
 
+// ApplyOptionDefaults applies driver-specific option defaults.
+// ossfs2 does not support agent identity auth, so no defaults are applied.
+func (h *Driver) ApplyOptionDefaults(options []string) []string {
+	return options
+}
+
 func (h *Driver) Terminate() {
 	// Stop all mount monitoring
 	h.monitorManager.StopAllMonitoring()
@@ -102,7 +108,7 @@ var _ mounter.Mounter = &extendedMounter{}
 
 func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
 	logger := klog.FromContext(ctx)
-	options := op.Options
+	options := m.driver.ApplyOptionDefaults(op.Options)
 	target := op.Target
 
 	args := []string{"mount", op.Target}

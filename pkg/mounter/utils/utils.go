@@ -96,6 +96,43 @@ func SplitMountOptions(s string) []string {
 	return list
 }
 
+// IndexMountOptions parses mount options into a key-value map for lookup.
+// Options in "key=value" form are split at the first "=".
+// Flag-only options like "ro" have an empty string value.
+func IndexMountOptions(options []string) map[string]string {
+	m := make(map[string]string, len(options))
+	for _, o := range options {
+		if o == "" {
+			continue
+		}
+		k, v, _ := strings.Cut(o, "=")
+		m[strings.TrimSpace(k)] = strings.TrimSpace(v)
+	}
+	return m
+}
+
+// MergeMountOptions merges additional options into base options.
+// If the same key exists in both, the base value takes precedence.
+// When values conflict, a warning is logged.
+// Options can be "key=value" or "key" (flag-only).
+func MergeMountOptions(base, additional []string) []string {
+	existing := IndexMountOptions(base)
+	for _, op := range additional {
+		k, v, _ := strings.Cut(op, "=")
+		k = strings.TrimSpace(k)
+		v = strings.TrimSpace(v)
+		if ev, ok := existing[k]; ok {
+			if ev != v {
+				klog.Warningf("MergeMountOptions: option %q conflicts with existing key %q, keeping existing value", op, k)
+			}
+			continue
+		}
+		existing[k] = v
+		base = append(base, op)
+	}
+	return base
+}
+
 // Copy from https://github.com/kubernetes/kubernetes/blob/b5ba7bc4f5f49760c821cae2f152a8000922e72e/staging/src/k8s.io/apimachinery/pkg/api/validation/objectmeta.go#L43
 // ValidateAnnotations validates that a set of annotations are correctly defined.
 func ValidateAnnotations(annotations map[string]string) error {

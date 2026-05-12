@@ -67,6 +67,12 @@ func (h *Driver) Init() {
 
 func (h *Driver) Terminate() {}
 
+// ApplyOptionDefaults applies driver-specific option defaults.
+// alinas does not apply any environment-detected defaults.
+func (h *Driver) ApplyOptionDefaults(options []string) []string {
+	return options
+}
+
 func runCommandForever(command string, args ...string) {
 	wait.Forever(func() {
 		klog.InfoS("Starting", "command", command)
