@@ -75,14 +75,6 @@ type nodeServer struct {
 	common.GenericNodeServer
 }
 
-// Disk status returned in ecs.DescribeDisks
-const (
-	DiskStatusInuse     = "In_use"
-	DiskStatusAttaching = "Attaching"
-	DiskStatusDetaching = "Detaching"
-	DiskStatusAvailable = "Available"
-)
-
 const (
 	// DiskStatusAttached disk attached status
 	DiskStatusAttached = "attached"
@@ -94,16 +86,8 @@ const (
 	OmitFilesystemCheck = "omitfsck"
 	// MkfsOptions tag
 	MkfsOptions = "mkfsOptions"
-	// DiskAttachedKey attached key
-	DiskAttachedKey = "k8s.aliyun.com"
-	// DiskAttachedValue attached value
-	DiskAttachedValue = "true"
 	// RundSocketDir dir
 	RundSocketDir = "/host/etc/kubernetes/volumes/rund/"
-	// CreateDiskARN ARN parameter of the CreateDisk interface
-	CreateDiskARN = "alibabacloud.com/createdisk-arn"
-	// PVC annotation key of KMS key ID, override the storage class parameter kmsKeyId
-	KMSKeyID = "alibabacloud.com/kms-key-id"
 	// DefaultMaxVolumesPerNode define default max ebs one node
 	DefaultMaxVolumesPerNode = 15
 	// NOUUID is xfs fs mount opts
@@ -168,7 +152,10 @@ func parseVolumeCountEnv() (int, error) {
 }
 
 // NewNodeServer creates node server
-func NewNodeServer(ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadata.MetadataProvider, useLabeler bool) csi.NodeServer {
+func NewNodeServer(csiCfg utils.Config, ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadata.MetadataProvider, useLabeler bool) csi.NodeServer {
+	DefaultDeviceManager.DisableSerial = IsVFNode()
+	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
+
 	// Create Directory
 	err := os.MkdirAll(RundSocketDir, os.FileMode(0755))
 	if err != nil {
@@ -239,8 +226,10 @@ func NewNodeServer(ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadat
 			attachThrottler: defaultThrottler(),
 			detachThrottler: defaultThrottler(),
 
-			dev:    DefaultDeviceManager,
-			devMap: devMap,
+			repo: &diskRepo{
+				dev:    DefaultDeviceManager,
+				devMap: devMap,
+			},
 		},
 		locks:     utils.NewVolumeLocks(),
 		dmControl: dmControl,
@@ -398,7 +387,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// check device name available
-	expectName, err := ns.ad.GetVolumeDeviceName(logger, req.VolumeId)
+	expectName, err := ns.ad.repo.GetVolumeDeviceName(logger, req.VolumeId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get device name: %v", err)
 	}
@@ -580,7 +569,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			// for capability with old controller
 			serial = strings.TrimPrefix(req.VolumeId, "d-")
 		}
-		device, err = ns.ad.findDevice(ctx, req.VolumeId, serial, nil)
+		device, err = ns.ad.repo.findDevice(ctx, req.VolumeId, serial, nil)
 		if err != nil {
 			if GlobalConfigVar.ADControllerEnable {
 				return nil, status.Errorf(defaultErrCode, "ADController Enabled, but disk can't be found: %v", err)
@@ -590,7 +579,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 	if device == "" {
-		r, err := ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID, true)
+		r, err := ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			logger.Error(err, "Attach volume failed", "suggestion", fullErrorMessage)
@@ -799,7 +788,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	}
 
 	// All device related errors are not fatal, just log it
-	device, err := ns.ad.dev.GetRootBlockBySerial(strings.TrimPrefix(req.VolumeId, "d-"))
+	device, err := ns.ad.repo.dev.GetRootBlockBySerial(strings.TrimPrefix(req.VolumeId, "d-"))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// devices without serial should already have xattr set on NodeStageVolume
@@ -834,7 +823,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		logger.Error(err, "Detach failed")
 		return nil, err
 	}
-	ns.ad.devMap.Delete(req.VolumeId)
+	ns.ad.repo.DeleteAttached(req.VolumeId)
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
@@ -1030,7 +1019,7 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 	}
 
 	if devicePath == "" {
-		devicePath, err = ns.ad.GetVolumeDeviceName(logger, diskID)
+		devicePath, err = ns.ad.repo.GetVolumeDeviceName(logger, diskID)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				return nil, status.Errorf(codes.NotFound, "can't get devicePath for: %s", diskID)
@@ -1302,7 +1291,7 @@ func (ns *nodeServer) mountRunvVolumes(ctx context.Context, volumeId, sourcePath
 	if err := ns.replaceTmpfs(ctx, logger, sourcePath, volumeId); err != nil {
 		return status.Errorf(codes.InvalidArgument, "runv: replaceTmpfs %s: %v", sourcePath, err)
 	}
-	deviceName, err := ns.ad.GetRootBlockDevice(logger, volumeId)
+	deviceName, err := ns.ad.repo.GetRootBlockDevice(logger, volumeId)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "runv: cannot get local deviceName: %v", err)
 	}
@@ -1339,7 +1328,7 @@ func (ns *nodeServer) mountRunvVolumes(ctx context.Context, volumeId, sourcePath
 func (ns *nodeServer) mountRunDVolumes(ctx context.Context, volumeId, pvName, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock, pvmMode bool, mountFlags []string) (bool, error) {
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Mount in RunD csi 3.0/2.0 protocol")
-	deviceName, err := ns.ad.GetRootBlockDevice(logger, volumeId)
+	deviceName, err := ns.ad.repo.GetRootBlockDevice(logger, volumeId)
 	if err != nil {
 		logger.V(1).Info("RunD volume device not found", "err", err)
 		// maybe OK, we can find the device by xdragon-bdf below.
@@ -1522,7 +1511,7 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(logger klog.Logger, volumeId, ta
 		}
 	}
 
-	device, err := ns.ad.GetRootBlockDevice(logger, volumeId)
+	device, err := ns.ad.repo.GetRootBlockDevice(logger, volumeId)
 	if err != nil {
 		// In VFIO mode, an empty device is an expected condition, so the resulting error should be ignored.
 		logger.V(1).Info("GetVolumeDeviceName failed", "error", err)

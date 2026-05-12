@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/pkg/errors"
@@ -44,12 +43,6 @@ const (
 	iohubSrviovDriver = "iohub_sriov"
 	virtioPciDriver   = "virtio-pci"
 
-	// InstanceStatusStopped ecs stopped status
-	InstanceStatusStopped = "Stopped"
-	// DiskBdfTagKey disk bdf tag
-	DiskBdfTagKey = "bdf.csi.aliyun.com"
-	// DiskBdfCheckTagKey disk bdf check tag
-	DiskBdfCheckTagKey = "check.bdf.csi.aliyun.com"
 	// Vfhp Reconcile period
 	VfhpReconcilePeriod = 600
 )
@@ -353,53 +346,6 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 
 	klog.Infof("Deleting bdf information successfully for Disk: %s", diskID)
 	return nil
-}
-
-func forceDetachAllowed(ecsClient cloud.ECSInterface, disk *ecs.Disk) (allowed bool, err error) {
-	// The following case allow detach:
-	// 1. no depend bdf
-	// 2. instance status is stopped
-
-	// case 1
-	describeDisksRequest := ecs.CreateDescribeDisksRequest()
-	describeDisksRequest.RegionId = GlobalConfigVar.Region
-	describeDisksRequest.DiskIds = "[\"" + disk.DiskId + "\"]"
-	diskResponse, err := ecsClient.DescribeDisks(describeDisksRequest)
-	if err != nil {
-		klog.Warningf("forceDetachAllowed: error with DescribeDisks: %s, %s", disk.DiskId, err.Error())
-		return false, errors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
-	}
-	disks := diskResponse.Disks.Disk
-	klog.Infof("forceDetachAllowed: diskResponse: %+v", diskResponse)
-	if len(disks) == 0 {
-		klog.Warningf("forceDetachAllowed: no disk found: %s", disk.DiskId)
-		return false, errors.Wrapf(err, "forceDetachAllowed: Get disk empty, ID=%s", disk.DiskId)
-	}
-	bdfTagExist := false
-	for _, tag := range disks[0].Tags.Tag {
-		if tag.TagKey == DiskBdfTagKey {
-			bdfTagExist = true
-		}
-	}
-	if !bdfTagExist {
-		return true, nil
-	}
-
-	request := ecs.CreateDescribeInstancesRequest()
-	request.RegionId = disk.RegionId
-	request.InstanceIds = "[\"" + disk.InstanceId + "\"]"
-	instanceResponse, err := ecsClient.DescribeInstances(request)
-	klog.Infof("forceDetachAllowed: instanceResponse: %+v", instanceResponse)
-	if err != nil {
-		return false, errors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
-	}
-	if len(instanceResponse.Instances.Instance) == 0 {
-		return false, errors.Errorf("Describe Instance with empty response: %s", disk.InstanceId)
-	}
-	inst := instanceResponse.Instances.Instance[0]
-	klog.Infof("forceDetachAllowed: Instance status is %s", inst.Status)
-	// case 2
-	return inst.Status == InstanceStatusStopped, nil
 }
 
 var vfOnce = new(sync.Once)
