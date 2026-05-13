@@ -5,12 +5,13 @@ set -e
 N_NODES=${N_NODES:-4}
 ACK_REGION=${ACK_REGION:-cn-beijing}
 ACK_ZONE=${ACK_ZONE:-cn-beijing-h cn-beijing-i cn-beijing-j}
+VPC_ID=${VPC_ID:-}
 
-function cluster-setup {
-    local HERE
-    local CASE_NAME=$1
-    HERE=$(dirname "${BASH_SOURCE[0]}")
-
+function create-vpc {
+    if [ -n "$VPC_ID" ]; then
+        echo "existing VPC_ID: $VPC_ID"
+        return
+    fi
     echo "Creating VPC"
     VPC_ID=$(aliyun vpc CreateVpc --RegionId "$ACK_REGION" \
         --CidrBlock '172.16.0.0/12' \
@@ -65,6 +66,13 @@ function cluster-setup {
         vswitch_ids+=("$id")
         subnet=$((subnet+1))
     done
+}
+
+function create-ack-cluster {
+    local HERE
+    local CASE_NAME=$1
+    HERE=$(dirname "${BASH_SOURCE[0]}")
+    create-vpc
 
     local cluster_params
     cluster_params=$(jsonnet "$HERE/cluster-template.jsonnet" \
@@ -98,6 +106,11 @@ function cluster-setup {
         fi
         sleep 15
     done
+}
+
+function cluster-setup {
+    local CASE_NAME=$1
+    create-ack-cluster "$CASE_NAME"
     get-kubeconfig
     ram-setup "$CASE_NAME"
 }

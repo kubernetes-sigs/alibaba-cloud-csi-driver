@@ -87,9 +87,10 @@ local nodePool = {
     },
     nodepools: [
         nodePool {
-            count: nNodes - 3
+            count: std.max(nNodes - 3, 1)
         },
         nodePool {
+            count: std.clamp(nNodes - 1, 0, 1),
             nodepool_info+: {
                 name: "ssd_only"
             },
@@ -105,7 +106,7 @@ local nodePool = {
             }
         },
         nodePool {
-            count: 2,
+            count: std.clamp(nNodes - 2, 0, 2),
             nodepool_info+: {
                 name: "eed"
             },
