@@ -1,6 +1,9 @@
 controller:
   enabled: true
   replicas: 2
+  pdb:
+    enabled: true
+    maxUnavailable: 1
 
 plugin:
   enabled: true
