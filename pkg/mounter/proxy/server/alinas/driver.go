@@ -176,7 +176,7 @@ type extendedMounter struct {
 var _ mounter.Mounter = &extendedMounter{}
 
 func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
-	klog.InfoS("Mounting", "fstype", op.FsType, "source", op.Source, "target", op.Target, "options", op.Options)
+	klog.FromContext(ctx).Info("Mounting", "fstype", op.FsType, "source", op.Source, "target", op.Target, "options", op.Options)
 	op.Options = append(op.Options, "no_start_watchdog")
 	if op.FsType == fstypeAlinas {
 		// options = append(options, "no_atomic_move", "auto_fallback_nfs")

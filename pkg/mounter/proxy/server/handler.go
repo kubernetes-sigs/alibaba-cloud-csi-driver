@@ -1,64 +1,67 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
-	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 )
 
-const (
-	defaultHandleTimeout = time.Second * 10
-)
-
-func Handle(conn net.Conn, timeout time.Duration) error {
+func Handle(conn *net.UnixConn, timeout time.Duration, seq int64) error {
+	logger := klog.Background().WithValues("seq", seq)
+	ctx := klog.NewContext(context.Background(), logger)
 	deadline := time.Now().Add(timeout)
 
-	unixConn, ok := conn.(*net.UnixConn)
-	if !ok {
-		return errors.New("failed to cast conn to *net.UnixConn")
+	if err := conn.SetDeadline(deadline); err != nil {
+		return fmt.Errorf("set deadline: %w", err)
 	}
-	connf, err := unixConn.File()
-	if err != nil {
-		return err
-	}
-	socket := int(connf.Fd())
-	defer connf.Close()
+	logger.V(4).Info("Start to recvmsg")
+	var req rawRequest
+	err := proxy.ReadMsg(conn, &req)
+	logger.V(4).Info("finished recvmsg")
 
-	err = utils.WaitFdReadable(socket, timeout)
-	if err != nil {
-		return err
-	}
-
-	klog.V(4).InfoS("Start to recvmsg")
-	p := make([]byte, proxy.MaxMsgSize)
-	n, _, _, _, err := unix.Recvmsg(socket, p, nil, 0)
-	if err != nil {
-		return fmt.Errorf("recvmsg: %w", err)
-	}
-	klog.V(4).InfoS("Succeeded to recvmsg", "n", n)
-
-	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
+	ctx, cancelCause := context.WithCancelCause(ctx)
+
+	if err := conn.SetDeadline(deadline.Add(5 * time.Second)); err != nil { // If we already have a response, we want to send it if we can
+		logger.Error(err, "set write deadline")
+	}
+	go func() {
+		n, err := io.Copy(io.Discard, conn)
+		if n != 0 {
+			logger.V(1).Info("extra data received", "n", n)
+		}
+		if err != nil {
+			if !errors.Is(err, net.ErrClosed) {
+				logger.Error(err, "read from conn")
+			}
+		} else {
+			// EOF reached, client closed the connection, could be normal or cancelled
+			err = errors.New("request cancelled")
+		}
+		cancelCause(err)
+	}()
 
 	var resp proxy.Response
-	req, err := parseRawRequest(p[:n])
 	if err != nil {
 		resp = proxy.Response{
-			Error: err.Error(),
+			Error: fmt.Sprintf("read request: %v", err),
 		}
 	} else {
-		resp = handle(ctx, req)
+		resp = handle(ctx, &req)
+	}
+	resp.Seq = seq
+	if resp.Error != "" {
+		logger.Error(nil, "request failed", "err", resp.Error)
 	}
 
 	data, err := json.Marshal(resp)
@@ -66,27 +69,18 @@ func Handle(conn net.Conn, timeout time.Duration) error {
 		return fmt.Errorf("encode response: %w", err)
 	}
 
-	klog.V(4).InfoS("Start to sendmsg")
-	err = unix.Sendmsg(socket, append(data, proxy.MessageEnd), nil, nil, 0)
+	logger.V(4).Info("Start to sendmsg")
+	n, err := conn.Write(append(data, proxy.MessageEnd))
 	if err != nil {
 		return fmt.Errorf("sendmsg: %w", err)
 	}
-	klog.InfoS("Succeeded to sendmsg", "msg", string(data))
+	logger.V(2).Info("Succeeded to sendmsg", "n", n)
 	return nil
 }
 
 type rawRequest struct {
 	Header proxy.Header    `json:"header"`
 	Body   json.RawMessage `json:"body,omitempty"`
-}
-
-func parseRawRequest(data []byte) (*rawRequest, error) {
-	before, _, ok := bytes.Cut(data, []byte{proxy.MessageEnd})
-	if !ok {
-		return nil, errors.New("invalid message")
-	}
-	var req rawRequest
-	return &req, json.Unmarshal(before, &req)
 }
 
 func handle(ctx context.Context, req *rawRequest) proxy.Response {
@@ -105,6 +99,8 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 				Error: err.Error(),
 			}
 		}
+	case proxy.Ping:
+		return proxy.Response{}
 	default:
 		return proxy.Response{
 			Error: "invalid method",
@@ -128,11 +124,9 @@ func Terminate(driverNames []string) {
 	var wg sync.WaitGroup
 	for _, name := range sets.New(driverNames...).UnsortedList() {
 		if driver, ok := nameToDriver[name]; ok {
-			wg.Add(1)
-			go func(m Driver) {
-				defer wg.Done()
-				m.Terminate()
-			}(driver)
+			wg.Go(func() {
+				driver.Terminate()
+			})
 		}
 	}
 	wg.Wait()

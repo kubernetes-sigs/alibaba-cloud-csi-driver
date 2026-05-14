@@ -1,7 +1,7 @@
 package client
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
-	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
 
@@ -19,78 +17,94 @@ const (
 	defaultTimeout = time.Second * 35
 )
 
-type Client interface {
-	Mount(req *proxy.MountRequest) (*proxy.Response, error)
-}
-
 type client struct {
-	timeout    time.Duration
-	socketPath string
+	timeout time.Duration
+	raddr   net.UnixAddr
+	dialer  net.Dialer
 }
 
 func NewClient(socketPath string) *client {
 	return &client{
-		socketPath: socketPath,
-		timeout:    defaultTimeout,
+		raddr:   net.UnixAddr{Name: socketPath, Net: "unix"},
+		timeout: defaultTimeout,
 	}
 }
 
-func (c *client) doRequest(req *proxy.Request) (*proxy.Response, error) {
-	conn, err := net.Dial("unix", c.socketPath)
+func (c *client) doRequest(ctx context.Context, req *proxy.Request) (*proxy.Response, error) {
+	logger := klog.FromContext(ctx)
+	conn, err := c.dialer.DialUnix(ctx, "unix", nil, &c.raddr)
 	if err != nil {
 		return nil, fmt.Errorf("dial unix: %w", err)
 	}
-	defer conn.Close()
+	closeConn := func() {
+		if err := conn.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+			logger.Error(err, "failed to close connection")
+		}
+	}
+	defer closeConn()
+
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	deadline, ok := ctx.Deadline()
+	if ok {
+		if err := conn.SetDeadline(deadline); err != nil {
+			return nil, fmt.Errorf("set deadline: %w", err)
+		}
+	}
+
+	// Close connection on context cancellation so server can detect it.
+	requestDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			closeConn()
+		case <-requestDone:
+		}
+	}()
+	defer close(requestDone)
 
 	data, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
 
-	unixConn, ok := conn.(*net.UnixConn)
-	if !ok {
-		return nil, errors.New("failed to cast conn to *net.UnixConn")
-	}
-	connf, err := unixConn.File()
+	// Use conn.WriteMsgUnix to send the first packet if we need to send oob data (FDs) in the future.
+	// Must send all data in one go, because old version of server only do one recvmsg and cannot handle multiple packets.
+	// We need to maintain capability.
+	n, err := conn.Write(append(data, proxy.MessageEnd))
 	if err != nil {
-		return nil, err
+		if ctx.Err() != nil {
+			err = ctx.Err()
+		}
+		return nil, fmt.Errorf("send request: %w", err)
 	}
-	socket := int(connf.Fd())
-	defer connf.Close()
-
-	err = unix.Sendmsg(socket, append(data, proxy.MessageEnd), nil, nil, 0)
-	if err != nil {
-		return nil, fmt.Errorf("sendmsg: %w", err)
-	}
-	klog.V(4).InfoS("sendmcg successfully for request", "socket", c.socketPath)
-
-	p := make([]byte, proxy.MaxMsgSize)
-
-	err = utils.WaitFdReadable(socket, c.timeout)
-	if err != nil {
-		return nil, err
-	}
-
-	n, _, _, _, err := unix.Recvmsg(socket, p, nil, 0)
-	if err != nil {
-		return nil, fmt.Errorf("recvmsg: %w", err)
-	}
-	klog.V(4).InfoS("recvmsg successfully for response", "socket", c.socketPath, "n", n)
-
-	end := bytes.IndexByte(p[:n], proxy.MessageEnd)
-	if end == -1 {
-		return nil, errors.New("invalid message")
-	}
+	logger.V(4).Info("sendmsg successfully for request", "socket", c.raddr, "n", n)
 
 	var response proxy.Response
-	return &response, json.Unmarshal(p[:end], &response)
+	err = proxy.ReadMsg(conn, &response)
+	if err != nil {
+		if ctx.Err() != nil {
+			err = ctx.Err()
+		}
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	logger.V(2).Info("response from mount-proxy", "seq", response.Seq)
+	return &response, nil
 }
 
-func (c *client) Mount(req *proxy.MountRequest) (*proxy.Response, error) {
-	return c.doRequest(&proxy.Request{
+func (c *client) Mount(ctx context.Context, req *proxy.MountRequest) (*proxy.Response, error) {
+	return c.doRequest(ctx, &proxy.Request{
 		Header: proxy.Header{
 			Method: proxy.Mount,
 		},
 		Body: req,
+	})
+}
+
+func (c *client) Ping(ctx context.Context) (*proxy.Response, error) {
+	return c.doRequest(ctx, &proxy.Request{
+		Header: proxy.Header{
+			Method: proxy.Ping,
+		},
 	})
 }
