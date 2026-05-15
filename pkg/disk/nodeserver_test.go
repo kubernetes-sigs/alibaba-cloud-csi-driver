@@ -93,7 +93,7 @@ func TestCheckMountedOfRunvAndRund(t *testing.T) {
 				defer os.RemoveAll(tt.targetPath)
 			}
 
-			mounted, err := ns.checkTargetPathMounted(tt.volumeId, tt.targetPath)
+			mounted, err := ns.checkTargetPathMounted(ktesting.NewLogger(t, ktesting.DefaultConfig), tt.volumeId, tt.targetPath)
 			if tt.expectedErr {
 				assert.Error(t, err)
 			} else {
