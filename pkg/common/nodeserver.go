@@ -120,6 +120,12 @@ func (s NodeServerWithLog) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	return logGRPC(s.NodeServerWithValidator.NodeExpandVolume, ctx, req)
 }
 
+func (s NodeServerWithLog) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("method", "NodeGetInfo"))
+	return logGRPC(s.NodeServerWithValidator.NodeGetInfo, ctx, req)
+}
+
 type NodeServerWithValidator struct {
 	csi.NodeServer
 }
