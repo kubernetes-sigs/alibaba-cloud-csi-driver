@@ -49,8 +49,7 @@ type DescribeFilesystemsVscAttachInfoResponseBody struct {
 	// example:
 	//
 	// 1
-	TotalCount *int32 `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-	// A collection of file system and virtual channel association data.
+	TotalCount    *int32                                                     `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
 	VscAttachInfo *DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfo `json:"VscAttachInfo,omitempty" xml:"VscAttachInfo,omitempty" type:"Struct"`
 }
 
@@ -151,34 +150,9 @@ func (s *DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfo) Validate() e
 }
 
 type DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo struct {
-	// The ID of the file system.
-	//
-	// example:
-	//
-	// bmcpfs-290t15yn4uo8lid****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The association status of the file system and virtual channel. Valid values:
-	//
-	// 	- Attaching: The association is being made.
-	//
-	// 	- Attached: The association is complete.
-	//
-	// 	- Detaching: The association is being canceled.
-	//
-	// 	- Detached: The association is canceled.
-	//
-	// 	- Failed: The association failed.
-	//
-	// example:
-	//
-	// Attached
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The ID of the virtual storage channel.
-	//
-	// example:
-	//
-	// vsc-8vb864o3ppwfvh****
-	VscId *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
+	Status       *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	VscId        *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
 }
 
 func (s DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo) String() string {

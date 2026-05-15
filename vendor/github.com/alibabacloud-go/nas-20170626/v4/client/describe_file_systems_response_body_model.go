@@ -22,7 +22,6 @@ type iDescribeFileSystemsResponseBody interface {
 }
 
 type DescribeFileSystemsResponseBody struct {
-	// The file system list.
 	FileSystems *DescribeFileSystemsResponseBodyFileSystems `json:"FileSystems,omitempty" xml:"FileSystems,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,241 +146,43 @@ func (s *DescribeFileSystemsResponseBodyFileSystems) Validate() error {
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
-	// Number of access points.
-	//
-	// example:
-	//
-	// 1
-	AccessPointCount *string `json:"AccessPointCount,omitempty" xml:"AccessPointCount,omitempty"`
-	// The ID of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// sp-extreme-233e6****
-	AutoSnapshotPolicyId *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
-	// The bandwidth of the file system.
-	//
-	// Unit: MB/s. This parameter is unavailable for General-purpose NAS file systems.
-	//
-	// example:
-	//
-	// 150
-	Bandwidth *int64 `json:"Bandwidth,omitempty" xml:"Bandwidth,omitempty"`
-	// The capacity of the file system.
-	//
-	// Unit: GiB.
-	//
-	// example:
-	//
-	// 100
-	Capacity *int64 `json:"Capacity,omitempty" xml:"Capacity,omitempty"`
-	// The billing method.
-	//
-	// Valid values:
-	//
-	// 	- Subscription
-	//
-	// 	- PayAsYouGo
-	//
-	// 	- Package: storage plan
-	//
-	// example:
-	//
-	// PayAsYouGo
-	ChargeType *string `json:"ChargeType,omitempty" xml:"ChargeType,omitempty"`
-	// The time when the file system was created.
-	//
-	// example:
-	//
-	// 2020-01-05T16:00:00Z
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The description of the file system.
-	//
-	// example:
-	//
-	// test
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Indicates whether the data in the file system is encrypted.
-	//
-	// Valid values:
-	//
-	// 	- 0: The data in the file system is not encrypted.
-	//
-	// 	- 1: A NAS-managed key is used to encrypt the data in the file system.
-	//
-	// 	- 2: A KMS-managed key is used to encrypt the data in the file system.
-	//
-	// example:
-	//
-	// 1
-	EncryptType *int32 `json:"EncryptType,omitempty" xml:"EncryptType,omitempty"`
-	// The time when the file system expires.
-	//
-	// example:
-	//
-	// 2020-01-05T16:00:00Z
-	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The ID of the file system.
-	//
-	// example:
-	//
-	// 109c04****
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The file system type.
-	//
-	// The following information is displayed:
-	//
-	// 	- standard: General-purpose NAS file system.
-	//
-	// 	- extreme: Extreme NAS file system.
-	//
-	// 	- cpfs: CPFS file system.
-	//
-	// example:
-	//
-	// standard
-	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The ID of the key that is managed by Key Management Service (KMS).
-	//
-	// example:
-	//
-	// 0e478b7a-4262-4802-b8cb-00d3fb40****
-	KMSKeyId *string `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
-	// The Lightweight Directory Access Protocol (LDAP) configurations.
-	//
-	// This parameter is available only for CPFS file systems.
-	Ldap *DescribeFileSystemsResponseBodyFileSystemsFileSystemLdap `json:"Ldap,omitempty" xml:"Ldap,omitempty" type:"Struct"`
-	// Archive storage usage.
-	//
-	// Unit: Byte.
-	//
-	// example:
-	//
-	// 1611661312
-	MeteredArchiveSize *int64 `json:"MeteredArchiveSize,omitempty" xml:"MeteredArchiveSize,omitempty"`
-	// The storage usage of the Infrequent Access (IA) storage medium.
-	//
-	// Unit: bytes.
-	//
-	// example:
-	//
-	// 362832
-	MeteredIASize *int64 `json:"MeteredIASize,omitempty" xml:"MeteredIASize,omitempty"`
-	// The storage usage of the file system.
-	//
-	// The value of this parameter is the maximum storage usage of the file system over the last hour. Unit: bytes.
-	//
-	// example:
-	//
-	// 1611661312
-	MeteredSize *int64 `json:"MeteredSize,omitempty" xml:"MeteredSize,omitempty"`
-	// The queried mount targets.
-	MountTargets *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargets `json:"MountTargets,omitempty" xml:"MountTargets,omitempty" type:"Struct"`
-	// The options.
-	Options *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions `json:"Options,omitempty" xml:"Options,omitempty" type:"Struct"`
-	// The information about storage plans.
-	Packages *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackages `json:"Packages,omitempty" xml:"Packages,omitempty" type:"Struct"`
-	// The protocol type of the file system.
-	//
-	// The following information is displayed:
-	//
-	// 	- NFS: Network File System.
-	//
-	// 	- SMB: Server Message Block.
-	//
-	// 	- cpfs: The protocol type supported by the CPFS file system.
-	//
-	// example:
-	//
-	// NFS
-	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-	// The vSwitch ID.
-	//
-	// example:
-	//
-	// vsw-2ze37k6jh8ums2fw2****
-	QuorumVswId *string `json:"QuorumVswId,omitempty" xml:"QuorumVswId,omitempty"`
+	AccessPointCount     *string                                                           `json:"AccessPointCount,omitempty" xml:"AccessPointCount,omitempty"`
+	AutoSnapshotPolicyId *string                                                           `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
+	Bandwidth            *int64                                                            `json:"Bandwidth,omitempty" xml:"Bandwidth,omitempty"`
+	Capacity             *int64                                                            `json:"Capacity,omitempty" xml:"Capacity,omitempty"`
+	ChargeType           *string                                                           `json:"ChargeType,omitempty" xml:"ChargeType,omitempty"`
+	CreateTime           *string                                                           `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	Description          *string                                                           `json:"Description,omitempty" xml:"Description,omitempty"`
+	EncryptType          *int32                                                            `json:"EncryptType,omitempty" xml:"EncryptType,omitempty"`
+	ExpiredTime          *string                                                           `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
+	FileSystemId         *string                                                           `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	FileSystemType       *string                                                           `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
+	KMSKeyId             *string                                                           `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
+	Ldap                 *DescribeFileSystemsResponseBodyFileSystemsFileSystemLdap         `json:"Ldap,omitempty" xml:"Ldap,omitempty" type:"Struct"`
+	MeteredArchiveSize   *int64                                                            `json:"MeteredArchiveSize,omitempty" xml:"MeteredArchiveSize,omitempty"`
+	MeteredIASize        *int64                                                            `json:"MeteredIASize,omitempty" xml:"MeteredIASize,omitempty"`
+	MeteredSize          *int64                                                            `json:"MeteredSize,omitempty" xml:"MeteredSize,omitempty"`
+	MountTargets         *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargets `json:"MountTargets,omitempty" xml:"MountTargets,omitempty" type:"Struct"`
+	Options              *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions      `json:"Options,omitempty" xml:"Options,omitempty" type:"Struct"`
+	Packages             *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackages     `json:"Packages,omitempty" xml:"Packages,omitempty" type:"Struct"`
+	ProtocolType         *string                                                           `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
+	QuorumVswId          *string                                                           `json:"QuorumVswId,omitempty" xml:"QuorumVswId,omitempty"`
 	// example:
 	//
 	// LRS
 	RedundancyType       *string                                                                   `json:"RedundancyType,omitempty" xml:"RedundancyType,omitempty"`
 	RedundancyVSwitchIds *DescribeFileSystemsResponseBodyFileSystemsFileSystemRedundancyVSwitchIds `json:"RedundancyVSwitchIds,omitempty" xml:"RedundancyVSwitchIds,omitempty" type:"Struct"`
-	// The region ID.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The resource group ID.
-	//
-	// example:
-	//
-	// rg-acfmwavnfdf****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The status of the file system. Valid values:
-	//
-	// - Pending: The file system is being created or modified.
-	//
-	// - Running: The file system is available. Before you create a mount target for the file system, make sure that the file system is in the Running state.
-	//
-	// - Stopped: The file system is unavailable.
-	//
-	// - Extending: The file system is being scaled up.
-	//
-	// - Stopping: The file system is being stopped.
-	//
-	// - Deleting: The file system is being deleted.
-	//
-	// example:
-	//
-	// Pending
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The type of the storage.
-	//
-	// The following information is displayed:
-	//
-	// 	- Valid values for General-purpose NAS file systems: Capacity, Performance, and Premium
-	//
-	// 	- Valid values for Extreme NAS file systems: standard and advance
-	//
-	// 	- Valid values for Cloud Parallel File Storage (CPFS) file systems: advance_100 (100 MB/s/TiB baseline) and advance_200 (200 MB/s/TiB baseline)
-	//
-	// example:
-	//
-	// Performance
-	StorageType *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
-	// The features that are supported by the file system.
-	SupportedFeatures *DescribeFileSystemsResponseBodyFileSystemsFileSystemSupportedFeatures `json:"SupportedFeatures,omitempty" xml:"SupportedFeatures,omitempty" type:"Struct"`
-	// The tags that are attached to the file system.
-	Tags *DescribeFileSystemsResponseBodyFileSystemsFileSystemTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The version number of the file system.
-	//
-	// This parameter is available only for Extreme NAS file systems and CPFS file systems.
-	//
-	// example:
-	//
-	// 2.3.4
-	Version *string `json:"Version,omitempty" xml:"Version,omitempty"`
-	// The ID of the virtual private cloud (VPC).
-	//
-	// example:
-	//
-	// vpc-bp1cbv1ljve4j5hlw****
-	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// cpfs-370y1tv921vpuj4****-000001.cn-wulanchabu.cpfs.aliyuncs.com
-	VscTarget *string `json:"VscTarget,omitempty" xml:"VscTarget,omitempty"`
-	// The information about vSwitch.
-	VswIds *DescribeFileSystemsResponseBodyFileSystemsFileSystemVswIds `json:"VswIds,omitempty" xml:"VswIds,omitempty" type:"Struct"`
-	// The ID of the zone where the file system resides.
-	//
-	// example:
-	//
-	// cn-hangzhou-b
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	RegionId             *string                                                                   `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceGroupId      *string                                                                   `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	Status               *string                                                                   `json:"Status,omitempty" xml:"Status,omitempty"`
+	StorageType          *string                                                                   `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
+	SupportedFeatures    *DescribeFileSystemsResponseBodyFileSystemsFileSystemSupportedFeatures    `json:"SupportedFeatures,omitempty" xml:"SupportedFeatures,omitempty" type:"Struct"`
+	Tags                 *DescribeFileSystemsResponseBodyFileSystemsFileSystemTags                 `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Version              *string                                                                   `json:"Version,omitempty" xml:"Version,omitempty"`
+	VpcId                *string                                                                   `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	VscTarget            *string                                                                   `json:"VscTarget,omitempty" xml:"VscTarget,omitempty"`
+	VswIds               *DescribeFileSystemsResponseBodyFileSystemsFileSystemVswIds               `json:"VswIds,omitempty" xml:"VswIds,omitempty" type:"Struct"`
+	ZoneId               *string                                                                   `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeFileSystemsResponseBodyFileSystemsFileSystem) String() string {
@@ -743,24 +544,9 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) Validate() error 
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemLdap struct {
-	// An LDAP entry.
-	//
-	// example:
-	//
-	// cn=alibaba,dc=com
-	BindDN *string `json:"BindDN,omitempty" xml:"BindDN,omitempty"`
-	// An LDAP search base.
-	//
-	// example:
-	//
-	// dc=example
+	BindDN     *string `json:"BindDN,omitempty" xml:"BindDN,omitempty"`
 	SearchBase *string `json:"SearchBase,omitempty" xml:"SearchBase,omitempty"`
-	// An LDAP URI.
-	//
-	// example:
-	//
-	// ldap://ldap.example.example
-	URI *string `json:"URI,omitempty" xml:"URI,omitempty"`
+	URI        *string `json:"URI,omitempty" xml:"URI,omitempty"`
 }
 
 func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemLdap) String() string {
@@ -837,70 +623,15 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargets) Valid
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget struct {
-	// The name of the permission group that is attached to the mount target.
-	//
-	// example:
-	//
-	// test-001
-	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	// The information about client management nodes.
-	//
-	// This parameter is available only for CPFS file systems.
-	ClientMasterNodes *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetClientMasterNodes `json:"ClientMasterNodes,omitempty" xml:"ClientMasterNodes,omitempty" type:"Struct"`
-	// The dual-stack (IPv4 and IPv6) domain name of the mount target.
-	//
-	// > Only Extreme NAS file systems that reside in the Chinese mainland support IPv6.
-	//
-	// example:
-	//
-	// 174494b666-x****.dualstack.cn-hangzhou.nas.aliyuncs.com
-	DualStackMountTargetDomain *string `json:"DualStackMountTargetDomain,omitempty" xml:"DualStackMountTargetDomain,omitempty"`
-	// The domain name of the mount target.
-	//
-	// example:
-	//
-	// 109c042666-w****.cn-hangzhou.nas.aliyuncs.com
-	MountTargetDomain *string `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
-	// The network type. Valid value: vpc.
-	//
-	// example:
-	//
-	// vpc
-	NetworkType *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
-	// The status of the mount target.
-	//
-	// Valid values:
-	//
-	// 	- Active
-	//
-	// 	- Inactive
-	//
-	// 	- Pending
-	//
-	// 	- Deleting
-	//
-	// 	- Hibernating
-	//
-	// 	- Hibernated
-	//
-	// example:
-	//
-	// Active
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags that are attached to the mount target.
-	Tags *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The ID of the VPC.
-	//
-	// example:
-	//
-	// vpc-bp1sevsgtqvk5gxbl****
-	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
-	// The ID of the vSwitch.
-	//
-	// example:
-	//
-	// vsw-bp1omfzsszekkvaxn****
-	VswId *string `json:"VswId,omitempty" xml:"VswId,omitempty"`
+	AccessGroupName            *string                                                                                       `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
+	ClientMasterNodes          *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetClientMasterNodes `json:"ClientMasterNodes,omitempty" xml:"ClientMasterNodes,omitempty" type:"Struct"`
+	DualStackMountTargetDomain *string                                                                                       `json:"DualStackMountTargetDomain,omitempty" xml:"DualStackMountTargetDomain,omitempty"`
+	MountTargetDomain          *string                                                                                       `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
+	NetworkType                *string                                                                                       `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
+	Status                     *string                                                                                       `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags                       *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetTags              `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	VpcId                      *string                                                                                       `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	VswId                      *string                                                                                       `json:"VswId,omitempty" xml:"VswId,omitempty"`
 }
 
 func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget) String() string {
@@ -1041,24 +772,9 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetClientMasterNodesClientMasterNode struct {
-	// The default logon password of the ECS instance on the client management node.
-	//
-	// example:
-	//
-	// 123456
 	DefaultPasswd *string `json:"DefaultPasswd,omitempty" xml:"DefaultPasswd,omitempty"`
-	// The ID of the ECS instance on the client management node.
-	//
-	// example:
-	//
-	// i-hp3i3odi5ory1buo****
-	EcsId *string `json:"EcsId,omitempty" xml:"EcsId,omitempty"`
-	// The IP address of the ECS instance on the client management node.
-	//
-	// example:
-	//
-	// 192.168.1.0
-	EcsIp *string `json:"EcsIp,omitempty" xml:"EcsIp,omitempty"`
+	EcsId         *string `json:"EcsId,omitempty" xml:"EcsId,omitempty"`
+	EcsIp         *string `json:"EcsIp,omitempty" xml:"EcsIp,omitempty"`
 }
 
 func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetClientMasterNodesClientMasterNode) String() string {
@@ -1135,17 +851,7 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTargetTagsTag struct {
-	// The tag key.
-	//
-	// example:
-	//
-	// test
-	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The tag value.
-	//
-	// example:
-	//
-	// test-value
+	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
@@ -1180,17 +886,7 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions struct {
-	// Specifies whether to enable the oplock feature. Valid values:
-	//
-	// 	- true: enables the feature.
-	//
-	// 	- false: disables the feature.
-	//
-	// >  Only Server Message Block (SMB) file systems support this feature.
-	//
-	// example:
-	//
-	// true
+	EnableABE    *bool `json:"EnableABE,omitempty" xml:"EnableABE,omitempty"`
 	EnableOplock *bool `json:"EnableOplock,omitempty" xml:"EnableOplock,omitempty"`
 }
 
@@ -1202,8 +898,17 @@ func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions) GoString() 
 	return s.String()
 }
 
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions) GetEnableABE() *bool {
+	return s.EnableABE
+}
+
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions) GetEnableOplock() *bool {
 	return s.EnableOplock
+}
+
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions) SetEnableABE(v bool) *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions {
+	s.EnableABE = &v
+	return s
 }
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions) SetEnableOplock(v bool) *DescribeFileSystemsResponseBodyFileSystemsFileSystemOptions {
@@ -1250,42 +955,11 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackages) Validate(
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemPackagesPackage struct {
-	// The end time of the validity period for the storage plan.
-	//
-	// example:
-	//
-	// 2020-01-05T16:00:00Z
 	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The ID of the storage plan.
-	//
-	// example:
-	//
-	// naspackage-0be9c4b624-37****
-	PackageId *string `json:"PackageId,omitempty" xml:"PackageId,omitempty"`
-	// The type of the storage plan.
-	//
-	// Valid values:
-	//
-	// 	- ssd: The storage plan for Performance NAS file systems.
-	//
-	// 	- hybrid: The storage plan for Capacity NAS file systems.
-	//
-	// example:
-	//
-	// hybrid
+	PackageId   *string `json:"PackageId,omitempty" xml:"PackageId,omitempty"`
 	PackageType *string `json:"PackageType,omitempty" xml:"PackageType,omitempty"`
-	// The capacity of the storage plan. Unit: bytes.
-	//
-	// example:
-	//
-	// 107374182400
-	Size *int64 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The start time of the validity period for the storage plan.
-	//
-	// example:
-	//
-	// 2019-12-05T01:40:56Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	Size        *int64  `json:"Size,omitempty" xml:"Size,omitempty"`
+	StartTime   *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
 }
 
 func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemPackagesPackage) String() string {
@@ -1430,17 +1104,7 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemTags) Validate() er
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystemTagsTag struct {
-	// The tag key.
-	//
-	// example:
-	//
-	// test
-	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The tag value.
-	//
-	// example:
-	//
-	// test-value
+	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

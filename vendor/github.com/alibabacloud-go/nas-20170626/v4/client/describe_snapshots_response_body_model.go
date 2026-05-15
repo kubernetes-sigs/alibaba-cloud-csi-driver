@@ -39,8 +39,7 @@ type DescribeSnapshotsResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3****
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The details about snapshots.
+	RequestId *string                                 `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	Snapshots *DescribeSnapshotsResponseBodySnapshots `json:"Snapshots,omitempty" xml:"Snapshots,omitempty" type:"Struct"`
 	// The total number of snapshots returned.
 	//
@@ -147,136 +146,21 @@ func (s *DescribeSnapshotsResponseBodySnapshots) Validate() error {
 }
 
 type DescribeSnapshotsResponseBodySnapshotsSnapshot struct {
-	// The time when snapshot creation was complete.
-	//
-	// The time follows the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) standard in UTC. The time is displayed in the `yyyy-MM-ddThh:mmZ` format.
-	//
-	// >  This parameter is valid only when the snapshot is created. During snapshot creation, the value of this parameter is the same as that of CreateTime.
-	//
-	// example:
-	//
-	// 2014-07-24T13:10:52Z
-	CompletedTime *string `json:"CompletedTime,omitempty" xml:"CompletedTime,omitempty"`
-	// The time when the snapshot was created.
-	//
-	// The time follows the [ISO 8601](https://www.iso.org/iso-8601-date-and-time-format.html) standard in UTC. The time is displayed in the `yyyy-MM-ddThh:mmZ` format.
-	//
-	// example:
-	//
-	// 2014-07-24T13:00:52Z
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The description of the snapshot.
-	//
-	// example:
-	//
-	// FinanceDept
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Indicates whether the snapshot is encrypted.
-	//
-	// Valid values:
-	//
-	// 	- 0: The snapshot is not encrypted.
-	//
-	// 	- 1: The snapshot is encrypted.
-	//
-	// example:
-	//
-	// 1
-	EncryptType *int32 `json:"EncryptType,omitempty" xml:"EncryptType,omitempty"`
-	// The type of the file system.
-	//
-	// example:
-	//
-	// extreme
-	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The progress of the snapshot creation. The value of this parameter is expressed as a percentage.
-	//
-	// example:
-	//
-	// 100
-	Progress *string `json:"Progress,omitempty" xml:"Progress,omitempty"`
-	// The remaining time that is required to create the snapshot.
-	//
-	// Unit: seconds.
-	//
-	// example:
-	//
-	// 38
-	RemainTime *int32 `json:"RemainTime,omitempty" xml:"RemainTime,omitempty"`
-	// The retention period of the auto snapshot.
-	//
-	// Unit: days.
-	//
-	// Valid values:
-	//
-	// 	- \\-1: Auto snapshots are permanently retained. After the number of auto snapshots exceeds the upper limit, the earliest auto snapshot is automatically deleted.
-	//
-	// 	- 1 to 65536: Auto snapshots are retained for the specified days. After the retention period of auto snapshots expires, the auto snapshots are automatically deleted.
-	//
-	// example:
-	//
-	// 30
-	RetentionDays *int32 `json:"RetentionDays,omitempty" xml:"RetentionDays,omitempty"`
-	// The snapshot ID.
-	//
-	// example:
-	//
-	// s-extreme-snapsho****
-	SnapshotId *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
-	// The snapshot name.
-	//
-	// If you specify a name to create a snapshot, the name of the snapshot is returned. Otherwise, no value is returned for this parameter.
-	//
-	// example:
-	//
-	// FinanceJoshua
-	SnapshotName *string `json:"SnapshotName,omitempty" xml:"SnapshotName,omitempty"`
-	// The snapshot type. Valid values:
-	//
-	// 	- auto: automatically created snapshots
-	//
-	// 	- user: manually created snapshots
-	//
-	// example:
-	//
-	// user
-	SnapshotType *string `json:"SnapshotType,omitempty" xml:"SnapshotType,omitempty"`
-	// The ID of the source file system.
-	//
-	// This parameter is retained even if the source file system of the snapshot is deleted.
-	//
-	// example:
-	//
-	// extreme-012****
-	SourceFileSystemId *string `json:"SourceFileSystemId,omitempty" xml:"SourceFileSystemId,omitempty"`
-	// The capacity of the source file system.
-	//
-	// Unit: GiB.
-	//
-	// example:
-	//
-	// 2000
-	SourceFileSystemSize *int64 `json:"SourceFileSystemSize,omitempty" xml:"SourceFileSystemSize,omitempty"`
-	// The version of the source file system.
-	//
-	// example:
-	//
-	// 1
+	CompletedTime           *string `json:"CompletedTime,omitempty" xml:"CompletedTime,omitempty"`
+	CreateTime              *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	Description             *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	EncryptType             *int32  `json:"EncryptType,omitempty" xml:"EncryptType,omitempty"`
+	FileSystemType          *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
+	Progress                *string `json:"Progress,omitempty" xml:"Progress,omitempty"`
+	RemainTime              *int32  `json:"RemainTime,omitempty" xml:"RemainTime,omitempty"`
+	RetentionDays           *int32  `json:"RetentionDays,omitempty" xml:"RetentionDays,omitempty"`
+	SnapshotId              *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
+	SnapshotName            *string `json:"SnapshotName,omitempty" xml:"SnapshotName,omitempty"`
+	SnapshotType            *string `json:"SnapshotType,omitempty" xml:"SnapshotType,omitempty"`
+	SourceFileSystemId      *string `json:"SourceFileSystemId,omitempty" xml:"SourceFileSystemId,omitempty"`
+	SourceFileSystemSize    *int64  `json:"SourceFileSystemSize,omitempty" xml:"SourceFileSystemSize,omitempty"`
 	SourceFileSystemVersion *string `json:"SourceFileSystemVersion,omitempty" xml:"SourceFileSystemVersion,omitempty"`
-	// The status of the snapshot.
-	//
-	// Valid values:
-	//
-	// 	- progressing: The snapshot is being created.
-	//
-	// 	- accomplished: The snapshot is created.
-	//
-	// 	- failed: The snapshot fails to be created.
-	//
-	// example:
-	//
-	// accomplished
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	Status                  *string `json:"Status,omitempty" xml:"Status,omitempty"`
 }
 
 func (s DescribeSnapshotsResponseBodySnapshotsSnapshot) String() string {

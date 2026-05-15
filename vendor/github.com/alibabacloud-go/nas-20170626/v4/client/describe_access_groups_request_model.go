@@ -38,11 +38,11 @@ type DescribeAccessGroupsRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- standard: General-purpose Apsara File Storage NAS (NAS) file system
+	// 	- standard: General-purpose NAS
 	//
-	// 	- extreme: Extreme NAS file system.
+	// 	- extreme: Extreme NAS
 	//
-	// 	- cpfs: CPFS file system.
+	// 	- cpfs: CPFS
 	//
 	// example:
 	//
@@ -66,7 +66,7 @@ type DescribeAccessGroupsRequest struct {
 	//
 	// 2
 	PageSize *int32 `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	// Specifies whether to display the creation time of the permission group in UTC.
+	// Specifies whether the time to return is displayed in UTC.
 	//
 	// Valid values:
 	//

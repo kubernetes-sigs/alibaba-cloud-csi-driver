@@ -20,7 +20,6 @@ type iDescribeFilesetsResponseBody interface {
 }
 
 type DescribeFilesetsResponseBody struct {
-	// The fileset information.
 	Entries *DescribeFilesetsResponseBodyEntries `json:"Entries,omitempty" xml:"Entries,omitempty" type:"Struct"`
 	// Deprecated
 	//
@@ -136,96 +135,17 @@ func (s *DescribeFilesetsResponseBodyEntries) Validate() error {
 }
 
 type DescribeFilesetsResponseBodyEntriesEntrie struct {
-	// The time when the fileset was created.
-	//
-	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
-	//
-	// example:
-	//
-	// 2021-09-30T10:08:08Z
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// Specifies whether to enable deletion protection to allow you to release the fileset by using the console or by calling the [DeleteFileset](https://help.aliyun.com/document_detail/2402263.html) operation. Valid values:
-	//
-	// 	- true: enables release protection.
-	//
-	// 	- false: disables release protection.
-	//
-	// > This parameter can protect filesets only against manual releases, but not against automatic releases.
-	//
-	// example:
-	//
-	// true
-	DeletionProtection *bool `json:"DeletionProtection,omitempty" xml:"DeletionProtection,omitempty"`
-	// The fileset description.
-	//
-	// example:
-	//
-	// test
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The usage of the file quantity.
-	//
-	// >  Only CPFS for LINGJUN V2.7.0 and later support this parameter.
-	//
-	// example:
-	//
-	// 1024
-	FileCountUsage *int64 `json:"FileCountUsage,omitempty" xml:"FileCountUsage,omitempty"`
-	// The ID of the file system.
-	//
-	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-099394bd928c\\*\\*\\*\\*.
-	//
-	// 	- The IDs of CPFS for LINGJUN file systems must start with `bmcpfs-`. Example: bmcpfs-290w65p03ok64ya\\*\\*\\*\\*.
-	//
-	// example:
-	//
-	// bmcpfs-290w65p03ok64ya****
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The fileset path.
-	//
-	// example:
-	//
-	// pathtoroot/fset
-	FileSystemPath *string `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
-	// The fileset ID.
-	//
-	// example:
-	//
-	// fset-1902718ea0ae****
-	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
-	// The quota information.
-	//
-	// >  Only CPFS for Lingjun V2.7.0 and later support this parameter.
-	Quota *DescribeFilesetsResponseBodyEntriesEntrieQuota `json:"Quota,omitempty" xml:"Quota,omitempty" type:"Struct"`
-	// The capacity usage. Unit: bytes.
-	//
-	// >  Only CPFS for LINGJUN V2.7.0 and later support this parameter.
-	//
-	// example:
-	//
-	// 1024
-	SpaceUsage *int64 `json:"SpaceUsage,omitempty" xml:"SpaceUsage,omitempty"`
-	// The fileset status. Valid values:
-	//
-	// 	- CREATING: The fileset is being created.
-	//
-	// 	- CREATED: The fileset has been created and is running properly.
-	//
-	// 	- RELEASING: The fileset is being released.
-	//
-	// 	- RELEASED: The fileset has been deleted.
-	//
-	// example:
-	//
-	// CREATED
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The time when the fileset was last updated.
-	//
-	// The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format.
-	//
-	// example:
-	//
-	// 2021-09-30T10:08:08Z
-	UpdateTime *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
+	CreateTime         *string                                         `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	DeletionProtection *bool                                           `json:"DeletionProtection,omitempty" xml:"DeletionProtection,omitempty"`
+	Description        *string                                         `json:"Description,omitempty" xml:"Description,omitempty"`
+	FileCountUsage     *int64                                          `json:"FileCountUsage,omitempty" xml:"FileCountUsage,omitempty"`
+	FileSystemId       *string                                         `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	FileSystemPath     *string                                         `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
+	FsetId             *string                                         `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	Quota              *DescribeFilesetsResponseBodyEntriesEntrieQuota `json:"Quota,omitempty" xml:"Quota,omitempty" type:"Struct"`
+	SpaceUsage         *int64                                          `json:"SpaceUsage,omitempty" xml:"SpaceUsage,omitempty"`
+	Status             *string                                         `json:"Status,omitempty" xml:"Status,omitempty"`
+	UpdateTime         *string                                         `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
 }
 
 func (s DescribeFilesetsResponseBodyEntriesEntrie) String() string {
@@ -345,26 +265,8 @@ func (s *DescribeFilesetsResponseBodyEntriesEntrie) Validate() error {
 }
 
 type DescribeFilesetsResponseBodyEntriesEntrieQuota struct {
-	// The file quantity quota. Valid values:
-	//
-	// 	- Minimum value: 10000.
-	//
-	// 	- Maximum value: 10000000000.
-	//
-	// example:
-	//
-	// 10000
 	FileCountLimit *int64 `json:"FileCountLimit,omitempty" xml:"FileCountLimit,omitempty"`
-	// The capacity quota. Unit: bytes.
-	//
-	// 	- Minimum value: 10737418240 (10 GiB).
-	//
-	// 	- Step size: 1073741824 (1 GiB).
-	//
-	// example:
-	//
-	// 10737418240
-	SizeLimit *int64 `json:"SizeLimit,omitempty" xml:"SizeLimit,omitempty"`
+	SizeLimit      *int64 `json:"SizeLimit,omitempty" xml:"SizeLimit,omitempty"`
 }
 
 func (s DescribeFilesetsResponseBodyEntriesEntrieQuota) String() string {

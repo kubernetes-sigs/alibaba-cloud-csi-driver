@@ -22,7 +22,6 @@ type iDescribeAccessGroupsResponseBody interface {
 }
 
 type DescribeAccessGroupsResponseBody struct {
-	// The queried permission groups.
 	AccessGroups *DescribeAccessGroupsResponseBodyAccessGroups `json:"AccessGroups,omitempty" xml:"AccessGroups,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,62 +146,14 @@ func (s *DescribeAccessGroupsResponseBodyAccessGroups) Validate() error {
 }
 
 type DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup struct {
-	// The name of the permission group.
-	//
-	// example:
-	//
-	// DEFAULT_VPC_GROUP_NAME
-	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	// The network type of the permission group. Valid value: **Vpc**.
-	//
-	// example:
-	//
-	// Vpc
-	AccessGroupType *string `json:"AccessGroupType,omitempty" xml:"AccessGroupType,omitempty"`
-	// The time when the permission group was created.
-	//
-	// example:
-	//
-	// 2020-01-05T16:00:00Z
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The description of the permission group.
-	//
-	// example:
-	//
-	// This is a test access group.
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The type of the file system.
-	//
-	// Valid values:
-	//
-	// 	- standard: General-purpose Apsara File Storage NAS (NAS) file system
-	//
-	// 	- extreme: Extreme NAS file system.
-	//
-	// 	- cpfs: CPFS file system.
-	//
-	// example:
-	//
-	// standard
-	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The number of mount targets to which the permission group is attached.
-	//
-	// example:
-	//
-	// 0
-	MountTargetCount *int32 `json:"MountTargetCount,omitempty" xml:"MountTargetCount,omitempty"`
-	// The region ID.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The total number of rules in the permission group.
-	//
-	// example:
-	//
-	// 0
-	RuleCount *int32 `json:"RuleCount,omitempty" xml:"RuleCount,omitempty"`
+	AccessGroupName  *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
+	AccessGroupType  *string `json:"AccessGroupType,omitempty" xml:"AccessGroupType,omitempty"`
+	CreateTime       *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	Description      *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	FileSystemType   *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
+	MountTargetCount *int32  `json:"MountTargetCount,omitempty" xml:"MountTargetCount,omitempty"`
+	RegionId         *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	RuleCount        *int32  `json:"RuleCount,omitempty" xml:"RuleCount,omitempty"`
 }
 
 func (s DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup) String() string {
