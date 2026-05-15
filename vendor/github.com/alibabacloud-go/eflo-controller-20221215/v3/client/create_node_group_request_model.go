@@ -139,6 +139,7 @@ type CreateNodeGroupRequestNodeGroup struct {
 	//
 	// PAI-LINGJUN
 	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
+	RamRoleName   *string `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
 	// Details of the node system disk configuration.
 	SystemDisk *CreateNodeGroupRequestNodeGroupSystemDisk `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
 	// User-defined data
@@ -199,6 +200,10 @@ func (s *CreateNodeGroupRequestNodeGroup) GetNodeGroupName() *string {
 	return s.NodeGroupName
 }
 
+func (s *CreateNodeGroupRequestNodeGroup) GetRamRoleName() *string {
+	return s.RamRoleName
+}
+
 func (s *CreateNodeGroupRequestNodeGroup) GetSystemDisk() *CreateNodeGroupRequestNodeGroupSystemDisk {
 	return s.SystemDisk
 }
@@ -248,6 +253,11 @@ func (s *CreateNodeGroupRequestNodeGroup) SetNodeGroupDescription(v string) *Cre
 
 func (s *CreateNodeGroupRequestNodeGroup) SetNodeGroupName(v string) *CreateNodeGroupRequestNodeGroup {
 	s.NodeGroupName = &v
+	return s
+}
+
+func (s *CreateNodeGroupRequestNodeGroup) SetRamRoleName(v string) *CreateNodeGroupRequestNodeGroup {
+	s.RamRoleName = &v
 	return s
 }
 
