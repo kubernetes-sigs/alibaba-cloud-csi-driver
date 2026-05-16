@@ -65,7 +65,7 @@ type Options struct {
 	// DirectAssigned indicates the volume should be directly assigned to the pod.
 	// When DirectAssigned is True, it means the runtime is either rund or coco:
 	// - Controller server should skip the controller publish phase
-	// - Node server should check the skipAttach field to determine if it's rund (skipAttach=true) or coco (skipAttach=false)
+	// - Node server should check the skipGlobalMount field to determine if it's rund (skipGlobalMount=true) or coco (skipGlobalMount=false)
 	// Otherwise, the runtime is runc
 	DirectAssigned bool
 	CNFSName       string
