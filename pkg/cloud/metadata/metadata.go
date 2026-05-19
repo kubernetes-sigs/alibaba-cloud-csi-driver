@@ -81,6 +81,7 @@ const (
 	MachineKindUnknown MachineKind = iota
 	MachineKindECS
 	MachineKindLingjun
+	MachineKindVirtualKubelet
 )
 
 // returns MachineKindECS if instance type starts with "ecs."

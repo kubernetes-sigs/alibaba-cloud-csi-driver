@@ -71,13 +71,17 @@ func init() {
 // LingjunWorkerLabel is the label key used to identify Lingjun nodes.
 const LingjunWorkerLabel = "alibabacloud.com/lingjun-worker"
 
+// VirtualKubeletTypeLabel is the label key whose value "virtual-kubelet"
+// identifies virtual-kubelet nodes (no real instance behind them).
+const VirtualKubeletTypeLabel = "type"
+
 // NodeMetadataLabelKeys returns the set of label keys needed for metadata extraction.
 func NodeMetadataLabelKeys() sets.Set[string] {
 	keys := sets.New[string]()
 	for _, candidates := range MetadataLabels {
 		keys.Insert(candidates...)
 	}
-	keys.Insert(LingjunWorkerLabel)
+	keys.Insert(LingjunWorkerLabel, VirtualKubeletTypeLabel)
 	return keys
 }
 
@@ -136,6 +140,9 @@ func (m *KubernetesNodeMetadata) DiskQuantity() (int32, error) {
 func (m *KubernetesNodeMetadata) MachineKind() (MachineKind, error) {
 	if m.node.Labels[LingjunWorkerLabel] == "true" {
 		return MachineKindLingjun, nil
+	}
+	if m.node.Labels[VirtualKubeletTypeLabel] == "virtual-kubelet" {
+		return MachineKindVirtualKubelet, nil
 	}
 	return MachineKindUnknown, ErrUnknownMetadataKey
 }

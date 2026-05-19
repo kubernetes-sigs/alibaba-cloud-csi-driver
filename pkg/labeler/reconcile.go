@@ -97,8 +97,11 @@ func (r *Reconciler) reconcile(ctx context.Context, logger klog.Logger, nodeName
 		return err
 	}
 
+	logger = logger.WithValues("node", nodeName)
+	ctx = klog.NewContext(ctx, logger)
+
 	if _, ok := node.Annotations[disk.MaxDiskAnnotation]; ok {
-		logger.V(5).Info("skip node with existing annotation", "node", nodeName)
+		logger.V(5).Info("skip node with existing annotation")
 		return nil
 	}
 
@@ -111,7 +114,7 @@ func (r *Reconciler) reconcile(ctx context.Context, logger klog.Logger, nodeName
 	instanceID, err := mp.Get(metadata.InstanceID)
 	if err != nil {
 		if errors.Is(err, metadata.ErrUnknownMetadataKey) { // Edge node?
-			logger.V(4).Info("skip node without instance id", "node", nodeName, "providerID", node.Spec.ProviderID, "err", err)
+			logger.V(4).Info("skip node without instance id", "providerID", node.Spec.ProviderID, "err", err)
 			return nil
 		}
 		return err
@@ -127,9 +130,11 @@ func (r *Reconciler) reconcile(ctx context.Context, logger klog.Logger, nodeName
 	switch machineKind {
 	case metadata.MachineKindLingjun:
 		diskQuantity, diskTypes, err = r.resolveLingjun(ctx, mp)
-	default:
-		// Unknown machine kind (ErrUnknownMetadataKey or other) — treat as ECS.
+	case metadata.MachineKindECS:
 		diskQuantity, diskTypes, err = r.resolveECS(ctx, mp)
+	default:
+		logger.V(3).Info("skip unknown machine kind", "kind", machineKind)
+		return nil
 	}
 	if err != nil {
 		return err
@@ -151,7 +156,7 @@ func (r *Reconciler) reconcile(ctx context.Context, logger klog.Logger, nodeName
 
 	patch := disk.BuildNodePatch(node, int(maxVolumes), diskTypes, disk.MaxDiskAnnotation)
 	if patch == nil {
-		logger.V(5).Info("node already up to date", "node", nodeName)
+		logger.V(5).Info("node already up to date")
 		return nil
 	}
 	_, err = r.Client.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
@@ -159,7 +164,6 @@ func (r *Reconciler) reconcile(ctx context.Context, logger klog.Logger, nodeName
 		return fmt.Errorf("patch node: %w", err)
 	}
 	logger.V(2).Info("patched node",
-		"node", nodeName,
 		"maxVolumes", maxVolumes,
 		"diskQuantity", diskQuantity,
 		"diskTypes", diskTypes,
