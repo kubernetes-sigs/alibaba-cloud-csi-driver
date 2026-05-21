@@ -1,0 +1,23 @@
+diff --git a/build/mount-proxy/Dockerfile b/build/mount-proxy/Dockerfile
+index 38468c4bc..5852a3bc6 100644
+--- a/build/mount-proxy/Dockerfile
++++ b/build/mount-proxy/Dockerfile
+@@ -12,12 +12,18 @@ RUN --mount=type=bind,target=. \
+ 
+ 
+ FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS rpm-builder
++RUN find /etc/yum.repos.d -name '*.repo' -exec \
++    sed -i 's|mirrors\.cloud\.aliyuncs\.com|mirrors.aliyun.com|g' {} + && \
++    yum makecache
+ RUN yum install -y rpm-build
+ RUN --mount=type=bind,source=build/mount-proxy/python3-provider.spec,target=/tmp/python3-provider.spec \
+     rpmbuild -bb /tmp/python3-provider.spec
+ 
+ 
+ FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS alinux-install
++RUN find /etc/yum.repos.d -name '*.repo' -exec \
++    sed -i 's|mirrors\.cloud\.aliyuncs\.com|mirrors.aliyun.com|g' {} + && \
++    yum makecache
+ 
+ #################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
+ 

@@ -45,9 +45,9 @@ OSSFS2_IMAGE_TAG_ESC=$(escape_sed "${OSSFS2_IMAGE_TAG}")
 sed -i '' "s/defaultOssfsUpdatedImageTag = \".*\"/defaultOssfsUpdatedImageTag = \"${OSSFS_IMAGE_TAG_ESC}\"/" "${GO_FILE}"
 sed -i '' "s/defaultOssfs2ImageTag.*= \".*\"/defaultOssfs2ImageTag       = \"${OSSFS2_IMAGE_TAG_ESC}\"/" "${GO_FILE}"
 
-# Update csi-agent Dockerfile
-CSI_AGENT_DOCKERFILE="${ROOT_DIR}/build/csi-agent/Dockerfile"
-echo "Updating ${CSI_AGENT_DOCKERFILE}..."
+# Update mount-proxy Dockerfile
+MOUNT_PROXY_DOCKERFILE="${ROOT_DIR}/build/mount-proxy/Dockerfile"
+echo "Updating ${MOUNT_PROXY_DOCKERFILE}..."
 OSSFS_RPM_VERSION_ESC=$(escape_sed "${OSSFS_RPM_VERSION}")
 OSSFS2_RPM_VERSION_ESC=$(escape_sed "${OSSFS2_RPM_VERSION}")
 ALINAS_UTILS_VERSION_ESC=$(escape_sed "${ALINAS_UTILS_VERSION}")
@@ -55,20 +55,14 @@ EFC_VERSION_ESC=$(escape_sed "${EFC_VERSION}")
 EFC_ARM_VERSION_ESC=$(escape_sed "${EFC_ARM_VERSION}")
 ALINAS_UTILS_ARM_VERSION_ESC=$(escape_sed "${ALINAS_UTILS_ARM_VERSION}")
 
-sed -i '' "s/^ARG OSSFS_VERSION=.*/ARG OSSFS_VERSION=${OSSFS_RPM_VERSION_ESC}/" "${CSI_AGENT_DOCKERFILE}"
-sed -i '' "s/^ARG OSSFS2_VERSION=.*/ARG OSSFS2_VERSION=${OSSFS2_RPM_VERSION_ESC}/" "${CSI_AGENT_DOCKERFILE}"
-sed -i '' "s/^ARG ALINAS_UTILS_VERSION=.*/ARG ALINAS_UTILS_VERSION=${ALINAS_UTILS_VERSION_ESC}/" "${CSI_AGENT_DOCKERFILE}"
-sed -i '' "s/^ARG EFC_VERSION=.*/ARG EFC_VERSION=${EFC_VERSION_ESC}/" "${CSI_AGENT_DOCKERFILE}"
-sed -i '' "s/^ARG EFC_ARM_VERSION=.*/ARG EFC_ARM_VERSION=${EFC_ARM_VERSION_ESC}/" "${CSI_AGENT_DOCKERFILE}"
-sed -i '' "s/^ARG ALINAS_UTILS_ARM_VERSION=.*/ARG ALINAS_UTILS_ARM_VERSION=${ALINAS_UTILS_ARM_VERSION_ESC}/" "${CSI_AGENT_DOCKERFILE}"
-
-# Update mount-proxy Dockerfile
-MOUNT_PROXY_DOCKERFILE="${ROOT_DIR}/build/mount-proxy/Dockerfile"
-echo "Updating ${MOUNT_PROXY_DOCKERFILE}..."
-# Update OSSFS_VERSION for ossfs (first occurrence, before ossfs-1.88)
+# Update OSSFS_VERSION for ossfs stage
 sed -i '' "/^FROM.*AS ossfs$/,/^FROM.*AS ossfs-1.88$/ s/^ARG OSSFS_VERSION=.*/ARG OSSFS_VERSION=${OSSFS_RPM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
-# Update OSSFS_VERSION for ossfs2 (second occurrence, after ossfs-1.88)
+# Update OSSFS_VERSION for ossfs2 stage
 sed -i '' "/^FROM.*AS ossfs2$/,/^FROM.*AS alinas$/ s/^ARG OSSFS_VERSION=.*/ARG OSSFS_VERSION=${OSSFS2_RPM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
+# Update OSSFS_VERSION and OSSFS2_VERSION for aio stage
+sed -i '' "/^FROM.*AS aio$/,\$ s/^ARG OSSFS_VERSION=.*/ARG OSSFS_VERSION=${OSSFS_RPM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
+sed -i '' "/^FROM.*AS aio$/,\$ s/^ARG OSSFS2_VERSION=.*/ARG OSSFS2_VERSION=${OSSFS2_RPM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
+# Update alinas/efc versions (all occurrences)
 sed -i '' "s/^ARG ALINAS_UTILS_VERSION=.*/ARG ALINAS_UTILS_VERSION=${ALINAS_UTILS_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
 sed -i '' "s/^ARG EFC_VERSION=.*/ARG EFC_VERSION=${EFC_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
 sed -i '' "s/^ARG EFC_ARM_VERSION=.*/ARG EFC_ARM_VERSION=${EFC_ARM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
