@@ -1,19 +1,27 @@
-FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.26.3 as builder
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.26.3 AS builder
 WORKDIR /src
 ARG TARGETARCH
 ARG TARGETOS
 RUN --mount=type=bind,target=. \
+    --mount=type=cache,target=/root/.cache/go-build \
     export GOOS=$TARGETOS && \
     export GOARCH=$TARGETARCH && \
     export CGO_ENABLED=0 && \
     go build -o /out/csi-mount-proxy-server ./cmd/mount-proxy-server && \
     go build -o /out/csi-mount-proxy-client ./cmd/mount-proxy-client
 
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS alinux-install
+
+# uncomment as needed when testing, makes image larger but build faster by reusing yum cache
+# RUN find /etc/yum.repos.d -name '*.repo' -exec \
+#     sed -i 's|mirrors\.cloud\.aliyuncs\.com|mirrors.aliyun.com|g' {} + && \
+#     yum makecache
+
 #################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as ossfs
+FROM alinux-install AS ossfs
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION
+ARG OSSFS_VERSION=v1.91.9.ack.1
 
 # install ossfs
 RUN set -ex; \
@@ -36,7 +44,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 #################### OSSFS 1.88 MOUNT-PROXY IMAGE ####################
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as ossfs-1.88
+FROM alinux-install AS ossfs-1.88
 ARG TARGETPLATFORM
 
 # install ossfs
@@ -70,9 +78,9 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 #################### OSSFS2 MOUNT-PROXY IMAGE ####################
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as ossfs2
+FROM alinux-install AS ossfs2
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION
+ARG OSSFS_VERSION=v2.0.5.ack.1
 
 # install ossfs
 # only supports x86_64
@@ -93,7 +101,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 
 #################### ALINAS MOUNT-PROXY IMAGE ####################
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as alinas
+FROM alinux-install AS alinas
 
 ARG TARGETPLATFORM
 ARG ALINAS_UTILS_VERSION=1.9-0.20260407144027.3d3855.al8
