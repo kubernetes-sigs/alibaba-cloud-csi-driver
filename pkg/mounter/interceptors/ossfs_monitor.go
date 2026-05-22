@@ -32,8 +32,22 @@ func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 		monitor.IncreaseMountRetryCount()
 	}
 
+	// Register callbacks for async metrics updates before mount starts.
+	// This ensures callbacks are ready before any post-attach failure occurs.
+	op.OnProcessExit = func(exitErr error) {
+		monitor.HandleProcessExitForRecovery(exitErr)
+	}
+	op.OnRecoverySuccess = func(pid int, exitErr error, attempts int) {
+		monitor.HandleRecoverySuccess(pid, exitErr, attempts)
+	}
+	op.OnRecoveryFailed = func(exitErr error, recoveryErr error, attempts int) {
+		monitor.HandleRecoveryFailed(exitErr, recoveryErr, attempts)
+	}
+
 	err := handler(ctx, op)
 
+	// Synchronous metrics path: mount failure (including pre-attach crash for fd-passing)
+	// is reported here because the error returns through the normal call stack.
 	if err != nil {
 		// This method should only be called when err != nil.
 		// Invoking it with a nil error will trigger a warning log.
