@@ -34,6 +34,7 @@ type MountMonitor struct {
 	State       MonitorState
 	mu          sync.RWMutex
 	stopCh      chan struct{}
+	stopOnce    sync.Once
 	raw         mount.Interface
 	// Mount retry count (persistent across mount attempts)
 	retryCount    int
@@ -110,6 +111,64 @@ func (m *MountMonitor) IncreaseMountRetryCount() {
 	}
 }
 
+// HandleProcessExitForRecovery handles metrics update when fuse daemon exits
+// and recovery is about to be triggered. This is called before the actual recovery
+// (remount) begins to record the exit event.
+// Increments failover count and updates exit reason.
+func (m *MountMonitor) HandleProcessExitForRecovery(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failoverCount < maxCountRecord {
+		m.failoverCount++
+	}
+
+	// Update failover count, exit reason, and status (unhealthy during restart)
+	m.updateMountPointMetrics(nil, &m.failoverCount, err)
+
+	klog.InfoS("Fuse daemon exited, triggering recovery",
+		"target", m.Target,
+		"failover_count", m.failoverCount,
+		"exit_error", err)
+}
+
+// HandleRecoverySuccess handles metrics update after successful recovery restart.
+// Updates status back to healthy and records recovery context in last_exit_reason.
+func (m *MountMonitor) HandleRecoverySuccess(pid int, exitErr error, attempts int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	reason := fmt.Errorf("%w; recovered after %d attempt(s) at %s",
+		exitErr, attempts, time.Now().Format(time.RFC3339))
+	m.updateMountPointMetrics(nil, nil, reason)
+	// Overwrite status to healthy (updateMountPointMetrics set it to unhealthy because reason != nil)
+	statusFile := filepath.Join(m.MetricsPath, utils.MetricsMountPointStatus)
+	if err := os.WriteFile(statusFile, []byte("0"), 0644); err != nil {
+		klog.ErrorS(err, "Failed to update metrics", "key", utils.MetricsMountPointStatus)
+	}
+
+	m.Pid = pid
+	klog.InfoS("Recovery succeeded, updated status to healthy",
+		"target", m.Target,
+		"pid", pid,
+		"attempts", attempts)
+}
+
+// HandleRecoveryFailed handles metrics update when recovery exhausts all retries.
+// Records the original exit reason and recovery failure context.
+func (m *MountMonitor) HandleRecoveryFailed(exitErr error, recoveryErr error, attempts int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	reason := fmt.Errorf("%w; recovery exhausted after %d attempt(s), last error: %v",
+		exitErr, attempts, recoveryErr)
+	m.updateMountPointMetrics(nil, nil, reason)
+
+	klog.ErrorS(reason, "Recovery failed permanently",
+		"target", m.Target,
+		"attempts", attempts)
+}
+
 // HandleMountFailureOrExit handles the case when mount operation fails
 // or fuse client exits.
 func (m *MountMonitor) HandleMountFailureOrExit(err error) {
@@ -146,7 +205,9 @@ func (m *MountMonitor) HandleMountSuccess(pid int) {
 // Stop stops the monitoring and cleans up metrics files
 func (m *MountMonitor) Stop() {
 	// Close stopCh first to signal monitoring goroutine to stop
-	close(m.stopCh)
+	m.stopOnce.Do(func() {
+		close(m.stopCh)
+	})
 
 	// MetricsPath is a hostPath mount point in the pod, we should only remove files inside,
 	// not the directory itself, CSI nodeUnstageVolume will clean up the directory.
