@@ -29,8 +29,7 @@ type PurchaseStorageCapacityUnitResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The IDs of the SCUs.
+	RequestId              *string                                                        `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	StorageCapacityUnitIds *PurchaseStorageCapacityUnitResponseBodyStorageCapacityUnitIds `json:"StorageCapacityUnitIds,omitempty" xml:"StorageCapacityUnitIds,omitempty" type:"Struct"`
 }
 

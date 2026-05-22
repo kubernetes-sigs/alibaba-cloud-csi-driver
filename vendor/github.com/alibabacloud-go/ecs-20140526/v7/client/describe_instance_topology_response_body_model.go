@@ -21,8 +21,7 @@ type DescribeInstanceTopologyResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the topology.
+	RequestId *string                                        `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	Topologys *DescribeInstanceTopologyResponseBodyTopologys `json:"Topologys,omitempty" xml:"Topologys,omitempty" type:"Struct"`
 }
 
@@ -96,17 +95,7 @@ func (s *DescribeInstanceTopologyResponseBodyTopologys) Validate() error {
 }
 
 type DescribeInstanceTopologyResponseBodyTopologysTopology struct {
-	// The ID of the host where the ECS instance resides. This parameter is encrypted and cannot match the ID of the ECS instance. However, if the values of this parameter for different ECS instances are the same, the ECS instances reside on the same host.
-	//
-	// example:
-	//
-	// ZWNobyBo****
-	HostId *string `json:"HostId,omitempty" xml:"HostId,omitempty"`
-	// The instance ID.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
+	HostId     *string `json:"HostId,omitempty" xml:"HostId,omitempty"`
 	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 }
 

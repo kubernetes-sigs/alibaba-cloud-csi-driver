@@ -22,7 +22,6 @@ type iAttachInstanceRamRoleResponseBody interface {
 }
 
 type AttachInstanceRamRoleResponseBody struct {
-	// Details about the results of attaching the instance RAM role.
 	AttachInstanceRamRoleResults *AttachInstanceRamRoleResponseBodyAttachInstanceRamRoleResults `json:"AttachInstanceRamRoleResults,omitempty" xml:"AttachInstanceRamRoleResults,omitempty" type:"Struct"`
 	// The number of instances to which the instance RAM role failed to be attached.
 	//
@@ -147,30 +146,10 @@ func (s *AttachInstanceRamRoleResponseBodyAttachInstanceRamRoleResults) Validate
 }
 
 type AttachInstanceRamRoleResponseBodyAttachInstanceRamRoleResultsAttachInstanceRamRoleResult struct {
-	// Indicates whether the instance RAM role was attached. If the instance RAM role was attached, 200 is returned. If the instance RAM role failed to be attached, any other value is returned. For more information, see the "Error codes" section.
-	//
-	// example:
-	//
-	// 200
-	Code *string `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-bp10ws62o04ubhvi****
+	Code       *string `json:"Code,omitempty" xml:"Code,omitempty"`
 	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// Indicates whether the instance RAM role was attached. If the instance RAM role was attached, success is returned. If the instance RAM role failed to be attached, any other value is returned. For more information, see the "Error codes" section.
-	//
-	// example:
-	//
-	// success
-	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// Indicates whether the instance RAM role was attached.
-	//
-	// example:
-	//
-	// true
-	Success *bool `json:"Success,omitempty" xml:"Success,omitempty"`
+	Message    *string `json:"Message,omitempty" xml:"Message,omitempty"`
+	Success    *bool   `json:"Success,omitempty" xml:"Success,omitempty"`
 }
 
 func (s AttachInstanceRamRoleResponseBodyAttachInstanceRamRoleResultsAttachInstanceRamRoleResult) String() string {

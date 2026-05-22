@@ -22,7 +22,6 @@ type iDescribeCapacityReservationInstancesResponseBody interface {
 }
 
 type DescribeCapacityReservationInstancesResponseBody struct {
-	// Details about the instances that match the capacity reservation.
 	CapacityReservationItem *DescribeCapacityReservationInstancesResponseBodyCapacityReservationItem `json:"CapacityReservationItem,omitempty" xml:"CapacityReservationItem,omitempty" type:"Struct"`
 	// The maximum number of entries per page.
 	//
@@ -147,11 +146,6 @@ func (s *DescribeCapacityReservationInstancesResponseBodyCapacityReservationItem
 }
 
 type DescribeCapacityReservationInstancesResponseBodyCapacityReservationItemInstanceIdSet struct {
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4****
 	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 }
 

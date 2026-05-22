@@ -29,6 +29,8 @@ func (m *ECSDynamic) Get(key MetadataKey) (string, error) {
 	switch key {
 	case RAMRoleName:
 		return m.fetch("meta-data/ram/security-credentials/")
+	case IsVscEnable:
+		return m.fetch("meta-data/instance/vsc-options/enabled")
 	default:
 		return "", ErrUnknownMetadataKey
 	}

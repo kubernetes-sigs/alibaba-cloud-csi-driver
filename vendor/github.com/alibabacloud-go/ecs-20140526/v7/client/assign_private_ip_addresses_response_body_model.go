@@ -62,16 +62,14 @@ func (s *AssignPrivateIpAddressesResponseBody) Validate() error {
 }
 
 type AssignPrivateIpAddressesResponseBodyAssignedPrivateIpAddressesSet struct {
-	// Details about the assigned IPv4 prefixes.
 	Ipv4PrefixSet *AssignPrivateIpAddressesResponseBodyAssignedPrivateIpAddressesSetIpv4PrefixSet `json:"Ipv4PrefixSet,omitempty" xml:"Ipv4PrefixSet,omitempty" type:"Struct"`
 	// The ENI ID.
 	//
 	// example:
 	//
 	// eni-bp125p95hhdhn3ot****
-	NetworkInterfaceId *string `json:"NetworkInterfaceId,omitempty" xml:"NetworkInterfaceId,omitempty"`
-	// The secondary private IP addresses that are assigned to the ENI.
-	PrivateIpSet *AssignPrivateIpAddressesResponseBodyAssignedPrivateIpAddressesSetPrivateIpSet `json:"PrivateIpSet,omitempty" xml:"PrivateIpSet,omitempty" type:"Struct"`
+	NetworkInterfaceId *string                                                                        `json:"NetworkInterfaceId,omitempty" xml:"NetworkInterfaceId,omitempty"`
+	PrivateIpSet       *AssignPrivateIpAddressesResponseBodyAssignedPrivateIpAddressesSetPrivateIpSet `json:"PrivateIpSet,omitempty" xml:"PrivateIpSet,omitempty" type:"Struct"`
 }
 
 func (s AssignPrivateIpAddressesResponseBodyAssignedPrivateIpAddressesSet) String() string {

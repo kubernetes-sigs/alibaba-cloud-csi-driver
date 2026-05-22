@@ -24,7 +24,8 @@ import (
 	"sync"
 	"time"
 
-	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
+	ecsClient "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	efloClient "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	nasclient "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"golang.org/x/time/rate"
@@ -33,13 +34,30 @@ import (
 	"k8s.io/utils/clock"
 )
 
-const (
-	VscTypePrimary = "primary"
+// vscDialect captures backend-specific values for VSC type/status enums
+// that are conceptually identical between Lingjun (eflo) and ECS backends
+// but use different string literals.
+type vscDialect struct {
+	PrimaryType  string // VSC type for "primary"
+	StatusNormal string // status meaning the VSC is healthy/usable
+}
 
-	VscStatusCreating = "Creating"
-	VscStatusNormal   = "Normal"
-	VscStatusDeleting = "Deleting"
+var (
+	efloVscDialect = vscDialect{
+		PrimaryType:  "primary",
+		StatusNormal: "Normal",
+	}
+	ecsVscDialect = vscDialect{
+		PrimaryType:  "Primary",
+		StatusNormal: "In_use",
+	}
 )
+
+// isECSInstance reports whether the instanceId belongs to an ECS instance.
+// ECS instance IDs are prefixed with "i-"; Lingjun node IDs are not.
+func isECSInstance(instanceId string) bool {
+	return strings.HasPrefix(instanceId, "i-")
+}
 
 type Vsc struct {
 	NodeID string
@@ -48,48 +66,86 @@ type Vsc struct {
 	Status string
 }
 
-type VscManager interface {
-	CreatePrimaryVscFor(instanceId string) (string, error)
+// VscBackend is the interface each cloud backend implements independently.
+type VscBackend interface {
+	CreatePrimaryVsc(instanceId string) (string, error)
 	GetPrimaryVscOf(instanceId string) (*Vsc, error)
 	GetVsc(vscId string) (*Vsc, error)
 }
 
-func NewVscManager(client *efloclient.Client) VscManager {
-	return &LingjunVscManager{client: client}
+type VscManager interface {
+	CreatePrimaryVscFor(instanceId string) (string, error)
+	GetPrimaryVscOf(instanceId string) (*Vsc, error)
+	// GetVsc retrieves a single VSC by ID. The instanceId is used only for
+	// routing to the correct backend; individual backends do not need it.
+	GetVsc(vscId, instanceId string) (*Vsc, error)
 }
 
-type LingjunVscManager struct {
-	client *efloclient.Client
-}
-
-func (m *LingjunVscManager) CreatePrimaryVscFor(instanceId string) (string, error) {
-	req := &efloclient.CreateVscRequest{
-		NodeId:  &instanceId,
-		VscType: new(VscTypePrimary),
+func NewVscManager(eflo *efloClient.Client, ecs *ecsClient.Client) VscManager {
+	return &dispatchingVscManager{
+		eflo: &efloVscBackend{client: eflo},
+		ecs:  &ecsVscBackend{client: ecs},
 	}
-	resp, err := m.client.CreateVsc(req)
+}
+
+// dispatchingVscManager routes calls to the correct backend based on instanceId.
+type dispatchingVscManager struct {
+	eflo VscBackend
+	ecs  VscBackend
+}
+
+func (m *dispatchingVscManager) backendFor(instanceId string) VscBackend {
+	if isECSInstance(instanceId) {
+		return m.ecs
+	}
+	return m.eflo
+}
+
+func (m *dispatchingVscManager) CreatePrimaryVscFor(instanceId string) (string, error) {
+	return m.backendFor(instanceId).CreatePrimaryVsc(instanceId)
+}
+
+func (m *dispatchingVscManager) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
+	return m.backendFor(instanceId).GetPrimaryVscOf(instanceId)
+}
+
+func (m *dispatchingVscManager) GetVsc(vscId, instanceId string) (*Vsc, error) {
+	return m.backendFor(instanceId).GetVsc(vscId)
+}
+
+// efloVscBackend implements VscBackend for Lingjun (eflo) nodes.
+type efloVscBackend struct {
+	client *efloClient.Client
+}
+
+func (b *efloVscBackend) CreatePrimaryVsc(instanceId string) (string, error) {
+	req := &efloClient.CreateVscRequest{
+		NodeId:  &instanceId,
+		VscType: tea.String(efloVscDialect.PrimaryType),
+	}
+	resp, err := b.client.CreateVsc(req)
 	if err != nil {
 		return "", fmt.Errorf("eflo:CreateVsc failed: %w", err)
 	}
 	klog.InfoS("eflo:CreateVsc succeeded", "instanceId", instanceId, "response", resp.Body)
 	if tea.StringValue(resp.Body.VscId) == "" {
-		return "", errors.New("unexpected response of CreateVsc")
+		return "", errors.New("unexpected response of eflo:CreateVsc")
 	}
 	return tea.StringValue(resp.Body.VscId), nil
 }
 
-func (m *LingjunVscManager) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
-	req := &efloclient.ListVscsRequest{
+func (b *efloVscBackend) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
+	req := &efloClient.ListVscsRequest{
 		NodeIds:    []*string{&instanceId},
 		MaxResults: tea.Int32(100),
 	}
-	resp, err := m.client.ListVscs(req)
+	resp, err := b.client.ListVscs(req)
 	if err != nil {
 		return nil, fmt.Errorf("eflo:ListVscs failed: %w", err)
 	}
 	klog.V(4).InfoS("eflo:ListVscs succeeded", "instanceId", instanceId, "response", resp.Body)
 	for _, vsc := range resp.Body.Vscs {
-		if tea.StringValue(vsc.VscType) == VscTypePrimary {
+		if tea.StringValue(vsc.VscType) == efloVscDialect.PrimaryType {
 			return &Vsc{
 				NodeID: tea.StringValue(vsc.NodeId),
 				VscID:  tea.StringValue(vsc.VscId),
@@ -101,11 +157,11 @@ func (m *LingjunVscManager) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
 	return nil, nil
 }
 
-func (m *LingjunVscManager) GetVsc(vscId string) (*Vsc, error) {
-	req := &efloclient.DescribeVscRequest{
+func (b *efloVscBackend) GetVsc(vscId string) (*Vsc, error) {
+	req := &efloClient.DescribeVscRequest{
 		VscId: &vscId,
 	}
-	resp, err := m.client.DescribeVsc(req)
+	resp, err := b.client.DescribeVsc(req)
 	if err != nil {
 		return nil, fmt.Errorf("eflo:DescribeVsc failed: %w", err)
 	}
@@ -118,14 +174,78 @@ func (m *LingjunVscManager) GetVsc(vscId string) (*Vsc, error) {
 	}, nil
 }
 
+// ecsVscBackend implements VscBackend for ECS nodes with VSC enabled.
+type ecsVscBackend struct {
+	client *ecsClient.Client
+}
+
+func (b *ecsVscBackend) CreatePrimaryVsc(instanceId string) (string, error) {
+	req := &ecsClient.CreateVscRequest{
+		InstanceId: &instanceId,
+		VscType:    tea.String(ecsVscDialect.PrimaryType),
+	}
+	resp, err := b.client.CreateVsc(req)
+	if err != nil {
+		return "", fmt.Errorf("ecs:CreateVsc failed: %w", err)
+	}
+	klog.InfoS("ecs:CreateVsc succeeded", "instanceId", instanceId, "response", resp.Body)
+	if tea.StringValue(resp.Body.VscId) == "" {
+		return "", errors.New("unexpected response of ecs:CreateVsc")
+	}
+	return tea.StringValue(resp.Body.VscId), nil
+}
+
+func (b *ecsVscBackend) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
+	req := &ecsClient.DescribeVscsRequest{
+		InstanceId: &instanceId,
+		MaxResults: tea.Int32(100),
+	}
+	resp, err := b.client.DescribeVscs(req)
+	if err != nil {
+		return nil, fmt.Errorf("ecs:DescribeVscs failed: %w", err)
+	}
+	klog.V(4).InfoS("ecs:DescribeVscs succeeded", "instanceId", instanceId, "response", resp.Body)
+	for _, vsc := range resp.Body.Vscs {
+		if tea.StringValue(vsc.VscType) == ecsVscDialect.PrimaryType {
+			return &Vsc{
+				NodeID: tea.StringValue(vsc.InstanceId),
+				VscID:  tea.StringValue(vsc.VscId),
+				Type:   tea.StringValue(vsc.VscType),
+				Status: tea.StringValue(vsc.Status),
+			}, nil
+		}
+	}
+	return nil, nil
+}
+
+func (b *ecsVscBackend) GetVsc(vscId string) (*Vsc, error) {
+	req := &ecsClient.DescribeVscsRequest{
+		VscIds: []*string{&vscId},
+	}
+	resp, err := b.client.DescribeVscs(req)
+	if err != nil {
+		return nil, fmt.Errorf("ecs:DescribeVscs failed: %w", err)
+	}
+	klog.V(4).InfoS("ecs:DescribeVscs succeeded", "vscId", vscId, "response", resp.Body)
+	if len(resp.Body.Vscs) == 0 {
+		return nil, nil
+	}
+	return &Vsc{
+		NodeID: tea.StringValue(resp.Body.Vscs[0].InstanceId),
+		VscID:  tea.StringValue(resp.Body.Vscs[0].VscId),
+		Type:   tea.StringValue(resp.Body.Vscs[0].VscType),
+		Status: tea.StringValue(resp.Body.Vscs[0].Status),
+	}, nil
+}
+
 type vscWithErr struct {
 	*Vsc
 	err      error
 	cachedAt time.Time
 }
 
-func (e vscWithErr) isExpired(ttl time.Duration) bool {
-	return time.Since(e.cachedAt) > ttl
+func (v *vscWithErr) isExpired(ttl time.Duration) bool {
+	return time.Since(v.cachedAt) > ttl
 }
 
 type PrimaryVscManagerWithCache struct {
@@ -143,12 +263,12 @@ type PrimaryVscManagerWithCache struct {
 const (
 	defaultVscManagerRetryTimes  = 3
 	defaultVscManagerWorkerCount = 3
-	defaultVscCacheTTL           = 5 * time.Minute
+	defaultVscCacheTTL           = 3 * time.Minute
 )
 
-func NewPrimaryVscManagerWithCache(efloClient *efloclient.Client) *PrimaryVscManagerWithCache {
+func NewPrimaryVscManagerWithCache(efloClient *efloClient.Client, ecsClient *ecsClient.Client) *PrimaryVscManagerWithCache {
 	m := &PrimaryVscManagerWithCache{
-		VscManager: NewVscManager(efloClient),
+		VscManager: NewVscManager(efloClient, ecsClient),
 		retryTimes: defaultVscManagerRetryTimes,
 		cacheTTL:   defaultVscCacheTTL,
 		cond:       sync.NewCond(&sync.Mutex{}),
@@ -214,7 +334,7 @@ func (m *PrimaryVscManagerWithCache) getOrCreatePrimaryFor(instanceId string) (*
 		if err != nil {
 			return nil, err
 		}
-		vsc, err = m.GetVsc(vscId)
+		vsc, err = m.GetVsc(vscId, instanceId)
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +343,11 @@ func (m *PrimaryVscManagerWithCache) getOrCreatePrimaryFor(instanceId string) (*
 		return nil, fmt.Errorf("vsc %s not found after creation", vscId)
 	}
 	// check vsc status
-	if vsc.Status != VscStatusNormal {
+	expected := efloVscDialect.StatusNormal
+	if isECSInstance(instanceId) {
+		expected = ecsVscDialect.StatusNormal
+	}
+	if vsc.Status != expected {
 		return vsc, fmt.Errorf("unexpected vsc status: %s", vsc.Status)
 	}
 	return vsc, nil
@@ -279,7 +403,7 @@ func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceId string) (*Vsc, e
 		m.cond.L.Lock()
 		clonedVsc := new(Vsc)
 		*clonedVsc = *vsc
-		m.cache[instanceId] = vscWithErr{Vsc: clonedVsc, cachedAt: time.Now()}
+		m.cache[instanceId] = vscWithErr{Vsc: clonedVsc, err: nil, cachedAt: time.Now()}
 		m.cond.L.Unlock()
 	}
 

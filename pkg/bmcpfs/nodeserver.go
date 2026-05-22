@@ -43,18 +43,27 @@ type nodeServer struct {
 }
 
 const (
-	LingjunConfigFile             = "/host/etc/eflo_config/lingjun_config"
 	defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
 	metricsPathPrefix             = "/run/cnfs/efc/"
 )
 
-func newNodeServer() (*nodeServer, error) {
+func newNodeServer(meta *metadata.Metadata) (*nodeServer, error) {
 	var nodeID string
-	data, err := os.ReadFile(LingjunConfigFile)
+	data, err := os.ReadFile(metadata.LingjunConfigFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// if not lingjun instance
-			nodeID = CommonNodeIDPrefix + os.Getenv(metadata.KUBE_NODE_NAME_ENV)
+			isVsc, err := meta.Get(metadata.IsVscEnable)
+			if err == nil && isVsc == "true" {
+				instance, err := meta.Get(metadata.InstanceID)
+				if err != nil {
+					return nil, fmt.Errorf("get instance ID failed: %w", err)
+				}
+				nodeID = VSCNodeIDPrefix + instance
+			} else {
+				klog.InfoS("Not a lingjun instance", "isVsc", isVsc, "err", err, "nodeID", nodeID)
+				nodeID = CommonNodeIDPrefix + os.Getenv(metadata.KUBE_NODE_NAME_ENV)
+			}
 		} else {
 			return nil, fmt.Errorf("read lingjun_config file: %w", err)
 		}

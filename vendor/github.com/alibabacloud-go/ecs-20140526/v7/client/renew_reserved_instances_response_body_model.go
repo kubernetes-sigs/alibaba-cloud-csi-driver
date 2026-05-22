@@ -29,8 +29,7 @@ type RenewReservedInstancesResponseBody struct {
 	// example:
 	//
 	// 8C314443-AF0D-4766-9562-C83B7F1****
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The IDs of the reserved instances.
+	RequestId              *string                                                   `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	ReservedInstanceIdSets *RenewReservedInstancesResponseBodyReservedInstanceIdSets `json:"ReservedInstanceIdSets,omitempty" xml:"ReservedInstanceIdSets,omitempty" type:"Struct"`
 }
 

@@ -24,7 +24,6 @@ type iDescribeDisksResponseBody interface {
 }
 
 type DescribeDisksResponseBody struct {
-	// Details about the disks.
 	Disks *DescribeDisksResponseBodyDisks `json:"Disks,omitempty" xml:"Disks,omitempty" type:"Struct"`
 	// The returned pagination token which can be used in the next request to retrieve a new page of results.
 	//
@@ -166,368 +165,59 @@ func (s *DescribeDisksResponseBodyDisks) Validate() error {
 }
 
 type DescribeDisksResponseBodyDisksDisk struct {
-	// The time when the disk was last attached. The time follows the ISO 8601 standard in the yyyy-MM-ddThh:mmZ format. The time is displayed in UTC.
-	//
+	AttachedTime                  *string                                           `json:"AttachedTime,omitempty" xml:"AttachedTime,omitempty"`
+	Attachments                   *DescribeDisksResponseBodyDisksDiskAttachments    `json:"Attachments,omitempty" xml:"Attachments,omitempty" type:"Struct"`
+	AutoSnapshotPolicyId          *string                                           `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
+	BdfId                         *string                                           `json:"BdfId,omitempty" xml:"BdfId,omitempty"`
+	BurstingEnabled               *bool                                             `json:"BurstingEnabled,omitempty" xml:"BurstingEnabled,omitempty"`
+	Category                      *string                                           `json:"Category,omitempty" xml:"Category,omitempty"`
+	CreationTime                  *string                                           `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	DeleteAutoSnapshot            *bool                                             `json:"DeleteAutoSnapshot,omitempty" xml:"DeleteAutoSnapshot,omitempty"`
+	DeleteWithInstance            *bool                                             `json:"DeleteWithInstance,omitempty" xml:"DeleteWithInstance,omitempty"`
+	Description                   *string                                           `json:"Description,omitempty" xml:"Description,omitempty"`
+	DetachedTime                  *string                                           `json:"DetachedTime,omitempty" xml:"DetachedTime,omitempty"`
+	Device                        *string                                           `json:"Device,omitempty" xml:"Device,omitempty"`
+	DiskChargeType                *string                                           `json:"DiskChargeType,omitempty" xml:"DiskChargeType,omitempty"`
+	DiskId                        *string                                           `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
+	DiskName                      *string                                           `json:"DiskName,omitempty" xml:"DiskName,omitempty"`
+	EnableAutoSnapshot            *bool                                             `json:"EnableAutoSnapshot,omitempty" xml:"EnableAutoSnapshot,omitempty"`
+	EnableAutomatedSnapshotPolicy *bool                                             `json:"EnableAutomatedSnapshotPolicy,omitempty" xml:"EnableAutomatedSnapshotPolicy,omitempty"`
+	Encrypted                     *bool                                             `json:"Encrypted,omitempty" xml:"Encrypted,omitempty"`
+	ExpiredTime                   *string                                           `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
+	IOPS                          *int32                                            `json:"IOPS,omitempty" xml:"IOPS,omitempty"`
+	IOPSRead                      *int32                                            `json:"IOPSRead,omitempty" xml:"IOPSRead,omitempty"`
+	IOPSWrite                     *int32                                            `json:"IOPSWrite,omitempty" xml:"IOPSWrite,omitempty"`
+	ImageId                       *string                                           `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
+	InstanceId                    *string                                           `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	KMSKeyId                      *string                                           `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
+	MountInstanceNum              *int32                                            `json:"MountInstanceNum,omitempty" xml:"MountInstanceNum,omitempty"`
+	MountInstances                *DescribeDisksResponseBodyDisksDiskMountInstances `json:"MountInstances,omitempty" xml:"MountInstances,omitempty" type:"Struct"`
+	MultiAttach                   *string                                           `json:"MultiAttach,omitempty" xml:"MultiAttach,omitempty"`
+	OperationLocks                *DescribeDisksResponseBodyDisksDiskOperationLocks `json:"OperationLocks,omitempty" xml:"OperationLocks,omitempty" type:"Struct"`
+	PerformanceLevel              *string                                           `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
+	Placement                     *DescribeDisksResponseBodyDisksDiskPlacement      `json:"Placement,omitempty" xml:"Placement,omitempty" type:"Struct"`
+	Portable                      *bool                                             `json:"Portable,omitempty" xml:"Portable,omitempty"`
+	ProductCode                   *string                                           `json:"ProductCode,omitempty" xml:"ProductCode,omitempty"`
+	ProvisionedIops               *int64                                            `json:"ProvisionedIops,omitempty" xml:"ProvisionedIops,omitempty"`
+	RegionId                      *string                                           `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceGroupId               *string                                           `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	SerialNumber                  *string                                           `json:"SerialNumber,omitempty" xml:"SerialNumber,omitempty"`
+	Size                          *int32                                            `json:"Size,omitempty" xml:"Size,omitempty"`
 	// example:
 	//
-	// 2021-06-07T06:08:56Z
-	AttachedTime *string `json:"AttachedTime,omitempty" xml:"AttachedTime,omitempty"`
-	// The attachment information of the disk. The value is an array that consists of the `Attachment` values. This value is not returned when you query Shared Block Storage devices.
-	Attachments *DescribeDisksResponseBodyDisksDiskAttachments `json:"Attachments,omitempty" xml:"Attachments,omitempty" type:"Struct"`
-	// The ID of the automatic snapshot policy that is applied to the cloud disk.
-	//
-	// example:
-	//
-	// sp-bp67acfmxazb4p****
-	AutoSnapshotPolicyId *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
-	// This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
-	BdfId *string `json:"BdfId,omitempty" xml:"BdfId,omitempty"`
-	// Indicates whether the performance burst feature is enabled. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// This parameter is available only if you set `Category` to `cloud_auto`. For more information, see [ESSD AutoPL disks](https://help.aliyun.com/document_detail/368372.html).
-	//
-	// example:
-	//
-	// false
-	BurstingEnabled *bool `json:"BurstingEnabled,omitempty" xml:"BurstingEnabled,omitempty"`
-	// The category of the disk. Valid values:
-	//
-	// 	- cloud: basic disk
-	//
-	// 	- cloud_efficiency: ultra disk
-	//
-	// 	- cloud_ssd: standard SSD
-	//
-	// 	- cloud_essd: ESSD
-	//
-	// 	- cloud_auto: ESSD AutoPL disk
-	//
-	// 	- local_ssd_pro: I/O-intensive local disk
-	//
-	// 	- local_hdd_pro: throughput-intensive local disk
-	//
-	// 	- cloud_essd_entry: ESSD Entry disk
-	//
-	// 	- elastic_ephemeral_disk_standard: standard elastic ephemeral disk
-	//
-	// 	- elastic_ephemeral_disk_premium: premium static ephemeral disk
-	//
-	// 	- ephemeral: retired local disk
-	//
-	// 	- ephemeral_ssd: retired local SSD
-	//
-	// example:
-	//
-	// cloud_ssd
-	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
-	// The time when the disk was created.
-	//
-	// example:
-	//
-	// 2021-06-07T06:08:54Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// Indicates whether the automatic snapshots of the cloud disk are deleted when the cloud disk is released. Valid values:
-	//
-	// 	- true: The automatic snapshots of the cloud disk are deleted when the disk is released.
-	//
-	// 	- false: The automatic snapshots of the cloud disk are retained when the disk is released.
-	//
-	// Snapshots that were created in the ECS console or by calling the [CreateSnapshot](https://help.aliyun.com/document_detail/25524.html) operation are retained and not affected by this parameter.
-	//
-	// example:
-	//
-	// false
-	DeleteAutoSnapshot *bool `json:"DeleteAutoSnapshot,omitempty" xml:"DeleteAutoSnapshot,omitempty"`
-	// Indicates whether the disk is released when the instance to which the disk is attached is released. Valid values:
-	//
-	// 	- true: The disk is released when the associated instance is released.
-	//
-	// 	- false: The disk is retained when the associated instance is released.
-	//
-	// example:
-	//
-	// true
-	DeleteWithInstance *bool `json:"DeleteWithInstance,omitempty" xml:"DeleteWithInstance,omitempty"`
-	// The description of the disk.
-	//
-	// example:
-	//
-	// testDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The time when the disk was last detached.
-	//
-	// example:
-	//
-	// 2021-06-07T21:01:22Z
-	DetachedTime *string `json:"DetachedTime,omitempty" xml:"DetachedTime,omitempty"`
-	// The device name of the disk on the instance to which the disk is attached. Example: /dev/xvdb. Take note of the following items:
-	//
-	// 	- This parameter has a value only when the `Status` value is `In_use` or `Detaching`.
-	//
-	// 	- This parameter is empty for cloud disks for which the multi-attach feature is enabled. You can query the attachment information of the cloud disk based on the returned list of `Attachment` objects.
-	//
-	// >  This parameter will be removed in the future. We recommend that you use other parameters to ensure future compatibility.
-	//
-	// example:
-	//
-	// /dev/xvdb
-	Device *string `json:"Device,omitempty" xml:"Device,omitempty"`
-	// The billing method of the disk. Valid values:
-	//
-	// 	- PrePaid: subscription
-	//
-	// 	- PostPaid: pay-as-you-go
-	//
-	// example:
-	//
-	// PrePaid
-	DiskChargeType *string `json:"DiskChargeType,omitempty" xml:"DiskChargeType,omitempty"`
-	// The ID of the disk.
-	//
-	// example:
-	//
-	// d-bp18um4r4f2fve24****
-	DiskId *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
-	// The name of the disk.
-	//
-	// example:
-	//
-	// testDiskName
-	DiskName *string `json:"DiskName,omitempty" xml:"DiskName,omitempty"`
-	// Indicates whether the automatic snapshot policy feature is enabled for the cloud disk.
-	//
-	// >  This parameter is deprecated. By default, the automatic snapshot policy feature is enabled for cloud disks. You need to only apply an automatic snapshot policy to a cloud disk before you can use the automatic snapshot policy.
-	//
-	// example:
-	//
-	// false
-	EnableAutoSnapshot *bool `json:"EnableAutoSnapshot,omitempty" xml:"EnableAutoSnapshot,omitempty"`
-	// Indicates whether an automatic snapshot policy is applied to the cloud disk.
-	//
-	// example:
-	//
-	// false
-	EnableAutomatedSnapshotPolicy *bool `json:"EnableAutomatedSnapshotPolicy,omitempty" xml:"EnableAutomatedSnapshotPolicy,omitempty"`
-	// Indicates whether the cloud disk is encrypted.
-	//
-	// example:
-	//
-	// false
-	Encrypted *bool `json:"Encrypted,omitempty" xml:"Encrypted,omitempty"`
-	// The time when the subscription disk expires.
-	//
-	// example:
-	//
-	// 2021-07-07T16:00Z
-	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The maximum number of read and write operations per second.
-	//
-	// example:
-	//
-	// 4000
-	IOPS *int32 `json:"IOPS,omitempty" xml:"IOPS,omitempty"`
-	// The maximum number of read operations per second.
-	//
-	// example:
-	//
-	// 2000
-	IOPSRead *int32 `json:"IOPSRead,omitempty" xml:"IOPSRead,omitempty"`
-	// The maximum number of write operations per second.
-	//
-	// example:
-	//
-	// 2000
-	IOPSWrite *int32 `json:"IOPSWrite,omitempty" xml:"IOPSWrite,omitempty"`
-	// The ID of the image that was used to create the instance. This parameter is empty unless the cloud disk was created from an image. The value of this parameter remains unchanged throughout the lifecycle of the cloud disk.
-	//
-	// example:
-	//
-	// m-bp13aqm171qynt3u***
-	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
-	// The ID of the instance to which the disk is attached. Take note of the following items:
-	//
-	// 	- This parameter has a value only when the `Status` value is `In_use` or `Detaching`.
-	//
-	// 	- This parameter is empty for cloud disks for which the multi-attach feature is enabled. You can query the attachment information of the cloud disk based on the returned `Attachment` objects.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4q****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The ID of the KMS key that is used for the cloud disk.
-	//
-	// example:
-	//
-	// 0e478b7a-4262-4802-b8cb-00d3fb408***
-	KMSKeyId *string `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
-	// The number of instances to which the Shared Block Storage device is attached.
-	//
-	// example:
-	//
-	// 1
-	MountInstanceNum *int32 `json:"MountInstanceNum,omitempty" xml:"MountInstanceNum,omitempty"`
-	// The attachment information of the Shared Block Storage device.
-	MountInstances *DescribeDisksResponseBodyDisksDiskMountInstances `json:"MountInstances,omitempty" xml:"MountInstances,omitempty" type:"Struct"`
-	// Indicates whether the multi-attach feature is enabled for the cloud disk.
-	//
-	// example:
-	//
-	// Disabled
-	MultiAttach *string `json:"MultiAttach,omitempty" xml:"MultiAttach,omitempty"`
-	// The reasons why the disk was locked.
-	OperationLocks *DescribeDisksResponseBodyDisksDiskOperationLocks `json:"OperationLocks,omitempty" xml:"OperationLocks,omitempty" type:"Struct"`
-	// The performance level of the ESSD. Valid values:
-	//
-	// 	- PL0: A single ESSD can deliver up to 10,000 random read/write IOPS.
-	//
-	// 	- PL1: A single ESSD can deliver up to 50,000 random read/write IOPS.
-	//
-	// 	- PL2: A single ESSD can deliver up to 100,000 random read/write IOPS.
-	//
-	// 	- PL3: A single ESSD can deliver up to 1,000,000 random read/write IOPS.
-	//
-	// example:
-	//
-	// PL0
-	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
-	// The locations in which data is stored.
-	//
-	// This parameter is returned only if you specify `Placement` in the AdditionalAttributes.N request parameter.
-	//
-	// >  This parameter is valid only for Regional ESSDs (cloud_regional_disk_auto).
-	Placement *DescribeDisksResponseBodyDisksDiskPlacement `json:"Placement,omitempty" xml:"Placement,omitempty" type:"Struct"`
-	// Indicates whether the disk is removable.
-	//
-	// example:
-	//
-	// false
-	Portable *bool `json:"Portable,omitempty" xml:"Portable,omitempty"`
-	// The product code of the disk in Alibaba Cloud Marketplace.
-	//
-	// example:
-	//
-	// jxsc000204
-	ProductCode *string `json:"ProductCode,omitempty" xml:"ProductCode,omitempty"`
-	// The provisioned read/write IOPS of the ESSD AutoPL disk. Valid values: 0 to min{50,000, 1,000 × *Capacity - Baseline IOPS}. Baseline IOPS = min{1,800 + 50 × *Capacity, 50,000}
-	//
-	// This parameter is available only if you set `Category` to `cloud_auto`. For more information, see [ESSD AutoPL disks](https://help.aliyun.com/document_detail/368372.html).
-	//
-	// example:
-	//
-	// 40000
-	ProvisionedIops *int64 `json:"ProvisionedIops,omitempty" xml:"ProvisionedIops,omitempty"`
-	// The ID of the region to which the disk belongs.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The ID of the resource group to which the disk belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The serial number of the disk.
-	//
-	// example:
-	//
-	// bp18um4r4f2fve2****
-	SerialNumber *string `json:"SerialNumber,omitempty" xml:"SerialNumber,omitempty"`
-	// The size of the disk. Unit: GiB.
-	//
-	// example:
-	//
-	// 60
-	Size *int32 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The ID of the snapshot that was used to create the cloud disk.
-	//
-	// This parameter is empty unless the cloud disk was created from a snapshot. The value of this parameter remains unchanged throughout the lifecycle of the cloud disk.
-	//
-	// example:
-	//
-	// s-bp67acfmxazb4p****
-	SourceSnapshotId *string `json:"SourceSnapshotId,omitempty" xml:"SourceSnapshotId,omitempty"`
-	// The status of the disk. Valid values:
-	//
-	// 	- In_use
-	//
-	// 	- Available
-	//
-	// 	- Attaching
-	//
-	// 	- Detaching
-	//
-	// 	- Creating
-	//
-	// 	- ReIniting
-	//
-	// example:
-	//
-	// In_use
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The ID of the dedicated block storage cluster to which the cloud disk belongs. If your cloud disk belongs to the public block storage cluster, an empty value is returned.
-	//
-	// example:
-	//
-	// dbsc-j5e1sf2vaf5he8m2****
-	StorageClusterId *string `json:"StorageClusterId,omitempty" xml:"StorageClusterId,omitempty"`
-	// The ID of the storage set.
-	//
-	// example:
-	//
-	// ss-i-bp1j4i2jdf3owlhe****
-	StorageSetId *string `json:"StorageSetId,omitempty" xml:"StorageSetId,omitempty"`
-	// The maximum number of partitions in the storage set.
-	//
-	// example:
-	//
-	// 11
-	StorageSetPartitionNumber *int32 `json:"StorageSetPartitionNumber,omitempty" xml:"StorageSetPartitionNumber,omitempty"`
-	// The tags of the disk.
-	Tags *DescribeDisksResponseBodyDisksDiskTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The amount of data that can be transferred per second. Unit: MB/s.
-	//
-	// example:
-	//
-	// 100
-	Throughput *int32 `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
-	// The amount of data that can be read per second. Unit: MB/s.
-	//
-	// example:
-	//
-	// 100
-	ThroughputRead *int32 `json:"ThroughputRead,omitempty" xml:"ThroughputRead,omitempty"`
-	// The amount of data that can be written per second. Unit: MB/s.
-	//
-	// example:
-	//
-	// 100
-	ThroughputWrite *int32 `json:"ThroughputWrite,omitempty" xml:"ThroughputWrite,omitempty"`
-	// The type of the disk. Valid values:
-	//
-	// 	- system: system disk
-	//
-	// 	- data: data disk
-	//
-	// example:
-	//
-	// system
-	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
-	// The ID of the zone to which the disk belongs.
-	//
-	// example:
-	//
-	// cn-hangzhou-i
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	// d-123*********
+	SourceDiskId              *string                                 `json:"SourceDiskId,omitempty" xml:"SourceDiskId,omitempty"`
+	SourceSnapshotId          *string                                 `json:"SourceSnapshotId,omitempty" xml:"SourceSnapshotId,omitempty"`
+	Status                    *string                                 `json:"Status,omitempty" xml:"Status,omitempty"`
+	StorageClusterId          *string                                 `json:"StorageClusterId,omitempty" xml:"StorageClusterId,omitempty"`
+	StorageSetId              *string                                 `json:"StorageSetId,omitempty" xml:"StorageSetId,omitempty"`
+	StorageSetPartitionNumber *int32                                  `json:"StorageSetPartitionNumber,omitempty" xml:"StorageSetPartitionNumber,omitempty"`
+	Tags                      *DescribeDisksResponseBodyDisksDiskTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Throughput                *int32                                  `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
+	ThroughputRead            *int32                                  `json:"ThroughputRead,omitempty" xml:"ThroughputRead,omitempty"`
+	ThroughputWrite           *int32                                  `json:"ThroughputWrite,omitempty" xml:"ThroughputWrite,omitempty"`
+	Type                      *string                                 `json:"Type,omitempty" xml:"Type,omitempty"`
+	ZoneId                    *string                                 `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeDisksResponseBodyDisksDisk) String() string {
@@ -688,6 +378,10 @@ func (s *DescribeDisksResponseBodyDisksDisk) GetSerialNumber() *string {
 
 func (s *DescribeDisksResponseBodyDisksDisk) GetSize() *int32 {
 	return s.Size
+}
+
+func (s *DescribeDisksResponseBodyDisksDisk) GetSourceDiskId() *string {
+	return s.SourceDiskId
 }
 
 func (s *DescribeDisksResponseBodyDisksDisk) GetSourceSnapshotId() *string {
@@ -924,6 +618,11 @@ func (s *DescribeDisksResponseBodyDisksDisk) SetSize(v int32) *DescribeDisksResp
 	return s
 }
 
+func (s *DescribeDisksResponseBodyDisksDisk) SetSourceDiskId(v string) *DescribeDisksResponseBodyDisksDisk {
+	s.SourceDiskId = &v
+	return s
+}
+
 func (s *DescribeDisksResponseBodyDisksDisk) SetSourceSnapshotId(v string) *DescribeDisksResponseBodyDisksDisk {
 	s.SourceSnapshotId = &v
 	return s
@@ -1043,24 +742,9 @@ func (s *DescribeDisksResponseBodyDisksDiskAttachments) Validate() error {
 }
 
 type DescribeDisksResponseBodyDisksDiskAttachmentsAttachment struct {
-	// The time when the disk was attached. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2021-06-07T06:08:56Z
 	AttachedTime *string `json:"AttachedTime,omitempty" xml:"AttachedTime,omitempty"`
-	// The device name of the disk.
-	//
-	// example:
-	//
-	// /dev/xvda
-	Device *string `json:"Device,omitempty" xml:"Device,omitempty"`
-	// The ID of the instance to which the disk is attached.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4q****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	Device       *string `json:"Device,omitempty" xml:"Device,omitempty"`
+	InstanceId   *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 }
 
 func (s DescribeDisksResponseBodyDisksDiskAttachmentsAttachment) String() string {
@@ -1137,24 +821,9 @@ func (s *DescribeDisksResponseBodyDisksDiskMountInstances) Validate() error {
 }
 
 type DescribeDisksResponseBodyDisksDiskMountInstancesMountInstance struct {
-	// The time when the disk was attached. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2017-12-05T2340:00Z
 	AttachedTime *string `json:"AttachedTime,omitempty" xml:"AttachedTime,omitempty"`
-	// The mount point of the disk.
-	//
-	// example:
-	//
-	// /dev/xvda
-	Device *string `json:"Device,omitempty" xml:"Device,omitempty"`
-	// The ID of the instance to which the disk is attached.
-	//
-	// example:
-	//
-	// i-bp1j4i2jdf3owlhe****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	Device       *string `json:"Device,omitempty" xml:"Device,omitempty"`
+	InstanceId   *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 }
 
 func (s DescribeDisksResponseBodyDisksDiskMountInstancesMountInstance) String() string {
@@ -1231,11 +900,6 @@ func (s *DescribeDisksResponseBodyDisksDiskOperationLocks) Validate() error {
 }
 
 type DescribeDisksResponseBodyDisksDiskOperationLocksOperationLock struct {
-	// The reason why the disk was locked.
-	//
-	// example:
-	//
-	// security
 	LockReason *string `json:"LockReason,omitempty" xml:"LockReason,omitempty"`
 }
 
@@ -1261,13 +925,6 @@ func (s *DescribeDisksResponseBodyDisksDiskOperationLocksOperationLock) Validate
 }
 
 type DescribeDisksResponseBodyDisksDiskPlacement struct {
-	// The IDs of the zones in which data is stored.
-	//
-	// example:
-	//
-	// cn-hangzhou-b
-	//
-	// cn-hangzhou-j
 	ZoneIds *string `json:"ZoneIds,omitempty" xml:"ZoneIds,omitempty"`
 }
 
@@ -1327,17 +984,7 @@ func (s *DescribeDisksResponseBodyDisksDiskTags) Validate() error {
 }
 
 type DescribeDisksResponseBodyDisksDiskTagsTag struct {
-	// The tag key of the disk.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the disk.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

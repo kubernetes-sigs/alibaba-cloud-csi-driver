@@ -61,13 +61,10 @@ type CreateNetworkInterfaceResponseBody struct {
 	// example:
 	//
 	// testDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The IPv4 prefixes assigned to the ENI.
+	Description    *string                                           `json:"Description,omitempty" xml:"Description,omitempty"`
 	Ipv4PrefixSets *CreateNetworkInterfaceResponseBodyIpv4PrefixSets `json:"Ipv4PrefixSets,omitempty" xml:"Ipv4PrefixSets,omitempty" type:"Struct"`
-	// The IPv6 prefixes assigned to the ENI.
 	Ipv6PrefixSets *CreateNetworkInterfaceResponseBodyIpv6PrefixSets `json:"Ipv6PrefixSets,omitempty" xml:"Ipv6PrefixSets,omitempty" type:"Struct"`
-	// The IPv6 addresses assigned to the ENI.
-	Ipv6Sets *CreateNetworkInterfaceResponseBodyIpv6Sets `json:"Ipv6Sets,omitempty" xml:"Ipv6Sets,omitempty" type:"Struct"`
+	Ipv6Sets       *CreateNetworkInterfaceResponseBodyIpv6Sets       `json:"Ipv6Sets,omitempty" xml:"Ipv6Sets,omitempty" type:"Struct"`
 	// The media access control (MAC) address of the ENI.
 	//
 	// example:
@@ -97,9 +94,8 @@ type CreateNetworkInterfaceResponseBody struct {
 	// example:
 	//
 	// ``172.17.**.**``
-	PrivateIpAddress *string `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
-	// The private IP addresses.
-	PrivateIpSets *CreateNetworkInterfaceResponseBodyPrivateIpSets `json:"PrivateIpSets,omitempty" xml:"PrivateIpSets,omitempty" type:"Struct"`
+	PrivateIpAddress *string                                          `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
+	PrivateIpSets    *CreateNetworkInterfaceResponseBodyPrivateIpSets `json:"PrivateIpSets,omitempty" xml:"PrivateIpSets,omitempty" type:"Struct"`
 	// The request ID.
 	//
 	// example:
@@ -111,8 +107,7 @@ type CreateNetworkInterfaceResponseBody struct {
 	// example:
 	//
 	// rg-2ze88m67qx5z****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The IDs of the security groups to which the ENI belongs.
+	ResourceGroupId  *string                                             `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 	SecurityGroupIds *CreateNetworkInterfaceResponseBodySecurityGroupIds `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
 	// The ID of the distributor to which the ENI belongs.
 	//
@@ -137,9 +132,8 @@ type CreateNetworkInterfaceResponseBody struct {
 	// example:
 	//
 	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags of the ENI.
-	Tags *CreateNetworkInterfaceResponseBodyTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Status *string                                 `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags   *CreateNetworkInterfaceResponseBodyTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 	// The type of the ENI.
 	//
 	// example:
@@ -441,11 +435,6 @@ func (s *CreateNetworkInterfaceResponseBodyIpv4PrefixSets) Validate() error {
 }
 
 type CreateNetworkInterfaceResponseBodyIpv4PrefixSetsIpv4PrefixSet struct {
-	// The IPv4 prefix assigned to the ENI.
-	//
-	// example:
-	//
-	// hide
 	Ipv4Prefix *string `json:"Ipv4Prefix,omitempty" xml:"Ipv4Prefix,omitempty"`
 }
 
@@ -505,11 +494,6 @@ func (s *CreateNetworkInterfaceResponseBodyIpv6PrefixSets) Validate() error {
 }
 
 type CreateNetworkInterfaceResponseBodyIpv6PrefixSetsIpv6PrefixSet struct {
-	// The IPv6 prefix assigned to the ENI.
-	//
-	// example:
-	//
-	// hide
 	Ipv6Prefix *string `json:"Ipv6Prefix,omitempty" xml:"Ipv6Prefix,omitempty"`
 }
 
@@ -569,11 +553,6 @@ func (s *CreateNetworkInterfaceResponseBodyIpv6Sets) Validate() error {
 }
 
 type CreateNetworkInterfaceResponseBodyIpv6SetsIpv6Set struct {
-	// The IPv6 address assigned to the ENI.
-	//
-	// example:
-	//
-	// 2001:db8:1234:1a00::****
 	Ipv6Address *string `json:"Ipv6Address,omitempty" xml:"Ipv6Address,omitempty"`
 }
 
@@ -633,17 +612,7 @@ func (s *CreateNetworkInterfaceResponseBodyPrivateIpSets) Validate() error {
 }
 
 type CreateNetworkInterfaceResponseBodyPrivateIpSetsPrivateIpSet struct {
-	// Indicates whether the private IP address is the primary private IP address.
-	//
-	// example:
-	//
-	// true
-	Primary *bool `json:"Primary,omitempty" xml:"Primary,omitempty"`
-	// The private IP address of the instance.
-	//
-	// example:
-	//
-	// ``172.17.**.**``
+	Primary          *bool   `json:"Primary,omitempty" xml:"Primary,omitempty"`
 	PrivateIpAddress *string `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
 }
 
@@ -737,17 +706,7 @@ func (s *CreateNetworkInterfaceResponseBodyTags) Validate() error {
 }
 
 type CreateNetworkInterfaceResponseBodyTagsTag struct {
-	// The tag key.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

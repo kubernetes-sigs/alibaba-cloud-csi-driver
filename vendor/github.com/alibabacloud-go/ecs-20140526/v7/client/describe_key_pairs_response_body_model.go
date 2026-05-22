@@ -22,7 +22,6 @@ type iDescribeKeyPairsResponseBody interface {
 }
 
 type DescribeKeyPairsResponseBody struct {
-	// The information of the key pairs.
 	KeyPairs *DescribeKeyPairsResponseBodyKeyPairs `json:"KeyPairs,omitempty" xml:"KeyPairs,omitempty" type:"Struct"`
 	// The page number of the returned page.
 	//
@@ -147,38 +146,12 @@ func (s *DescribeKeyPairsResponseBodyKeyPairs) Validate() error {
 }
 
 type DescribeKeyPairsResponseBodyKeyPairsKeyPair struct {
-	// The time when the key pair was created.
-	//
-	// example:
-	//
-	// 2023-09-04T08:33Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The fingerprint of the key pair.
-	//
-	// example:
-	//
-	// ABC1234567
-	KeyPairFingerPrint *string `json:"KeyPairFingerPrint,omitempty" xml:"KeyPairFingerPrint,omitempty"`
-	// The name of the key pair.
-	//
-	// example:
-	//
-	// testKeyPairName
-	KeyPairName *string `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
-	// The content of the public key.
-	//
-	// example:
-	//
-	// ssh-rsa****
-	PublicKey *string `json:"PublicKey,omitempty" xml:"PublicKey,omitempty"`
-	// The ID of the resource group.
-	//
-	// example:
-	//
-	// rg-amnhr7u7c7hj****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags of the key pair.
-	Tags *DescribeKeyPairsResponseBodyKeyPairsKeyPairTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	CreationTime       *string                                          `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	KeyPairFingerPrint *string                                          `json:"KeyPairFingerPrint,omitempty" xml:"KeyPairFingerPrint,omitempty"`
+	KeyPairName        *string                                          `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
+	PublicKey          *string                                          `json:"PublicKey,omitempty" xml:"PublicKey,omitempty"`
+	ResourceGroupId    *string                                          `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	Tags               *DescribeKeyPairsResponseBodyKeyPairsKeyPairTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 }
 
 func (s DescribeKeyPairsResponseBodyKeyPairsKeyPair) String() string {
@@ -287,17 +260,7 @@ func (s *DescribeKeyPairsResponseBodyKeyPairsKeyPairTags) Validate() error {
 }
 
 type DescribeKeyPairsResponseBodyKeyPairsKeyPairTagsTag struct {
-	// The tag key of the key pair.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the key pair.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

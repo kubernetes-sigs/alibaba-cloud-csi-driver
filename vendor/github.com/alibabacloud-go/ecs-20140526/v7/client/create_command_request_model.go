@@ -9,6 +9,8 @@ type iCreateCommandRequest interface {
 	dara.Model
 	String() string
 	GoString() string
+	SetClientToken(v string) *CreateCommandRequest
+	GetClientToken() *string
 	SetCommandContent(v string) *CreateCommandRequest
 	GetCommandContent() *string
 	SetContentEncoding(v string) *CreateCommandRequest
@@ -44,6 +46,7 @@ type iCreateCommandRequest interface {
 }
 
 type CreateCommandRequest struct {
+	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// The Base64-encoded content of the command. Take note of the following items:
 	//
 	// 	- The value must be Base64-encoded and cannot exceed 18 KB in size.
@@ -202,6 +205,10 @@ func (s CreateCommandRequest) GoString() string {
 	return s.String()
 }
 
+func (s *CreateCommandRequest) GetClientToken() *string {
+	return s.ClientToken
+}
+
 func (s *CreateCommandRequest) GetCommandContent() *string {
 	return s.CommandContent
 }
@@ -264,6 +271,11 @@ func (s *CreateCommandRequest) GetType() *string {
 
 func (s *CreateCommandRequest) GetWorkingDir() *string {
 	return s.WorkingDir
+}
+
+func (s *CreateCommandRequest) SetClientToken(v string) *CreateCommandRequest {
+	s.ClientToken = &v
+	return s
 }
 
 func (s *CreateCommandRequest) SetCommandContent(v string) *CreateCommandRequest {

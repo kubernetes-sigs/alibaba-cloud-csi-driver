@@ -83,8 +83,7 @@ type DescribeImageFromFamilyResponseBodyImage struct {
 	// example:
 	//
 	// testDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The mappings between the disk and the snapshot in the image.
+	Description        *string                                                     `json:"Description,omitempty" xml:"Description,omitempty"`
 	DiskDeviceMappings *DescribeImageFromFamilyResponseBodyImageDiskDeviceMappings `json:"DiskDeviceMappings,omitempty" xml:"DiskDeviceMappings,omitempty" type:"Struct"`
 	// The name of the image family.
 	//
@@ -207,9 +206,8 @@ type DescribeImageFromFamilyResponseBodyImage struct {
 	// example:
 	//
 	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags of the image.
-	Tags *DescribeImageFromFamilyResponseBodyImageTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Status *string                                       `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags   *DescribeImageFromFamilyResponseBodyImageTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 	// Indicates whether the image has been used to create ECS instances. Valid values:
 	//
 	// 	- instance: The image was used to create one or more ECS instances.
@@ -486,50 +484,13 @@ func (s *DescribeImageFromFamilyResponseBodyImageDiskDeviceMappings) Validate() 
 }
 
 type DescribeImageFromFamilyResponseBodyImageDiskDeviceMappingsDiskDeviceMapping struct {
-	// The device name of the disk. Example: /dev/xvdb.
-	//
-	// >  This parameter will be removed in the future. To ensure compatibility, we recommend that you use other parameters.
-	//
-	// example:
-	//
-	// /dev/xvdb
-	Device *string `json:"Device,omitempty" xml:"Device,omitempty"`
-	// The image format.
-	//
-	// example:
-	//
-	// qcow2
-	Format *string `json:"Format,omitempty" xml:"Format,omitempty"`
-	// The OSS bucket that contains the imported image file.
-	//
-	// example:
-	//
-	// testEcsImport
+	Device          *string `json:"Device,omitempty" xml:"Device,omitempty"`
+	Format          *string `json:"Format,omitempty" xml:"Format,omitempty"`
 	ImportOSSBucket *string `json:"ImportOSSBucket,omitempty" xml:"ImportOSSBucket,omitempty"`
-	// The OSS object to which the imported image belongs.
-	//
-	// example:
-	//
-	// imageImport
 	ImportOSSObject *string `json:"ImportOSSObject,omitempty" xml:"ImportOSSObject,omitempty"`
-	// The size of the disk. Unit: GiB.
-	//
-	// example:
-	//
-	// 80
-	Size *string `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The snapshot ID.
-	//
-	// example:
-	//
-	// s-bp17ot2q7x72ggtw****
-	SnapshotId *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
-	// The image type.
-	//
-	// example:
-	//
-	// custom
-	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
+	Size            *string `json:"Size,omitempty" xml:"Size,omitempty"`
+	SnapshotId      *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
+	Type            *string `json:"Type,omitempty" xml:"Type,omitempty"`
 }
 
 func (s DescribeImageFromFamilyResponseBodyImageDiskDeviceMappingsDiskDeviceMapping) String() string {
@@ -642,17 +603,7 @@ func (s *DescribeImageFromFamilyResponseBodyImageTags) Validate() error {
 }
 
 type DescribeImageFromFamilyResponseBodyImageTagsTag struct {
-	// The tag key of the custom image.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the custom image.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

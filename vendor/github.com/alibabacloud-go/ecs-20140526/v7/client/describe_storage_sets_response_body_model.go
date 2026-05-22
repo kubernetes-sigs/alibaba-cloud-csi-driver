@@ -39,8 +39,7 @@ type DescribeStorageSetsResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the storage sets. The value of this parameter is an array that consists of StorageSet data.
+	RequestId   *string                                     `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	StorageSets *DescribeStorageSetsResponseBodyStorageSets `json:"StorageSets,omitempty" xml:"StorageSets,omitempty" type:"Struct"`
 	// The total number of storage sets.
 	//
@@ -147,50 +146,15 @@ func (s *DescribeStorageSetsResponseBodyStorageSets) Validate() error {
 }
 
 type DescribeStorageSetsResponseBodyStorageSetsStorageSet struct {
-	// The time when the storage set was created.
-	//
-	// example:
-	//
-	// 2019-06-01T00:00:00Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the storage set.
-	//
-	// example:
-	//
-	// testDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the region to which the storage set belongs.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId        *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The ID of the storage set.
-	//
-	// example:
-	//
-	// ss-bp1d6tsvznfghy7y****
-	StorageSetId *string `json:"StorageSetId,omitempty" xml:"StorageSetId,omitempty"`
-	// The name of the storage set.
-	//
-	// example:
-	//
-	// testStorageSetName
-	StorageSetName *string `json:"StorageSetName,omitempty" xml:"StorageSetName,omitempty"`
-	// The maximum number of partitions supported by the storage set.
-	//
-	// example:
-	//
-	// 3
+	CreationTime              *string                                                   `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	Description               *string                                                   `json:"Description,omitempty" xml:"Description,omitempty"`
+	RegionId                  *string                                                   `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceGroupId           *string                                                   `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	StorageSetId              *string                                                   `json:"StorageSetId,omitempty" xml:"StorageSetId,omitempty"`
+	StorageSetName            *string                                                   `json:"StorageSetName,omitempty" xml:"StorageSetName,omitempty"`
 	StorageSetPartitionNumber *int32                                                    `json:"StorageSetPartitionNumber,omitempty" xml:"StorageSetPartitionNumber,omitempty"`
 	Tags                      *DescribeStorageSetsResponseBodyStorageSetsStorageSetTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The ID of the zone to which the storage set belongs.
-	//
-	// example:
-	//
-	// cn-hangzhou-g
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	ZoneId                    *string                                                   `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeStorageSetsResponseBodyStorageSetsStorageSet) String() string {

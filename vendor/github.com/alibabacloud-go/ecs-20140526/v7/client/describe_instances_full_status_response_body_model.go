@@ -22,9 +22,6 @@ type iDescribeInstancesFullStatusResponseBody interface {
 }
 
 type DescribeInstancesFullStatusResponseBody struct {
-	// The queried instances.
-	//
-	// >  If no instances exist, this parameter is empty.
 	InstanceFullStatusSet *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSet `json:"InstanceFullStatusSet,omitempty" xml:"InstanceFullStatusSet,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -149,18 +146,10 @@ func (s *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSet) Validate(
 }
 
 type DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusType struct {
-	// The health state of the instance.
-	HealthStatus *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeHealthStatus `json:"HealthStatus,omitempty" xml:"HealthStatus,omitempty" type:"Struct"`
-	// The instance ID.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The system events that are in the Scheduled or Inquiring state.
+	HealthStatus            *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeHealthStatus            `json:"HealthStatus,omitempty" xml:"HealthStatus,omitempty" type:"Struct"`
+	InstanceId              *string                                                                                                    `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 	ScheduledSystemEventSet *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSet `json:"ScheduledSystemEventSet,omitempty" xml:"ScheduledSystemEventSet,omitempty" type:"Struct"`
-	// The lifecycle state of the instance.
-	Status *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeStatus `json:"Status,omitempty" xml:"Status,omitempty" type:"Struct"`
+	Status                  *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeStatus                  `json:"Status,omitempty" xml:"Status,omitempty" type:"Struct"`
 }
 
 func (s DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusType) String() string {
@@ -227,17 +216,7 @@ func (s *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFul
 }
 
 type DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeHealthStatus struct {
-	// The code of the health state.
-	//
-	// example:
-	//
-	// 64
-	Code *int32 `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The name of the health state.
-	//
-	// example:
-	//
-	// Warning
+	Code *int32  `json:"Code,omitempty" xml:"Code,omitempty"`
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
 }
 
@@ -306,68 +285,14 @@ func (s *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFul
 }
 
 type DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventType struct {
-	// The state of the system event.
-	EventCycleStatus *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeEventCycleStatus `json:"EventCycleStatus,omitempty" xml:"EventCycleStatus,omitempty" type:"Struct"`
-	// The system event ID.
-	//
-	// example:
-	//
-	// e-bp1hygp5b04o56l0****
-	EventId *string `json:"EventId,omitempty" xml:"EventId,omitempty"`
-	// The time when the system event was published. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2017-11-30T06:32:31Z
-	EventPublishTime *string `json:"EventPublishTime,omitempty" xml:"EventPublishTime,omitempty"`
-	// The type of the system event.
-	EventType *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeEventType `json:"EventType,omitempty" xml:"EventType,omitempty" type:"Struct"`
-	// The extended attributes of system events generated for instances that have local disks attached.
-	//
-	// The return values vary based on the system event type.
-	//
-	// If the system event type is not one of the following types, this parameter is empty:
-	//
-	// 	- SystemMaintenance.StopAndRepair
-	//
-	// 	- SystemMaintenance.CleanInactiveDisks
-	//
-	// 	- SecurityPunish.Locked
-	//
-	// 	- SecurityPunish.WebsiteBanned
-	//
-	// 	- SystemUpgrade.Migrate
-	//
-	// 	- SystemMaintenance.RebootAndIsolateErrorDisk
-	//
-	// 	- SystemMaintenance.RebootAndReInitErrorDisk
-	//
-	// 	- SystemMaintenance.ReInitErrorDisk
-	//
-	// 	- SystemMaintenance.IsolateErrorDisk
+	EventCycleStatus  *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeEventCycleStatus  `json:"EventCycleStatus,omitempty" xml:"EventCycleStatus,omitempty" type:"Struct"`
+	EventId           *string                                                                                                                                             `json:"EventId,omitempty" xml:"EventId,omitempty"`
+	EventPublishTime  *string                                                                                                                                             `json:"EventPublishTime,omitempty" xml:"EventPublishTime,omitempty"`
+	EventType         *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeEventType         `json:"EventType,omitempty" xml:"EventType,omitempty" type:"Struct"`
 	ExtendedAttribute *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeExtendedAttribute `json:"ExtendedAttribute,omitempty" xml:"ExtendedAttribute,omitempty" type:"Struct"`
-	// The impact level of the system event.
-	//
-	// >  If the user is not in a whitelist, this parameter is empty.
-	//
-	// example:
-	//
-	// 100
-	ImpactLevel *string `json:"ImpactLevel,omitempty" xml:"ImpactLevel,omitempty"`
-	// The scheduled time at which to execute the O\\&M task related to the system event. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2017-12-07T00:00:00Z
-	NotBefore *string `json:"NotBefore,omitempty" xml:"NotBefore,omitempty"`
-	// The reason why the system event was scheduled.
-	//
-	// >  If the exception cause is not detected, this parameter is empty.
-	//
-	// example:
-	//
-	// A simulated event.
-	Reason *string `json:"Reason,omitempty" xml:"Reason,omitempty"`
+	ImpactLevel       *string                                                                                                                                             `json:"ImpactLevel,omitempty" xml:"ImpactLevel,omitempty"`
+	NotBefore         *string                                                                                                                                             `json:"NotBefore,omitempty" xml:"NotBefore,omitempty"`
+	Reason            *string                                                                                                                                             `json:"Reason,omitempty" xml:"Reason,omitempty"`
 }
 
 func (s DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventType) String() string {
@@ -470,17 +395,7 @@ func (s *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFul
 }
 
 type DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeEventCycleStatus struct {
-	// The code of the system event state.
-	//
-	// example:
-	//
-	// 24
-	Code *int32 `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The name of the system event state.
-	//
-	// example:
-	//
-	// Scheduled
+	Code *int32  `json:"Code,omitempty" xml:"Code,omitempty"`
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
 }
 
@@ -515,17 +430,7 @@ func (s *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFul
 }
 
 type DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeEventType struct {
-	// The code of the system event type.
-	//
-	// example:
-	//
-	// 1
-	Code *int32 `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The name of the system event type.
-	//
-	// example:
-	//
-	// SystemMaintenance.Reboot
+	Code *int32  `json:"Code,omitempty" xml:"Code,omitempty"`
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
 }
 
@@ -560,19 +465,8 @@ func (s *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFul
 }
 
 type DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeExtendedAttribute struct {
-	// The device name of the local disk.
-	//
-	// example:
-	//
-	// /dev/vdb
-	Device *string `json:"Device,omitempty" xml:"Device,omitempty"`
-	// The ID of the local disk.
-	//
-	// example:
-	//
-	// d-bp67acfmxazb4p****
-	DiskId *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
-	// The inactive disks that have been released and must be cleared.
+	Device        *string                                                                                                                                                          `json:"Device,omitempty" xml:"Device,omitempty"`
+	DiskId        *string                                                                                                                                                          `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
 	InactiveDisks *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeExtendedAttributeInactiveDisks `json:"InactiveDisks,omitempty" xml:"InactiveDisks,omitempty" type:"Struct"`
 }
 
@@ -655,56 +549,11 @@ func (s *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFul
 }
 
 type DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeExtendedAttributeInactiveDisksInactiveDisk struct {
-	// The time when the disk was created. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2018-07-27T13:53:25Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The category of the disk. Valid values:
-	//
-	// 	- cloud: basic disk
-	//
-	// 	- cloud_efficiency: ultra disk
-	//
-	// 	- cloud_ssd: standard SSD
-	//
-	// 	- cloud_essd: Enterprise SSD (ESSD)
-	//
-	// 	- local_ssd_pro: I/O-intensive local disk
-	//
-	// 	- local_hdd_pro: throughput-intensive local disk
-	//
-	// 	- ephemeral: retired local disk
-	//
-	// 	- ephemeral_ssd: retired local SSD
-	//
-	// example:
-	//
-	// cloud_ssd
+	CreationTime   *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
 	DeviceCategory *string `json:"DeviceCategory,omitempty" xml:"DeviceCategory,omitempty"`
-	// The size of the disk. Unit: GiB.
-	//
-	// example:
-	//
-	// 80
-	DeviceSize *string `json:"DeviceSize,omitempty" xml:"DeviceSize,omitempty"`
-	// The type of the disk. Valid values:
-	//
-	// 	- system
-	//
-	// 	- data
-	//
-	// example:
-	//
-	// system
-	DeviceType *string `json:"DeviceType,omitempty" xml:"DeviceType,omitempty"`
-	// The time when the disk was released. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2019-07-27T13:53:25Z
-	ReleaseTime *string `json:"ReleaseTime,omitempty" xml:"ReleaseTime,omitempty"`
+	DeviceSize     *string `json:"DeviceSize,omitempty" xml:"DeviceSize,omitempty"`
+	DeviceType     *string `json:"DeviceType,omitempty" xml:"DeviceType,omitempty"`
+	ReleaseTime    *string `json:"ReleaseTime,omitempty" xml:"ReleaseTime,omitempty"`
 }
 
 func (s DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeScheduledSystemEventSetScheduledSystemEventTypeExtendedAttributeInactiveDisksInactiveDisk) String() string {
@@ -765,17 +614,7 @@ func (s *DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFul
 }
 
 type DescribeInstancesFullStatusResponseBodyInstanceFullStatusSetInstanceFullStatusTypeStatus struct {
-	// The code of the instance lifecycle state.
-	//
-	// example:
-	//
-	// 1
-	Code *int32 `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The name of the instance lifecycle state.
-	//
-	// example:
-	//
-	// Running
+	Code *int32  `json:"Code,omitempty" xml:"Code,omitempty"`
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
 }
 

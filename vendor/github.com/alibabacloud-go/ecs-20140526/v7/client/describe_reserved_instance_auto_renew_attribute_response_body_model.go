@@ -21,8 +21,7 @@ type DescribeReservedInstanceAutoRenewAttributeResponseBody struct {
 	// example:
 	//
 	// 04F0F334-1335-436C-A1D7-6C044FE7****
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the auto-renewal settings of the reserved instances.
+	RequestId                       *string                                                                                `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	ReservedInstanceRenewAttributes *DescribeReservedInstanceAutoRenewAttributeResponseBodyReservedInstanceRenewAttributes `json:"ReservedInstanceRenewAttributes,omitempty" xml:"ReservedInstanceRenewAttributes,omitempty" type:"Struct"`
 }
 
@@ -96,35 +95,9 @@ func (s *DescribeReservedInstanceAutoRenewAttributeResponseBodyReservedInstanceR
 }
 
 type DescribeReservedInstanceAutoRenewAttributeResponseBodyReservedInstanceRenewAttributesReservedInstanceRenewAttribute struct {
-	// The auto-renewal duration.
-	//
-	// example:
-	//
-	// 1
-	Duration *int32 `json:"Duration,omitempty" xml:"Duration,omitempty"`
-	// The unit of the auto-renewal duration.
-	//
-	// Valid values: Year and Month.
-	//
-	// example:
-	//
-	// Month
-	PeriodUnit *string `json:"PeriodUnit,omitempty" xml:"PeriodUnit,omitempty"`
-	// The auto-renewal status of the reserved instance. Valid values:
-	//
-	// 	- AutoRenewal: automatically renews the reserved instance.
-	//
-	// 	- Normal: manually renews the reserved instances.
-	//
-	// example:
-	//
-	// AutoRenewal
-	RenewalStatus *string `json:"RenewalStatus,omitempty" xml:"RenewalStatus,omitempty"`
-	// The ID of the reserved instance.
-	//
-	// example:
-	//
-	// ecsri-ajdfaj****
+	Duration           *int32  `json:"Duration,omitempty" xml:"Duration,omitempty"`
+	PeriodUnit         *string `json:"PeriodUnit,omitempty" xml:"PeriodUnit,omitempty"`
+	RenewalStatus      *string `json:"RenewalStatus,omitempty" xml:"RenewalStatus,omitempty"`
 	ReservedInstanceId *string `json:"ReservedInstanceId,omitempty" xml:"ReservedInstanceId,omitempty"`
 }
 

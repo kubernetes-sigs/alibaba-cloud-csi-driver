@@ -35,6 +35,8 @@ type iCreateDeploymentSetRequest interface {
 	GetResourceOwnerId() *int64
 	SetStrategy(v string) *CreateDeploymentSetRequest
 	GetStrategy() *string
+	SetType(v string) *CreateDeploymentSetRequest
+	GetType() *string
 }
 
 type CreateDeploymentSetRequest struct {
@@ -118,6 +120,7 @@ type CreateDeploymentSetRequest struct {
 	//
 	// Availability
 	Strategy *string `json:"Strategy,omitempty" xml:"Strategy,omitempty"`
+	Type     *string `json:"Type,omitempty" xml:"Type,omitempty"`
 }
 
 func (s CreateDeploymentSetRequest) String() string {
@@ -178,6 +181,10 @@ func (s *CreateDeploymentSetRequest) GetResourceOwnerId() *int64 {
 
 func (s *CreateDeploymentSetRequest) GetStrategy() *string {
 	return s.Strategy
+}
+
+func (s *CreateDeploymentSetRequest) GetType() *string {
+	return s.Type
 }
 
 func (s *CreateDeploymentSetRequest) SetClientToken(v string) *CreateDeploymentSetRequest {
@@ -242,6 +249,11 @@ func (s *CreateDeploymentSetRequest) SetResourceOwnerId(v int64) *CreateDeployme
 
 func (s *CreateDeploymentSetRequest) SetStrategy(v string) *CreateDeploymentSetRequest {
 	s.Strategy = &v
+	return s
+}
+
+func (s *CreateDeploymentSetRequest) SetType(v string) *CreateDeploymentSetRequest {
+	s.Type = &v
 	return s
 }
 

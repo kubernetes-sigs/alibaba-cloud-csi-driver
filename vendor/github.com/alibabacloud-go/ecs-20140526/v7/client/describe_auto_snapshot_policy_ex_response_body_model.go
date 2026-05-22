@@ -22,7 +22,6 @@ type iDescribeAutoSnapshotPolicyExResponseBody interface {
 }
 
 type DescribeAutoSnapshotPolicyExResponseBody struct {
-	// Details about the automatic snapshot policies.
 	AutoSnapshotPolicies *DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPolicies `json:"AutoSnapshotPolicies,omitempty" xml:"AutoSnapshotPolicies,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,116 +146,23 @@ func (s *DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPolicies) Validate(
 }
 
 type DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicy struct {
-	// The ID of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// sp-bp67acfmxazb4ph****
-	AutoSnapshotPolicyId *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
-	// The name of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// testAutoSnapshotPolicyName
-	AutoSnapshotPolicyName *string `json:"AutoSnapshotPolicyName,omitempty" xml:"AutoSnapshotPolicyName,omitempty"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// 0
-	CopiedSnapshotsRetentionDays *int32 `json:"CopiedSnapshotsRetentionDays,omitempty" xml:"CopiedSnapshotsRetentionDays,omitempty"`
-	// Encryption configurations for cross-region snapshot replication.
-	CopyEncryptionConfiguration *DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicyCopyEncryptionConfiguration `json:"CopyEncryptionConfiguration,omitempty" xml:"CopyEncryptionConfiguration,omitempty" type:"Struct"`
-	// The time when the automatic snapshot policy was created. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddThh:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2019-12-10T16:00Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The number of disks to which the automatic snapshot policy is applied.
-	//
-	// example:
-	//
-	// 1
-	DiskNums *int32 `json:"DiskNums,omitempty" xml:"DiskNums,omitempty"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// false
-	EnableCrossRegionCopy *bool `json:"EnableCrossRegionCopy,omitempty" xml:"EnableCrossRegionCopy,omitempty"`
-	// The region ID of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The days of the week on which to create automatic snapshots. Valid values: 1 to 7, which correspond to the days of the week. For example, 1 indicates Monday. One or more days can be specified.
-	//
-	// example:
-	//
-	// ["6"]
-	RepeatWeekdays *string `json:"RepeatWeekdays,omitempty" xml:"RepeatWeekdays,omitempty"`
-	// The ID of the resource group.
-	//
-	// example:
-	//
-	// rg-aek2kkmhmhs****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The retention period of the automatic snapshots. Unit: days. Valid values:
-	//
-	// 	- \\-1: Automatic snapshots are retained until they are deleted.
-	//
-	// 	- 1 to 65536: Auto snapshots are retained for the specified number of days. After the retention period of auto snapshots expires, the auto snapshots are automatically deleted.
-	//
-	// example:
-	//
-	// 7
-	RetentionDays *int32 `json:"RetentionDays,omitempty" xml:"RetentionDays,omitempty"`
-	// The status of the automatic snapshot policy. Valid values:
-	//
-	// 	- Normal: The automatic snapshot policy is normal.
-	//
-	// 	- Expire: The automatic snapshot policy cannot be used because your account has overdue payments.
-	//
-	// example:
-	//
-	// Normal
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags of the automatic snapshot policy.
-	Tags *DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicyTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// test
-	TargetCopyRegions *string `json:"TargetCopyRegions,omitempty" xml:"TargetCopyRegions,omitempty"`
-	// The points in time of the day at which to create automatic snapshots.
-	//
-	// The time is displayed in UTC+8. Unit: hours. Valid values: 0 to 23, which correspond to the 24 points in time on the hour from 00:00:00 to 23:00:00. For example, 1 indicates 01:00:00. Multiple points in time can be specified.
-	//
-	// The parameter value is a JSON array that contains up to 24 points in time separated by commas (,). Example: `["0", "1", ... "23"]`.
-	//
-	// example:
-	//
-	// ["1"]
-	TimePoints *string `json:"TimePoints,omitempty" xml:"TimePoints,omitempty"`
-	// The type of the automatic snapshot policy. Valid values:
-	//
-	// 	- Custom: user-defined snapshot policy.
-	//
-	// 	- System: system-defined snapshot policy.
-	//
-	// example:
-	//
-	// Custom
-	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
-	// The number of extended volumes to which the automatic snapshot policy is applied.
-	//
-	// example:
-	//
-	// 2
-	VolumeNums *int32 `json:"VolumeNums,omitempty" xml:"VolumeNums,omitempty"`
+	AutoSnapshotPolicyId         *string                                                                                                    `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
+	AutoSnapshotPolicyName       *string                                                                                                    `json:"AutoSnapshotPolicyName,omitempty" xml:"AutoSnapshotPolicyName,omitempty"`
+	CopiedSnapshotsRetentionDays *int32                                                                                                     `json:"CopiedSnapshotsRetentionDays,omitempty" xml:"CopiedSnapshotsRetentionDays,omitempty"`
+	CopyEncryptionConfiguration  *DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicyCopyEncryptionConfiguration `json:"CopyEncryptionConfiguration,omitempty" xml:"CopyEncryptionConfiguration,omitempty" type:"Struct"`
+	CreationTime                 *string                                                                                                    `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	DiskNums                     *int32                                                                                                     `json:"DiskNums,omitempty" xml:"DiskNums,omitempty"`
+	EnableCrossRegionCopy        *bool                                                                                                      `json:"EnableCrossRegionCopy,omitempty" xml:"EnableCrossRegionCopy,omitempty"`
+	RegionId                     *string                                                                                                    `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	RepeatWeekdays               *string                                                                                                    `json:"RepeatWeekdays,omitempty" xml:"RepeatWeekdays,omitempty"`
+	ResourceGroupId              *string                                                                                                    `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	RetentionDays                *int32                                                                                                     `json:"RetentionDays,omitempty" xml:"RetentionDays,omitempty"`
+	Status                       *string                                                                                                    `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags                         *DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicyTags                        `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	TargetCopyRegions            *string                                                                                                    `json:"TargetCopyRegions,omitempty" xml:"TargetCopyRegions,omitempty"`
+	TimePoints                   *string                                                                                                    `json:"TimePoints,omitempty" xml:"TimePoints,omitempty"`
+	Type                         *string                                                                                                    `json:"Type,omitempty" xml:"Type,omitempty"`
+	VolumeNums                   *int32                                                                                                     `json:"VolumeNums,omitempty" xml:"VolumeNums,omitempty"`
 }
 
 func (s DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicy) String() string {
@@ -435,24 +341,8 @@ func (s *DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapsho
 }
 
 type DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicyCopyEncryptionConfiguration struct {
-	// Whether to enable encryption for cross-region snapshot replication. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// Default value: false.
-	//
-	// example:
-	//
-	// false
-	Encrypted *bool `json:"Encrypted,omitempty" xml:"Encrypted,omitempty"`
-	// The ID of the Key Management Service (KMS) key used to encrypt snapshots in cross-region snapshot replication.
-	//
-	// example:
-	//
-	// 0e478b7a-4262-4802-b8cb-00d3fb40****
-	KMSKeyId *string `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
+	Encrypted *bool   `json:"Encrypted,omitempty" xml:"Encrypted,omitempty"`
+	KMSKeyId  *string `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
 }
 
 func (s DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicyCopyEncryptionConfiguration) String() string {
@@ -520,17 +410,7 @@ func (s *DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapsho
 }
 
 type DescribeAutoSnapshotPolicyExResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicyTagsTag struct {
-	// The tag key of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

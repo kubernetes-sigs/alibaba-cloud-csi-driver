@@ -18,7 +18,6 @@ type iDescribeInstanceTypesResponseBody interface {
 }
 
 type DescribeInstanceTypesResponseBody struct {
-	// Details about the instance types.
 	InstanceTypes *DescribeInstanceTypesResponseBodyInstanceTypes `json:"InstanceTypes,omitempty" xml:"InstanceTypes,omitempty" type:"Struct"`
 	// The query token returned in this call.
 	//
@@ -113,313 +112,51 @@ func (s *DescribeInstanceTypesResponseBodyInstanceTypes) Validate() error {
 }
 
 type DescribeInstanceTypesResponseBodyInstanceTypesInstanceType struct {
-	// The list of specification attributes.
-	Attributes *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeAttributes `json:"Attributes,omitempty" xml:"Attributes,omitempty" type:"Struct"`
-	// The baseline vCPU computing performance (overall baseline performance of all vCPUs) per t5 or t6 burstable instance.
-	//
-	// example:
-	//
-	// 4
-	BaselineCredit *int32 `json:"BaselineCredit,omitempty" xml:"BaselineCredit,omitempty"`
-	// The clock supported by the specification.
-	Clock *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeClock `json:"Clock,omitempty" xml:"Clock,omitempty" type:"Struct"`
-	// The CPU architecture. Valid values:
-	//
-	// 	- X86
-	//
-	// 	- ARM
-	//
-	// example:
-	//
-	// X86
-	CpuArchitecture *string `json:"CpuArchitecture,omitempty" xml:"CpuArchitecture,omitempty"`
-	// The number of vCPUs.
-	//
-	// example:
-	//
-	// 4
-	CpuCoreCount *int32 `json:"CpuCoreCount,omitempty" xml:"CpuCoreCount,omitempty"`
-	// The CPU options.
-	CpuOptions *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions `json:"CpuOptions,omitempty" xml:"CpuOptions,omitempty" type:"Struct"`
-	// The CPU base frequency. Unit: GHz.
-	//
-	// example:
-	//
-	// 2.7
-	CpuSpeedFrequency *float32 `json:"CpuSpeedFrequency,omitempty" xml:"CpuSpeedFrequency,omitempty"`
-	// The CPU turbo frequency. Unit: GHz.
-	//
-	// example:
-	//
-	// 3.5
-	CpuTurboFrequency *float32 `json:"CpuTurboFrequency,omitempty" xml:"CpuTurboFrequency,omitempty"`
-	// The maximum number of cloud disks per instance.
-	//
-	// example:
-	//
-	// 17
-	DiskQuantity *int32 `json:"DiskQuantity,omitempty" xml:"DiskQuantity,omitempty"`
-	// >  This parameter is not publicly available.
-	EnhancedNetwork *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeEnhancedNetwork `json:"EnhancedNetwork,omitempty" xml:"EnhancedNetwork,omitempty" type:"Struct"`
-	// The maximum number of IPv6 addresses per ENI.
-	//
-	// example:
-	//
-	// 1
-	EniIpv6AddressQuantity *int32 `json:"EniIpv6AddressQuantity,omitempty" xml:"EniIpv6AddressQuantity,omitempty"`
-	// The maximum number of IPv4 addresses per ENI.
-	//
-	// example:
-	//
-	// 10
-	EniPrivateIpAddressQuantity *int32 `json:"EniPrivateIpAddressQuantity,omitempty" xml:"EniPrivateIpAddressQuantity,omitempty"`
-	// The maximum number of ENIs per instance.
-	//
-	// example:
-	//
-	// 3
-	EniQuantity *int32 `json:"EniQuantity,omitempty" xml:"EniQuantity,omitempty"`
-	// The maximum number of ENIs, including primary, secondary, and trunk ENIs.
-	//
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// 0
-	EniTotalQuantity *int32 `json:"EniTotalQuantity,omitempty" xml:"EniTotalQuantity,omitempty"`
-	// Indicates whether trunk ENIs are supported.
-	//
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// true
-	EniTrunkSupported *bool `json:"EniTrunkSupported,omitempty" xml:"EniTrunkSupported,omitempty"`
-	// The number of ERIs.
-	//
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// 0
-	EriQuantity *int32 `json:"EriQuantity,omitempty" xml:"EriQuantity,omitempty"`
-	// The number of GPUs.
-	//
-	// example:
-	//
-	// 0
-	GPUAmount *int32 `json:"GPUAmount,omitempty" xml:"GPUAmount,omitempty"`
-	// The amount of GPU memory per GPU. Unit: GiB
-	//
-	// example:
-	//
-	// 32
-	GPUMemorySize *float32 `json:"GPUMemorySize,omitempty" xml:"GPUMemorySize,omitempty"`
-	// The GPU model.
-	//
-	// example:
-	//
-	// NVIDIA V100
-	GPUSpec *string `json:"GPUSpec,omitempty" xml:"GPUSpec,omitempty"`
-	// The initial vCPU credits per t5 or t6 burstable instance.
-	//
-	// example:
-	//
-	// 120
-	InitialCredit *int32 `json:"InitialCredit,omitempty" xml:"InitialCredit,omitempty"`
-	// The maximum inbound internal bandwidth. Unit: Kbit/s.
-	//
-	// example:
-	//
-	// 1024000
-	InstanceBandwidthRx *int32 `json:"InstanceBandwidthRx,omitempty" xml:"InstanceBandwidthRx,omitempty"`
-	// The maximum outbound internal bandwidth. Unit: Kbit/s.
-	//
-	// example:
-	//
-	// 1024000
-	InstanceBandwidthTx *int32 `json:"InstanceBandwidthTx,omitempty" xml:"InstanceBandwidthTx,omitempty"`
-	// The category of the instance type. Valid values:
-	//
-	// 	- General-purpose
-	//
-	// 	- Compute-optimized
-	//
-	// 	- Memory-optimized
-	//
-	// 	- Big data
-	//
-	// 	- Local SSDs
-	//
-	// 	- High Clock Speed
-	//
-	// 	- Enhanced
-	//
-	// 	- Shared
-	//
-	// 	- Compute-optimized with GPU
-	//
-	// 	- Visual Compute-optimized
-	//
-	// 	- Heterogeneous Service
-	//
-	// 	- Compute-optimized with FPGA
-	//
-	// 	- Compute-optimized with NPU
-	//
-	// 	- ECS Bare Metal
-	//
-	// 	- Super Computing Cluster
-	//
-	// 	- High Performance Compute
-	//
-	// example:
-	//
-	// Big data
-	InstanceCategory *string `json:"InstanceCategory,omitempty" xml:"InstanceCategory,omitempty"`
-	// The level of the instance family. Valid values:
-	//
-	// 	- EntryLevel: entry level (shared).
-	//
-	// 	- EnterpriseLevel: enterprise level.
-	//
-	// 	- CreditEntryLevel: credit-based entry level. For more information, see [Overview](https://help.aliyun.com/document_detail/59977.html).
-	//
-	// example:
-	//
-	// EnterpriseLevel
-	InstanceFamilyLevel *string `json:"InstanceFamilyLevel,omitempty" xml:"InstanceFamilyLevel,omitempty"`
-	// The inbound packet forwarding rate over the internal network. Unit: pps.
-	//
-	// example:
-	//
-	// 500000
-	InstancePpsRx *int64 `json:"InstancePpsRx,omitempty" xml:"InstancePpsRx,omitempty"`
-	// The outbound packet forwarding rate over the internal network. Unit: pps.
-	//
-	// example:
-	//
-	// 500000
-	InstancePpsTx *int64 `json:"InstancePpsTx,omitempty" xml:"InstancePpsTx,omitempty"`
-	// The instance family.
-	//
-	// example:
-	//
-	// ecs.g6
-	InstanceTypeFamily *string `json:"InstanceTypeFamily,omitempty" xml:"InstanceTypeFamily,omitempty"`
-	// The ID of the instance type.
-	//
-	// example:
-	//
-	// ecs.g6.large
-	InstanceTypeId *string `json:"InstanceTypeId,omitempty" xml:"InstanceTypeId,omitempty"`
-	// Indicates whether jumbo frames are supported.
-	//
-	// example:
-	//
-	// true
-	JumboFrameSupport *bool `json:"JumboFrameSupport,omitempty" xml:"JumboFrameSupport,omitempty"`
-	// The number of local disks per instance.
-	//
-	// example:
-	//
-	// 1
-	LocalStorageAmount *int32 `json:"LocalStorageAmount,omitempty" xml:"LocalStorageAmount,omitempty"`
-	// The capacity of each local disk. Unit: GiB
-	//
-	// example:
-	//
-	// 5000
-	LocalStorageCapacity *int64 `json:"LocalStorageCapacity,omitempty" xml:"LocalStorageCapacity,omitempty"`
-	// The category of local disks. For more information, see [Local disks](https://help.aliyun.com/document_detail/63138.html). Valid values:
-	//
-	// 	- local_hdd_pro: local SATA HDDs, which are attached to d1ne or d1 instances
-	//
-	// 	- local_ssd_pro: local NVMe SSDs, which are attached to i2, i2g, i1, ga1, or gn5 instances
-	//
-	// example:
-	//
-	// local_ssd_pro
-	LocalStorageCategory *string `json:"LocalStorageCategory,omitempty" xml:"LocalStorageCategory,omitempty"`
-	// The maximum number of queues per ENI, including primary and secondary ENIs.
-	//
-	// example:
-	//
-	// 4
-	MaximumQueueNumberPerEni *int32 `json:"MaximumQueueNumberPerEni,omitempty" xml:"MaximumQueueNumberPerEni,omitempty"`
-	// The memory size. Unit: GiB
-	//
-	// example:
-	//
-	// 16
-	MemorySize *float32 `json:"MemorySize,omitempty" xml:"MemorySize,omitempty"`
-	// The maximum number of network cards that the instance type supports.
-	//
-	// example:
-	//
-	// 1
-	NetworkCardQuantity *int32 `json:"NetworkCardQuantity,omitempty" xml:"NetworkCardQuantity,omitempty"`
-	// The information about the network cards.
-	NetworkCards *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeNetworkCards `json:"NetworkCards,omitempty" xml:"NetworkCards,omitempty" type:"Struct"`
-	// Indicates whether to allow network traffic transmitted over virtual private clouds (VPCs) to be encrypted. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// true
-	NetworkEncryptionSupport *bool                                                                  `json:"NetworkEncryptionSupport,omitempty" xml:"NetworkEncryptionSupport,omitempty"`
-	NetworkInfo              *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeNetworkInfo `json:"NetworkInfo,omitempty" xml:"NetworkInfo,omitempty" type:"Struct"`
-	// Indicates whether cloud disks can be attached by using the NVMe protocol. Valid values:
-	//
-	// 	- required: Cloud disks can be attached by using the NVMe protocol.
-	//
-	// 	- unsupported: Cloud disks cannot be attached by using the NVMe protocol.
-	//
-	// example:
-	//
-	// unsupported
-	NvmeSupport *string `json:"NvmeSupport,omitempty" xml:"NvmeSupport,omitempty"`
-	// The CPU model.
-	//
-	// example:
-	//
-	// Intel Xeon(Ice Lake) Platinum 8369B
-	PhysicalProcessorModel *string `json:"PhysicalProcessorModel,omitempty" xml:"PhysicalProcessorModel,omitempty"`
-	// The default number of queues per primary ENI.
-	//
-	// example:
-	//
-	// 4
-	PrimaryEniQueueNumber *int32 `json:"PrimaryEniQueueNumber,omitempty" xml:"PrimaryEniQueueNumber,omitempty"`
-	// The maximum number of QPs per instance, which varies based on the instance type.
-	//
-	// 	- For enterprise-level CPU-based instance types, the value of `QueuePairNumber` is the maximum number of QPs per instance.
-	//
-	// 	- For GPU-accelerated instance types, the maximum number of QPs per instance is calculated by using the following formula: Value of `QueuePairNumber` × Value of NetworkCardQuantity.
-	//
-	// example:
-	//
-	// 22
-	QueuePairNumber *int32 `json:"QueuePairNumber,omitempty" xml:"QueuePairNumber,omitempty"`
-	// The default number of queues per secondary ENI.
-	//
-	// example:
-	//
-	// 4
-	SecondaryEniQueueNumber *int32 `json:"SecondaryEniQueueNumber,omitempty" xml:"SecondaryEniQueueNumber,omitempty"`
-	// The boot modes supported by the instance type.
-	SupportedBootModes *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeSupportedBootModes `json:"SupportedBootModes,omitempty" xml:"SupportedBootModes,omitempty" type:"Struct"`
-	// The maximum number of queues on ENIs that the instance type supports.
-	//
-	// example:
-	//
-	// 12
-	TotalEniQueueQuantity *int32 `json:"TotalEniQueueQuantity,omitempty" xml:"TotalEniQueueQuantity,omitempty"`
+	Attributes                  *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeAttributes         `json:"Attributes,omitempty" xml:"Attributes,omitempty" type:"Struct"`
+	BaselineCredit              *int32                                                                        `json:"BaselineCredit,omitempty" xml:"BaselineCredit,omitempty"`
+	Clock                       *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeClock              `json:"Clock,omitempty" xml:"Clock,omitempty" type:"Struct"`
+	CpuArchitecture             *string                                                                       `json:"CpuArchitecture,omitempty" xml:"CpuArchitecture,omitempty"`
+	CpuCoreCount                *int32                                                                        `json:"CpuCoreCount,omitempty" xml:"CpuCoreCount,omitempty"`
+	CpuOptions                  *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions         `json:"CpuOptions,omitempty" xml:"CpuOptions,omitempty" type:"Struct"`
+	CpuSpeedFrequency           *float32                                                                      `json:"CpuSpeedFrequency,omitempty" xml:"CpuSpeedFrequency,omitempty"`
+	CpuTurboFrequency           *float32                                                                      `json:"CpuTurboFrequency,omitempty" xml:"CpuTurboFrequency,omitempty"`
+	DiskQuantity                *int32                                                                        `json:"DiskQuantity,omitempty" xml:"DiskQuantity,omitempty"`
+	EnhancedNetwork             *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeEnhancedNetwork    `json:"EnhancedNetwork,omitempty" xml:"EnhancedNetwork,omitempty" type:"Struct"`
+	EniIpv6AddressQuantity      *int32                                                                        `json:"EniIpv6AddressQuantity,omitempty" xml:"EniIpv6AddressQuantity,omitempty"`
+	EniPrivateIpAddressQuantity *int32                                                                        `json:"EniPrivateIpAddressQuantity,omitempty" xml:"EniPrivateIpAddressQuantity,omitempty"`
+	EniQuantity                 *int32                                                                        `json:"EniQuantity,omitempty" xml:"EniQuantity,omitempty"`
+	EniTotalQuantity            *int32                                                                        `json:"EniTotalQuantity,omitempty" xml:"EniTotalQuantity,omitempty"`
+	EniTrunkSupported           *bool                                                                         `json:"EniTrunkSupported,omitempty" xml:"EniTrunkSupported,omitempty"`
+	EriQuantity                 *int32                                                                        `json:"EriQuantity,omitempty" xml:"EriQuantity,omitempty"`
+	GPUAmount                   *int32                                                                        `json:"GPUAmount,omitempty" xml:"GPUAmount,omitempty"`
+	GPUMemorySize               *float32                                                                      `json:"GPUMemorySize,omitempty" xml:"GPUMemorySize,omitempty"`
+	GPUSpec                     *string                                                                       `json:"GPUSpec,omitempty" xml:"GPUSpec,omitempty"`
+	InitialCredit               *int32                                                                        `json:"InitialCredit,omitempty" xml:"InitialCredit,omitempty"`
+	InstanceBandwidthRx         *int32                                                                        `json:"InstanceBandwidthRx,omitempty" xml:"InstanceBandwidthRx,omitempty"`
+	InstanceBandwidthTx         *int32                                                                        `json:"InstanceBandwidthTx,omitempty" xml:"InstanceBandwidthTx,omitempty"`
+	InstanceCategory            *string                                                                       `json:"InstanceCategory,omitempty" xml:"InstanceCategory,omitempty"`
+	InstanceFamilyLevel         *string                                                                       `json:"InstanceFamilyLevel,omitempty" xml:"InstanceFamilyLevel,omitempty"`
+	InstancePpsRx               *int64                                                                        `json:"InstancePpsRx,omitempty" xml:"InstancePpsRx,omitempty"`
+	InstancePpsTx               *int64                                                                        `json:"InstancePpsTx,omitempty" xml:"InstancePpsTx,omitempty"`
+	InstanceTypeFamily          *string                                                                       `json:"InstanceTypeFamily,omitempty" xml:"InstanceTypeFamily,omitempty"`
+	InstanceTypeId              *string                                                                       `json:"InstanceTypeId,omitempty" xml:"InstanceTypeId,omitempty"`
+	JumboFrameSupport           *bool                                                                         `json:"JumboFrameSupport,omitempty" xml:"JumboFrameSupport,omitempty"`
+	LocalStorageAmount          *int32                                                                        `json:"LocalStorageAmount,omitempty" xml:"LocalStorageAmount,omitempty"`
+	LocalStorageCapacity        *int64                                                                        `json:"LocalStorageCapacity,omitempty" xml:"LocalStorageCapacity,omitempty"`
+	LocalStorageCategory        *string                                                                       `json:"LocalStorageCategory,omitempty" xml:"LocalStorageCategory,omitempty"`
+	MaximumQueueNumberPerEni    *int32                                                                        `json:"MaximumQueueNumberPerEni,omitempty" xml:"MaximumQueueNumberPerEni,omitempty"`
+	MemorySize                  *float32                                                                      `json:"MemorySize,omitempty" xml:"MemorySize,omitempty"`
+	NetworkCardQuantity         *int32                                                                        `json:"NetworkCardQuantity,omitempty" xml:"NetworkCardQuantity,omitempty"`
+	NetworkCards                *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeNetworkCards       `json:"NetworkCards,omitempty" xml:"NetworkCards,omitempty" type:"Struct"`
+	NetworkEncryptionSupport    *bool                                                                         `json:"NetworkEncryptionSupport,omitempty" xml:"NetworkEncryptionSupport,omitempty"`
+	NetworkInfo                 *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeNetworkInfo        `json:"NetworkInfo,omitempty" xml:"NetworkInfo,omitempty" type:"Struct"`
+	NvmeSupport                 *string                                                                       `json:"NvmeSupport,omitempty" xml:"NvmeSupport,omitempty"`
+	PhysicalProcessorModel      *string                                                                       `json:"PhysicalProcessorModel,omitempty" xml:"PhysicalProcessorModel,omitempty"`
+	PrimaryEniQueueNumber       *int32                                                                        `json:"PrimaryEniQueueNumber,omitempty" xml:"PrimaryEniQueueNumber,omitempty"`
+	QueuePairNumber             *int32                                                                        `json:"QueuePairNumber,omitempty" xml:"QueuePairNumber,omitempty"`
+	SecondaryEniQueueNumber     *int32                                                                        `json:"SecondaryEniQueueNumber,omitempty" xml:"SecondaryEniQueueNumber,omitempty"`
+	SupportedBootModes          *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeSupportedBootModes `json:"SupportedBootModes,omitempty" xml:"SupportedBootModes,omitempty" type:"Struct"`
+	TotalEniQueueQuantity       *int32                                                                        `json:"TotalEniQueueQuantity,omitempty" xml:"TotalEniQueueQuantity,omitempty"`
 }
 
 func (s DescribeInstanceTypesResponseBodyInstanceTypesInstanceType) String() string {
@@ -909,17 +646,7 @@ func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeAttributes) V
 }
 
 type DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeAttributesAttribute struct {
-	// The name of the attribute.
-	//
-	// example:
-	//
-	// VirtualIntelSpeedSelectTechnologySupport
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The attribute value.
-	//
-	// example:
-	//
-	// 1
+	Name  *string `json:"Name,omitempty" xml:"Name,omitempty"`
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
@@ -954,15 +681,6 @@ func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeAttributesAtt
 }
 
 type DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeClock struct {
-	// Whether PTP is supported. Possible values:
-	//
-	// 	- supported
-	//
-	// 	- unsupported
-	//
-	// example:
-	//
-	// unsupported
 	PtpSupport *string `json:"PtpSupport,omitempty" xml:"PtpSupport,omitempty"`
 }
 
@@ -988,34 +706,12 @@ func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeClock) Valida
 }
 
 type DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions struct {
-	// The number of CPU cores.
-	//
-	// example:
-	//
-	// 2
-	Core *int32 `json:"Core,omitempty" xml:"Core,omitempty"`
-	// The CPU option step size.
-	//
-	// example:
-	//
-	// 2
-	CoreFactor *int32 `json:"CoreFactor,omitempty" xml:"CoreFactor,omitempty"`
-	// Indicates whether HT can be enabled or disabled.
-	//
-	// example:
-	//
-	// true
-	HyperThreadingAdjustable *bool `json:"HyperThreadingAdjustable,omitempty" xml:"HyperThreadingAdjustable,omitempty"`
-	// The CPU topology types of the instance type.
-	SupportedTopologyTypes *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptionsSupportedTopologyTypes `json:"SupportedTopologyTypes,omitempty" xml:"SupportedTopologyTypes,omitempty" type:"Struct"`
-	// The number of threads per CPU core.
-	//
-	// >  `If the value of CpuOptions.ThreadPerCore is 1, Hyper-Threading (HT) is disabled.`
-	//
-	// example:
-	//
-	// 2
-	ThreadsPerCore *int32 `json:"ThreadsPerCore,omitempty" xml:"ThreadsPerCore,omitempty"`
+	Core                        *int32                                                                                      `json:"Core,omitempty" xml:"Core,omitempty"`
+	CoreFactor                  *int32                                                                                      `json:"CoreFactor,omitempty" xml:"CoreFactor,omitempty"`
+	HyperThreadingAdjustable    *bool                                                                                       `json:"HyperThreadingAdjustable,omitempty" xml:"HyperThreadingAdjustable,omitempty"`
+	NestedVirtualizationSupport *string                                                                                     `json:"NestedVirtualizationSupport,omitempty" xml:"NestedVirtualizationSupport,omitempty"`
+	SupportedTopologyTypes      *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptionsSupportedTopologyTypes `json:"SupportedTopologyTypes,omitempty" xml:"SupportedTopologyTypes,omitempty" type:"Struct"`
+	ThreadsPerCore              *int32                                                                                      `json:"ThreadsPerCore,omitempty" xml:"ThreadsPerCore,omitempty"`
 }
 
 func (s DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions) String() string {
@@ -1038,6 +734,10 @@ func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions) G
 	return s.HyperThreadingAdjustable
 }
 
+func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions) GetNestedVirtualizationSupport() *string {
+	return s.NestedVirtualizationSupport
+}
+
 func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions) GetSupportedTopologyTypes() *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptionsSupportedTopologyTypes {
 	return s.SupportedTopologyTypes
 }
@@ -1058,6 +758,11 @@ func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions) S
 
 func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions) SetHyperThreadingAdjustable(v bool) *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions {
 	s.HyperThreadingAdjustable = &v
+	return s
+}
+
+func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions) SetNestedVirtualizationSupport(v string) *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptions {
+	s.NestedVirtualizationSupport = &v
 	return s
 }
 
@@ -1106,23 +811,8 @@ func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeCpuOptionsSup
 }
 
 type DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeEnhancedNetwork struct {
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// true
-	RssSupport *bool `json:"RssSupport,omitempty" xml:"RssSupport,omitempty"`
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// true
-	SriovSupport *bool `json:"SriovSupport,omitempty" xml:"SriovSupport,omitempty"`
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// 5
+	RssSupport          *bool  `json:"RssSupport,omitempty" xml:"RssSupport,omitempty"`
+	SriovSupport        *bool  `json:"SriovSupport,omitempty" xml:"SriovSupport,omitempty"`
 	VfQueueNumberPerEni *int32 `json:"VfQueueNumberPerEni,omitempty" xml:"VfQueueNumberPerEni,omitempty"`
 }
 
@@ -1200,11 +890,6 @@ func (s *DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeNetworkCards)
 }
 
 type DescribeInstanceTypesResponseBodyInstanceTypesInstanceTypeNetworkCardsNetworkCardInfo struct {
-	// The index of the network card.
-	//
-	// example:
-	//
-	// 1
 	NetworkCardIndex *int32 `json:"NetworkCardIndex,omitempty" xml:"NetworkCardIndex,omitempty"`
 }
 

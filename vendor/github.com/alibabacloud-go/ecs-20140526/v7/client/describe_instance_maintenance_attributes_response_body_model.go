@@ -22,7 +22,6 @@ type iDescribeInstanceMaintenanceAttributesResponseBody interface {
 }
 
 type DescribeInstanceMaintenanceAttributesResponseBody struct {
-	// The maintenance attributes.
 	MaintenanceAttributes *DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributes `json:"MaintenanceAttributes,omitempty" xml:"MaintenanceAttributes,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,22 +146,10 @@ func (s *DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributes)
 }
 
 type DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesMaintenanceAttribute struct {
-	// The attributes of the maintenance action of the instance.
 	ActionOnMaintenance *DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesMaintenanceAttributeActionOnMaintenance `json:"ActionOnMaintenance,omitempty" xml:"ActionOnMaintenance,omitempty" type:"Struct"`
-	// The instance ID.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The maintenance windows.
-	MaintenanceWindows *DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesMaintenanceAttributeMaintenanceWindows `json:"MaintenanceWindows,omitempty" xml:"MaintenanceWindows,omitempty" type:"Struct"`
-	// Indicates whether an event notification was sent before maintenance.
-	//
-	// example:
-	//
-	// false
-	NotifyOnMaintenance *bool `json:"NotifyOnMaintenance,omitempty" xml:"NotifyOnMaintenance,omitempty"`
+	InstanceId          *string                                                                                                        `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	MaintenanceWindows  *DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesMaintenanceAttributeMaintenanceWindows  `json:"MaintenanceWindows,omitempty" xml:"MaintenanceWindows,omitempty" type:"Struct"`
+	NotifyOnMaintenance *bool                                                                                                          `json:"NotifyOnMaintenance,omitempty" xml:"NotifyOnMaintenance,omitempty"`
 }
 
 func (s DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesMaintenanceAttribute) String() string {
@@ -224,26 +211,9 @@ func (s *DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesM
 }
 
 type DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesMaintenanceAttributeActionOnMaintenance struct {
-	// The default maintenance action.
-	//
-	// example:
-	//
-	// AutoRecover
-	DefaultValue *string `json:"DefaultValue,omitempty" xml:"DefaultValue,omitempty"`
-	// The supported maintenance actions.
+	DefaultValue    *string                                                                                                                       `json:"DefaultValue,omitempty" xml:"DefaultValue,omitempty"`
 	SupportedValues *DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesMaintenanceAttributeActionOnMaintenanceSupportedValues `json:"SupportedValues,omitempty" xml:"SupportedValues,omitempty" type:"Struct"`
-	// The current maintenance action. Valid values:
-	//
-	// 	- Stop: stops the instance.
-	//
-	// 	- AutoRecover: automatically recovers the instance.
-	//
-	// 	- AutoRedeploy: redeploys the instance, which may damage the data disks attached to the instance.
-	//
-	// example:
-	//
-	// Stop
-	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
+	Value           *string                                                                                                                       `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesMaintenanceAttributeActionOnMaintenance) String() string {
@@ -350,17 +320,7 @@ func (s *DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesM
 }
 
 type DescribeInstanceMaintenanceAttributesResponseBodyMaintenanceAttributesMaintenanceAttributeMaintenanceWindowsMaintenanceWindow struct {
-	// The end time of the maintenance window.
-	//
-	// example:
-	//
-	// 18:00:00
-	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	// The start time of the maintenance window.
-	//
-	// example:
-	//
-	// 02:00:00
+	EndTime   *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
 	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
 }
 

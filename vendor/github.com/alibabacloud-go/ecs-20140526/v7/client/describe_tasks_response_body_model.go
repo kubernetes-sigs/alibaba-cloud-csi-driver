@@ -47,9 +47,8 @@ type DescribeTasksResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the tasks.
-	TaskSet *DescribeTasksResponseBodyTaskSet `json:"TaskSet,omitempty" xml:"TaskSet,omitempty" type:"Struct"`
+	RequestId *string                           `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	TaskSet   *DescribeTasksResponseBodyTaskSet `json:"TaskSet,omitempty" xml:"TaskSet,omitempty" type:"Struct"`
 	// The total number of entries returned.
 	//
 	// example:
@@ -164,48 +163,13 @@ func (s *DescribeTasksResponseBodyTaskSet) Validate() error {
 }
 
 type DescribeTasksResponseBodyTaskSetTask struct {
-	// The time when the task was created.
-	//
-	// example:
-	//
-	// 2020-11-24T12:50Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The time when the task ended.
-	//
-	// example:
-	//
-	// 2020-11-24T12:50Z
-	FinishedTime *string `json:"FinishedTime,omitempty" xml:"FinishedTime,omitempty"`
-	// The resource ID.
-	//
-	// example:
-	//
-	// m-bp1i8huqm5u7****
-	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// Indicates whether the task can be canceled.
-	//
-	// example:
-	//
-	// true
+	CreationTime  *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	FinishedTime  *string `json:"FinishedTime,omitempty" xml:"FinishedTime,omitempty"`
+	ResourceId    *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
 	SupportCancel *string `json:"SupportCancel,omitempty" xml:"SupportCancel,omitempty"`
-	// The name of the operation that generates the task.
-	//
-	// example:
-	//
-	// ImportImage
-	TaskAction *string `json:"TaskAction,omitempty" xml:"TaskAction,omitempty"`
-	// The task ID.
-	//
-	// example:
-	//
-	// t-bp1hvgwromzv32iq****
-	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
-	// The task status.
-	//
-	// example:
-	//
-	// Finished
-	TaskStatus *string `json:"TaskStatus,omitempty" xml:"TaskStatus,omitempty"`
+	TaskAction    *string `json:"TaskAction,omitempty" xml:"TaskAction,omitempty"`
+	TaskId        *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
+	TaskStatus    *string `json:"TaskStatus,omitempty" xml:"TaskStatus,omitempty"`
 }
 
 func (s DescribeTasksResponseBodyTaskSetTask) String() string {

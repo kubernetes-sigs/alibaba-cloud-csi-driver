@@ -47,8 +47,7 @@ type DescribeSnapshotLinksResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The information about the snapshot chains.
+	RequestId     *string                                         `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	SnapshotLinks *DescribeSnapshotLinksResponseBodySnapshotLinks `json:"SnapshotLinks,omitempty" xml:"SnapshotLinks,omitempty" type:"Struct"`
 	// The total number of snapshot chains.
 	//
@@ -166,94 +165,18 @@ func (s *DescribeSnapshotLinksResponseBodySnapshotLinks) Validate() error {
 }
 
 type DescribeSnapshotLinksResponseBodySnapshotLinksSnapshotLink struct {
-	// The type of the snapshot chain. Valid values:
-	//
-	// 	- standard: standard snapshot chain.
-	//
-	// 	- archive: archive snapshot chain.
-	//
-	// 	- flash: instant access snapshot chain.
-	//
-	// example:
-	//
-	// standard
-	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-bp1h6jmbefj2cyqs****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The name of the instance.
-	//
-	// example:
-	//
-	// testInstanceName
-	InstanceName *string `json:"InstanceName,omitempty" xml:"InstanceName,omitempty"`
-	// Indicates whether the instant access feature is enabled. Valid values:
-	//
-	// 	- true: The instant access feature is enabled. The feature can be enabled only for Enterprise SSDs (ESSDs).
-	//
-	// 	- false: The instant access feature is disabled. The snapshot is a standard snapshot for which the instant access feature is disabled.
-	//
-	// >  This parameter is no longer used. By default, standard snapshots of ESSDs are upgraded to instant access snapshots free of charge without the need for additional configurations. For more information, see [Use the instant access feature](https://help.aliyun.com/document_detail/193667.html).
-	//
-	// example:
-	//
-	// false
-	InstantAccess *bool `json:"InstantAccess,omitempty" xml:"InstantAccess,omitempty"`
-	// The region ID of the source disk.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The ID of the snapshot chain.
-	//
-	// example:
-	//
-	// sl-2ze0y1jwzpb1geqx****
+	Category       *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	InstanceId     *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	InstanceName   *string `json:"InstanceName,omitempty" xml:"InstanceName,omitempty"`
+	InstantAccess  *bool   `json:"InstantAccess,omitempty" xml:"InstantAccess,omitempty"`
+	RegionId       *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
 	SnapshotLinkId *string `json:"SnapshotLinkId,omitempty" xml:"SnapshotLinkId,omitempty"`
-	// The ID of the source disk. This parameter is retained even if the source disk is deleted.
-	//
-	// example:
-	//
-	// d-bp1d6tsvznfghy7y****
-	SourceDiskId *string `json:"SourceDiskId,omitempty" xml:"SourceDiskId,omitempty"`
-	// The name of the source disk.
-	//
-	// example:
-	//
-	// testSourceDiskName
+	SourceDiskId   *string `json:"SourceDiskId,omitempty" xml:"SourceDiskId,omitempty"`
 	SourceDiskName *string `json:"SourceDiskName,omitempty" xml:"SourceDiskName,omitempty"`
-	// The capacity of the source disk. Unit: GiB.
-	//
-	// example:
-	//
-	// 40
-	SourceDiskSize *int32 `json:"SourceDiskSize,omitempty" xml:"SourceDiskSize,omitempty"`
-	// The type of the source disk. Valid values:
-	//
-	// 	- system: system disk
-	//
-	// 	- data: data disk
-	//
-	// example:
-	//
-	// data
+	SourceDiskSize *int32  `json:"SourceDiskSize,omitempty" xml:"SourceDiskSize,omitempty"`
 	SourceDiskType *string `json:"SourceDiskType,omitempty" xml:"SourceDiskType,omitempty"`
-	// The total number of snapshots.
-	//
-	// example:
-	//
-	// 1
-	TotalCount *int32 `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-	// The total size of all snapshots in the snapshot chain. Unit: byte.
-	//
-	// example:
-	//
-	// 2097152
-	TotalSize *int64 `json:"TotalSize,omitempty" xml:"TotalSize,omitempty"`
+	TotalCount     *int32  `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
+	TotalSize      *int64  `json:"TotalSize,omitempty" xml:"TotalSize,omitempty"`
 }
 
 func (s DescribeSnapshotLinksResponseBodySnapshotLinksSnapshotLink) String() string {

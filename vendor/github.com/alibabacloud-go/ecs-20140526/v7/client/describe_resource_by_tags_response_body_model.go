@@ -39,8 +39,7 @@ type DescribeResourceByTagsResponseBody struct {
 	// example:
 	//
 	// 1C1E5359-71D7-44D8-8FAA-0327B549157X
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the resources to which the tags are bound.
+	RequestId *string                                      `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	Resources *DescribeResourceByTagsResponseBodyResources `json:"Resources,omitempty" xml:"Resources,omitempty" type:"Struct"`
 	// The total number of resources returned.
 	//
@@ -147,23 +146,8 @@ func (s *DescribeResourceByTagsResponseBodyResources) Validate() error {
 }
 
 type DescribeResourceByTagsResponseBodyResourcesResource struct {
-	// The region ID.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The resource ID.
-	//
-	// example:
-	//
-	// i-bp16t2cgmiiy7t1c****
-	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The type of the resource.
-	//
-	// example:
-	//
-	// instance
+	RegionId     *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceId   *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
 	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
 }
 

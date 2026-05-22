@@ -16,7 +16,6 @@ type iDeleteSnapshotGroupResponseBody interface {
 }
 
 type DeleteSnapshotGroupResponseBody struct {
-	// Details about the delete operation.
 	OperationProgressSet *DeleteSnapshotGroupResponseBodyOperationProgressSet `json:"OperationProgressSet,omitempty" xml:"OperationProgressSet,omitempty" type:"Struct"`
 	// The ID of the request.
 	//
@@ -96,30 +95,10 @@ func (s *DeleteSnapshotGroupResponseBodyOperationProgressSet) Validate() error {
 }
 
 type DeleteSnapshotGroupResponseBodyOperationProgressSetOperationProgress struct {
-	// The error code. This parameter is empty when the operation is successful.
-	//
-	// For information about error codes and error messages, visit the [API error center](https://error-center.aliyun.com/status/product/Ecs).
-	//
-	// example:
-	//
-	// 400
-	ErrorCode *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
-	// The error message. This parameter is empty when the operation is successful.
-	//
-	// For information about error codes and error messages, visit the [API error center](https://error-center.aliyun.com/status/product/Ecs).
-	//
-	// example:
-	//
-	// testErrorMsg
-	ErrorMsg *string `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
-	// Indicates whether the operation was successful. If the operation was successful, a value of Success is returned. If the operation failed, an error code and an error message are returned.
-	//
-	// example:
-	//
-	// Success
-	OperationStatus *string `json:"OperationStatus,omitempty" xml:"OperationStatus,omitempty"`
-	// Details about the resources.
-	RelatedItemSet *DeleteSnapshotGroupResponseBodyOperationProgressSetOperationProgressRelatedItemSet `json:"RelatedItemSet,omitempty" xml:"RelatedItemSet,omitempty" type:"Struct"`
+	ErrorCode       *string                                                                             `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
+	ErrorMsg        *string                                                                             `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
+	OperationStatus *string                                                                             `json:"OperationStatus,omitempty" xml:"OperationStatus,omitempty"`
+	RelatedItemSet  *DeleteSnapshotGroupResponseBodyOperationProgressSetOperationProgressRelatedItemSet `json:"RelatedItemSet,omitempty" xml:"RelatedItemSet,omitempty" type:"Struct"`
 }
 
 func (s DeleteSnapshotGroupResponseBodyOperationProgressSetOperationProgress) String() string {
@@ -210,17 +189,7 @@ func (s *DeleteSnapshotGroupResponseBodyOperationProgressSetOperationProgressRel
 }
 
 type DeleteSnapshotGroupResponseBodyOperationProgressSetOperationProgressRelatedItemSetRelatedItem struct {
-	// The name of the resource.
-	//
-	// example:
-	//
-	// SnapshotId
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The ID of the resource.
-	//
-	// example:
-	//
-	// s-j6c9lpuyxo2uxxnx****
+	Name  *string `json:"Name,omitempty" xml:"Name,omitempty"`
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

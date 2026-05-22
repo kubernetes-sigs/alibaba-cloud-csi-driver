@@ -16,7 +16,6 @@ type iCreateSimulatedSystemEventsResponseBody interface {
 }
 
 type CreateSimulatedSystemEventsResponseBody struct {
-	// The IDs of the simulated events.
 	EventIdSet *CreateSimulatedSystemEventsResponseBodyEventIdSet `json:"EventIdSet,omitempty" xml:"EventIdSet,omitempty" type:"Struct"`
 	// The request ID.
 	//

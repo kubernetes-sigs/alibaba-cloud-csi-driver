@@ -23,8 +23,7 @@ type RenewElasticityAssurancesResponseBody struct {
 	// example:
 	//
 	// 182372800****
-	OrderId *string `json:"OrderId,omitempty" xml:"OrderId,omitempty"`
-	// The IDs of the elasticity assurances.
+	OrderId                 *string                                                       `json:"OrderId,omitempty" xml:"OrderId,omitempty"`
 	PrivatePoolOptionsIdSet *RenewElasticityAssurancesResponseBodyPrivatePoolOptionsIdSet `json:"PrivatePoolOptionsIdSet,omitempty" xml:"PrivatePoolOptionsIdSet,omitempty" type:"Struct"`
 	// The request ID.
 	//

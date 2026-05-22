@@ -21,8 +21,7 @@ type ModifyReservedInstancesResponseBody struct {
 	// example:
 	//
 	// ED9E4A5F-FF4D-4C96-BE80-6B4227060DD7
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The IDs of the reserved instances.
+	RequestId              *string                                                    `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	ReservedInstanceIdSets *ModifyReservedInstancesResponseBodyReservedInstanceIdSets `json:"ReservedInstanceIdSets,omitempty" xml:"ReservedInstanceIdSets,omitempty" type:"Struct"`
 }
 

@@ -29,15 +29,17 @@ import (
 	"time"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
+	ecsclient "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	nasclient "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs/internal"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
+	nasCloud "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 
@@ -57,10 +59,17 @@ type controllerServer struct {
 	skipDetach     bool
 }
 
-func newControllerServer(region string) (*controllerServer, error) {
+func newControllerServer(meta *metadata.Metadata) (*controllerServer, error) {
+	region := metadata.MustGet(meta, metadata.RegionID)
 	efloClient, err := newEfloClient(region)
 	if err != nil {
 		return nil, err
+	}
+
+	// Init ECS Client (v2 SDK)
+	ecsClient, err := newECSClient(region)
+	if err != nil {
+		return nil, fmt.Errorf("error building ecs client: %w", err)
 	}
 
 	skipDetach := false
@@ -68,13 +77,13 @@ func newControllerServer(region string) (*controllerServer, error) {
 		skipDetach = skipDetachVal
 	}
 
-	nasClient, err := cloud.NewNasClientV2(region)
+	nasClient, err := nasCloud.NewNasClientV2(region)
 	if err != nil {
 		return nil, err
 	}
 
 	return &controllerServer{
-		vscManager:     internal.NewPrimaryVscManagerWithCache(efloClient),
+		vscManager:     internal.NewPrimaryVscManagerWithCache(efloClient, ecsClient),
 		attachDetacher: internal.NewCPFSAttachDetacher(nasClient),
 		filesetManager: internal.NewCPFSFileSetManager(nasClient),
 		locks:          utils.NewVolumeLocks(),
@@ -206,9 +215,14 @@ func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *
 }
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	if !strings.HasPrefix(req.NodeId, LingjunNodeIDPrefix) {
+	instanceID, kind := parseNodeID(req.NodeId)
+	if kind == nodeKindUnknown {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid node id %q", req.NodeId)
+	}
+
+	if kind == nodeKindCommon {
 		if req.VolumeContext[_vpcMountTarget] == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "missing %q config in volume context", _vpcMountTarget)
+			return nil, status.Errorf(codes.InvalidArgument, "missing vpcMountTarget %q config in volume context", _vpcMountTarget)
 		}
 		// TODO: try to use existing vpc mount target
 		klog.InfoS("ControllerPublishVolume: use VPC MountTarget", "nodeId", req.NodeId)
@@ -231,16 +245,12 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 
-	// Get Primary vsc of Lingjun node
-	lingjunInstanceID := strings.TrimPrefix(req.NodeId, LingjunNodeIDPrefix)
-	if LingjunNodeIDPrefix == "" {
-		return nil, status.Error(codes.InvalidArgument, "invalid node id")
-	}
-	vscID, err := cs.vscManager.EnsurePrimaryVsc(ctx, lingjunInstanceID, false)
+	// Get Primary VSC for the node (Lingjun or ECS w/ VSC enabled)
+	vscID, err := cs.vscManager.EnsurePrimaryVsc(ctx, instanceID, false)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	klog.Info("Use VSC MountTarget for lingjun node", "nodeId", req.NodeId, "vscId", vscID)
+	klog.InfoS("ControllerPublishVolume: ensured primary VSC", "nodeId", req.NodeId, "vscId", vscID)
 
 	// Attach CPFS to VSC
 	err = cs.attachDetacher.Attach(ctx, cpfsID, vscID)
@@ -260,7 +270,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// TODO: if the cached vscid is already deleted, try to recreate a new primary vsc for lingjun node
+	// TODO: if the cached vscid is already deleted, try to recreate a new primary vsc for the node
 
 	klog.InfoS("ControllerPublishVolume: attached cpfs to vsc", "vscMountTarget", mt, "vscId", vscID, "node", req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{
@@ -273,15 +283,11 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	if !strings.HasPrefix(req.NodeId, LingjunNodeIDPrefix) || cs.skipDetach {
+	instanceID, kind := parseNodeID(req.NodeId)
+	if !kind.supportsVSC() || cs.skipDetach {
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
-	// Create Primary vsc for Lingjun node
-	lingjunInstanceID := strings.TrimPrefix(req.NodeId, LingjunNodeIDPrefix)
-	if LingjunNodeIDPrefix == "" {
-		return nil, status.Error(codes.InvalidArgument, "invalid node id")
-	}
-	vsc, err := cs.vscManager.GetPrimaryVscOf(lingjunInstanceID)
+	vsc, err := cs.vscManager.GetPrimaryVscOf(instanceID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get vsc error: %v", err)
 	}
@@ -344,6 +350,41 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 	config = config.SetProtocol(scheme)
 	// init client
 	return efloclient.NewClient(config)
+}
+
+func newECSClient(region string) (*ecsclient.Client, error) {
+	config := new(openapi.Config).
+		SetUserAgent(KubernetesAlicloudIdentity).
+		SetRegionId(region).
+		SetGlobalParameters(&openapi.GlobalParameters{
+			Queries: map[string]*string{
+				"RegionId": &region,
+			},
+		})
+	// set credential
+	provider, err := credentials.NewProvider()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch credential: %w", err)
+	}
+	config = config.SetCredential(alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider))
+	// set endpoint
+	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+		klog.Infof("Use ECS_ENDPOINT: %s", ep)
+		config = config.SetEndpoint(ep)
+	} else {
+		config = config.SetEndpoint(fmt.Sprintf("ecs-vpc.%s.aliyuncs.com", region))
+	}
+	// set protocol
+	scheme := "HTTPS"
+	if strings.Contains(region, "test") {
+		// must use HTTP in lingjun test regions
+		scheme = "HTTP"
+	}
+	if e := os.Getenv("ALICLOUD_CLIENT_SCHEME"); e != "" {
+		scheme = e
+	}
+	config = config.SetProtocol(scheme)
+	return ecsclient.NewClient(config)
 }
 
 func parseVolumeHandle(volumeHandle string) (string, string) {

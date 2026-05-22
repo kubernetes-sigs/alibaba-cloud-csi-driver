@@ -24,23 +24,8 @@ type iCancelAutoSnapshotPolicyRequest interface {
 }
 
 type CancelAutoSnapshotPolicyRequest struct {
-	// RAM用户的虚拟账号ID。
-	//
-	// example:
-	//
-	// 155780923770
-	OwnerId *int64 `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
-	// 资源主账号的账号名称。
-	//
-	// example:
-	//
-	// ECSforCloud
+	OwnerId              *int64  `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
 	ResourceOwnerAccount *string `json:"ResourceOwnerAccount,omitempty" xml:"ResourceOwnerAccount,omitempty"`
-	// 资源主账号的ID，亦即UID。
-	//
-	// example:
-	//
-	// 155780923770
 	ResourceOwnerId      *int64  `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
 	AutoSnapshotPolicyId *string `json:"autoSnapshotPolicyId,omitempty" xml:"autoSnapshotPolicyId,omitempty"`
 	// The IDs of the disks for which you want to disable the automatic snapshot policy. To disable the automatic snapshot policy for multiple disks, you can set this parameter to a JSON array that consists of multiple disk IDs, such as ["dxxxxxxxxx", "dyyyyyyyyy", … "dzzzzzzzzz"]. Separate the disk IDs with commas (,).

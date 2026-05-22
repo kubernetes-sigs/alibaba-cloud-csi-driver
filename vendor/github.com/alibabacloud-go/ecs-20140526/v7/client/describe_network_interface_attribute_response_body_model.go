@@ -94,9 +94,9 @@ type DescribeNetworkInterfaceAttributeResponseBody struct {
 	BondInterfaceSpecification *DescribeNetworkInterfaceAttributeResponseBodyBondInterfaceSpecification `json:"BondInterfaceSpecification,omitempty" xml:"BondInterfaceSpecification,omitempty" type:"Struct"`
 	// The connection tracking configurations of the ENI.
 	//
-	// Before you use this parameter, learn about how to manage connection timeout periods. For more information, see [Manage connection timeout periods](https://help.aliyun.com/document_detail/2865958.html).
+	// Before you use the parameter, familiarize yourself with how to manage the timeout periods of connections. For more information, see [Mange connection timeout periods](https://help.aliyun.com/document_detail/2865958.html).
 	//
-	// >  This parameter is returned only if `Attribute` is set to `connectionTrackingConfiguration`.
+	// >  This parameter is returned only when the value of the input parameter `Attribute` is: `connectionTrackingConfiguration`.
 	ConnectionTrackingConfiguration *DescribeNetworkInterfaceAttributeResponseBodyConnectionTrackingConfiguration `json:"ConnectionTrackingConfiguration,omitempty" xml:"ConnectionTrackingConfiguration,omitempty" type:"Struct"`
 	// The time when the ENI was created.
 	//
@@ -129,13 +129,10 @@ type DescribeNetworkInterfaceAttributeResponseBody struct {
 	// example:
 	//
 	// i-bp1e2l6djkndyuli****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The IPv4 prefixes of the ENI.
+	InstanceId     *string                                                      `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 	Ipv4PrefixSets *DescribeNetworkInterfaceAttributeResponseBodyIpv4PrefixSets `json:"Ipv4PrefixSets,omitempty" xml:"Ipv4PrefixSets,omitempty" type:"Struct"`
-	// The IPv6 prefixes of the ENI.
 	Ipv6PrefixSets *DescribeNetworkInterfaceAttributeResponseBodyIpv6PrefixSets `json:"Ipv6PrefixSets,omitempty" xml:"Ipv6PrefixSets,omitempty" type:"Struct"`
-	// The IPv6 addresses of the ENI.
-	Ipv6Sets *DescribeNetworkInterfaceAttributeResponseBodyIpv6Sets `json:"Ipv6Sets,omitempty" xml:"Ipv6Sets,omitempty" type:"Struct"`
+	Ipv6Sets       *DescribeNetworkInterfaceAttributeResponseBodyIpv6Sets       `json:"Ipv6Sets,omitempty" xml:"Ipv6Sets,omitempty" type:"Struct"`
 	// The media access control (MAC) address of the ENI.
 	//
 	// example:
@@ -179,10 +176,10 @@ type DescribeNetworkInterfaceAttributeResponseBody struct {
 	// example:
 	//
 	// ``10.1.**.**``
-	PrivateIpAddress *string `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
-	// The private IP addresses of the ENI.
-	PrivateIpSets *DescribeNetworkInterfaceAttributeResponseBodyPrivateIpSets `json:"PrivateIpSets,omitempty" xml:"PrivateIpSets,omitempty" type:"Struct"`
-	QoSConfig     *DescribeNetworkInterfaceAttributeResponseBodyQoSConfig     `json:"QoSConfig,omitempty" xml:"QoSConfig,omitempty" type:"Struct"`
+	PrivateIpAddress *string                                                     `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
+	PrivateIpSets    *DescribeNetworkInterfaceAttributeResponseBodyPrivateIpSets `json:"PrivateIpSets,omitempty" xml:"PrivateIpSets,omitempty" type:"Struct"`
+	// QoS Speed Limit Settings
+	QoSConfig *DescribeNetworkInterfaceAttributeResponseBodyQoSConfig `json:"QoSConfig,omitempty" xml:"QoSConfig,omitempty" type:"Struct"`
 	// The number of queues supported by the ENI.
 	//
 	// 	- For a primary ENI: The default number of queues that the instance type supports for the ENI is returned.
@@ -224,8 +221,7 @@ type DescribeNetworkInterfaceAttributeResponseBody struct {
 	// example:
 	//
 	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The IDs of the security groups to which the ENI belongs.
+	ResourceGroupId  *string                                                        `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 	SecurityGroupIds *DescribeNetworkInterfaceAttributeResponseBodySecurityGroupIds `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
 	// The ID of the distributor to which the ENI belongs.
 	//
@@ -264,9 +260,8 @@ type DescribeNetworkInterfaceAttributeResponseBody struct {
 	// example:
 	//
 	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags of the ENI.
-	Tags *DescribeNetworkInterfaceAttributeResponseBodyTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Status *string                                            `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags   *DescribeNetworkInterfaceAttributeResponseBodyTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 	// >  This parameter is in invitational preview and is not publicly available.
 	//
 	// example:
@@ -775,8 +770,7 @@ type DescribeNetworkInterfaceAttributeResponseBodyAttachment struct {
 	// example:
 	//
 	// hide
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// >  This parameter is in invitational preview and unavailable for general users.
+	InstanceId                *string                                                                           `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 	MemberNetworkInterfaceIds *DescribeNetworkInterfaceAttributeResponseBodyAttachmentMemberNetworkInterfaceIds `json:"MemberNetworkInterfaceIds,omitempty" xml:"MemberNetworkInterfaceIds,omitempty" type:"Struct"`
 	// The index of the network interface controller (NIC).
 	//
@@ -889,8 +883,7 @@ type DescribeNetworkInterfaceAttributeResponseBodyBondInterfaceSpecification str
 	// example:
 	//
 	// null
-	BondMode *string `json:"BondMode,omitempty" xml:"BondMode,omitempty"`
-	// >  This parameter is in invitational preview and unavailable for general users.
+	BondMode                    *string                                                                                             `json:"BondMode,omitempty" xml:"BondMode,omitempty"`
 	SlaveInterfaceSpecification *DescribeNetworkInterfaceAttributeResponseBodyBondInterfaceSpecificationSlaveInterfaceSpecification `json:"SlaveInterfaceSpecification,omitempty" xml:"SlaveInterfaceSpecification,omitempty" type:"Struct"`
 }
 
@@ -964,24 +957,9 @@ func (s *DescribeNetworkInterfaceAttributeResponseBodyBondInterfaceSpecification
 }
 
 type DescribeNetworkInterfaceAttributeResponseBodyBondInterfaceSpecificationSlaveInterfaceSpecificationSlaveInterfaceSpecificationSet struct {
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
-	BondNetworkInterfaceId *string `json:"BondNetworkInterfaceId,omitempty" xml:"BondNetworkInterfaceId,omitempty"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
+	BondNetworkInterfaceId  *string `json:"BondNetworkInterfaceId,omitempty" xml:"BondNetworkInterfaceId,omitempty"`
 	SlaveNetworkInterfaceId *string `json:"SlaveNetworkInterfaceId,omitempty" xml:"SlaveNetworkInterfaceId,omitempty"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
-	WorkState *string `json:"WorkState,omitempty" xml:"WorkState,omitempty"`
+	WorkState               *string `json:"WorkState,omitempty" xml:"WorkState,omitempty"`
 }
 
 func (s DescribeNetworkInterfaceAttributeResponseBodyBondInterfaceSpecificationSlaveInterfaceSpecificationSlaveInterfaceSpecificationSet) String() string {
@@ -1187,11 +1165,6 @@ func (s *DescribeNetworkInterfaceAttributeResponseBodyIpv4PrefixSets) Validate()
 }
 
 type DescribeNetworkInterfaceAttributeResponseBodyIpv4PrefixSetsIpv4PrefixSet struct {
-	// The IPv4 prefix of the ENI.
-	//
-	// example:
-	//
-	// 192.168.**.0/28
 	Ipv4Prefix *string `json:"Ipv4Prefix,omitempty" xml:"Ipv4Prefix,omitempty"`
 }
 
@@ -1251,11 +1224,6 @@ func (s *DescribeNetworkInterfaceAttributeResponseBodyIpv6PrefixSets) Validate()
 }
 
 type DescribeNetworkInterfaceAttributeResponseBodyIpv6PrefixSetsIpv6PrefixSet struct {
-	// The IPv6 prefix of the ENI.
-	//
-	// example:
-	//
-	// 2001:db8:1234:1a00:****::/80
 	Ipv6Prefix *string `json:"Ipv6Prefix,omitempty" xml:"Ipv6Prefix,omitempty"`
 }
 
@@ -1315,11 +1283,6 @@ func (s *DescribeNetworkInterfaceAttributeResponseBodyIpv6Sets) Validate() error
 }
 
 type DescribeNetworkInterfaceAttributeResponseBodyIpv6SetsIpv6Set struct {
-	// The IPv6 address of the ENI.
-	//
-	// example:
-	//
-	// 2001:db8:1234:1a00::****
 	Ipv6Address *string `json:"Ipv6Address,omitempty" xml:"Ipv6Address,omitempty"`
 }
 
@@ -1439,24 +1402,9 @@ func (s *DescribeNetworkInterfaceAttributeResponseBodyPrivateIpSets) Validate() 
 }
 
 type DescribeNetworkInterfaceAttributeResponseBodyPrivateIpSetsPrivateIpSet struct {
-	// The EIP that is associated with the secondary private IP address of the ENI.
 	AssociatedPublicIp *DescribeNetworkInterfaceAttributeResponseBodyPrivateIpSetsPrivateIpSetAssociatedPublicIp `json:"AssociatedPublicIp,omitempty" xml:"AssociatedPublicIp,omitempty" type:"Struct"`
-	// Indicates whether the IP address is the primary private IP address. Valid values:
-	//
-	// 	- true: The IP address is the primary private IP address.
-	//
-	// 	- false: The IP address is a secondary private IP address.
-	//
-	// example:
-	//
-	// true
-	Primary *bool `json:"Primary,omitempty" xml:"Primary,omitempty"`
-	// The private IP address of the ENI.
-	//
-	// example:
-	//
-	// ``172.17.**.**``
-	PrivateIpAddress *string `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
+	Primary            *bool                                                                                     `json:"Primary,omitempty" xml:"Primary,omitempty"`
+	PrivateIpAddress   *string                                                                                   `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
 }
 
 func (s DescribeNetworkInterfaceAttributeResponseBodyPrivateIpSetsPrivateIpSet) String() string {
@@ -1504,17 +1452,7 @@ func (s *DescribeNetworkInterfaceAttributeResponseBodyPrivateIpSetsPrivateIpSet)
 }
 
 type DescribeNetworkInterfaceAttributeResponseBodyPrivateIpSetsPrivateIpSetAssociatedPublicIp struct {
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
-	AllocationId *string `json:"AllocationId,omitempty" xml:"AllocationId,omitempty"`
-	// The EIP.
-	//
-	// example:
-	//
-	// ``116.62.**.**``
+	AllocationId    *string `json:"AllocationId,omitempty" xml:"AllocationId,omitempty"`
 	PublicIpAddress *string `json:"PublicIpAddress,omitempty" xml:"PublicIpAddress,omitempty"`
 }
 
@@ -1549,8 +1487,10 @@ func (s *DescribeNetworkInterfaceAttributeResponseBodyPrivateIpSetsPrivateIpSetA
 }
 
 type DescribeNetworkInterfaceAttributeResponseBodyQoSConfig struct {
-	EnableQoS *bool                                                      `json:"EnableQoS,omitempty" xml:"EnableQoS,omitempty"`
-	QoS       *DescribeNetworkInterfaceAttributeResponseBodyQoSConfigQoS `json:"QoS,omitempty" xml:"QoS,omitempty" type:"Struct"`
+	// Whether to enable QoS speed limit settings
+	EnableQoS *bool `json:"EnableQoS,omitempty" xml:"EnableQoS,omitempty"`
+	// QoS Speed Limit Settings
+	QoS *DescribeNetworkInterfaceAttributeResponseBodyQoSConfigQoS `json:"QoS,omitempty" xml:"QoS,omitempty" type:"Struct"`
 }
 
 func (s DescribeNetworkInterfaceAttributeResponseBodyQoSConfig) String() string {
@@ -1589,22 +1529,32 @@ func (s *DescribeNetworkInterfaceAttributeResponseBodyQoSConfig) Validate() erro
 }
 
 type DescribeNetworkInterfaceAttributeResponseBodyQoSConfigQoS struct {
+	// maximum inbound internal bandwidth
+	//
 	// example:
 	//
 	// 50000
 	BandwidthRx *int64 `json:"BandwidthRx,omitempty" xml:"BandwidthRx,omitempty"`
+	// Maximum outbound internal bandwidth
+	//
 	// example:
 	//
 	// 50000
 	BandwidthTx *int64 `json:"BandwidthTx,omitempty" xml:"BandwidthTx,omitempty"`
+	// Maximum number of sessions
+	//
 	// example:
 	//
 	// 50000
 	ConcurrentConnections *int64 `json:"ConcurrentConnections,omitempty" xml:"ConcurrentConnections,omitempty"`
+	// Inbound packet forwarding rate over the internal network
+	//
 	// example:
 	//
 	// 50000
 	PpsRx *int64 `json:"PpsRx,omitempty" xml:"PpsRx,omitempty"`
+	// Outbound packet forwarding rate over the internal network
+	//
 	// example:
 	//
 	// 50000
@@ -1788,17 +1738,7 @@ func (s *DescribeNetworkInterfaceAttributeResponseBodyTags) Validate() error {
 }
 
 type DescribeNetworkInterfaceAttributeResponseBodyTagsTag struct {
-	// The tag key of the ENI.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the ENI.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

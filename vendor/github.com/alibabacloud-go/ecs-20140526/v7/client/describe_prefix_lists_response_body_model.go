@@ -23,8 +23,7 @@ type DescribePrefixListsResponseBody struct {
 	// example:
 	//
 	// AAAAAdDWBF2****
-	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// Details about the prefix lists.
+	NextToken   *string                                     `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	PrefixLists *DescribePrefixListsResponseBodyPrefixLists `json:"PrefixLists,omitempty" xml:"PrefixLists,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -113,60 +112,15 @@ func (s *DescribePrefixListsResponseBodyPrefixLists) Validate() error {
 }
 
 type DescribePrefixListsResponseBodyPrefixListsPrefixList struct {
-	// The IP address family of the prefix list. Valid values:
-	//
-	// 	- IPv4
-	//
-	// 	- IPv6
-	//
-	// example:
-	//
-	// IPv4
-	AddressFamily *string `json:"AddressFamily,omitempty" xml:"AddressFamily,omitempty"`
-	// The number of associated resources.
-	//
-	// example:
-	//
-	// 1
-	AssociationCount *int32 `json:"AssociationCount,omitempty" xml:"AssociationCount,omitempty"`
-	// The time when the prefix list was created.
-	//
-	// example:
-	//
-	// 2021-02-20T07:11Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the prefix list.
-	//
-	// example:
-	//
-	// This is description.
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The maximum number of entries that the prefix list can contain.
-	//
-	// example:
-	//
-	// 20
-	MaxEntries *int32 `json:"MaxEntries,omitempty" xml:"MaxEntries,omitempty"`
-	// The ID of the prefix list.
-	//
-	// example:
-	//
-	// pl-x1j1k5ykzqlixdcy****
-	PrefixListId *string `json:"PrefixListId,omitempty" xml:"PrefixListId,omitempty"`
-	// The name of the prefix list.
-	//
-	// example:
-	//
-	// PrefixListNameSample
-	PrefixListName *string `json:"PrefixListName,omitempty" xml:"PrefixListName,omitempty"`
-	// The ID of the resource group to which the prefix list belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags of the prefix list.
-	Tags *DescribePrefixListsResponseBodyPrefixListsPrefixListTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	AddressFamily    *string                                                   `json:"AddressFamily,omitempty" xml:"AddressFamily,omitempty"`
+	AssociationCount *int32                                                    `json:"AssociationCount,omitempty" xml:"AssociationCount,omitempty"`
+	CreationTime     *string                                                   `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	Description      *string                                                   `json:"Description,omitempty" xml:"Description,omitempty"`
+	MaxEntries       *int32                                                    `json:"MaxEntries,omitempty" xml:"MaxEntries,omitempty"`
+	PrefixListId     *string                                                   `json:"PrefixListId,omitempty" xml:"PrefixListId,omitempty"`
+	PrefixListName   *string                                                   `json:"PrefixListName,omitempty" xml:"PrefixListName,omitempty"`
+	ResourceGroupId  *string                                                   `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	Tags             *DescribePrefixListsResponseBodyPrefixListsPrefixListTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 }
 
 func (s DescribePrefixListsResponseBodyPrefixListsPrefixList) String() string {
@@ -302,19 +256,7 @@ func (s *DescribePrefixListsResponseBodyPrefixListsPrefixListTags) Validate() er
 }
 
 type DescribePrefixListsResponseBodyPrefixListsPrefixListTagsTag struct {
-	// The tag value. A prefix list can have 1 to 20 tags. The tag value can be an empty string.
-	//
-	// The tag value can be up to 128 characters in length and cannot contain `http:// or https://`.
-	//
-	// example:
-	//
-	// TestValue
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag key. A prefix list can have 1 to 20 tags. The tag key cannot be an empty string. The tag key can be up to 128 characters in length and cannot start with `acs:` or `aliyun`. It cannot contain `http://` or `https://`.
-	//
-	// example:
-	//
-	// TestKey
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

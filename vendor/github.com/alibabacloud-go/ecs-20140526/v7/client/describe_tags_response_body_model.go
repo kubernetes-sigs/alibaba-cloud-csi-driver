@@ -39,9 +39,8 @@ type DescribeTagsResponseBody struct {
 	// example:
 	//
 	// B04B8CF3-4489-432D-83BA-6F128E4F2295
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The tags that match all filter conditions.
-	Tags *DescribeTagsResponseBodyTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	RequestId *string                       `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	Tags      *DescribeTagsResponseBodyTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 	// The total number of tags.
 	//
 	// example:
@@ -147,20 +146,9 @@ func (s *DescribeTagsResponseBodyTags) Validate() error {
 }
 
 type DescribeTagsResponseBodyTagsTag struct {
-	// The number of resource types.
 	ResourceTypeCount *DescribeTagsResponseBodyTagsTagResourceTypeCount `json:"ResourceTypeCount,omitempty" xml:"ResourceTypeCount,omitempty" type:"Struct"`
-	// The tag key.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value.
-	//
-	// example:
-	//
-	// TestValue
-	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
+	TagKey            *string                                           `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
+	TagValue          *string                                           `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 
 func (s DescribeTagsResponseBodyTagsTag) String() string {
@@ -208,78 +196,18 @@ func (s *DescribeTagsResponseBodyTagsTag) Validate() error {
 }
 
 type DescribeTagsResponseBodyTagsTagResourceTypeCount struct {
-	// The number of dedicated hosts to which the tag is added.
-	//
-	// example:
-	//
-	// 1
-	Ddh *int32 `json:"Ddh,omitempty" xml:"Ddh,omitempty"`
-	// The number of disks to which the tag is added.
-	//
-	// example:
-	//
-	// 15
-	Disk *int32 `json:"Disk,omitempty" xml:"Disk,omitempty"`
-	// The number of ENIs to which the tag is added.
-	//
-	// example:
-	//
-	// 5
-	Eni *int32 `json:"Eni,omitempty" xml:"Eni,omitempty"`
-	// The number of images to which the tag is added.
-	//
-	// example:
-	//
-	// 6
-	Image *int32 `json:"Image,omitempty" xml:"Image,omitempty"`
-	// The number of instances to which the tag is added.
-	//
-	// example:
-	//
-	// 45
-	Instance *int32 `json:"Instance,omitempty" xml:"Instance,omitempty"`
-	// The number of key pairs to which the tag is added.
-	//
-	// example:
-	//
-	// 17
-	KeyPair *int32 `json:"KeyPair,omitempty" xml:"KeyPair,omitempty"`
-	// The number of launch templates to which the tag is added.
-	//
-	// example:
-	//
-	// 6
-	LaunchTemplate *int32 `json:"LaunchTemplate,omitempty" xml:"LaunchTemplate,omitempty"`
-	// The number of reserved instances to which the tag is added.
-	//
-	// example:
-	//
-	// 4
+	Ddh              *int32 `json:"Ddh,omitempty" xml:"Ddh,omitempty"`
+	Disk             *int32 `json:"Disk,omitempty" xml:"Disk,omitempty"`
+	Eni              *int32 `json:"Eni,omitempty" xml:"Eni,omitempty"`
+	Image            *int32 `json:"Image,omitempty" xml:"Image,omitempty"`
+	Instance         *int32 `json:"Instance,omitempty" xml:"Instance,omitempty"`
+	KeyPair          *int32 `json:"KeyPair,omitempty" xml:"KeyPair,omitempty"`
+	LaunchTemplate   *int32 `json:"LaunchTemplate,omitempty" xml:"LaunchTemplate,omitempty"`
 	ReservedInstance *int32 `json:"ReservedInstance,omitempty" xml:"ReservedInstance,omitempty"`
-	// The number of security groups to which the tag is added.
-	//
-	// example:
-	//
-	// 4
-	Securitygroup *int32 `json:"Securitygroup,omitempty" xml:"Securitygroup,omitempty"`
-	// The number of snapshots to which the tag is added.
-	//
-	// example:
-	//
-	// 15
-	Snapshot *int32 `json:"Snapshot,omitempty" xml:"Snapshot,omitempty"`
-	// The number of automatic snapshot policies to which the tag is added.
-	//
-	// example:
-	//
-	// 4
-	SnapshotPolicy *int32 `json:"SnapshotPolicy,omitempty" xml:"SnapshotPolicy,omitempty"`
-	// The number of storage volumes to which the tag is added.
-	//
-	// example:
-	//
-	// 6
-	Volume *int32 `json:"Volume,omitempty" xml:"Volume,omitempty"`
+	Securitygroup    *int32 `json:"Securitygroup,omitempty" xml:"Securitygroup,omitempty"`
+	Snapshot         *int32 `json:"Snapshot,omitempty" xml:"Snapshot,omitempty"`
+	SnapshotPolicy   *int32 `json:"SnapshotPolicy,omitempty" xml:"SnapshotPolicy,omitempty"`
+	Volume           *int32 `json:"Volume,omitempty" xml:"Volume,omitempty"`
 }
 
 func (s DescribeTagsResponseBodyTagsTagResourceTypeCount) String() string {

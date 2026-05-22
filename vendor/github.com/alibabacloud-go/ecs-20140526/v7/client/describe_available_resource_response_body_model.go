@@ -16,7 +16,6 @@ type iDescribeAvailableResourceResponseBody interface {
 }
 
 type DescribeAvailableResourceResponseBody struct {
-	// The information about the availability of resources in the zones.
 	AvailableZones *DescribeAvailableResourceResponseBodyAvailableZones `json:"AvailableZones,omitempty" xml:"AvailableZones,omitempty" type:"Struct"`
 	// example:
 	//
@@ -95,32 +94,10 @@ func (s *DescribeAvailableResourceResponseBodyAvailableZones) Validate() error {
 
 type DescribeAvailableResourceResponseBodyAvailableZonesAvailableZone struct {
 	AvailableResources *DescribeAvailableResourceResponseBodyAvailableZonesAvailableZoneAvailableResources `json:"AvailableResources,omitempty" xml:"AvailableResources,omitempty" type:"Struct"`
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// example:
-	//
-	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The resource status based on the stock level in the zone. Valid value:
-	//
-	// 	- WithStock: The resources are available and can be continuously replenished.
-	//
-	// 	- ClosedWithStock: Inventory is available, but resources will not be replenished. The ability to guarantee the supply of inventory is low. We recommend selecting a product specification in the WithStock state.
-	//
-	// 	- WithoutStock: The resource is out of stock and will be replenished. We recommend using other resources that are in stock.
-	//
-	// 	- ClosedWithoutStock: The resource is out of stock and will no longer be replenished. We recommend using other resources that are in stock.
-	//
-	// example:
-	//
-	// WithStock
-	StatusCategory *string `json:"StatusCategory,omitempty" xml:"StatusCategory,omitempty"`
-	// example:
-	//
-	// cn-hangzhou-e
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	RegionId           *string                                                                             `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	Status             *string                                                                             `json:"Status,omitempty" xml:"Status,omitempty"`
+	StatusCategory     *string                                                                             `json:"StatusCategory,omitempty" xml:"StatusCategory,omitempty"`
+	ZoneId             *string                                                                             `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeAvailableResourceResponseBodyAvailableZonesAvailableZone) String() string {
@@ -221,10 +198,7 @@ func (s *DescribeAvailableResourceResponseBodyAvailableZonesAvailableZoneAvailab
 
 type DescribeAvailableResourceResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResource struct {
 	SupportedResources *DescribeAvailableResourceResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceSupportedResources `json:"SupportedResources,omitempty" xml:"SupportedResources,omitempty" type:"Struct"`
-	// example:
-	//
-	// InstanceType
-	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
+	Type               *string                                                                                                                `json:"Type,omitempty" xml:"Type,omitempty"`
 }
 
 func (s DescribeAvailableResourceResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResource) String() string {
@@ -297,30 +271,12 @@ func (s *DescribeAvailableResourceResponseBodyAvailableZonesAvailableZoneAvailab
 }
 
 type DescribeAvailableResourceResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceSupportedResourcesSupportedResource struct {
-	// example:
-	//
-	// 2048
-	Max *int32 `json:"Max,omitempty" xml:"Max,omitempty"`
-	// example:
-	//
-	// 20
-	Min *int32 `json:"Min,omitempty" xml:"Min,omitempty"`
-	// example:
-	//
-	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// example:
-	//
-	// WithStock
+	Max            *int32  `json:"Max,omitempty" xml:"Max,omitempty"`
+	Min            *int32  `json:"Min,omitempty" xml:"Min,omitempty"`
+	Status         *string `json:"Status,omitempty" xml:"Status,omitempty"`
 	StatusCategory *string `json:"StatusCategory,omitempty" xml:"StatusCategory,omitempty"`
-	// example:
-	//
-	// GiB
-	Unit *string `json:"Unit,omitempty" xml:"Unit,omitempty"`
-	// example:
-	//
-	// ecs.d1ne.xlarge
-	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
+	Unit           *string `json:"Unit,omitempty" xml:"Unit,omitempty"`
+	Value          *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s DescribeAvailableResourceResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceSupportedResourcesSupportedResource) String() string {

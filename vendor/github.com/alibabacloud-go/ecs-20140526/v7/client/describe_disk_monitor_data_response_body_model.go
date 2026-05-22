@@ -18,7 +18,6 @@ type iDescribeDiskMonitorDataResponseBody interface {
 }
 
 type DescribeDiskMonitorDataResponseBody struct {
-	// The monitoring data of the disk.
 	MonitorData *DescribeDiskMonitorDataResponseBodyMonitorData `json:"MonitorData,omitempty" xml:"MonitorData,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -113,66 +112,16 @@ func (s *DescribeDiskMonitorDataResponseBodyMonitorData) Validate() error {
 }
 
 type DescribeDiskMonitorDataResponseBodyMonitorDataDiskMonitorData struct {
-	// The read bandwidth of the disk. Unit: byte/s.
-	//
-	// example:
-	//
-	// 0
-	BPSRead *int32 `json:"BPSRead,omitempty" xml:"BPSRead,omitempty"`
-	// The total read and write bandwidth of the disk. Unit: byte/s.
-	//
-	// example:
-	//
-	// 204
-	BPSTotal *int32 `json:"BPSTotal,omitempty" xml:"BPSTotal,omitempty"`
-	// The write bandwidth of the disk. Unit: byte/s.
-	//
-	// example:
-	//
-	// 204
-	BPSWrite *int32 `json:"BPSWrite,omitempty" xml:"BPSWrite,omitempty"`
-	// The ID of the disk.
-	//
-	// example:
-	//
-	// d-bp1bq5g3dxxo1x4o****
-	DiskId *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
-	// The number of read I/O operations per second on the disk.
-	//
-	// example:
-	//
-	// 0
-	IOPSRead *int32 `json:"IOPSRead,omitempty" xml:"IOPSRead,omitempty"`
-	// The total number of read and write I/O operations per second on the disk.
-	//
-	// example:
-	//
-	// 0
-	IOPSTotal *int32 `json:"IOPSTotal,omitempty" xml:"IOPSTotal,omitempty"`
-	// The number of write I/O operations per second on the disk.
-	//
-	// example:
-	//
-	// 0
-	IOPSWrite *int32 `json:"IOPSWrite,omitempty" xml:"IOPSWrite,omitempty"`
-	// The read latency of the disk. Unit: microseconds.
-	//
-	// example:
-	//
-	// 0
-	LatencyRead *int32 `json:"LatencyRead,omitempty" xml:"LatencyRead,omitempty"`
-	// The write latency of the disk. Unit: microseconds.
-	//
-	// example:
-	//
-	// 0
-	LatencyWrite *int32 `json:"LatencyWrite,omitempty" xml:"LatencyWrite,omitempty"`
-	// The timestamp of the monitoring data. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2014-07-23T12:07:00Z
-	TimeStamp *string `json:"TimeStamp,omitempty" xml:"TimeStamp,omitempty"`
+	BPSRead      *int32  `json:"BPSRead,omitempty" xml:"BPSRead,omitempty"`
+	BPSTotal     *int32  `json:"BPSTotal,omitempty" xml:"BPSTotal,omitempty"`
+	BPSWrite     *int32  `json:"BPSWrite,omitempty" xml:"BPSWrite,omitempty"`
+	DiskId       *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
+	IOPSRead     *int32  `json:"IOPSRead,omitempty" xml:"IOPSRead,omitempty"`
+	IOPSTotal    *int32  `json:"IOPSTotal,omitempty" xml:"IOPSTotal,omitempty"`
+	IOPSWrite    *int32  `json:"IOPSWrite,omitempty" xml:"IOPSWrite,omitempty"`
+	LatencyRead  *int32  `json:"LatencyRead,omitempty" xml:"LatencyRead,omitempty"`
+	LatencyWrite *int32  `json:"LatencyWrite,omitempty" xml:"LatencyWrite,omitempty"`
+	TimeStamp    *string `json:"TimeStamp,omitempty" xml:"TimeStamp,omitempty"`
 }
 
 func (s DescribeDiskMonitorDataResponseBodyMonitorDataDiskMonitorData) String() string {

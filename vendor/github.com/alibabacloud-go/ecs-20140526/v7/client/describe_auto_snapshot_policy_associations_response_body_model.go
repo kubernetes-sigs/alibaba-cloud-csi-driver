@@ -18,7 +18,6 @@ type iDescribeAutoSnapshotPolicyAssociationsResponseBody interface {
 }
 
 type DescribeAutoSnapshotPolicyAssociationsResponseBody struct {
-	// The association of automatic snapshot policies.
 	AutoSnapshotPolicyAssociations *DescribeAutoSnapshotPolicyAssociationsResponseBodyAutoSnapshotPolicyAssociations `json:"AutoSnapshotPolicyAssociations,omitempty" xml:"AutoSnapshotPolicyAssociations,omitempty" type:"Struct"`
 	// The returned pagination token which can be used in the next request to retrieve a new page of results.
 	//
@@ -113,18 +112,8 @@ func (s *DescribeAutoSnapshotPolicyAssociationsResponseBodyAutoSnapshotPolicyAss
 }
 
 type DescribeAutoSnapshotPolicyAssociationsResponseBodyAutoSnapshotPolicyAssociationsAutoSnapshotPolicyAssociation struct {
-	// The ID of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// sp-bp12quk7gqhhuu1f****
 	AutoSnapshotPolicyId *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
-	// The ID of the cloud disk.
-	//
-	// example:
-	//
-	// d-bp67acfmxazb4p****
-	DiskId *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
+	DiskId               *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
 }
 
 func (s DescribeAutoSnapshotPolicyAssociationsResponseBodyAutoSnapshotPolicyAssociationsAutoSnapshotPolicyAssociation) String() string {

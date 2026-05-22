@@ -24,7 +24,6 @@ type iDescribeSendFileResultsResponseBody interface {
 }
 
 type DescribeSendFileResultsResponseBody struct {
-	// The file sending records.
 	Invocations *DescribeSendFileResultsResponseBodyInvocations `json:"Invocations,omitempty" xml:"Invocations,omitempty" type:"Struct"`
 	// A pagination token. It can be used in the next request to retrieve a new page of results.
 	//
@@ -164,112 +163,21 @@ func (s *DescribeSendFileResultsResponseBodyInvocations) Validate() error {
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
-	// The content of the file.
-	//
-	// example:
-	//
-	// #!/bin/bash  echo "Current User is :"  echo $(ps | grep "$$" | awk \\"{print $2}\\")
-	Content *string `json:"Content,omitempty" xml:"Content,omitempty"`
-	// The type of the file content. Valid values:
-	//
-	// 	- PlainText: The file content is not encoded.
-	//
-	// 	- Base64: The file content is encoded in Base64.
-	//
-	// example:
-	//
-	// PlainText
-	ContentType *string `json:"ContentType,omitempty" xml:"ContentType,omitempty"`
-	// The time when the file sending task was created.
-	//
-	// example:
-	//
-	// 2019-12-20T06:15:54Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the file.
-	//
-	// example:
-	//
-	// This is a test file.
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The group of the file.
-	//
-	// example:
-	//
-	// test
-	FileGroup *string `json:"FileGroup,omitempty" xml:"FileGroup,omitempty"`
-	// The permissions on the file.
-	//
-	// example:
-	//
-	// 777
-	FileMode *string `json:"FileMode,omitempty" xml:"FileMode,omitempty"`
-	// The owner of the file.
-	//
-	// example:
-	//
-	// test
-	FileOwner *string `json:"FileOwner,omitempty" xml:"FileOwner,omitempty"`
-	// The overall sending status of the file. The overall sending status of the file varies based on the sending status of the file on all destination instances. Valid values:
-	//
-	// 	- Pending: The file is being verified or sent. If the sending state of the file on at least one instance is Pending, the overall sending state of the file is Pending.
-	//
-	// 	- Running: The file is being sent to the instances. If the sending state of the file on at least one instance is Running, the overall sending state of the file is Running.
-	//
-	// 	- Success: If the sending state of the file on all instances is Success, the overall sending state of the file is Success.
-	//
-	// 	- If the sending state of the file on all instances is Failed, the overall sending state of the file is Failed. If the sending state of the file on one or more instances is one of the following values, the overall sending state of the file is Failed:
-	//
-	//     	- Invalid: The file is invalid.
-	//
-	//     	- Aborted: The file failed to be sent to the instances.
-	//
-	//     	- Failed: The file failed to be created on the instances.
-	//
-	//     	- Timeout: The file sending task timed out.
-	//
-	//     	- Error: An error occurred and interrupted the file sending task.
-	//
-	// 	- PartialFailed: The file sending task was completed on some instances but failed on other instances. If the sending state of the file is Success on some instances and is Failed on other instances, the overall sending state of the file is PartialFailed.
-	//
-	// example:
-	//
-	// Success
-	InvocationStatus *string `json:"InvocationStatus,omitempty" xml:"InvocationStatus,omitempty"`
-	// The ID of the file sending task.
-	//
-	// example:
-	//
-	// f-hz0jdfwd9f****
-	InvokeId *string `json:"InvokeId,omitempty" xml:"InvokeId,omitempty"`
-	// The destination instances.
-	InvokeInstances *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeInstances `json:"InvokeInstances,omitempty" xml:"InvokeInstances,omitempty" type:"Struct"`
-	// The name of the file.
-	//
-	// example:
-	//
-	// test.txt
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// Indicates whether a file in the destination directory is overwritten if the file has the same name as the sent file.
-	//
-	// example:
-	//
-	// false
-	Overwrite *string `json:"Overwrite,omitempty" xml:"Overwrite,omitempty"`
-	// The tags of the file sending task.
-	Tags *DescribeSendFileResultsResponseBodyInvocationsInvocationTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The destination directory.
-	//
-	// example:
-	//
-	// /home/user
-	TargetDir *string `json:"TargetDir,omitempty" xml:"TargetDir,omitempty"`
-	// The number of the destination instances.
-	//
-	// example:
-	//
-	// 1
-	VmCount *int32 `json:"VmCount,omitempty" xml:"VmCount,omitempty"`
+	Content          *string                                                                  `json:"Content,omitempty" xml:"Content,omitempty"`
+	ContentType      *string                                                                  `json:"ContentType,omitempty" xml:"ContentType,omitempty"`
+	CreationTime     *string                                                                  `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	Description      *string                                                                  `json:"Description,omitempty" xml:"Description,omitempty"`
+	FileGroup        *string                                                                  `json:"FileGroup,omitempty" xml:"FileGroup,omitempty"`
+	FileMode         *string                                                                  `json:"FileMode,omitempty" xml:"FileMode,omitempty"`
+	FileOwner        *string                                                                  `json:"FileOwner,omitempty" xml:"FileOwner,omitempty"`
+	InvocationStatus *string                                                                  `json:"InvocationStatus,omitempty" xml:"InvocationStatus,omitempty"`
+	InvokeId         *string                                                                  `json:"InvokeId,omitempty" xml:"InvokeId,omitempty"`
+	InvokeInstances  *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeInstances `json:"InvokeInstances,omitempty" xml:"InvokeInstances,omitempty" type:"Struct"`
+	Name             *string                                                                  `json:"Name,omitempty" xml:"Name,omitempty"`
+	Overwrite        *string                                                                  `json:"Overwrite,omitempty" xml:"Overwrite,omitempty"`
+	Tags             *DescribeSendFileResultsResponseBodyInvocationsInvocationTags            `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	TargetDir        *string                                                                  `json:"TargetDir,omitempty" xml:"TargetDir,omitempty"`
+	VmCount          *int32                                                                   `json:"VmCount,omitempty" xml:"VmCount,omitempty"`
 }
 
 func (s DescribeSendFileResultsResponseBodyInvocationsInvocation) String() string {
@@ -464,144 +372,14 @@ func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeInstances
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeInstancesInvokeInstance struct {
-	// The creation time of the file sending task.
-	//
-	// example:
-	//
-	// 2019-12-20T06:15:54Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The error code returned when the file failed to be sent to the instance. Valid values:
-	//
-	// 	- Null: The file is sent to the instance.
-	//
-	// 	- InstanceNotExists: The instance does not exist or has been released.
-	//
-	// 	- InstanceReleased: The instance is released while the file is being sent.
-	//
-	// 	- InstanceNotRunning: The instance is not running when the file sending task is being created.
-	//
-	// 	- AccountNotExists: The specified account does not exist.
-	//
-	// 	- ClientNotRunning: Cloud Assistant Agent is not running.
-	//
-	// 	- ClientNotResponse: Cloud Assistant Agent does not respond.
-	//
-	// 	- ClientIsUpgrading: Cloud Assistant Agent is being upgraded.
-	//
-	// 	- ClientNeedUpgrade: Cloud Assistant Agent needs to be upgraded.
-	//
-	// 	- DeliveryTimeout: The file sending task timed out.
-	//
-	// 	- FileCreateFail: The file failed to be created.
-	//
-	// 	- FileAlreadyExists: A file with the same name exists in the specified directory.
-	//
-	// 	- FileContentInvalid: The file content is invalid.
-	//
-	// 	- FileNameInvalid: The file name is invalid.
-	//
-	// 	- FilePathInvalid: The specified directory is invalid.
-	//
-	// 	- FileAuthorityInvalid: The specified permissions on the file are invalid.
-	//
-	// 	- UserGroupNotExists: The specified user group does not exist.
-	//
-	// example:
-	//
-	// InstanceNotExists
-	ErrorCode *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
-	// The error message returned when the file failed to be sent or the file sending task failed to be executed. Valid values:
-	//
-	// 	- Null: The file is sent to the instance.
-	//
-	// 	- the specified instance does not exists
-	//
-	// 	- the specified instance has been released
-	//
-	// 	- the instance is not running when create task
-	//
-	// 	- the specified account does not exists
-	//
-	// 	- the aliyun service is not running on the instance
-	//
-	// 	- the aliyun service in the instance does not response
-	//
-	// 	- the aliyun service in the instance is upgrading now
-	//
-	// 	- the aliyun service in the instance need upgrade
-	//
-	// 	- the command delivery has been timeout
-	//
-	// 	- the file creation is failed due to unknown error
-	//
-	// 	- the authority of file is invalid
-	//
-	// 	- File content is empty
-	//
-	// 	- the content of file is invalid
-	//
-	// 	- File already exists
-	//
-	// 	- File name is invalid
-	//
-	// 	- File path is invalid
-	//
-	// 	- Owner not exists
-	//
-	// 	- Group not exists
-	//
-	// 	- Mode is invalid
-	//
-	// example:
-	//
-	// the instance is not running when create task
-	ErrorInfo *string `json:"ErrorInfo,omitempty" xml:"ErrorInfo,omitempty"`
-	// The time when the file sending task was completed.
-	//
-	// example:
-	//
-	// 2019-12-20T06:15:54Z
-	FinishTime *string `json:"FinishTime,omitempty" xml:"FinishTime,omitempty"`
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-uf614fhehhz****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The status of the file sending task. Valid values:
-	//
-	// 	- Pending: The file is being verified or sent.
-	//
-	// 	- Invalid: The file is invalid.
-	//
-	// 	- Running: The file is being sent to the instance.
-	//
-	// 	- Aborted: The file failed to be sent to the instance.
-	//
-	// 	- Success: The file is sent.
-	//
-	// 	- Failed: The file failed to be created on the instance.
-	//
-	// 	- Error: An error occurred and interrupted the file sending task.
-	//
-	// 	- Timeout: The file sending task timed out.
-	//
-	// example:
-	//
-	// Success
+	CreationTime     *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	ErrorCode        *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
+	ErrorInfo        *string `json:"ErrorInfo,omitempty" xml:"ErrorInfo,omitempty"`
+	FinishTime       *string `json:"FinishTime,omitempty" xml:"FinishTime,omitempty"`
+	InstanceId       *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 	InvocationStatus *string `json:"InvocationStatus,omitempty" xml:"InvocationStatus,omitempty"`
-	// The time when the file sending task started to be executed on the instance.
-	//
-	// example:
-	//
-	// 2019-12-20T06:15:54Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The time when the task status was last updated.
-	//
-	// example:
-	//
-	// 2019-12-20T06:15:54Z
-	UpdateTime *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
+	StartTime        *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	UpdateTime       *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
 }
 
 func (s DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeInstancesInvokeInstance) String() string {
@@ -723,17 +501,7 @@ func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationTags) Validate(
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocationTagsTag struct {
-	// The tag key of the file sending task.
-	//
-	// example:
-	//
-	// owner
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the file sending task.
-	//
-	// example:
-	//
-	// zhangsan
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

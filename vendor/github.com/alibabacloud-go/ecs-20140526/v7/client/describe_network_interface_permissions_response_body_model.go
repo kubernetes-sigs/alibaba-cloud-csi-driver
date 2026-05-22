@@ -22,7 +22,6 @@ type iDescribeNetworkInterfacePermissionsResponseBody interface {
 }
 
 type DescribeNetworkInterfacePermissionsResponseBody struct {
-	// Details about the ENI permissions.
 	NetworkInterfacePermissions *DescribeNetworkInterfacePermissionsResponseBodyNetworkInterfacePermissions `json:"NetworkInterfacePermissions,omitempty" xml:"NetworkInterfacePermissions,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,50 +146,12 @@ func (s *DescribeNetworkInterfacePermissionsResponseBodyNetworkInterfacePermissi
 }
 
 type DescribeNetworkInterfacePermissionsResponseBodyNetworkInterfacePermissionsNetworkInterfacePermission struct {
-	// The ID of the Alibaba Cloud partner (a certified ISV) or individual user.
-	//
-	// example:
-	//
-	// 1234567890
-	AccountId *int64 `json:"AccountId,omitempty" xml:"AccountId,omitempty"`
-	// The ID of ENI N.
-	//
-	// example:
-	//
-	// eni-bp14v2sdd3v8htln****
-	NetworkInterfaceId *string `json:"NetworkInterfaceId,omitempty" xml:"NetworkInterfaceId,omitempty"`
-	// The ID of the ENI permission.
-	//
-	// example:
-	//
-	// eni-perm-bp1cs4lwn56lfb****
+	AccountId                    *int64  `json:"AccountId,omitempty" xml:"AccountId,omitempty"`
+	NetworkInterfaceId           *string `json:"NetworkInterfaceId,omitempty" xml:"NetworkInterfaceId,omitempty"`
 	NetworkInterfacePermissionId *string `json:"NetworkInterfacePermissionId,omitempty" xml:"NetworkInterfacePermissionId,omitempty"`
-	// The ENI permission.
-	//
-	// example:
-	//
-	// InstanceAttach
-	Permission *string `json:"Permission,omitempty" xml:"Permission,omitempty"`
-	// The status of the ENI permission. Valid values:
-	//
-	// 	- Pending: The permission is being granted.
-	//
-	// 	- Granted: The permission is granted.
-	//
-	// 	- Revoking: The permission is being revoked.
-	//
-	// 	- Revoked: The permission is revoked.
-	//
-	// example:
-	//
-	// Granted
-	PermissionState *string `json:"PermissionState,omitempty" xml:"PermissionState,omitempty"`
-	// The name of the Alibaba Cloud service.
-	//
-	// example:
-	//
-	// Elastic Compute Service
-	ServiceName *string `json:"ServiceName,omitempty" xml:"ServiceName,omitempty"`
+	Permission                   *string `json:"Permission,omitempty" xml:"Permission,omitempty"`
+	PermissionState              *string `json:"PermissionState,omitempty" xml:"PermissionState,omitempty"`
+	ServiceName                  *string `json:"ServiceName,omitempty" xml:"ServiceName,omitempty"`
 }
 
 func (s DescribeNetworkInterfacePermissionsResponseBodyNetworkInterfacePermissionsNetworkInterfacePermission) String() string {

@@ -24,7 +24,6 @@ type iDescribeImagesResponseBody interface {
 }
 
 type DescribeImagesResponseBody struct {
-	// The information of the images.
 	Images *DescribeImagesResponseBodyImages `json:"Images,omitempty" xml:"Images,omitempty" type:"Struct"`
 	// The page number returned.
 	//
@@ -164,231 +163,39 @@ func (s *DescribeImagesResponseBodyImages) Validate() error {
 }
 
 type DescribeImagesResponseBodyImagesImage struct {
-	// The architecture of the image. Valid values:
-	//
-	// 	- i386
-	//
-	// 	- x86_64
-	//
-	// 	- arm64
-	//
-	// example:
-	//
-	// x86_64
-	Architecture *string `json:"Architecture,omitempty" xml:"Architecture,omitempty"`
-	// The boot mode of the image. Valid values:
-	//
-	// 	- BIOS: Basic Input/Output System (BIOS)
-	//
-	// 	- UEFI: Unified Extensible Firmware Interface (UEFI)
-	//
-	// 	- UEFI-Preferred: BIOS and UEFI
-	//
-	// For information about the image boot modes, see [Image boot modes](~~2244655#b9caa9b8bb1wf~~).
-	//
-	// example:
-	//
-	// BIOS
-	BootMode *string `json:"BootMode,omitempty" xml:"BootMode,omitempty"`
-	// The time when the image was created.
-	//
-	// example:
-	//
-	// 2019-11-15T06:07:05Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the image.
-	//
-	// example:
-	//
-	// Archive log for Oracle
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Details about the check performed on the image.
-	DetectionOptions *DescribeImagesResponseBodyImagesImageDetectionOptions `json:"DetectionOptions,omitempty" xml:"DetectionOptions,omitempty" type:"Struct"`
-	// The mappings between disks and snapshots in the image.
-	DiskDeviceMappings *DescribeImagesResponseBodyImagesImageDiskDeviceMappings `json:"DiskDeviceMappings,omitempty" xml:"DiskDeviceMappings,omitempty" type:"Struct"`
-	// The feature attributes of the image.
-	Features *DescribeImagesResponseBodyImagesImageFeatures `json:"Features,omitempty" xml:"Features,omitempty" type:"Struct"`
-	// The name of the image family.
-	//
-	// example:
-	//
-	// hangzhou-daily-update
-	ImageFamily *string `json:"ImageFamily,omitempty" xml:"ImageFamily,omitempty"`
-	// The ID of the image.
-	//
-	// example:
-	//
-	// m-bp1g7004ksh0oeuc****
-	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
-	// The name of the image.
-	//
-	// example:
-	//
-	// testImageName
-	ImageName *string `json:"ImageName,omitempty" xml:"ImageName,omitempty"`
-	// The source of the image. Valid values:
-	//
-	// 	- system: a public image provided by Alibaba Cloud
-	//
-	// 	- self: a custom image that you created
-	//
-	// 	- others: a shared image from another Alibaba Cloud account or a community image published by another Alibaba Cloud account
-	//
-	// 	- marketplace: an Alibaba Cloud Marketplace image
-	//
-	// example:
-	//
-	// self
-	ImageOwnerAlias *string `json:"ImageOwnerAlias,omitempty" xml:"ImageOwnerAlias,omitempty"`
-	// The ID of the Alibaba Cloud account to which the image belongs. This parameter takes effect only if you query shared images or community images.
-	//
-	// example:
-	//
-	// 1234567890
-	ImageOwnerId *int64 `json:"ImageOwnerId,omitempty" xml:"ImageOwnerId,omitempty"`
-	// The version of the image.
-	//
-	// example:
-	//
-	// 2
-	ImageVersion *string `json:"ImageVersion,omitempty" xml:"ImageVersion,omitempty"`
-	// Indicates whether the image is a copy of another image.
-	//
-	// example:
-	//
-	// false
-	IsCopied *bool `json:"IsCopied,omitempty" xml:"IsCopied,omitempty"`
-	// Indicates whether the image is publicly available. Publicly available images include public images provided by Alibaba Cloud and custom images published as community images. Valid values:
-	//
-	// 	- true: The image is publicly available.
-	//
-	// 	- false: The image is publicly unavailable.
-	//
-	// example:
-	//
-	// false
-	IsPublic *bool `json:"IsPublic,omitempty" xml:"IsPublic,omitempty"`
-	// Indicates whether the custom image was shared to other Alibaba Cloud accounts.
-	//
-	// example:
-	//
-	// true
-	IsSelfShared *string `json:"IsSelfShared,omitempty" xml:"IsSelfShared,omitempty"`
-	// Indicates whether you accepted the Terms of Service of the image service that corresponds to the product code.
-	//
-	// example:
-	//
-	// false
-	IsSubscribed *bool `json:"IsSubscribed,omitempty" xml:"IsSubscribed,omitempty"`
-	// Indicates whether the image supports cloud-init.
-	//
-	// example:
-	//
-	// true
-	IsSupportCloudinit *bool `json:"IsSupportCloudinit,omitempty" xml:"IsSupportCloudinit,omitempty"`
-	// Indicates whether the image can be used on I/O optimized instances.
-	//
-	// example:
-	//
-	// true
-	IsSupportIoOptimized *bool   `json:"IsSupportIoOptimized,omitempty" xml:"IsSupportIoOptimized,omitempty"`
-	LicenseType          *string `json:"LicenseType,omitempty" xml:"LicenseType,omitempty"`
-	// Indicates whether the image supports logons of non-root users. Valid values:
-	//
-	// 	- true: The image supports logons of non-root users.
-	//
-	// 	- false: The image does not support logons of non-root users.
-	//
-	// example:
-	//
-	// false
-	LoginAsNonRootSupported *bool `json:"LoginAsNonRootSupported,omitempty" xml:"LoginAsNonRootSupported,omitempty"`
-	// The display name of the operating system in Chinese.
-	//
-	// example:
-	//
-	// Windows Server 2016 Datacenter Edition 64-bit (Simplified Chinese)
-	OSName *string `json:"OSName,omitempty" xml:"OSName,omitempty"`
-	// The display name of the operating system in English.
-	//
-	// example:
-	//
-	// Windows Server  2016 Data Center Edition 64bit Chinese Edition
-	OSNameEn *string `json:"OSNameEn,omitempty" xml:"OSNameEn,omitempty"`
-	// The type of the operating system. Valid values:
-	//
-	// 	- windows
-	//
-	// 	- linux
-	//
-	// example:
-	//
-	// windows
-	OSType *string `json:"OSType,omitempty" xml:"OSType,omitempty"`
-	// The operating system platform.
-	//
-	// example:
-	//
-	// Windows Server 2016
-	Platform *string `json:"Platform,omitempty" xml:"Platform,omitempty"`
-	// The Alibaba Cloud Marketplace product code of the image.
-	//
-	// example:
-	//
-	// test000****
-	ProductCode *string `json:"ProductCode,omitempty" xml:"ProductCode,omitempty"`
-	// The creation progress of the image. Unit: percent (%).
-	//
-	// example:
-	//
-	// 100%
-	Progress *string `json:"Progress,omitempty" xml:"Progress,omitempty"`
-	// The ID of the resource group to which the image belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The size of the image. Unit: GiB.
-	//
-	// >  If the image contains data disk snapshots, this parameter indicates only the size of the system disk snapshot contained in the image.
-	//
-	// example:
-	//
-	// 60
-	Size *int32 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The state of the image. Valid values:
-	//
-	// 	- UnAvailable: The image is unavailable.
-	//
-	// 	- Available: The image is available.
-	//
-	// 	- Creating: The image is being created.
-	//
-	// 	- CreateFailed: The image failed to be created.
-	//
-	// example:
-	//
-	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The name of the supplier that published the community image.
-	//
-	// example:
-	//
-	// TestName
-	SupplierName *string `json:"SupplierName,omitempty" xml:"SupplierName,omitempty"`
-	// The tags of the image.
-	Tags *DescribeImagesResponseBodyImagesImageTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// Indicates whether the image was used to create ECS instances. Valid values:
-	//
-	// 	- instance: The image was used to create one or more ECS instances.
-	//
-	// 	- none: The image was not used to create ECS instances.
-	//
-	// example:
-	//
-	// none
-	Usage *string `json:"Usage,omitempty" xml:"Usage,omitempty"`
+	Architecture            *string                                                  `json:"Architecture,omitempty" xml:"Architecture,omitempty"`
+	BootMode                *string                                                  `json:"BootMode,omitempty" xml:"BootMode,omitempty"`
+	CreationTime            *string                                                  `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	Description             *string                                                  `json:"Description,omitempty" xml:"Description,omitempty"`
+	DetectionOptions        *DescribeImagesResponseBodyImagesImageDetectionOptions   `json:"DetectionOptions,omitempty" xml:"DetectionOptions,omitempty" type:"Struct"`
+	DiskDeviceMappings      *DescribeImagesResponseBodyImagesImageDiskDeviceMappings `json:"DiskDeviceMappings,omitempty" xml:"DiskDeviceMappings,omitempty" type:"Struct"`
+	Features                *DescribeImagesResponseBodyImagesImageFeatures           `json:"Features,omitempty" xml:"Features,omitempty" type:"Struct"`
+	ImageFamily             *string                                                  `json:"ImageFamily,omitempty" xml:"ImageFamily,omitempty"`
+	ImageId                 *string                                                  `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
+	ImageName               *string                                                  `json:"ImageName,omitempty" xml:"ImageName,omitempty"`
+	ImageOwnerAlias         *string                                                  `json:"ImageOwnerAlias,omitempty" xml:"ImageOwnerAlias,omitempty"`
+	ImageOwnerId            *int64                                                   `json:"ImageOwnerId,omitempty" xml:"ImageOwnerId,omitempty"`
+	ImageVersion            *string                                                  `json:"ImageVersion,omitempty" xml:"ImageVersion,omitempty"`
+	IsCopied                *bool                                                    `json:"IsCopied,omitempty" xml:"IsCopied,omitempty"`
+	IsPublic                *bool                                                    `json:"IsPublic,omitempty" xml:"IsPublic,omitempty"`
+	IsSelfShared            *string                                                  `json:"IsSelfShared,omitempty" xml:"IsSelfShared,omitempty"`
+	IsSubscribed            *bool                                                    `json:"IsSubscribed,omitempty" xml:"IsSubscribed,omitempty"`
+	IsSupportCloudinit      *bool                                                    `json:"IsSupportCloudinit,omitempty" xml:"IsSupportCloudinit,omitempty"`
+	IsSupportIoOptimized    *bool                                                    `json:"IsSupportIoOptimized,omitempty" xml:"IsSupportIoOptimized,omitempty"`
+	LicenseType             *string                                                  `json:"LicenseType,omitempty" xml:"LicenseType,omitempty"`
+	LoginAsNonRootSupported *bool                                                    `json:"LoginAsNonRootSupported,omitempty" xml:"LoginAsNonRootSupported,omitempty"`
+	OSName                  *string                                                  `json:"OSName,omitempty" xml:"OSName,omitempty"`
+	OSNameEn                *string                                                  `json:"OSNameEn,omitempty" xml:"OSNameEn,omitempty"`
+	OSType                  *string                                                  `json:"OSType,omitempty" xml:"OSType,omitempty"`
+	Platform                *string                                                  `json:"Platform,omitempty" xml:"Platform,omitempty"`
+	ProductCode             *string                                                  `json:"ProductCode,omitempty" xml:"ProductCode,omitempty"`
+	Progress                *string                                                  `json:"Progress,omitempty" xml:"Progress,omitempty"`
+	ResourceGroupId         *string                                                  `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	Size                    *int32                                                   `json:"Size,omitempty" xml:"Size,omitempty"`
+	Status                  *string                                                  `json:"Status,omitempty" xml:"Status,omitempty"`
+	SupplierName            *string                                                  `json:"SupplierName,omitempty" xml:"SupplierName,omitempty"`
+	Tags                    *DescribeImagesResponseBodyImagesImageTags               `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Usage                   *string                                                  `json:"Usage,omitempty" xml:"Usage,omitempty"`
 }
 
 func (s DescribeImagesResponseBodyImagesImage) String() string {
@@ -721,18 +528,8 @@ func (s *DescribeImagesResponseBodyImagesImage) Validate() error {
 }
 
 type DescribeImagesResponseBodyImagesImageDetectionOptions struct {
-	// The check items.
-	Items *DescribeImagesResponseBodyImagesImageDetectionOptionsItems `json:"Items,omitempty" xml:"Items,omitempty" type:"Struct"`
-	// The state of the image check task. Valid values:
-	//
-	// 	- Processing
-	//
-	// 	- Finished
-	//
-	// example:
-	//
-	// Processing
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	Items  *DescribeImagesResponseBodyImagesImageDetectionOptionsItems `json:"Items,omitempty" xml:"Items,omitempty" type:"Struct"`
+	Status *string                                                     `json:"Status,omitempty" xml:"Status,omitempty"`
 }
 
 func (s DescribeImagesResponseBodyImagesImageDetectionOptions) String() string {
@@ -805,36 +602,10 @@ func (s *DescribeImagesResponseBodyImagesImageDetectionOptionsItems) Validate() 
 }
 
 type DescribeImagesResponseBodyImagesImageDetectionOptionsItemsItem struct {
-	// The name of the check item.
-	//
-	// example:
-	//
-	// Nvme
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The risk that the check item may have.
-	//
-	// example:
-	//
-	// NVMe.NotInstallded
-	RiskCode *string `json:"RiskCode,omitempty" xml:"RiskCode,omitempty"`
-	// The severity of the risk that the check item of the imported custom image has. If the check item is at risk, this parameter is returned. If the check item is not at risk, this parameter is not returned.
-	//
-	// Valid values:
-	//
-	// 	- High: The check item is a high-risk item that may affect the startup of the instance. We recommend that you handle the risk.
-	//
-	// 	- Medium: The check item is a medium-risk item that may affect the startup performance or configurations of the instance. We recommend that you handle the risk.
-	//
-	// example:
-	//
-	// High
+	Name      *string `json:"Name,omitempty" xml:"Name,omitempty"`
+	RiskCode  *string `json:"RiskCode,omitempty" xml:"RiskCode,omitempty"`
 	RiskLevel *string `json:"RiskLevel,omitempty" xml:"RiskLevel,omitempty"`
-	// The result of the check item.
-	//
-	// example:
-	//
-	// Supported
-	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
+	Value     *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s DescribeImagesResponseBodyImagesImageDetectionOptionsItemsItem) String() string {
@@ -920,66 +691,16 @@ func (s *DescribeImagesResponseBodyImagesImageDiskDeviceMappings) Validate() err
 }
 
 type DescribeImagesResponseBodyImagesImageDiskDeviceMappingsDiskDeviceMapping struct {
-	// The device name of the disk. Example: /dev/xvdb.
-	//
-	// example:
-	//
-	// /dev/xvda
-	Device *string `json:"Device,omitempty" xml:"Device,omitempty"`
-	// >  This parameter is in invitational preview.
-	//
-	// example:
-	//
-	// true
-	Encrypted *bool `json:"Encrypted,omitempty" xml:"Encrypted,omitempty"`
-	// The format of the image.
-	//
-	// example:
-	//
-	// qcow2
-	Format *string `json:"Format,omitempty" xml:"Format,omitempty"`
-	// The Object Storage Service (OSS) bucket that contains the imported image file.
-	//
-	// example:
-	//
-	// testEcsImport
+	Device          *string `json:"Device,omitempty" xml:"Device,omitempty"`
+	Encrypted       *bool   `json:"Encrypted,omitempty" xml:"Encrypted,omitempty"`
+	Format          *string `json:"Format,omitempty" xml:"Format,omitempty"`
 	ImportOSSBucket *string `json:"ImportOSSBucket,omitempty" xml:"ImportOSSBucket,omitempty"`
-	// The OSS object that corresponds to the imported image file.
-	//
-	// example:
-	//
-	// imageImport
 	ImportOSSObject *string `json:"ImportOSSObject,omitempty" xml:"ImportOSSObject,omitempty"`
-	// The progress of the image copy task.
-	//
-	// example:
-	//
-	// 32%
-	Progress *string `json:"Progress,omitempty" xml:"Progress,omitempty"`
-	// The remaining time of the image copy task. Unit: seconds.
-	//
-	// example:
-	//
-	// 233
-	RemainTime *int32 `json:"RemainTime,omitempty" xml:"RemainTime,omitempty"`
-	// The size of the disk. Unit: GiB.
-	//
-	// example:
-	//
-	// 60
-	Size *string `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The ID of the snapshot.
-	//
-	// example:
-	//
-	// s-bp17ot2q7x72ggtw****
-	SnapshotId *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
-	// The type of the image.
-	//
-	// example:
-	//
-	// system
-	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
+	Progress        *string `json:"Progress,omitempty" xml:"Progress,omitempty"`
+	RemainTime      *int32  `json:"RemainTime,omitempty" xml:"RemainTime,omitempty"`
+	Size            *string `json:"Size,omitempty" xml:"Size,omitempty"`
+	SnapshotId      *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
+	Type            *string `json:"Type,omitempty" xml:"Type,omitempty"`
 }
 
 func (s DescribeImagesResponseBodyImagesImageDiskDeviceMappingsDiskDeviceMapping) String() string {
@@ -1085,44 +806,12 @@ func (s *DescribeImagesResponseBodyImagesImageDiskDeviceMappingsDiskDeviceMappin
 }
 
 type DescribeImagesResponseBodyImagesImageFeatures struct {
-	// example:
-	//
-	// supported
-	CpuOnlineDowngrade *string `json:"CpuOnlineDowngrade,omitempty" xml:"CpuOnlineDowngrade,omitempty"`
-	// example:
-	//
-	// supported
-	CpuOnlineUpgrade *string `json:"CpuOnlineUpgrade,omitempty" xml:"CpuOnlineUpgrade,omitempty"`
-	// The image metadata access mode. Valid values:
-	//
-	// 	- v1: You cannot set the image metadata access mode to security hardening when you create instances from the image.
-	//
-	// 	- v2: You can set the image metadata access mode to security hardening when you create instances from the image.
-	//
-	// [Overview of instance metadata](https://help.aliyun.com/document_detail/108460.html).
-	//
-	// example:
-	//
-	// v2
-	ImdsSupport *string `json:"ImdsSupport,omitempty" xml:"ImdsSupport,omitempty"`
-	// example:
-	//
-	// unsupported
+	CpuOnlineDowngrade    *string `json:"CpuOnlineDowngrade,omitempty" xml:"CpuOnlineDowngrade,omitempty"`
+	CpuOnlineUpgrade      *string `json:"CpuOnlineUpgrade,omitempty" xml:"CpuOnlineUpgrade,omitempty"`
+	ImdsSupport           *string `json:"ImdsSupport,omitempty" xml:"ImdsSupport,omitempty"`
 	MemoryOnlineDowngrade *string `json:"MemoryOnlineDowngrade,omitempty" xml:"MemoryOnlineDowngrade,omitempty"`
-	// example:
-	//
-	// unsupported
-	MemoryOnlineUpgrade *string `json:"MemoryOnlineUpgrade,omitempty" xml:"MemoryOnlineUpgrade,omitempty"`
-	// Indicates whether the image supports the Non-Volatile Memory Express (NVMe) protocol. Valid values:
-	//
-	// 	- supported: The image supports the NVMe protocol. Instances created from the image also support the NVMe protocol.
-	//
-	// 	- unsupported: The image does not support the NVMe protocol. Instances created from the image do not support the NVMe protocol.
-	//
-	// example:
-	//
-	// supported
-	NvmeSupport *string `json:"NvmeSupport,omitempty" xml:"NvmeSupport,omitempty"`
+	MemoryOnlineUpgrade   *string `json:"MemoryOnlineUpgrade,omitempty" xml:"MemoryOnlineUpgrade,omitempty"`
+	NvmeSupport           *string `json:"NvmeSupport,omitempty" xml:"NvmeSupport,omitempty"`
 }
 
 func (s DescribeImagesResponseBodyImagesImageFeatures) String() string {
@@ -1226,17 +915,7 @@ func (s *DescribeImagesResponseBodyImagesImageTags) Validate() error {
 }
 
 type DescribeImagesResponseBodyImagesImageTagsTag struct {
-	// The tag key of the image.
-	//
-	// example:
-	//
-	// DTS
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the image.
-	//
-	// example:
-	//
-	// Oracle
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

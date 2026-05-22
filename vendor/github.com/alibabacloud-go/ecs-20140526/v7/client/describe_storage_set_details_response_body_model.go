@@ -22,7 +22,6 @@ type iDescribeStorageSetDetailsResponseBody interface {
 }
 
 type DescribeStorageSetDetailsResponseBody struct {
-	// Details about the disks or Shared Block Storage devices in the storage set.
 	Disks *DescribeStorageSetDetailsResponseBodyDisks `json:"Disks,omitempty" xml:"Disks,omitempty" type:"Struct"`
 	// The page number of the returned page.
 	//
@@ -147,54 +146,14 @@ func (s *DescribeStorageSetDetailsResponseBodyDisks) Validate() error {
 }
 
 type DescribeStorageSetDetailsResponseBodyDisksDisk struct {
-	// The category of the disk or Shared Block Storage device.
-	//
-	// example:
-	//
-	// cloud_ssd
-	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
-	// The time when the disk or Shared Block Storage device was created.
-	//
-	// example:
-	//
-	// 2019-06-01T00:00:00Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The ID of the disk or Shared Block Storage device.
-	//
-	// example:
-	//
-	// d-bp67acfmxazb4p****
-	DiskId *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
-	// The name of the disk or Shared Block Storage device.
-	//
-	// example:
-	//
-	// testDiskName
-	DiskName *string `json:"DiskName,omitempty" xml:"DiskName,omitempty"`
-	// The region to which the disk or Shared Block Storage device belongs.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The ID of the storage set.
-	//
-	// example:
-	//
-	// ss-bp67acfmxazb4p****
-	StorageSetId *string `json:"StorageSetId,omitempty" xml:"StorageSetId,omitempty"`
-	// The number of partitions in the storage set.
-	//
-	// example:
-	//
-	// 3
-	StorageSetPartitionNumber *int32 `json:"StorageSetPartitionNumber,omitempty" xml:"StorageSetPartitionNumber,omitempty"`
-	// The zone to which the disk or Shared Block Storage device belongs.
-	//
-	// example:
-	//
-	// cn-hangzhou-g
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	Category                  *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	CreationTime              *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	DiskId                    *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
+	DiskName                  *string `json:"DiskName,omitempty" xml:"DiskName,omitempty"`
+	RegionId                  *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	StorageSetId              *string `json:"StorageSetId,omitempty" xml:"StorageSetId,omitempty"`
+	StorageSetPartitionNumber *int32  `json:"StorageSetPartitionNumber,omitempty" xml:"StorageSetPartitionNumber,omitempty"`
+	ZoneId                    *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeStorageSetDetailsResponseBodyDisksDisk) String() string {

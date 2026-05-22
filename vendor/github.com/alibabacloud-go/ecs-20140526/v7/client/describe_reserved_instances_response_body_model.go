@@ -39,8 +39,7 @@ type DescribeReservedInstancesResponseBody struct {
 	// example:
 	//
 	// E572643C-6A29-49D6-9D4E-6CFA4E063A3E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the reserved instances.
+	RequestId         *string                                                 `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	ReservedInstances *DescribeReservedInstancesResponseBodyReservedInstances `json:"ReservedInstances,omitempty" xml:"ReservedInstances,omitempty" type:"Struct"`
 	// The total number of reserved instances.
 	//
@@ -147,114 +146,24 @@ func (s *DescribeReservedInstancesResponseBodyReservedInstances) Validate() erro
 }
 
 type DescribeReservedInstancesResponseBodyReservedInstancesReservedInstance struct {
-	// Indicates the sharing status of the reserved instance when the AllocationType parameter is set to Shared. Valid values:
-	//
-	// 	- allocated: The reserved instance is allocated to another account.
-	//
-	// 	- beAllocated: The reserved instance is allocated by another account.
-	//
-	// example:
-	//
-	// allocated
-	AllocationStatus *string `json:"AllocationStatus,omitempty" xml:"AllocationStatus,omitempty"`
-	// The creation time.
-	//
-	// example:
-	//
-	// 2018-12-10T12:07Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description.
-	//
-	// example:
-	//
-	// testDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The expiration time.
-	//
-	// example:
-	//
-	// 2019-12-10T12:07Z
-	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The number of pay-as-you-go instances that are of the same instance type as the reserved instance and can be matched to the reserved instance.
-	//
-	// example:
-	//
-	// 10
-	InstanceAmount *int32 `json:"InstanceAmount,omitempty" xml:"InstanceAmount,omitempty"`
-	// The instance type of the pay-as-you-go instances that can be matched to the reserved instance.
-	//
-	// example:
-	//
-	// ecs.g5.large
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The payment option.
-	//
-	// example:
-	//
-	// All Upfront
-	OfferingType *string `json:"OfferingType,omitempty" xml:"OfferingType,omitempty"`
-	// Details about the lock status of the reserved instance.
-	OperationLocks *DescribeReservedInstancesResponseBodyReservedInstancesReservedInstanceOperationLocks `json:"OperationLocks,omitempty" xml:"OperationLocks,omitempty" type:"Struct"`
-	// The operating system of the image used by the instance. Valid values:
-	//
-	// 	- Windows
-	//
-	// 	- Linux
-	//
-	// example:
-	//
-	// Linux
-	Platform *string `json:"Platform,omitempty" xml:"Platform,omitempty"`
-	// The region ID.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The reserved instance ID.
-	//
-	// example:
-	//
-	// ri-bpzhex2ulpzf53****
-	ReservedInstanceId *string `json:"ReservedInstanceId,omitempty" xml:"ReservedInstanceId,omitempty"`
-	// The name.
-	//
-	// example:
-	//
-	// riZbpzhex2ulpzf53****
-	ReservedInstanceName *string `json:"ReservedInstanceName,omitempty" xml:"ReservedInstanceName,omitempty"`
-	// The resource group ID.
-	//
-	// example:
-	//
-	// EcsDocTest
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The scope.
-	//
-	// example:
-	//
-	// region
-	Scope *string `json:"Scope,omitempty" xml:"Scope,omitempty"`
-	// The effective time.
-	//
-	// example:
-	//
-	// 2018-12-10T12:00Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The status.
-	//
-	// example:
-	//
-	// Active
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags of the reserved instance.
-	Tags *DescribeReservedInstancesResponseBodyReservedInstancesReservedInstanceTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The zone ID.
-	//
-	// example:
-	//
-	// cn-hangzhou-z
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	AllocationStatus     *string                                                                               `json:"AllocationStatus,omitempty" xml:"AllocationStatus,omitempty"`
+	CreationTime         *string                                                                               `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	Description          *string                                                                               `json:"Description,omitempty" xml:"Description,omitempty"`
+	ExpiredTime          *string                                                                               `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
+	InstanceAmount       *int32                                                                                `json:"InstanceAmount,omitempty" xml:"InstanceAmount,omitempty"`
+	InstanceType         *string                                                                               `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
+	OfferingType         *string                                                                               `json:"OfferingType,omitempty" xml:"OfferingType,omitempty"`
+	OperationLocks       *DescribeReservedInstancesResponseBodyReservedInstancesReservedInstanceOperationLocks `json:"OperationLocks,omitempty" xml:"OperationLocks,omitempty" type:"Struct"`
+	Platform             *string                                                                               `json:"Platform,omitempty" xml:"Platform,omitempty"`
+	RegionId             *string                                                                               `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ReservedInstanceId   *string                                                                               `json:"ReservedInstanceId,omitempty" xml:"ReservedInstanceId,omitempty"`
+	ReservedInstanceName *string                                                                               `json:"ReservedInstanceName,omitempty" xml:"ReservedInstanceName,omitempty"`
+	ResourceGroupId      *string                                                                               `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	Scope                *string                                                                               `json:"Scope,omitempty" xml:"Scope,omitempty"`
+	StartTime            *string                                                                               `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	Status               *string                                                                               `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags                 *DescribeReservedInstancesResponseBodyReservedInstancesReservedInstanceTags           `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	ZoneId               *string                                                                               `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeReservedInstancesResponseBodyReservedInstancesReservedInstance) String() string {
@@ -476,11 +385,6 @@ func (s *DescribeReservedInstancesResponseBodyReservedInstancesReservedInstanceO
 }
 
 type DescribeReservedInstancesResponseBodyReservedInstancesReservedInstanceOperationLocksOperationLock struct {
-	// The reason why the instance is locked.
-	//
-	// example:
-	//
-	// security
 	LockReason *string `json:"LockReason,omitempty" xml:"LockReason,omitempty"`
 }
 
@@ -540,17 +444,7 @@ func (s *DescribeReservedInstancesResponseBodyReservedInstancesReservedInstanceT
 }
 
 type DescribeReservedInstancesResponseBodyReservedInstancesReservedInstanceTagsTag struct {
-	// The tag key.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

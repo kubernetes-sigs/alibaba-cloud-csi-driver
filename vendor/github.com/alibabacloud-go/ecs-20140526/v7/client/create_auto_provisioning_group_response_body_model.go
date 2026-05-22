@@ -23,9 +23,8 @@ type CreateAutoProvisioningGroupResponseBody struct {
 	// example:
 	//
 	// apg-sn54avj8htgvtyh8****
-	AutoProvisioningGroupId *string `json:"AutoProvisioningGroupId,omitempty" xml:"AutoProvisioningGroupId,omitempty"`
-	// The instances created by the auto provisioning group. The values of the parameters in this array are returned only when AutoProvisioningGroupType is set to `instant`.
-	LaunchResults *CreateAutoProvisioningGroupResponseBodyLaunchResults `json:"LaunchResults,omitempty" xml:"LaunchResults,omitempty" type:"Struct"`
+	AutoProvisioningGroupId *string                                               `json:"AutoProvisioningGroupId,omitempty" xml:"AutoProvisioningGroupId,omitempty"`
+	LaunchResults           *CreateAutoProvisioningGroupResponseBodyLaunchResults `json:"LaunchResults,omitempty" xml:"LaunchResults,omitempty" type:"Struct"`
 	// The ID of the request.
 	//
 	// example:
@@ -113,50 +112,17 @@ func (s *CreateAutoProvisioningGroupResponseBodyLaunchResults) Validate() error 
 }
 
 type CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult struct {
-	// The number of created instances.
-	//
-	// example:
-	//
-	// 1
 	Amount *int32 `json:"Amount,omitempty" xml:"Amount,omitempty"`
-	// The error code returned when the instance cannot be created.
-	//
 	// example:
 	//
-	// InvalidParameter
-	ErrorCode *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
-	// The error message returned when the instance cannot be created.
-	//
-	// example:
-	//
-	// Specific parameter is not valid.
-	ErrorMsg *string `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
-	// The IDs of created instances.
-	InstanceIds *CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResultInstanceIds `json:"InstanceIds,omitempty" xml:"InstanceIds,omitempty" type:"Struct"`
-	// The instance type of the instance.
-	//
-	// example:
-	//
-	// ecs.g5.large
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The bidding policy for the pay-as-you-go instance. Valid values:
-	//
-	// 	- NoSpot: The instance is a regular pay-as-you-go instance.
-	//
-	// 	- SpotWithPriceLimit: The instance is a spot instance for which you specify the maximum hourly price.
-	//
-	// 	- SpotAsPriceGo: The instance is a spot instance for which the market price at the time of purchase is used as the bid price.
-	//
-	// example:
-	//
-	// NoSpot
-	SpotStrategy *string `json:"SpotStrategy,omitempty" xml:"SpotStrategy,omitempty"`
-	// The zone ID of the instance.
-	//
-	// example:
-	//
-	// cn-hangzhou-g
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	// Low
+	CandidateEvaluateLevel *string                                                                      `json:"CandidateEvaluateLevel,omitempty" xml:"CandidateEvaluateLevel,omitempty"`
+	ErrorCode              *string                                                                      `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
+	ErrorMsg               *string                                                                      `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
+	InstanceIds            *CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResultInstanceIds `json:"InstanceIds,omitempty" xml:"InstanceIds,omitempty" type:"Struct"`
+	InstanceType           *string                                                                      `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
+	SpotStrategy           *string                                                                      `json:"SpotStrategy,omitempty" xml:"SpotStrategy,omitempty"`
+	ZoneId                 *string                                                                      `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult) String() string {
@@ -169,6 +135,10 @@ func (s CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult) GoStri
 
 func (s *CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult) GetAmount() *int32 {
 	return s.Amount
+}
+
+func (s *CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult) GetCandidateEvaluateLevel() *string {
+	return s.CandidateEvaluateLevel
 }
 
 func (s *CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult) GetErrorCode() *string {
@@ -197,6 +167,11 @@ func (s *CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult) GetZo
 
 func (s *CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult) SetAmount(v int32) *CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult {
 	s.Amount = &v
+	return s
+}
+
+func (s *CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult) SetCandidateEvaluateLevel(v string) *CreateAutoProvisioningGroupResponseBodyLaunchResultsLaunchResult {
+	s.CandidateEvaluateLevel = &v
 	return s
 }
 

@@ -54,7 +54,10 @@ type DescribeManagedInstancesRequest struct {
 	//
 	// 4ECEEE12-56F1-4FBC-9AB1-890F7494****
 	ActivationId *string `json:"ActivationId,omitempty" xml:"ActivationId,omitempty"`
-	Connected    *string `json:"Connected,omitempty" xml:"Connected,omitempty"`
+	// example:
+	//
+	// true
+	Connected *string `json:"Connected,omitempty" xml:"Connected,omitempty"`
 	// The ID of managed instance N. Valid values of N: 1 to 50.
 	//
 	// example:

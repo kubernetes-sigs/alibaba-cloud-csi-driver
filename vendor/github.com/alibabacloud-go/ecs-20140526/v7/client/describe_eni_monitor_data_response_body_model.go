@@ -18,7 +18,6 @@ type iDescribeEniMonitorDataResponseBody interface {
 }
 
 type DescribeEniMonitorDataResponseBody struct {
-	// The monitoring data of the secondary ENI.
 	MonitorData *DescribeEniMonitorDataResponseBodyMonitorData `json:"MonitorData,omitempty" xml:"MonitorData,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -113,54 +112,14 @@ func (s *DescribeEniMonitorDataResponseBodyMonitorData) Validate() error {
 }
 
 type DescribeEniMonitorDataResponseBodyMonitorDataEniMonitorData struct {
-	// The number of received packets that were dropped by the secondary ENI over the internal network.
-	//
-	// example:
-	//
-	// 0
 	DropPacketRx *string `json:"DropPacketRx,omitempty" xml:"DropPacketRx,omitempty"`
-	// The number of sent packets that were dropped by the secondary ENI over the internal network.
-	//
-	// example:
-	//
-	// 0
 	DropPacketTx *string `json:"DropPacketTx,omitempty" xml:"DropPacketTx,omitempty"`
-	// The ID of the secondary ENI.
-	//
-	// example:
-	//
-	// eni-bp19da36d6xdwey****
-	EniId *string `json:"EniId,omitempty" xml:"EniId,omitempty"`
-	// The average rate at which the secondary ENI received data over the internal network. Unit: Kbit/s.
-	//
-	// example:
-	//
-	// 0
-	IntranetRx *string `json:"IntranetRx,omitempty" xml:"IntranetRx,omitempty"`
-	// The average rate at which the secondary ENI sent data over the internal network. Unit: Kbit/s.
-	//
-	// example:
-	//
-	// 0
-	IntranetTx *string `json:"IntranetTx,omitempty" xml:"IntranetTx,omitempty"`
-	// The number of packets received by the secondary ENI over the internal network.
-	//
-	// example:
-	//
-	// 0
-	PacketRx *string `json:"PacketRx,omitempty" xml:"PacketRx,omitempty"`
-	// The number of packets sent by the secondary ENI over the internal network.
-	//
-	// example:
-	//
-	// 0
-	PacketTx *string `json:"PacketTx,omitempty" xml:"PacketTx,omitempty"`
-	// The timestamp of the monitoring data. The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2018-05-21T03:22:00Z
-	TimeStamp *string `json:"TimeStamp,omitempty" xml:"TimeStamp,omitempty"`
+	EniId        *string `json:"EniId,omitempty" xml:"EniId,omitempty"`
+	IntranetRx   *string `json:"IntranetRx,omitempty" xml:"IntranetRx,omitempty"`
+	IntranetTx   *string `json:"IntranetTx,omitempty" xml:"IntranetTx,omitempty"`
+	PacketRx     *string `json:"PacketRx,omitempty" xml:"PacketRx,omitempty"`
+	PacketTx     *string `json:"PacketTx,omitempty" xml:"PacketTx,omitempty"`
+	TimeStamp    *string `json:"TimeStamp,omitempty" xml:"TimeStamp,omitempty"`
 }
 
 func (s DescribeEniMonitorDataResponseBodyMonitorDataEniMonitorData) String() string {

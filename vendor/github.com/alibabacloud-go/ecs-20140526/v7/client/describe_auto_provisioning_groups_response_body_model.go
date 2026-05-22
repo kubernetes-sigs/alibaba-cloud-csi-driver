@@ -22,7 +22,6 @@ type iDescribeAutoProvisioningGroupsResponseBody interface {
 }
 
 type DescribeAutoProvisioningGroupsResponseBody struct {
-	// Details about the auto provisioning groups.
 	AutoProvisioningGroups *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroups `json:"AutoProvisioningGroups,omitempty" xml:"AutoProvisioningGroups,omitempty" type:"Struct"`
 	// The number of the page returned.
 	//
@@ -147,150 +146,30 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroups) Valid
 }
 
 type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup struct {
-	// The ID of the auto provisioning group.
-	//
-	// example:
-	//
-	// apg-sn54avj8htgvtyh8****
-	AutoProvisioningGroupId *string `json:"AutoProvisioningGroupId,omitempty" xml:"AutoProvisioningGroupId,omitempty"`
-	// The name of the auto provisioning group.
-	//
-	// example:
-	//
-	// EcsDocTest
-	AutoProvisioningGroupName *string `json:"AutoProvisioningGroupName,omitempty" xml:"AutoProvisioningGroupName,omitempty"`
-	// The delivery type of the auto provisioning group. Valid values:
-	//
-	// 	- request: one-time delivery. When the auto provisioning group is started, it delivers instances only once. If the instances fail to be delivered, the auto provisioning group does not retry the delivery.
-	//
-	// 	- maintain: continuous delivery. When the auto provisioning group is started, it attempts to deliver instances that meet the target capacity and monitors the real-time capacity. If the target capacity of the auto provisioning group is not reached, the auto provisioning group continues to create instances until the target capacity is reached.
-	//
-	// example:
-	//
-	// maintain
-	AutoProvisioningGroupType *string `json:"AutoProvisioningGroupType,omitempty" xml:"AutoProvisioningGroupType,omitempty"`
-	// The time when the auto provisioning group was created.
-	//
-	// example:
-	//
-	// 2019-04-01T15:10:20Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// Indicates whether to release the scaled-in instances when the real-time capacity of the auto provisioning group exceeds the target capacity and the group is triggered to scale in. Valid values:
-	//
-	// 	- termination: releases the scaled-in instances.
-	//
-	// 	- no-termination: only removes the scaled-in instances from the auto provisioning group but does not release the instances.
-	//
-	// example:
-	//
-	// termination
-	ExcessCapacityTerminationPolicy *string `json:"ExcessCapacityTerminationPolicy,omitempty" xml:"ExcessCapacityTerminationPolicy,omitempty"`
-	// Details about the extended configurations.
-	LaunchTemplateConfigs *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupLaunchTemplateConfigs `json:"LaunchTemplateConfigs,omitempty" xml:"LaunchTemplateConfigs,omitempty" type:"Struct"`
-	// The ID of the launch template associated with the auto provisioning group.
-	//
-	// example:
-	//
-	// lt-bp1fgzds4bdogu03****
-	LaunchTemplateId *string `json:"LaunchTemplateId,omitempty" xml:"LaunchTemplateId,omitempty"`
-	// The version of the launch template associated with the auto provisioning group.
-	//
-	// example:
-	//
-	// 1
-	LaunchTemplateVersion *string `json:"LaunchTemplateVersion,omitempty" xml:"LaunchTemplateVersion,omitempty"`
-	// The maximum price of spot  instances in the auto provisioning group.
-	//
-	// >  When both the MaxSpotPrice and LaunchTemplateConfig.N.MaxPrice parameters are specified, the smaller one of the two parameter values is used.
-	//
-	// The LaunchTemplateConfig.N.Priority parameter is set when the auto provisioning group is created, and cannot be modified.
-	//
-	// example:
-	//
-	// 2
-	MaxSpotPrice *float32 `json:"MaxSpotPrice,omitempty" xml:"MaxSpotPrice,omitempty"`
-	// The policies related to pay-as-you-go instances.
-	PayAsYouGoOptions *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupPayAsYouGoOptions `json:"PayAsYouGoOptions,omitempty" xml:"PayAsYouGoOptions,omitempty" type:"Struct"`
-	// The region ID of the auto provisioning group.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The ID of the resource group to which the auto provisioning group belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The policy related to spot instances.
-	SpotOptions *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSpotOptions `json:"SpotOptions,omitempty" xml:"SpotOptions,omitempty" type:"Struct"`
-	// The overall status of instance scheduling in the auto provisioning group. Valid values:
-	//
-	// 	- fulfilled: Scheduling was complete and the instances were delivered.
-	//
-	// 	- pending-fulfillment: The instances were being created.
-	//
-	// 	- pending-termination: The instances were being removed.
-	//
-	// 	- error: An exception occurred during scheduling and the instances were not delivered.
-	//
-	// example:
-	//
-	// fulfilled
-	State *string `json:"State,omitempty" xml:"State,omitempty"`
-	// The status of the auto provisioning group. Valid values:
-	//
-	// 	- submitted: The auto provisioning group was created but did not execute scheduling tasks.
-	//
-	// 	- active: The auto provisioning group was executing scheduling tasks.
-	//
-	// 	- deleted: The auto provisioning group was deleted.
-	//
-	// 	- delete-running: The auto provisioning group was being deleted.
-	//
-	// 	- modifying: The auto provisioning group was being modified.
-	//
-	// example:
-	//
-	// submitted
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags that are added to the auto provisioning group.
-	Tags *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The settings of the target capacity of the auto provisioning group.
-	TargetCapacitySpecification *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTargetCapacitySpecification `json:"TargetCapacitySpecification,omitempty" xml:"TargetCapacitySpecification,omitempty" type:"Struct"`
-	// Indicates whether to release instances in the auto provisioning group when the auto provisioning group is deleted. Valid values:
-	//
-	// 	- true: releases the instances.
-	//
-	// 	- false: only removes the instances from the auto provisioning group but does not release the instances.
-	//
-	// example:
-	//
-	// false
-	TerminateInstances *bool `json:"TerminateInstances,omitempty" xml:"TerminateInstances,omitempty"`
-	// Indicates whether to release instances in the auto provisioning group when the group expires. Valid values:
-	//
-	// 	- true: releases the instances.
-	//
-	// 	- false: only removes the instances from the auto provisioning group but does not release the instances.
-	//
-	// example:
-	//
-	// true
-	TerminateInstancesWithExpiration *bool `json:"TerminateInstancesWithExpiration,omitempty" xml:"TerminateInstancesWithExpiration,omitempty"`
-	// The time at which the auto provisioning group is started. The provisioning group is effective until the point in time specified by `ValidUntil`.
-	//
-	// example:
-	//
-	// 2019-04-01T15:10:20Z
-	ValidFrom *string `json:"ValidFrom,omitempty" xml:"ValidFrom,omitempty"`
-	// The time at which the auto provisioning group expires. The period of time between this point in time and the point in time specified by the `ValidFrom` parameter is the validity period of the auto provisioning group.
-	//
-	// example:
-	//
-	// 2019-06-01T15:10:20Z
-	ValidUntil *string `json:"ValidUntil,omitempty" xml:"ValidUntil,omitempty"`
+	AutoProvisioningGroupId          *string                                                                                                           `json:"AutoProvisioningGroupId,omitempty" xml:"AutoProvisioningGroupId,omitempty"`
+	AutoProvisioningGroupName        *string                                                                                                           `json:"AutoProvisioningGroupName,omitempty" xml:"AutoProvisioningGroupName,omitempty"`
+	AutoProvisioningGroupType        *string                                                                                                           `json:"AutoProvisioningGroupType,omitempty" xml:"AutoProvisioningGroupType,omitempty"`
+	CandidateOptions                 *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCandidateOptions            `json:"CandidateOptions,omitempty" xml:"CandidateOptions,omitempty" type:"Struct"`
+	CapacitySpecification            *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification       `json:"CapacitySpecification,omitempty" xml:"CapacitySpecification,omitempty" type:"Struct"`
+	CreationTime                     *string                                                                                                           `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	ExcessCapacityTerminationPolicy  *string                                                                                                           `json:"ExcessCapacityTerminationPolicy,omitempty" xml:"ExcessCapacityTerminationPolicy,omitempty"`
+	LaunchTemplateConfigs            *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupLaunchTemplateConfigs       `json:"LaunchTemplateConfigs,omitempty" xml:"LaunchTemplateConfigs,omitempty" type:"Struct"`
+	LaunchTemplateId                 *string                                                                                                           `json:"LaunchTemplateId,omitempty" xml:"LaunchTemplateId,omitempty"`
+	LaunchTemplateVersion            *string                                                                                                           `json:"LaunchTemplateVersion,omitempty" xml:"LaunchTemplateVersion,omitempty"`
+	MaxSpotPrice                     *float32                                                                                                          `json:"MaxSpotPrice,omitempty" xml:"MaxSpotPrice,omitempty"`
+	PayAsYouGoOptions                *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupPayAsYouGoOptions           `json:"PayAsYouGoOptions,omitempty" xml:"PayAsYouGoOptions,omitempty" type:"Struct"`
+	RegionId                         *string                                                                                                           `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceGroupId                  *string                                                                                                           `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	SpotOptions                      *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSpotOptions                 `json:"SpotOptions,omitempty" xml:"SpotOptions,omitempty" type:"Struct"`
+	State                            *string                                                                                                           `json:"State,omitempty" xml:"State,omitempty"`
+	Status                           *string                                                                                                           `json:"Status,omitempty" xml:"Status,omitempty"`
+	SuspendedProcesses               *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSuspendedProcesses          `json:"SuspendedProcesses,omitempty" xml:"SuspendedProcesses,omitempty" type:"Struct"`
+	Tags                             *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTags                        `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	TargetCapacitySpecification      *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTargetCapacitySpecification `json:"TargetCapacitySpecification,omitempty" xml:"TargetCapacitySpecification,omitempty" type:"Struct"`
+	TerminateInstances               *bool                                                                                                             `json:"TerminateInstances,omitempty" xml:"TerminateInstances,omitempty"`
+	TerminateInstancesWithExpiration *bool                                                                                                             `json:"TerminateInstancesWithExpiration,omitempty" xml:"TerminateInstancesWithExpiration,omitempty"`
+	ValidFrom                        *string                                                                                                           `json:"ValidFrom,omitempty" xml:"ValidFrom,omitempty"`
+	ValidUntil                       *string                                                                                                           `json:"ValidUntil,omitempty" xml:"ValidUntil,omitempty"`
 }
 
 func (s DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) String() string {
@@ -311,6 +190,14 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 
 func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) GetAutoProvisioningGroupType() *string {
 	return s.AutoProvisioningGroupType
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) GetCandidateOptions() *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCandidateOptions {
+	return s.CandidateOptions
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) GetCapacitySpecification() *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification {
+	return s.CapacitySpecification
 }
 
 func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) GetCreationTime() *string {
@@ -361,6 +248,10 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 	return s.Status
 }
 
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) GetSuspendedProcesses() *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSuspendedProcesses {
+	return s.SuspendedProcesses
+}
+
 func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) GetTags() *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTags {
 	return s.Tags
 }
@@ -397,6 +288,16 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 
 func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) SetAutoProvisioningGroupType(v string) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup {
 	s.AutoProvisioningGroupType = &v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) SetCandidateOptions(v *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCandidateOptions) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup {
+	s.CandidateOptions = v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) SetCapacitySpecification(v *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup {
+	s.CapacitySpecification = v
 	return s
 }
 
@@ -460,6 +361,11 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 	return s
 }
 
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) SetSuspendedProcesses(v *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSuspendedProcesses) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup {
+	s.SuspendedProcesses = v
+	return s
+}
+
 func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) SetTags(v *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTags) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup {
 	s.Tags = v
 	return s
@@ -491,6 +397,16 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 }
 
 func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroup) Validate() error {
+	if s.CandidateOptions != nil {
+		if err := s.CandidateOptions.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.CapacitySpecification != nil {
+		if err := s.CapacitySpecification.Validate(); err != nil {
+			return err
+		}
+	}
 	if s.LaunchTemplateConfigs != nil {
 		if err := s.LaunchTemplateConfigs.Validate(); err != nil {
 			return err
@@ -506,6 +422,11 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 			return err
 		}
 	}
+	if s.SuspendedProcesses != nil {
+		if err := s.SuspendedProcesses.Validate(); err != nil {
+			return err
+		}
+	}
 	if s.Tags != nil {
 		if err := s.Tags.Validate(); err != nil {
 			return err
@@ -517,6 +438,101 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 		}
 	}
 	return nil
+}
+
+type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCandidateOptions struct {
+	// example:
+	//
+	// 60
+	TimeoutMinutes *int32 `json:"TimeoutMinutes,omitempty" xml:"TimeoutMinutes,omitempty"`
+}
+
+func (s DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCandidateOptions) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCandidateOptions) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCandidateOptions) GetTimeoutMinutes() *int32 {
+	return s.TimeoutMinutes
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCandidateOptions) SetTimeoutMinutes(v int32) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCandidateOptions {
+	s.TimeoutMinutes = &v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCandidateOptions) Validate() error {
+	return dara.Validate(s)
+}
+
+type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification struct {
+	// example:
+	//
+	// 2
+	PayAsYouGoCapacity *float32 `json:"PayAsYouGoCapacity,omitempty" xml:"PayAsYouGoCapacity,omitempty"`
+	// example:
+	//
+	// 0
+	PrePaidCapacity *float32 `json:"PrePaidCapacity,omitempty" xml:"PrePaidCapacity,omitempty"`
+	// example:
+	//
+	// 3
+	SpotCapacity *float32 `json:"SpotCapacity,omitempty" xml:"SpotCapacity,omitempty"`
+	// example:
+	//
+	// 5
+	TotalCapacity *float32 `json:"TotalCapacity,omitempty" xml:"TotalCapacity,omitempty"`
+}
+
+func (s DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) GetPayAsYouGoCapacity() *float32 {
+	return s.PayAsYouGoCapacity
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) GetPrePaidCapacity() *float32 {
+	return s.PrePaidCapacity
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) GetSpotCapacity() *float32 {
+	return s.SpotCapacity
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) GetTotalCapacity() *float32 {
+	return s.TotalCapacity
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) SetPayAsYouGoCapacity(v float32) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification {
+	s.PayAsYouGoCapacity = &v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) SetPrePaidCapacity(v float32) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification {
+	s.PrePaidCapacity = &v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) SetSpotCapacity(v float32) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification {
+	s.SpotCapacity = &v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) SetTotalCapacity(v float32) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification {
+	s.TotalCapacity = &v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupCapacitySpecification) Validate() error {
+	return dara.Validate(s)
 }
 
 type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupLaunchTemplateConfigs struct {
@@ -554,35 +570,10 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 }
 
 type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupLaunchTemplateConfigsLaunchTemplateConfig struct {
-	// The instance type that is specified in the extended configuration.
-	//
-	// example:
-	//
-	// ecs.g5.large
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The maximum price of the instance type specified in the extended configuration.
-	//
-	// example:
-	//
-	// 3
-	MaxPrice *float32 `json:"MaxPrice,omitempty" xml:"MaxPrice,omitempty"`
-	// The priority of the instance type specified in the extended configuration. A value of 0 indicates the highest priority.
-	//
-	// example:
-	//
-	// 1
-	Priority *float32 `json:"Priority,omitempty" xml:"Priority,omitempty"`
-	// The ID of the vSwitch specified in the extended configuration.
-	//
-	// example:
-	//
-	// vsw-sn5bsitu4lfzgc5o7****
-	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// The weight of the instance type specified in the extended configuration.
-	//
-	// example:
-	//
-	// 2
+	InstanceType     *string  `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
+	MaxPrice         *float32 `json:"MaxPrice,omitempty" xml:"MaxPrice,omitempty"`
+	Priority         *float32 `json:"Priority,omitempty" xml:"Priority,omitempty"`
+	VSwitchId        *string  `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
 	WeightedCapacity *float32 `json:"WeightedCapacity,omitempty" xml:"WeightedCapacity,omitempty"`
 }
 
@@ -644,17 +635,6 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 }
 
 type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupPayAsYouGoOptions struct {
-	// The policy for creating pay-as-you-go instances. Valid values:
-	//
-	// 	- lowest-price: cost optimization policy. This policy indicates that lowest-cost instance types are used to create instances.
-	//
-	// 	- prioritized: priority-based policy. This policy indicates that instances are created based on the priority specified by the LaunchTemplateConfig.N.Priority parameter.
-	//
-	// >  The LaunchTemplateConfig.N.Priority parameter is set when the auto provisioning group is created, and cannot be modified.
-	//
-	// example:
-	//
-	// prioritized
 	AllocationStrategy *string `json:"AllocationStrategy,omitempty" xml:"AllocationStrategy,omitempty"`
 }
 
@@ -680,34 +660,9 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 }
 
 type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSpotOptions struct {
-	// The policy for creating spot instances. Valid values:
-	//
-	// 	- lowest-price: cost optimization policy. This policy indicates that the lowest-priced instance type is used to create instances.
-	//
-	// 	- diversified: balanced distribution policy. This policy indicates that instances are created evenly across multiple zones specified in the extended configuration.
-	//
-	// example:
-	//
-	// diversified
-	AllocationStrategy *string `json:"AllocationStrategy,omitempty" xml:"AllocationStrategy,omitempty"`
-	// The action to be performed after the excess spot instances are stopped. Valid values:
-	//
-	// 	- stop: retains the excess spot instances in the stopped state.
-	//
-	// 	- terminate: releases the excess spot instances.
-	//
-	// example:
-	//
-	// stop
+	AllocationStrategy           *string `json:"AllocationStrategy,omitempty" xml:"AllocationStrategy,omitempty"`
 	InstanceInterruptionBehavior *string `json:"InstanceInterruptionBehavior,omitempty" xml:"InstanceInterruptionBehavior,omitempty"`
-	// The number of instances that the auto provisioning group creates by selecting the instance type of the lowest price.
-	//
-	// >  This parameter is set when the auto provisioning group is created, and cannot be modified.
-	//
-	// example:
-	//
-	// 2
-	InstancePoolsToUseCount *int32 `json:"InstancePoolsToUseCount,omitempty" xml:"InstancePoolsToUseCount,omitempty"`
+	InstancePoolsToUseCount      *int32  `json:"InstancePoolsToUseCount,omitempty" xml:"InstancePoolsToUseCount,omitempty"`
 }
 
 func (s DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSpotOptions) String() string {
@@ -749,6 +704,31 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 	return dara.Validate(s)
 }
 
+type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSuspendedProcesses struct {
+	SuspendedProcess []*string `json:"SuspendedProcess,omitempty" xml:"SuspendedProcess,omitempty" type:"Repeated"`
+}
+
+func (s DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSuspendedProcesses) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSuspendedProcesses) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSuspendedProcesses) GetSuspendedProcess() []*string {
+	return s.SuspendedProcess
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSuspendedProcesses) SetSuspendedProcess(v []*string) *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSuspendedProcesses {
+	s.SuspendedProcess = v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupSuspendedProcesses) Validate() error {
+	return dara.Validate(s)
+}
+
 type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTags struct {
 	Tag []*DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTagsTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 }
@@ -784,21 +764,7 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 }
 
 type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTagsTag struct {
-	// The key of tag N that is added to the auto provisioning group.
-	//
-	// Valid values of N: 1 to 20. The tag key cannot be an empty string. The tag key can be up to 128 characters in length and cannot contain http:// or https://. The tag key cannot start with acs: or aliyun.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The value of tag N that is added to the auto provisioning group.
-	//
-	// Valid values of N: 1 to 20. The tag value can be an empty string. The tag value can be up to 128 characters in length and cannot contain http:// or https://.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 
@@ -833,40 +799,10 @@ func (s *DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoPro
 }
 
 type DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTargetCapacitySpecification struct {
-	// The type of supplemental instances. When the sum of the `PayAsYouGoTargetCapacity` and `SpotTargetCapacity` values is less than the `TotalTargetCapacity` value, the auto provisioning group creates instances of the specified billing method to meet the target capacity. Valid values:
-	//
-	// 	- PayAsYouGo: pay-as-you-go instances.
-	//
-	// 	- Spot: spot instances.
-	//
-	// example:
-	//
-	// Spot
-	DefaultTargetCapacityType *string `json:"DefaultTargetCapacityType,omitempty" xml:"DefaultTargetCapacityType,omitempty"`
-	// The target capacity of pay-as-you-go instances that the auto provisioning group provisions.
-	//
-	// example:
-	//
-	// 30
-	PayAsYouGoTargetCapacity *float32 `json:"PayAsYouGoTargetCapacity,omitempty" xml:"PayAsYouGoTargetCapacity,omitempty"`
-	// The target capacity of spot instances that the auto provisioning group provisions.
-	//
-	// example:
-	//
-	// 20
-	SpotTargetCapacity *float32 `json:"SpotTargetCapacity,omitempty" xml:"SpotTargetCapacity,omitempty"`
-	// The target capacity of the auto provisioning group. The capacity consists of the following parts:
-	//
-	// 	- PayAsYouGoTargetCapacity
-	//
-	// 	- SpotTargetCapacity
-	//
-	// 	- The supplemental capacity besides instance capacities specified by PayAsYouGoTargetCapacity and SpotTargetCapacity.
-	//
-	// example:
-	//
-	// 60
-	TotalTargetCapacity *float32 `json:"TotalTargetCapacity,omitempty" xml:"TotalTargetCapacity,omitempty"`
+	DefaultTargetCapacityType *string  `json:"DefaultTargetCapacityType,omitempty" xml:"DefaultTargetCapacityType,omitempty"`
+	PayAsYouGoTargetCapacity  *float32 `json:"PayAsYouGoTargetCapacity,omitempty" xml:"PayAsYouGoTargetCapacity,omitempty"`
+	SpotTargetCapacity        *float32 `json:"SpotTargetCapacity,omitempty" xml:"SpotTargetCapacity,omitempty"`
+	TotalTargetCapacity       *float32 `json:"TotalTargetCapacity,omitempty" xml:"TotalTargetCapacity,omitempty"`
 }
 
 func (s DescribeAutoProvisioningGroupsResponseBodyAutoProvisioningGroupsAutoProvisioningGroupTargetCapacitySpecification) String() string {

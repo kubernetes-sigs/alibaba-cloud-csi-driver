@@ -15,6 +15,8 @@ type iDescribeCloudAssistantSettingsResponseBody interface {
 	GetOssDeliveryConfigs() *DescribeCloudAssistantSettingsResponseBodyOssDeliveryConfigs
 	SetRequestId(v string) *DescribeCloudAssistantSettingsResponseBody
 	GetRequestId() *string
+	SetResourceUsageConfig(v *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) *DescribeCloudAssistantSettingsResponseBody
+	GetResourceUsageConfig() *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig
 	SetSessionManagerConfig(v *DescribeCloudAssistantSettingsResponseBodySessionManagerConfig) *DescribeCloudAssistantSettingsResponseBody
 	GetSessionManagerConfig() *DescribeCloudAssistantSettingsResponseBodySessionManagerConfig
 	SetSlsDeliveryConfigs(v *DescribeCloudAssistantSettingsResponseBodySlsDeliveryConfigs) *DescribeCloudAssistantSettingsResponseBody
@@ -24,18 +26,17 @@ type iDescribeCloudAssistantSettingsResponseBody interface {
 type DescribeCloudAssistantSettingsResponseBody struct {
 	// The configurations for upgrading Cloud Assistant Agent.
 	AgentUpgradeConfig *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig `json:"AgentUpgradeConfig,omitempty" xml:"AgentUpgradeConfig,omitempty" type:"Struct"`
-	// The configurations for delivering items to Object Storage Service (OSS).
 	OssDeliveryConfigs *DescribeCloudAssistantSettingsResponseBodyOssDeliveryConfigs `json:"OssDeliveryConfigs,omitempty" xml:"OssDeliveryConfigs,omitempty" type:"Struct"`
 	// The request ID.
 	//
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3****
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	RequestId           *string                                                        `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	ResourceUsageConfig *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig `json:"ResourceUsageConfig,omitempty" xml:"ResourceUsageConfig,omitempty" type:"Struct"`
 	// Cloud Assistant Session Manager configuration.
 	SessionManagerConfig *DescribeCloudAssistantSettingsResponseBodySessionManagerConfig `json:"SessionManagerConfig,omitempty" xml:"SessionManagerConfig,omitempty" type:"Struct"`
-	// The configurations for delivering items to Simple Log Service.
-	SlsDeliveryConfigs *DescribeCloudAssistantSettingsResponseBodySlsDeliveryConfigs `json:"SlsDeliveryConfigs,omitempty" xml:"SlsDeliveryConfigs,omitempty" type:"Struct"`
+	SlsDeliveryConfigs   *DescribeCloudAssistantSettingsResponseBodySlsDeliveryConfigs   `json:"SlsDeliveryConfigs,omitempty" xml:"SlsDeliveryConfigs,omitempty" type:"Struct"`
 }
 
 func (s DescribeCloudAssistantSettingsResponseBody) String() string {
@@ -56,6 +57,10 @@ func (s *DescribeCloudAssistantSettingsResponseBody) GetOssDeliveryConfigs() *De
 
 func (s *DescribeCloudAssistantSettingsResponseBody) GetRequestId() *string {
 	return s.RequestId
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBody) GetResourceUsageConfig() *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig {
+	return s.ResourceUsageConfig
 }
 
 func (s *DescribeCloudAssistantSettingsResponseBody) GetSessionManagerConfig() *DescribeCloudAssistantSettingsResponseBodySessionManagerConfig {
@@ -81,6 +86,11 @@ func (s *DescribeCloudAssistantSettingsResponseBody) SetRequestId(v string) *Des
 	return s
 }
 
+func (s *DescribeCloudAssistantSettingsResponseBody) SetResourceUsageConfig(v *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) *DescribeCloudAssistantSettingsResponseBody {
+	s.ResourceUsageConfig = v
+	return s
+}
+
 func (s *DescribeCloudAssistantSettingsResponseBody) SetSessionManagerConfig(v *DescribeCloudAssistantSettingsResponseBodySessionManagerConfig) *DescribeCloudAssistantSettingsResponseBody {
 	s.SessionManagerConfig = v
 	return s
@@ -102,6 +112,11 @@ func (s *DescribeCloudAssistantSettingsResponseBody) Validate() error {
 			return err
 		}
 	}
+	if s.ResourceUsageConfig != nil {
+		if err := s.ResourceUsageConfig.Validate(); err != nil {
+			return err
+		}
+	}
 	if s.SessionManagerConfig != nil {
 		if err := s.SessionManagerConfig.Validate(); err != nil {
 			return err
@@ -116,8 +131,9 @@ func (s *DescribeCloudAssistantSettingsResponseBody) Validate() error {
 }
 
 type DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig struct {
-	// The time windows during which Cloud Assistant Agent can be upgraded.
 	AllowedUpgradeWindows *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfigAllowedUpgradeWindows `json:"AllowedUpgradeWindows,omitempty" xml:"AllowedUpgradeWindows,omitempty" type:"Struct"`
+	BootstrapUpgrade      *bool                                                                              `json:"BootstrapUpgrade,omitempty" xml:"BootstrapUpgrade,omitempty"`
+	DisableUpgrade        *bool                                                                              `json:"DisableUpgrade,omitempty" xml:"DisableUpgrade,omitempty"`
 	// Indicates whether custom upgrade is enabled for Cloud Assistant Agent. If the value is false or empty, an upgrade attempt is performed for Cloud Assistant Agent every 30 minutes.
 	//
 	// example:
@@ -144,6 +160,14 @@ func (s *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig) GetAllowe
 	return s.AllowedUpgradeWindows
 }
 
+func (s *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig) GetBootstrapUpgrade() *bool {
+	return s.BootstrapUpgrade
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig) GetDisableUpgrade() *bool {
+	return s.DisableUpgrade
+}
+
 func (s *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig) GetEnabled() *bool {
 	return s.Enabled
 }
@@ -154,6 +178,16 @@ func (s *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig) GetTimeZo
 
 func (s *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig) SetAllowedUpgradeWindows(v *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfigAllowedUpgradeWindows) *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig {
 	s.AllowedUpgradeWindows = v
+	return s
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig) SetBootstrapUpgrade(v bool) *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig {
+	s.BootstrapUpgrade = &v
+	return s
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig) SetDisableUpgrade(v bool) *DescribeCloudAssistantSettingsResponseBodyAgentUpgradeConfig {
+	s.DisableUpgrade = &v
 	return s
 }
 
@@ -236,62 +270,13 @@ func (s *DescribeCloudAssistantSettingsResponseBodyOssDeliveryConfigs) Validate(
 }
 
 type DescribeCloudAssistantSettingsResponseBodyOssDeliveryConfigsOssDeliveryConfig struct {
-	// The name of the OSS bucket.
-	//
-	// example:
-	//
-	// example-bucket
-	BucketName *string `json:"BucketName,omitempty" xml:"BucketName,omitempty"`
-	// The type of items to be delivered. Valid values:
-	//
-	// 	- SessionManager: session records.
-	//
-	// 	- Invocation: task execution records.
-	//
-	// example:
-	//
-	// SessionManager
-	DeliveryType *string `json:"DeliveryType,omitempty" xml:"DeliveryType,omitempty"`
-	// Indicates whether to deliver the specified items to OSS.
-	//
-	// example:
-	//
-	// false
-	Enabled *bool `json:"Enabled,omitempty" xml:"Enabled,omitempty"`
-	// The OSS encryption algorithm. Valid values:
-	//
-	// 	- AES256
-	//
-	// 	- SM4
-	//
-	// example:
-	//
-	// AES256
+	BucketName          *string `json:"BucketName,omitempty" xml:"BucketName,omitempty"`
+	DeliveryType        *string `json:"DeliveryType,omitempty" xml:"DeliveryType,omitempty"`
+	Enabled             *bool   `json:"Enabled,omitempty" xml:"Enabled,omitempty"`
 	EncryptionAlgorithm *string `json:"EncryptionAlgorithm,omitempty" xml:"EncryptionAlgorithm,omitempty"`
-	// The ID of the customer master key (CMK) when EncryptionType is set to KMS.
-	//
-	// example:
-	//
-	// a807****7a70e
-	EncryptionKeyId *string `json:"EncryptionKeyId,omitempty" xml:"EncryptionKeyId,omitempty"`
-	// The OSS encryption method. Valid values:
-	//
-	// 	- Inherit: the encryption method used by the specified bucket.
-	//
-	// 	- OssManaged: server-side encryption by using OSS-managed keys (SSE-OSS).
-	//
-	// 	- KMS: server-side encryption with Key Management Service (SSE-KMS).
-	//
-	// example:
-	//
-	// Inherit
-	EncryptionType *string `json:"EncryptionType,omitempty" xml:"EncryptionType,omitempty"`
-	// The prefix of the OSS bucket directory.
-	//
-	// example:
-	//
-	// sessionmanager/audit
-	Prefix *string `json:"Prefix,omitempty" xml:"Prefix,omitempty"`
+	EncryptionKeyId     *string `json:"EncryptionKeyId,omitempty" xml:"EncryptionKeyId,omitempty"`
+	EncryptionType      *string `json:"EncryptionType,omitempty" xml:"EncryptionType,omitempty"`
+	Prefix              *string `json:"Prefix,omitempty" xml:"Prefix,omitempty"`
 }
 
 func (s DescribeCloudAssistantSettingsResponseBodyOssDeliveryConfigsOssDeliveryConfig) String() string {
@@ -369,6 +354,81 @@ func (s *DescribeCloudAssistantSettingsResponseBodyOssDeliveryConfigsOssDelivery
 	return dara.Validate(s)
 }
 
+type DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig struct {
+	CpuLimit          *int32  `json:"CpuLimit,omitempty" xml:"CpuLimit,omitempty"`
+	KeepScriptFile    *bool   `json:"KeepScriptFile,omitempty" xml:"KeepScriptFile,omitempty"`
+	LogFileCountLimit *int32  `json:"LogFileCountLimit,omitempty" xml:"LogFileCountLimit,omitempty"`
+	LogSizeLimit      *string `json:"LogSizeLimit,omitempty" xml:"LogSizeLimit,omitempty"`
+	MemoryLimit       *string `json:"MemoryLimit,omitempty" xml:"MemoryLimit,omitempty"`
+	OverloadLimit     *int32  `json:"OverloadLimit,omitempty" xml:"OverloadLimit,omitempty"`
+}
+
+func (s DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) GetCpuLimit() *int32 {
+	return s.CpuLimit
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) GetKeepScriptFile() *bool {
+	return s.KeepScriptFile
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) GetLogFileCountLimit() *int32 {
+	return s.LogFileCountLimit
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) GetLogSizeLimit() *string {
+	return s.LogSizeLimit
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) GetMemoryLimit() *string {
+	return s.MemoryLimit
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) GetOverloadLimit() *int32 {
+	return s.OverloadLimit
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) SetCpuLimit(v int32) *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig {
+	s.CpuLimit = &v
+	return s
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) SetKeepScriptFile(v bool) *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig {
+	s.KeepScriptFile = &v
+	return s
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) SetLogFileCountLimit(v int32) *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig {
+	s.LogFileCountLimit = &v
+	return s
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) SetLogSizeLimit(v string) *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig {
+	s.LogSizeLimit = &v
+	return s
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) SetMemoryLimit(v string) *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig {
+	s.MemoryLimit = &v
+	return s
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) SetOverloadLimit(v int32) *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig {
+	s.OverloadLimit = &v
+	return s
+}
+
+func (s *DescribeCloudAssistantSettingsResponseBodyResourceUsageConfig) Validate() error {
+	return dara.Validate(s)
+}
+
 type DescribeCloudAssistantSettingsResponseBodySessionManagerConfig struct {
 	// Specify whether to enable Cloud Assistant Session Manager. Valid values:
 	//
@@ -442,34 +502,10 @@ func (s *DescribeCloudAssistantSettingsResponseBodySlsDeliveryConfigs) Validate(
 }
 
 type DescribeCloudAssistantSettingsResponseBodySlsDeliveryConfigsSlsDeliveryConfig struct {
-	// The type of items to be delivered. Valid values:
-	//
-	// 	- SessionManager: session records.
-	//
-	// 	- Invocation: task execution records.
-	//
-	// example:
-	//
-	// SessionManager
 	DeliveryType *string `json:"DeliveryType,omitempty" xml:"DeliveryType,omitempty"`
-	// Indicates whether to deliver the specified items to Simple Log Service.
-	//
-	// example:
-	//
-	// false
-	Enabled *bool `json:"Enabled,omitempty" xml:"Enabled,omitempty"`
-	// The name of the Logstore.
-	//
-	// example:
-	//
-	// example-logstore
+	Enabled      *bool   `json:"Enabled,omitempty" xml:"Enabled,omitempty"`
 	LogstoreName *string `json:"LogstoreName,omitempty" xml:"LogstoreName,omitempty"`
-	// The name of the Simple Log Service project.
-	//
-	// example:
-	//
-	// example-project
-	ProjectName *string `json:"ProjectName,omitempty" xml:"ProjectName,omitempty"`
+	ProjectName  *string `json:"ProjectName,omitempty" xml:"ProjectName,omitempty"`
 }
 
 func (s DescribeCloudAssistantSettingsResponseBodySlsDeliveryConfigsSlsDeliveryConfig) String() string {

@@ -16,7 +16,6 @@ type iDescribeResourcesModificationResponseBody interface {
 }
 
 type DescribeResourcesModificationResponseBody struct {
-	// The information about the queried zones.
 	AvailableZones *DescribeResourcesModificationResponseBodyAvailableZones `json:"AvailableZones,omitempty" xml:"AvailableZones,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,42 +95,11 @@ func (s *DescribeResourcesModificationResponseBodyAvailableZones) Validate() err
 }
 
 type DescribeResourcesModificationResponseBodyAvailableZonesAvailableZone struct {
-	// The resources that are available in the zone.
 	AvailableResources *DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResources `json:"AvailableResources,omitempty" xml:"AvailableResources,omitempty" type:"Struct"`
-	// The region ID.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The state of the resource. Valid values:
-	//
-	// 	- Available
-	//
-	// 	- SoldOut
-	//
-	// example:
-	//
-	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The category of the resource based on stock status. Valid values:
-	//
-	// 	- WithStock: resources that are in sufficient stock
-	//
-	// 	- ClosedWithStock: resources that are in insufficient stock
-	//
-	// 	- WithoutStock: resources that are out of stock
-	//
-	// example:
-	//
-	// WithStock
-	StatusCategory *string `json:"StatusCategory,omitempty" xml:"StatusCategory,omitempty"`
-	// The zone ID.
-	//
-	// example:
-	//
-	// cn-hangzhou-e
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	RegionId           *string                                                                                 `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	Status             *string                                                                                 `json:"Status,omitempty" xml:"Status,omitempty"`
+	StatusCategory     *string                                                                                 `json:"StatusCategory,omitempty" xml:"StatusCategory,omitempty"`
+	ZoneId             *string                                                                                 `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeResourcesModificationResponseBodyAvailableZonesAvailableZone) String() string {
@@ -231,20 +199,9 @@ func (s *DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAva
 }
 
 type DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResource struct {
-	// The resource types that resources can be changed to after the resources meet specified conditions. If the conditions are met, you can change the current resource to a resource in the list.
 	ConditionSupportedResources *DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceConditionSupportedResources `json:"ConditionSupportedResources,omitempty" xml:"ConditionSupportedResources,omitempty" type:"Struct"`
-	// The information about the supported resources.
-	SupportedResources *DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceSupportedResources `json:"SupportedResources,omitempty" xml:"SupportedResources,omitempty" type:"Struct"`
-	// The resource type. Valid values:
-	//
-	// 	- InstanceType
-	//
-	// 	- SystemDisk
-	//
-	// example:
-	//
-	// InstanceType
-	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
+	SupportedResources          *DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceSupportedResources          `json:"SupportedResources,omitempty" xml:"SupportedResources,omitempty" type:"Struct"`
+	Type                        *string                                                                                                                             `json:"Type,omitempty" xml:"Type,omitempty"`
 }
 
 func (s DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResource) String() string {
@@ -331,60 +288,13 @@ func (s *DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAva
 }
 
 type DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceConditionSupportedResourcesConditionSupportedResource struct {
-	// The conditions.
-	Conditions *DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceConditionSupportedResourcesConditionSupportedResourceConditions `json:"Conditions,omitempty" xml:"Conditions,omitempty" type:"Struct"`
-	// The maximum disk capacity.
-	//
-	// This parameter takes effect only when the DestinationResource request parameter is set to SystemDisk.
-	//
-	// example:
-	//
-	// 2
-	Max *int32 `json:"Max,omitempty" xml:"Max,omitempty"`
-	// The minimum disk capacity.
-	//
-	// This parameter takes effect only when the DestinationResource request parameter is set to SystemDisk.
-	//
-	// example:
-	//
-	// 1
-	Min *int32 `json:"Min,omitempty" xml:"Min,omitempty"`
-	// The stock state of the resource. Valid values:
-	//
-	// 	- Available
-	//
-	// 	- SoldOut
-	//
-	// example:
-	//
-	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The category of the resource based on stock status. Valid values:
-	//
-	// 	- WithStock: resources that are in sufficient stock
-	//
-	// 	- ClosedWithStock: resources that are in insufficient stock
-	//
-	// 	- WithoutStock: resources that are out of stock
-	//
-	// example:
-	//
-	// WithStock
-	StatusCategory *string `json:"StatusCategory,omitempty" xml:"StatusCategory,omitempty"`
-	// The unit of the disk capacity.
-	//
-	// This parameter takes effect only when the DestinationResource request parameter is set to SystemDisk.
-	//
-	// example:
-	//
-	// null
-	Unit *string `json:"Unit,omitempty" xml:"Unit,omitempty"`
-	// The resource type.
-	//
-	// example:
-	//
-	// ecs.g5.large
-	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
+	Conditions     *DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceConditionSupportedResourcesConditionSupportedResourceConditions `json:"Conditions,omitempty" xml:"Conditions,omitempty" type:"Struct"`
+	Max            *int32                                                                                                                                                                  `json:"Max,omitempty" xml:"Max,omitempty"`
+	Min            *int32                                                                                                                                                                  `json:"Min,omitempty" xml:"Min,omitempty"`
+	Status         *string                                                                                                                                                                 `json:"Status,omitempty" xml:"Status,omitempty"`
+	StatusCategory *string                                                                                                                                                                 `json:"StatusCategory,omitempty" xml:"StatusCategory,omitempty"`
+	Unit           *string                                                                                                                                                                 `json:"Unit,omitempty" xml:"Unit,omitempty"`
+	Value          *string                                                                                                                                                                 `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceConditionSupportedResourcesConditionSupportedResource) String() string {
@@ -502,13 +412,6 @@ func (s *DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAva
 }
 
 type DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceConditionSupportedResourcesConditionSupportedResourceConditionsCondition struct {
-	// The condition name. Valid value:
-	//
-	// DiskCategory, which indicates a disk category change.
-	//
-	// example:
-	//
-	// DiskCategory
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
 }
 
@@ -568,56 +471,12 @@ func (s *DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAva
 }
 
 type DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceSupportedResourcesSupportedResource struct {
-	// The maximum disk capacity.
-	//
-	// This parameter takes effect only when the DestinationResource request parameter is set to SystemDisk.
-	//
-	// example:
-	//
-	// 2
-	Max *int32 `json:"Max,omitempty" xml:"Max,omitempty"`
-	// The minimum disk capacity.
-	//
-	// This parameter takes effect only when the DestinationResource request parameter is set to SystemDisk.
-	//
-	// example:
-	//
-	// 1
-	Min *int32 `json:"Min,omitempty" xml:"Min,omitempty"`
-	// The state of the resource. Valid values:
-	//
-	// 	- Available
-	//
-	// 	- SoldOut
-	//
-	// example:
-	//
-	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The category of the resource based on stock status. Valid values:
-	//
-	// 	- WithStock: resources that are in sufficient stock
-	//
-	// 	- ClosedWithStock: resources that are in insufficient stock
-	//
-	// 	- WithoutStock: resources that are out of stock
-	//
-	// example:
-	//
-	// WithStock
+	Max            *int32  `json:"Max,omitempty" xml:"Max,omitempty"`
+	Min            *int32  `json:"Min,omitempty" xml:"Min,omitempty"`
+	Status         *string `json:"Status,omitempty" xml:"Status,omitempty"`
 	StatusCategory *string `json:"StatusCategory,omitempty" xml:"StatusCategory,omitempty"`
-	// The unit of the disk capacity. This parameter takes effect only when the DestinationResource request parameter is set to SystemDisk.
-	//
-	// example:
-	//
-	// null
-	Unit *string `json:"Unit,omitempty" xml:"Unit,omitempty"`
-	// The resource type.
-	//
-	// example:
-	//
-	// ecs.g5.large
-	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
+	Unit           *string `json:"Unit,omitempty" xml:"Unit,omitempty"`
+	Value          *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s DescribeResourcesModificationResponseBodyAvailableZonesAvailableZoneAvailableResourcesAvailableResourceSupportedResourcesSupportedResource) String() string {

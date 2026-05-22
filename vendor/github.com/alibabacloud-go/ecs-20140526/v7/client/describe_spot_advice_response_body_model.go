@@ -18,9 +18,6 @@ type iDescribeSpotAdviceResponseBody interface {
 }
 
 type DescribeSpotAdviceResponseBody struct {
-	// Details about spot instances in the zones of the specified region.
-	//
-	// >  The return values are sorted based on the historical percentages of average spot instance prices relative to pay-as-you-go instance prices for instance types.
 	AvailableSpotZones *DescribeSpotAdviceResponseBodyAvailableSpotZones `json:"AvailableSpotZones,omitempty" xml:"AvailableSpotZones,omitempty" type:"Struct"`
 	// The region ID.
 	//
@@ -115,14 +112,8 @@ func (s *DescribeSpotAdviceResponseBodyAvailableSpotZones) Validate() error {
 }
 
 type DescribeSpotAdviceResponseBodyAvailableSpotZonesAvailableSpotZone struct {
-	// Details about spot instances in the previous 30 days, including the release rate of spot instances and percentages of average spot instance prices relative to pay-as-you-go instance prices.
 	AvailableSpotResources *DescribeSpotAdviceResponseBodyAvailableSpotZonesAvailableSpotZoneAvailableSpotResources `json:"AvailableSpotResources,omitempty" xml:"AvailableSpotResources,omitempty" type:"Struct"`
-	// The zone ID.
-	//
-	// example:
-	//
-	// cn-hangzhou-i
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	ZoneId                 *string                                                                                  `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeSpotAdviceResponseBodyAvailableSpotZonesAvailableSpotZone) String() string {
@@ -195,40 +186,10 @@ func (s *DescribeSpotAdviceResponseBodyAvailableSpotZonesAvailableSpotZoneAvaila
 }
 
 type DescribeSpotAdviceResponseBodyAvailableSpotZonesAvailableSpotZoneAvailableSpotResourcesAvailableSpotResource struct {
-	// The percentage of the average spot instance price relative to the pay-as-you-go instance price in the previous 30 days. Unit: %. Valid values: 1 to 100.
-	//
-	// You can calculate the average spot instance price based on the return value. For example, if the pay-as-you-go instance price is 1 and the return value of this parameter is 20, the average spot instance price in the previous 30 days is 0.2.
-	//
-	// example:
-	//
-	// 20
-	AverageSpotDiscount *int32 `json:"AverageSpotDiscount,omitempty" xml:"AverageSpotDiscount,omitempty"`
-	// The instance type.
-	//
-	// example:
-	//
-	// ecs.c5.large
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The release rate range of spot instances in the previous 30 days, which corresponds to the `InterruptionRate` value. Valid values:
-	//
-	// 	- 0-3%
-	//
-	// 	- 3-5%
-	//
-	// 	- 5-10%
-	//
-	// 	- 10-100%
-	//
-	// example:
-	//
-	// 0-3%
-	InterruptRateDesc *string `json:"InterruptRateDesc,omitempty" xml:"InterruptRateDesc,omitempty"`
-	// The average release rate of spot instances in the previous 30 days. Unit: %.
-	//
-	// example:
-	//
-	// 0
-	InterruptionRate *float32 `json:"InterruptionRate,omitempty" xml:"InterruptionRate,omitempty"`
+	AverageSpotDiscount *int32   `json:"AverageSpotDiscount,omitempty" xml:"AverageSpotDiscount,omitempty"`
+	InstanceType        *string  `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
+	InterruptRateDesc   *string  `json:"InterruptRateDesc,omitempty" xml:"InterruptRateDesc,omitempty"`
+	InterruptionRate    *float32 `json:"InterruptionRate,omitempty" xml:"InterruptionRate,omitempty"`
 }
 
 func (s DescribeSpotAdviceResponseBodyAvailableSpotZonesAvailableSpotZoneAvailableSpotResourcesAvailableSpotResource) String() string {

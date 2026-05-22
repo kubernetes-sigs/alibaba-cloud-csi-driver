@@ -16,7 +16,6 @@ type iDescribeDedicatedHostTypesResponseBody interface {
 }
 
 type DescribeDedicatedHostTypesResponseBody struct {
-	// Details about the dedicated host types.
 	DedicatedHostTypes *DescribeDedicatedHostTypesResponseBodyDedicatedHostTypes `json:"DedicatedHostTypes,omitempty" xml:"DedicatedHostTypes,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,88 +95,21 @@ func (s *DescribeDedicatedHostTypesResponseBodyDedicatedHostTypes) Validate() er
 }
 
 type DescribeDedicatedHostTypesResponseBodyDedicatedHostTypesDedicatedHostType struct {
-	// The number of cores per physical CPU.
-	//
-	// example:
-	//
-	// 2
-	Cores *int32 `json:"Cores,omitempty" xml:"Cores,omitempty"`
-	// The supported CPU overcommit ratio range.
-	//
-	// example:
-	//
-	// 1-5
-	CpuOverCommitRatioRange *string `json:"CpuOverCommitRatioRange,omitempty" xml:"CpuOverCommitRatioRange,omitempty"`
-	// The dedicated host type.
-	//
-	// example:
-	//
-	// ddh.sn1ne
-	DedicatedHostType *string `json:"DedicatedHostType,omitempty" xml:"DedicatedHostType,omitempty"`
-	// The GPU model.
-	//
-	// example:
-	//
-	// gpu
-	GPUSpec *string `json:"GPUSpec,omitempty" xml:"GPUSpec,omitempty"`
-	// The number of local disks on a dedicated host.
-	//
-	// example:
-	//
-	// 0
-	LocalStorageAmount *int32 `json:"LocalStorageAmount,omitempty" xml:"LocalStorageAmount,omitempty"`
-	// The capacity of a local disk. Unit: GiB.
-	//
-	// example:
-	//
-	// 0
-	LocalStorageCapacity *int64 `json:"LocalStorageCapacity,omitempty" xml:"LocalStorageCapacity,omitempty"`
-	// The category of local disks.
-	//
-	// example:
-	//
-	// local
-	LocalStorageCategory *string `json:"LocalStorageCategory,omitempty" xml:"LocalStorageCategory,omitempty"`
-	// The memory size. Unit: GiB.
-	//
-	// example:
-	//
-	// 112.0
-	MemorySize *float32 `json:"MemorySize,omitempty" xml:"MemorySize,omitempty"`
-	// The number of physical GPUs.
-	//
-	// example:
-	//
-	// 2
-	PhysicalGpus *int32 `json:"PhysicalGpus,omitempty" xml:"PhysicalGpus,omitempty"`
-	// The number of physical CPUs.
-	//
-	// example:
-	//
-	// 2
-	Sockets *int32 `json:"Sockets,omitempty" xml:"Sockets,omitempty"`
-	// Indicates whether the CPU overcommit ratio settings are supported.
-	//
-	// example:
-	//
-	// true
-	SupportCpuOverCommitRatio *bool `json:"SupportCpuOverCommitRatio,omitempty" xml:"SupportCpuOverCommitRatio,omitempty"`
-	// The ECS instance families supported by the dedicated host type.
+	Cores                         *int32                                                                                                  `json:"Cores,omitempty" xml:"Cores,omitempty"`
+	CpuOverCommitRatioRange       *string                                                                                                 `json:"CpuOverCommitRatioRange,omitempty" xml:"CpuOverCommitRatioRange,omitempty"`
+	DedicatedHostType             *string                                                                                                 `json:"DedicatedHostType,omitempty" xml:"DedicatedHostType,omitempty"`
+	GPUSpec                       *string                                                                                                 `json:"GPUSpec,omitempty" xml:"GPUSpec,omitempty"`
+	LocalStorageAmount            *int32                                                                                                  `json:"LocalStorageAmount,omitempty" xml:"LocalStorageAmount,omitempty"`
+	LocalStorageCapacity          *int64                                                                                                  `json:"LocalStorageCapacity,omitempty" xml:"LocalStorageCapacity,omitempty"`
+	LocalStorageCategory          *string                                                                                                 `json:"LocalStorageCategory,omitempty" xml:"LocalStorageCategory,omitempty"`
+	MemorySize                    *float32                                                                                                `json:"MemorySize,omitempty" xml:"MemorySize,omitempty"`
+	PhysicalGpus                  *int32                                                                                                  `json:"PhysicalGpus,omitempty" xml:"PhysicalGpus,omitempty"`
+	Sockets                       *int32                                                                                                  `json:"Sockets,omitempty" xml:"Sockets,omitempty"`
+	SupportCpuOverCommitRatio     *bool                                                                                                   `json:"SupportCpuOverCommitRatio,omitempty" xml:"SupportCpuOverCommitRatio,omitempty"`
 	SupportedInstanceTypeFamilies *DescribeDedicatedHostTypesResponseBodyDedicatedHostTypesDedicatedHostTypeSupportedInstanceTypeFamilies `json:"SupportedInstanceTypeFamilies,omitempty" xml:"SupportedInstanceTypeFamilies,omitempty" type:"Struct"`
-	// The ECS instance types supported by the dedicated host type.
-	SupportedInstanceTypesList *DescribeDedicatedHostTypesResponseBodyDedicatedHostTypesDedicatedHostTypeSupportedInstanceTypesList `json:"SupportedInstanceTypesList,omitempty" xml:"SupportedInstanceTypesList,omitempty" type:"Struct"`
-	// The total number of vCPUs.
-	//
-	// example:
-	//
-	// 56
-	TotalVcpus *int32 `json:"TotalVcpus,omitempty" xml:"TotalVcpus,omitempty"`
-	// The total number of vGPUs.
-	//
-	// example:
-	//
-	// 10
-	TotalVgpus *int32 `json:"TotalVgpus,omitempty" xml:"TotalVgpus,omitempty"`
+	SupportedInstanceTypesList    *DescribeDedicatedHostTypesResponseBodyDedicatedHostTypesDedicatedHostTypeSupportedInstanceTypesList    `json:"SupportedInstanceTypesList,omitempty" xml:"SupportedInstanceTypesList,omitempty" type:"Struct"`
+	TotalVcpus                    *int32                                                                                                  `json:"TotalVcpus,omitempty" xml:"TotalVcpus,omitempty"`
+	TotalVgpus                    *int32                                                                                                  `json:"TotalVgpus,omitempty" xml:"TotalVgpus,omitempty"`
 }
 
 func (s DescribeDedicatedHostTypesResponseBodyDedicatedHostTypesDedicatedHostType) String() string {

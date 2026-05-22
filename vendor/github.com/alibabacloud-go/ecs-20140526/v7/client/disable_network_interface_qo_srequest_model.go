@@ -24,6 +24,8 @@ type iDisableNetworkInterfaceQoSRequest interface {
 }
 
 type DisableNetworkInterfaceQoSRequest struct {
+	// The ID of the ENI.
+	//
 	// This parameter is required.
 	//
 	// example:
@@ -32,6 +34,8 @@ type DisableNetworkInterfaceQoSRequest struct {
 	NetworkInterfaceId *string `json:"NetworkInterfaceId,omitempty" xml:"NetworkInterfaceId,omitempty"`
 	OwnerAccount       *string `json:"OwnerAccount,omitempty" xml:"OwnerAccount,omitempty"`
 	OwnerId            *int64  `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
+	// The region ID of the ENI. You can call the [DescribeRegions](https://help.aliyun.com/document_detail/25609.html) operation to query the most recent region list.
+	//
 	// This parameter is required.
 	//
 	// example:

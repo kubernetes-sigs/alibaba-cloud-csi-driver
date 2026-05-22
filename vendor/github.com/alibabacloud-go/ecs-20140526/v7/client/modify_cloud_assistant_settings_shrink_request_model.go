@@ -23,6 +23,8 @@ type iModifyCloudAssistantSettingsShrinkRequest interface {
 	GetResourceOwnerAccount() *string
 	SetResourceOwnerId(v int64) *ModifyCloudAssistantSettingsShrinkRequest
 	GetResourceOwnerId() *int64
+	SetResourceUsageConfigShrink(v string) *ModifyCloudAssistantSettingsShrinkRequest
+	GetResourceUsageConfigShrink() *string
 	SetSessionManagerConfigShrink(v string) *ModifyCloudAssistantSettingsShrinkRequest
 	GetSessionManagerConfigShrink() *string
 	SetSettingType(v string) *ModifyCloudAssistantSettingsShrinkRequest
@@ -45,9 +47,10 @@ type ModifyCloudAssistantSettingsShrinkRequest struct {
 	// example:
 	//
 	// cn-hangzhou
-	RegionId             *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	ResourceOwnerAccount *string `json:"ResourceOwnerAccount,omitempty" xml:"ResourceOwnerAccount,omitempty"`
-	ResourceOwnerId      *int64  `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
+	RegionId                  *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceOwnerAccount      *string `json:"ResourceOwnerAccount,omitempty" xml:"ResourceOwnerAccount,omitempty"`
+	ResourceOwnerId           *int64  `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
+	ResourceUsageConfigShrink *string `json:"ResourceUsageConfig,omitempty" xml:"ResourceUsageConfig,omitempty"`
 	// Cloud Assistant Session Manager configuration.
 	SessionManagerConfigShrink *string `json:"SessionManagerConfig,omitempty" xml:"SessionManagerConfig,omitempty"`
 	// The Cloud Assistant feature. Set SettingType to one of the following valid values:
@@ -106,6 +109,10 @@ func (s *ModifyCloudAssistantSettingsShrinkRequest) GetResourceOwnerId() *int64 
 	return s.ResourceOwnerId
 }
 
+func (s *ModifyCloudAssistantSettingsShrinkRequest) GetResourceUsageConfigShrink() *string {
+	return s.ResourceUsageConfigShrink
+}
+
 func (s *ModifyCloudAssistantSettingsShrinkRequest) GetSessionManagerConfigShrink() *string {
 	return s.SessionManagerConfigShrink
 }
@@ -150,6 +157,11 @@ func (s *ModifyCloudAssistantSettingsShrinkRequest) SetResourceOwnerAccount(v st
 
 func (s *ModifyCloudAssistantSettingsShrinkRequest) SetResourceOwnerId(v int64) *ModifyCloudAssistantSettingsShrinkRequest {
 	s.ResourceOwnerId = &v
+	return s
+}
+
+func (s *ModifyCloudAssistantSettingsShrinkRequest) SetResourceUsageConfigShrink(v string) *ModifyCloudAssistantSettingsShrinkRequest {
+	s.ResourceUsageConfigShrink = &v
 	return s
 }
 

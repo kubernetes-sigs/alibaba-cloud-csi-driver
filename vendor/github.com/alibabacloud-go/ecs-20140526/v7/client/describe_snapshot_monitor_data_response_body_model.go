@@ -16,7 +16,6 @@ type iDescribeSnapshotMonitorDataResponseBody interface {
 }
 
 type DescribeSnapshotMonitorDataResponseBody struct {
-	// The monitoring data of snapshot sizes.
 	MonitorData *DescribeSnapshotMonitorDataResponseBodyMonitorData `json:"MonitorData,omitempty" xml:"MonitorData,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,17 +95,7 @@ func (s *DescribeSnapshotMonitorDataResponseBodyMonitorData) Validate() error {
 }
 
 type DescribeSnapshotMonitorDataResponseBodyMonitorDataDataPoint struct {
-	// The total size of snapshots. Unit: bytes.
-	//
-	// example:
-	//
-	// 243036848128
-	Size *int64 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The timestamp that corresponds to a snapshot size.
-	//
-	// example:
-	//
-	// 2019-05-10T04:00:00Z
+	Size      *int64  `json:"Size,omitempty" xml:"Size,omitempty"`
 	TimeStamp *string `json:"TimeStamp,omitempty" xml:"TimeStamp,omitempty"`
 }
 

@@ -22,7 +22,6 @@ type iDescribeInstanceStatusResponseBody interface {
 }
 
 type DescribeInstanceStatusResponseBody struct {
-	// The IDs and status of the ECS instances.
 	InstanceStatuses *DescribeInstanceStatusResponseBodyInstanceStatuses `json:"InstanceStatuses,omitempty" xml:"InstanceStatuses,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,28 +146,8 @@ func (s *DescribeInstanceStatusResponseBodyInstanceStatuses) Validate() error {
 }
 
 type DescribeInstanceStatusResponseBodyInstanceStatusesInstanceStatus struct {
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-bp1j4i2jdf3owlhe****
 	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The status of the instance. Valid values:
-	//
-	// 	- Pending: The instance is being created.
-	//
-	// 	- Running: The instance is running.
-	//
-	// 	- Starting: The instance is being started.
-	//
-	// 	- Stopping: The instance is being stopped.
-	//
-	// 	- Stopped: The instance is stopped.
-	//
-	// example:
-	//
-	// Running
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	Status     *string `json:"Status,omitempty" xml:"Status,omitempty"`
 }
 
 func (s DescribeInstanceStatusResponseBodyInstanceStatusesInstanceStatus) String() string {

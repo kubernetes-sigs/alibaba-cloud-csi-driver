@@ -45,15 +45,9 @@ type DescribeStorageSetDetailsRequest struct {
 	// example:
 	//
 	// ["d-bp1d6tsvznfghy7y****", "d-bp1ippxbaql9zet7****", … "d-bp1ib7bcz07l****"]
-	DiskIds *string `json:"DiskIds,omitempty" xml:"DiskIds,omitempty"`
-	// example:
-	//
-	// hide
+	DiskIds      *string `json:"DiskIds,omitempty" xml:"DiskIds,omitempty"`
 	OwnerAccount *string `json:"OwnerAccount,omitempty" xml:"OwnerAccount,omitempty"`
-	// example:
-	//
-	// 111
-	OwnerId *int64 `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
+	OwnerId      *int64  `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
 	// The page number.
 	//
 	// Pages start from page 1.
@@ -81,15 +75,9 @@ type DescribeStorageSetDetailsRequest struct {
 	// example:
 	//
 	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// example:
-	//
-	// hide
+	RegionId             *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
 	ResourceOwnerAccount *string `json:"ResourceOwnerAccount,omitempty" xml:"ResourceOwnerAccount,omitempty"`
-	// example:
-	//
-	// 111
-	ResourceOwnerId *int64 `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
+	ResourceOwnerId      *int64  `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
 	// The ID of the storage set.
 	//
 	// This parameter is required.

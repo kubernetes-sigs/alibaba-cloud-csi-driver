@@ -35,6 +35,8 @@ type iDescribeDeploymentSetsRequest interface {
 	GetResourceOwnerId() *int64
 	SetStrategy(v string) *DescribeDeploymentSetsRequest
 	GetStrategy() *string
+	SetType(v string) *DescribeDeploymentSetsRequest
+	GetType() *string
 }
 
 type DescribeDeploymentSetsRequest struct {
@@ -110,6 +112,7 @@ type DescribeDeploymentSetsRequest struct {
 	//
 	// Availability
 	Strategy *string `json:"Strategy,omitempty" xml:"Strategy,omitempty"`
+	Type     *string `json:"Type,omitempty" xml:"Type,omitempty"`
 }
 
 func (s DescribeDeploymentSetsRequest) String() string {
@@ -170,6 +173,10 @@ func (s *DescribeDeploymentSetsRequest) GetResourceOwnerId() *int64 {
 
 func (s *DescribeDeploymentSetsRequest) GetStrategy() *string {
 	return s.Strategy
+}
+
+func (s *DescribeDeploymentSetsRequest) GetType() *string {
+	return s.Type
 }
 
 func (s *DescribeDeploymentSetsRequest) SetDeploymentSetIds(v string) *DescribeDeploymentSetsRequest {
@@ -234,6 +241,11 @@ func (s *DescribeDeploymentSetsRequest) SetResourceOwnerId(v int64) *DescribeDep
 
 func (s *DescribeDeploymentSetsRequest) SetStrategy(v string) *DescribeDeploymentSetsRequest {
 	s.Strategy = &v
+	return s
+}
+
+func (s *DescribeDeploymentSetsRequest) SetType(v string) *DescribeDeploymentSetsRequest {
+	s.Type = &v
 	return s
 }
 

@@ -24,7 +24,6 @@ type iDescribeCommandsResponseBody interface {
 }
 
 type DescribeCommandsResponseBody struct {
-	// The queried commands.
 	Commands *DescribeCommandsResponseBodyCommands `json:"Commands,omitempty" xml:"Commands,omitempty" type:"Struct"`
 	// A pagination token. It can be used in the next request to retrieve a new page of results.
 	//
@@ -164,112 +163,25 @@ func (s *DescribeCommandsResponseBodyCommands) Validate() error {
 }
 
 type DescribeCommandsResponseBodyCommandsCommand struct {
-	// The category of the common command.
-	//
-	// example:
-	//
-	// “”
-	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
-	// The content of the command, which is Base64-encoded.
-	//
-	// 	- If ContentEncoding is set to PlainText in the request, the original command content is returned.
-	//
-	// 	- If ContentEncoding is set to Base64 in the request, the Base64-encoded command content is returned.
-	//
-	// example:
-	//
-	// Y2QgL3Jvb3Q=
-	CommandContent *string `json:"CommandContent,omitempty" xml:"CommandContent,omitempty"`
-	// The command ID.
-	//
-	// example:
-	//
-	// c-hz01272yr52****
-	CommandId *string `json:"CommandId,omitempty" xml:"CommandId,omitempty"`
-	// The time when the command was created.
-	//
-	// example:
-	//
-	// 2020-11-17T06:52Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the command.
-	//
-	// example:
-	//
-	// testDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Indicates whether the custom parameter feature is enabled for the command.
-	//
-	// example:
-	//
-	// true
-	EnableParameter *bool `json:"EnableParameter,omitempty" xml:"EnableParameter,omitempty"`
-	// The number of tasks created by using the command.
-	//
-	// example:
-	//
-	// 2
-	InvokeTimes *int32 `json:"InvokeTimes,omitempty" xml:"InvokeTimes,omitempty"`
-	// Indicates whether the common command is of the latest version. If multiple common commands from the same provider (`Provider`) belong to the same category and have the same name, these commands are different versions of the same command. This parameter is not returned for the Cloud Assistant commands that you created.
-	//
-	// example:
-	//
-	// true
-	Latest *bool `json:"Latest,omitempty" xml:"Latest,omitempty"`
-	// The launcher for script execution. The value cannot exceed 1 KB in length.
-	//
-	// example:
-	//
-	// python3 -u {{ACS::ScriptFileName|Ext(".py")}}
-	Launcher *string `json:"Launcher,omitempty" xml:"Launcher,omitempty"`
-	// The name of the command.
-	//
-	// example:
-	//
-	// testName
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The custom parameters of the command.
+	Category             *string                                                          `json:"Category,omitempty" xml:"Category,omitempty"`
+	CommandContent       *string                                                          `json:"CommandContent,omitempty" xml:"CommandContent,omitempty"`
+	CommandId            *string                                                          `json:"CommandId,omitempty" xml:"CommandId,omitempty"`
+	CreationTime         *string                                                          `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	Description          *string                                                          `json:"Description,omitempty" xml:"Description,omitempty"`
+	EnableParameter      *bool                                                            `json:"EnableParameter,omitempty" xml:"EnableParameter,omitempty"`
+	InvokeTimes          *int32                                                           `json:"InvokeTimes,omitempty" xml:"InvokeTimes,omitempty"`
+	Latest               *bool                                                            `json:"Latest,omitempty" xml:"Latest,omitempty"`
+	Launcher             *string                                                          `json:"Launcher,omitempty" xml:"Launcher,omitempty"`
+	Name                 *string                                                          `json:"Name,omitempty" xml:"Name,omitempty"`
 	ParameterDefinitions *DescribeCommandsResponseBodyCommandsCommandParameterDefinitions `json:"ParameterDefinitions,omitempty" xml:"ParameterDefinitions,omitempty" type:"Struct"`
-	// The custom parameter names that are parsed from the command content specified when the command was created. If the custom parameter feature is disabled, an empty list is returned.
-	ParameterNames *DescribeCommandsResponseBodyCommandsCommandParameterNames `json:"ParameterNames,omitempty" xml:"ParameterNames,omitempty" type:"Struct"`
-	// The provider of the common command.
-	//
-	// example:
-	//
-	// AlibabaCloud.ECS.GuestOS
-	Provider *string `json:"Provider,omitempty" xml:"Provider,omitempty"`
-	// The ID of the resource group to which the command belongs.
-	//
-	// example:
-	//
-	// rg-123******
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags of the command.
-	Tags *DescribeCommandsResponseBodyCommandsCommandTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The timeout period. Unit: seconds.
-	//
-	// example:
-	//
-	// 3600
-	Timeout *int64 `json:"Timeout,omitempty" xml:"Timeout,omitempty"`
-	// The type of the command.
-	//
-	// example:
-	//
-	// RunShellScript
-	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
-	// The version of the common command. If multiple common commands from the same provider (`Provider`) belong to the same category and have the same name, these commands are different versions of the same command. This parameter is not returned for the Cloud Assistant commands that you created.
-	//
-	// example:
-	//
-	// 1
-	Version *int32 `json:"Version,omitempty" xml:"Version,omitempty"`
-	// The execution path of the command.
-	//
-	// example:
-	//
-	// /home/
-	WorkingDir *string `json:"WorkingDir,omitempty" xml:"WorkingDir,omitempty"`
+	ParameterNames       *DescribeCommandsResponseBodyCommandsCommandParameterNames       `json:"ParameterNames,omitempty" xml:"ParameterNames,omitempty" type:"Struct"`
+	Provider             *string                                                          `json:"Provider,omitempty" xml:"Provider,omitempty"`
+	ResourceGroupId      *string                                                          `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	Tags                 *DescribeCommandsResponseBodyCommandsCommandTags                 `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Timeout              *int64                                                           `json:"Timeout,omitempty" xml:"Timeout,omitempty"`
+	Type                 *string                                                          `json:"Type,omitempty" xml:"Type,omitempty"`
+	Version              *int32                                                           `json:"Version,omitempty" xml:"Version,omitempty"`
+	WorkingDir           *string                                                          `json:"WorkingDir,omitempty" xml:"WorkingDir,omitempty"`
 }
 
 func (s DescribeCommandsResponseBodyCommandsCommand) String() string {
@@ -505,44 +417,12 @@ func (s *DescribeCommandsResponseBodyCommandsCommandParameterDefinitions) Valida
 }
 
 type DescribeCommandsResponseBodyCommandsCommandParameterDefinitionsParameterDefinition struct {
-	// The default value of the custom parameter.
-	//
-	// example:
-	//
-	// https://aliyun-client-assist.oss-accelerate.aliyuncs.com/linux/aliyun_assist_latest.rpm
-	DefaultValue *string `json:"DefaultValue,omitempty" xml:"DefaultValue,omitempty"`
-	// The description of the custom parameter.
-	//
-	// example:
-	//
-	// Download path of the Cloud Assistant Agent installation package.
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The name of the custom parameter.
-	//
-	// example:
-	//
-	// DownloadUrl
-	ParameterName *string `json:"ParameterName,omitempty" xml:"ParameterName,omitempty"`
-	// The regular expression of the custom parameter.
-	//
-	// example:
-	//
-	// ^[a-zA-Z0-9_-]{4,32}$
-	PatternRegex *string `json:"PatternRegex,omitempty" xml:"PatternRegex,omitempty"`
-	// The valid values of the custom parameter of the enumeration type.
+	DefaultValue   *string                                                                                           `json:"DefaultValue,omitempty" xml:"DefaultValue,omitempty"`
+	Description    *string                                                                                           `json:"Description,omitempty" xml:"Description,omitempty"`
+	ParameterName  *string                                                                                           `json:"ParameterName,omitempty" xml:"ParameterName,omitempty"`
+	PatternRegex   *string                                                                                           `json:"PatternRegex,omitempty" xml:"PatternRegex,omitempty"`
 	PossibleValues *DescribeCommandsResponseBodyCommandsCommandParameterDefinitionsParameterDefinitionPossibleValues `json:"PossibleValues,omitempty" xml:"PossibleValues,omitempty" type:"Struct"`
-	// Indicates whether the custom parameter is required. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// Default value: false.
-	//
-	// example:
-	//
-	// true
-	Required *bool `json:"Required,omitempty" xml:"Required,omitempty"`
+	Required       *bool                                                                                             `json:"Required,omitempty" xml:"Required,omitempty"`
 }
 
 func (s DescribeCommandsResponseBodyCommandsCommandParameterDefinitionsParameterDefinition) String() string {
@@ -701,17 +581,7 @@ func (s *DescribeCommandsResponseBodyCommandsCommandTags) Validate() error {
 }
 
 type DescribeCommandsResponseBodyCommandsCommandTagsTag struct {
-	// The tag key of the command.
-	//
-	// example:
-	//
-	// owner
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the command.
-	//
-	// example:
-	//
-	// zhangsan
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

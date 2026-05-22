@@ -13,10 +13,20 @@ type iDescribeInstanceModificationPriceRequest interface {
 	GetSystemDisk() *DescribeInstanceModificationPriceRequestSystemDisk
 	SetDataDisk(v []*DescribeInstanceModificationPriceRequestDataDisk) *DescribeInstanceModificationPriceRequest
 	GetDataDisk() []*DescribeInstanceModificationPriceRequestDataDisk
+	SetEndTime(v string) *DescribeInstanceModificationPriceRequest
+	GetEndTime() *string
+	SetISP(v string) *DescribeInstanceModificationPriceRequest
+	GetISP() *string
+	SetImageId(v string) *DescribeInstanceModificationPriceRequest
+	GetImageId() *string
 	SetInstanceId(v string) *DescribeInstanceModificationPriceRequest
 	GetInstanceId() *string
 	SetInstanceType(v string) *DescribeInstanceModificationPriceRequest
 	GetInstanceType() *string
+	SetInternetChargeType(v string) *DescribeInstanceModificationPriceRequest
+	GetInternetChargeType() *string
+	SetInternetMaxBandwidthOut(v int32) *DescribeInstanceModificationPriceRequest
+	GetInternetMaxBandwidthOut() *int32
 	SetOwnerAccount(v string) *DescribeInstanceModificationPriceRequest
 	GetOwnerAccount() *string
 	SetOwnerId(v int64) *DescribeInstanceModificationPriceRequest
@@ -27,12 +37,26 @@ type iDescribeInstanceModificationPriceRequest interface {
 	GetResourceOwnerAccount() *string
 	SetResourceOwnerId(v int64) *DescribeInstanceModificationPriceRequest
 	GetResourceOwnerId() *int64
+	SetStartTime(v string) *DescribeInstanceModificationPriceRequest
+	GetStartTime() *string
 }
 
 type DescribeInstanceModificationPriceRequest struct {
 	SystemDisk *DescribeInstanceModificationPriceRequestSystemDisk `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
 	// The information about data disks.
 	DataDisk []*DescribeInstanceModificationPriceRequestDataDisk `json:"DataDisk,omitempty" xml:"DataDisk,omitempty" type:"Repeated"`
+	// example:
+	//
+	// 2025-12-06T22Z
+	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
+	// example:
+	//
+	// BGP
+	ISP *string `json:"ISP,omitempty" xml:"ISP,omitempty"`
+	// example:
+	//
+	// aliyun_2_1903_x64_20G_alibase_20200324.vhd
+	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
 	// The ID of the instance for which you want to query pricing information for a configuration upgrade.
 	//
 	// This parameter is required.
@@ -49,8 +73,16 @@ type DescribeInstanceModificationPriceRequest struct {
 	//
 	// ecs.g6e.large
 	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	OwnerAccount *string `json:"OwnerAccount,omitempty" xml:"OwnerAccount,omitempty"`
-	OwnerId      *int64  `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
+	// example:
+	//
+	// PayByTraffic
+	InternetChargeType *string `json:"InternetChargeType,omitempty" xml:"InternetChargeType,omitempty"`
+	// example:
+	//
+	// 10
+	InternetMaxBandwidthOut *int32  `json:"InternetMaxBandwidthOut,omitempty" xml:"InternetMaxBandwidthOut,omitempty"`
+	OwnerAccount            *string `json:"OwnerAccount,omitempty" xml:"OwnerAccount,omitempty"`
+	OwnerId                 *int64  `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
 	// The region ID. You can call the [DescribeRegions](https://help.aliyun.com/document_detail/25609.html) operation to query the most recent region list.
 	//
 	// This parameter is required.
@@ -61,6 +93,10 @@ type DescribeInstanceModificationPriceRequest struct {
 	RegionId             *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
 	ResourceOwnerAccount *string `json:"ResourceOwnerAccount,omitempty" xml:"ResourceOwnerAccount,omitempty"`
 	ResourceOwnerId      *int64  `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
+	// example:
+	//
+	// 2025-12-05T22:40Z
+	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
 }
 
 func (s DescribeInstanceModificationPriceRequest) String() string {
@@ -79,12 +115,32 @@ func (s *DescribeInstanceModificationPriceRequest) GetDataDisk() []*DescribeInst
 	return s.DataDisk
 }
 
+func (s *DescribeInstanceModificationPriceRequest) GetEndTime() *string {
+	return s.EndTime
+}
+
+func (s *DescribeInstanceModificationPriceRequest) GetISP() *string {
+	return s.ISP
+}
+
+func (s *DescribeInstanceModificationPriceRequest) GetImageId() *string {
+	return s.ImageId
+}
+
 func (s *DescribeInstanceModificationPriceRequest) GetInstanceId() *string {
 	return s.InstanceId
 }
 
 func (s *DescribeInstanceModificationPriceRequest) GetInstanceType() *string {
 	return s.InstanceType
+}
+
+func (s *DescribeInstanceModificationPriceRequest) GetInternetChargeType() *string {
+	return s.InternetChargeType
+}
+
+func (s *DescribeInstanceModificationPriceRequest) GetInternetMaxBandwidthOut() *int32 {
+	return s.InternetMaxBandwidthOut
 }
 
 func (s *DescribeInstanceModificationPriceRequest) GetOwnerAccount() *string {
@@ -107,6 +163,10 @@ func (s *DescribeInstanceModificationPriceRequest) GetResourceOwnerId() *int64 {
 	return s.ResourceOwnerId
 }
 
+func (s *DescribeInstanceModificationPriceRequest) GetStartTime() *string {
+	return s.StartTime
+}
+
 func (s *DescribeInstanceModificationPriceRequest) SetSystemDisk(v *DescribeInstanceModificationPriceRequestSystemDisk) *DescribeInstanceModificationPriceRequest {
 	s.SystemDisk = v
 	return s
@@ -117,6 +177,21 @@ func (s *DescribeInstanceModificationPriceRequest) SetDataDisk(v []*DescribeInst
 	return s
 }
 
+func (s *DescribeInstanceModificationPriceRequest) SetEndTime(v string) *DescribeInstanceModificationPriceRequest {
+	s.EndTime = &v
+	return s
+}
+
+func (s *DescribeInstanceModificationPriceRequest) SetISP(v string) *DescribeInstanceModificationPriceRequest {
+	s.ISP = &v
+	return s
+}
+
+func (s *DescribeInstanceModificationPriceRequest) SetImageId(v string) *DescribeInstanceModificationPriceRequest {
+	s.ImageId = &v
+	return s
+}
+
 func (s *DescribeInstanceModificationPriceRequest) SetInstanceId(v string) *DescribeInstanceModificationPriceRequest {
 	s.InstanceId = &v
 	return s
@@ -124,6 +199,16 @@ func (s *DescribeInstanceModificationPriceRequest) SetInstanceId(v string) *Desc
 
 func (s *DescribeInstanceModificationPriceRequest) SetInstanceType(v string) *DescribeInstanceModificationPriceRequest {
 	s.InstanceType = &v
+	return s
+}
+
+func (s *DescribeInstanceModificationPriceRequest) SetInternetChargeType(v string) *DescribeInstanceModificationPriceRequest {
+	s.InternetChargeType = &v
+	return s
+}
+
+func (s *DescribeInstanceModificationPriceRequest) SetInternetMaxBandwidthOut(v int32) *DescribeInstanceModificationPriceRequest {
+	s.InternetMaxBandwidthOut = &v
 	return s
 }
 
@@ -152,6 +237,11 @@ func (s *DescribeInstanceModificationPriceRequest) SetResourceOwnerId(v int64) *
 	return s
 }
 
+func (s *DescribeInstanceModificationPriceRequest) SetStartTime(v string) *DescribeInstanceModificationPriceRequest {
+	s.StartTime = &v
+	return s
+}
+
 func (s *DescribeInstanceModificationPriceRequest) Validate() error {
 	if s.SystemDisk != nil {
 		if err := s.SystemDisk.Validate(); err != nil {
@@ -171,20 +261,15 @@ func (s *DescribeInstanceModificationPriceRequest) Validate() error {
 }
 
 type DescribeInstanceModificationPriceRequestSystemDisk struct {
-	// The category of the system disk. You must specify this parameter only when you upgrade a non-I/O optimized instance of a retired instance type to an I/O optimized instance of an available instance type. For more information about instance types, see [Instance families](https://help.aliyun.com/document_detail/25378.html) and [Retired instance types](https://help.aliyun.com/document_detail/55263.html).
-	//
-	// Valid values:
-	//
-	// 	- cloud_efficiency: ultra disk
-	//
-	// 	- cloud_ssd: standard SSD
-	//
-	// This parameter is empty by default.
-	//
+	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
 	// example:
 	//
-	// cloud_ssd
-	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	// PL0
+	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
+	// example:
+	//
+	// 40
+	Size *int32 `json:"Size,omitempty" xml:"Size,omitempty"`
 }
 
 func (s DescribeInstanceModificationPriceRequestSystemDisk) String() string {
@@ -199,8 +284,26 @@ func (s *DescribeInstanceModificationPriceRequestSystemDisk) GetCategory() *stri
 	return s.Category
 }
 
+func (s *DescribeInstanceModificationPriceRequestSystemDisk) GetPerformanceLevel() *string {
+	return s.PerformanceLevel
+}
+
+func (s *DescribeInstanceModificationPriceRequestSystemDisk) GetSize() *int32 {
+	return s.Size
+}
+
 func (s *DescribeInstanceModificationPriceRequestSystemDisk) SetCategory(v string) *DescribeInstanceModificationPriceRequestSystemDisk {
 	s.Category = &v
+	return s
+}
+
+func (s *DescribeInstanceModificationPriceRequestSystemDisk) SetPerformanceLevel(v string) *DescribeInstanceModificationPriceRequestSystemDisk {
+	s.PerformanceLevel = &v
+	return s
+}
+
+func (s *DescribeInstanceModificationPriceRequestSystemDisk) SetSize(v int32) *DescribeInstanceModificationPriceRequestSystemDisk {
+	s.Size = &v
 	return s
 }
 
@@ -227,6 +330,10 @@ type DescribeInstanceModificationPriceRequestDataDisk struct {
 	//
 	// cloud_essd
 	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	// example:
+	//
+	// d-bf4rupt9****
+	DiskId *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
 	// The performance level of data disk N that is an enhanced SSD (ESSD). The value of N must be the same as that in `DataDisk.N.Category` when DataDisk.N.Category is set to cloud_essd. Valid values:
 	//
 	// 	- PL0: A single ESSD can deliver up to 10,000 random read/write IOPS.
@@ -283,6 +390,10 @@ func (s *DescribeInstanceModificationPriceRequestDataDisk) GetCategory() *string
 	return s.Category
 }
 
+func (s *DescribeInstanceModificationPriceRequestDataDisk) GetDiskId() *string {
+	return s.DiskId
+}
+
 func (s *DescribeInstanceModificationPriceRequestDataDisk) GetPerformanceLevel() *string {
 	return s.PerformanceLevel
 }
@@ -293,6 +404,11 @@ func (s *DescribeInstanceModificationPriceRequestDataDisk) GetSize() *int32 {
 
 func (s *DescribeInstanceModificationPriceRequestDataDisk) SetCategory(v string) *DescribeInstanceModificationPriceRequestDataDisk {
 	s.Category = &v
+	return s
+}
+
+func (s *DescribeInstanceModificationPriceRequestDataDisk) SetDiskId(v string) *DescribeInstanceModificationPriceRequestDataDisk {
+	s.DiskId = &v
 	return s
 }
 

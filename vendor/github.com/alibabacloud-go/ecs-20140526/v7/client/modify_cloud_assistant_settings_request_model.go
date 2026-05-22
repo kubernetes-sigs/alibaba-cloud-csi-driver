@@ -23,6 +23,8 @@ type iModifyCloudAssistantSettingsRequest interface {
 	GetResourceOwnerAccount() *string
 	SetResourceOwnerId(v int64) *ModifyCloudAssistantSettingsRequest
 	GetResourceOwnerId() *int64
+	SetResourceUsageConfig(v *ModifyCloudAssistantSettingsRequestResourceUsageConfig) *ModifyCloudAssistantSettingsRequest
+	GetResourceUsageConfig() *ModifyCloudAssistantSettingsRequestResourceUsageConfig
 	SetSessionManagerConfig(v *ModifyCloudAssistantSettingsRequestSessionManagerConfig) *ModifyCloudAssistantSettingsRequest
 	GetSessionManagerConfig() *ModifyCloudAssistantSettingsRequestSessionManagerConfig
 	SetSettingType(v string) *ModifyCloudAssistantSettingsRequest
@@ -45,9 +47,10 @@ type ModifyCloudAssistantSettingsRequest struct {
 	// example:
 	//
 	// cn-hangzhou
-	RegionId             *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	ResourceOwnerAccount *string `json:"ResourceOwnerAccount,omitempty" xml:"ResourceOwnerAccount,omitempty"`
-	ResourceOwnerId      *int64  `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
+	RegionId             *string                                                 `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceOwnerAccount *string                                                 `json:"ResourceOwnerAccount,omitempty" xml:"ResourceOwnerAccount,omitempty"`
+	ResourceOwnerId      *int64                                                  `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
+	ResourceUsageConfig  *ModifyCloudAssistantSettingsRequestResourceUsageConfig `json:"ResourceUsageConfig,omitempty" xml:"ResourceUsageConfig,omitempty" type:"Struct"`
 	// Cloud Assistant Session Manager configuration.
 	SessionManagerConfig *ModifyCloudAssistantSettingsRequestSessionManagerConfig `json:"SessionManagerConfig,omitempty" xml:"SessionManagerConfig,omitempty" type:"Struct"`
 	// The Cloud Assistant feature. Set SettingType to one of the following valid values:
@@ -106,6 +109,10 @@ func (s *ModifyCloudAssistantSettingsRequest) GetResourceOwnerId() *int64 {
 	return s.ResourceOwnerId
 }
 
+func (s *ModifyCloudAssistantSettingsRequest) GetResourceUsageConfig() *ModifyCloudAssistantSettingsRequestResourceUsageConfig {
+	return s.ResourceUsageConfig
+}
+
 func (s *ModifyCloudAssistantSettingsRequest) GetSessionManagerConfig() *ModifyCloudAssistantSettingsRequestSessionManagerConfig {
 	return s.SessionManagerConfig
 }
@@ -153,6 +160,11 @@ func (s *ModifyCloudAssistantSettingsRequest) SetResourceOwnerId(v int64) *Modif
 	return s
 }
 
+func (s *ModifyCloudAssistantSettingsRequest) SetResourceUsageConfig(v *ModifyCloudAssistantSettingsRequestResourceUsageConfig) *ModifyCloudAssistantSettingsRequest {
+	s.ResourceUsageConfig = v
+	return s
+}
+
 func (s *ModifyCloudAssistantSettingsRequest) SetSessionManagerConfig(v *ModifyCloudAssistantSettingsRequestSessionManagerConfig) *ModifyCloudAssistantSettingsRequest {
 	s.SessionManagerConfig = v
 	return s
@@ -179,6 +191,11 @@ func (s *ModifyCloudAssistantSettingsRequest) Validate() error {
 			return err
 		}
 	}
+	if s.ResourceUsageConfig != nil {
+		if err := s.ResourceUsageConfig.Validate(); err != nil {
+			return err
+		}
+	}
 	if s.SessionManagerConfig != nil {
 		if err := s.SessionManagerConfig.Validate(); err != nil {
 			return err
@@ -201,6 +218,8 @@ type ModifyCloudAssistantSettingsRequestAgentUpgradeConfig struct {
 	//
 	// For example, [ "02:00-03:00", "05:00-06:00" ] specifies that Cloud Assistant Agent can be upgraded from 2:00:00 to 3:00:00 and from 5:00:00 to 6:00:00 every day in the UTC time zone.
 	AllowedUpgradeWindow []*string `json:"AllowedUpgradeWindow,omitempty" xml:"AllowedUpgradeWindow,omitempty" type:"Repeated"`
+	BootstrapUpgrade     *bool     `json:"BootstrapUpgrade,omitempty" xml:"BootstrapUpgrade,omitempty"`
+	DisableUpgrade       *bool     `json:"DisableUpgrade,omitempty" xml:"DisableUpgrade,omitempty"`
 	// Specifies whether to enable custom upgrade for Cloud Assistant Agent. If you set this parameter to false, an upgrade attempt is performed for Cloud Assistant Agent every 30 minutes.
 	//
 	// Default value: false.
@@ -233,6 +252,14 @@ func (s *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig) GetAllowedUpgrad
 	return s.AllowedUpgradeWindow
 }
 
+func (s *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig) GetBootstrapUpgrade() *bool {
+	return s.BootstrapUpgrade
+}
+
+func (s *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig) GetDisableUpgrade() *bool {
+	return s.DisableUpgrade
+}
+
 func (s *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig) GetEnabled() *bool {
 	return s.Enabled
 }
@@ -243,6 +270,16 @@ func (s *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig) GetTimeZone() *s
 
 func (s *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig) SetAllowedUpgradeWindow(v []*string) *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig {
 	s.AllowedUpgradeWindow = v
+	return s
+}
+
+func (s *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig) SetBootstrapUpgrade(v bool) *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig {
+	s.BootstrapUpgrade = &v
+	return s
+}
+
+func (s *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig) SetDisableUpgrade(v bool) *ModifyCloudAssistantSettingsRequestAgentUpgradeConfig {
+	s.DisableUpgrade = &v
 	return s
 }
 
@@ -378,6 +415,81 @@ func (s *ModifyCloudAssistantSettingsRequestOssDeliveryConfig) SetPrefix(v strin
 }
 
 func (s *ModifyCloudAssistantSettingsRequestOssDeliveryConfig) Validate() error {
+	return dara.Validate(s)
+}
+
+type ModifyCloudAssistantSettingsRequestResourceUsageConfig struct {
+	CpuLimit          *int32  `json:"CpuLimit,omitempty" xml:"CpuLimit,omitempty"`
+	KeepScriptFile    *bool   `json:"KeepScriptFile,omitempty" xml:"KeepScriptFile,omitempty"`
+	LogFileCountLimit *int32  `json:"LogFileCountLimit,omitempty" xml:"LogFileCountLimit,omitempty"`
+	LogSizeLimit      *string `json:"LogSizeLimit,omitempty" xml:"LogSizeLimit,omitempty"`
+	MemoryLimit       *string `json:"MemoryLimit,omitempty" xml:"MemoryLimit,omitempty"`
+	OverloadLimit     *int32  `json:"OverloadLimit,omitempty" xml:"OverloadLimit,omitempty"`
+}
+
+func (s ModifyCloudAssistantSettingsRequestResourceUsageConfig) String() string {
+	return dara.Prettify(s)
+}
+
+func (s ModifyCloudAssistantSettingsRequestResourceUsageConfig) GoString() string {
+	return s.String()
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) GetCpuLimit() *int32 {
+	return s.CpuLimit
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) GetKeepScriptFile() *bool {
+	return s.KeepScriptFile
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) GetLogFileCountLimit() *int32 {
+	return s.LogFileCountLimit
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) GetLogSizeLimit() *string {
+	return s.LogSizeLimit
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) GetMemoryLimit() *string {
+	return s.MemoryLimit
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) GetOverloadLimit() *int32 {
+	return s.OverloadLimit
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) SetCpuLimit(v int32) *ModifyCloudAssistantSettingsRequestResourceUsageConfig {
+	s.CpuLimit = &v
+	return s
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) SetKeepScriptFile(v bool) *ModifyCloudAssistantSettingsRequestResourceUsageConfig {
+	s.KeepScriptFile = &v
+	return s
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) SetLogFileCountLimit(v int32) *ModifyCloudAssistantSettingsRequestResourceUsageConfig {
+	s.LogFileCountLimit = &v
+	return s
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) SetLogSizeLimit(v string) *ModifyCloudAssistantSettingsRequestResourceUsageConfig {
+	s.LogSizeLimit = &v
+	return s
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) SetMemoryLimit(v string) *ModifyCloudAssistantSettingsRequestResourceUsageConfig {
+	s.MemoryLimit = &v
+	return s
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) SetOverloadLimit(v int32) *ModifyCloudAssistantSettingsRequestResourceUsageConfig {
+	s.OverloadLimit = &v
+	return s
+}
+
+func (s *ModifyCloudAssistantSettingsRequestResourceUsageConfig) Validate() error {
 	return dara.Validate(s)
 }
 

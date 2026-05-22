@@ -29,8 +29,7 @@ type ListTagResourcesResponseBody struct {
 	// example:
 	//
 	// 484256DA-D816-44D2-9D86-B6EE4D5BA78C
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The information about the resource and its tags, including the resource ID, the resource type, and the keys and values of the tags.
+	RequestId    *string                                   `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	TagResources *ListTagResourcesResponseBodyTagResources `json:"TagResources,omitempty" xml:"TagResources,omitempty" type:"Struct"`
 }
 
@@ -113,68 +112,10 @@ func (s *ListTagResourcesResponseBodyTagResources) Validate() error {
 }
 
 type ListTagResourcesResponseBodyTagResourcesTagResource struct {
-	// The resource ID.
-	//
-	// example:
-	//
-	// i-bp1j6qtvdm8w0z1o****
-	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The resource type. Valid values:
-	//
-	// 	- instance: ECS instance
-	//
-	// 	- disk: disk
-	//
-	// 	- snapshot: snapshot
-	//
-	// 	- image: image
-	//
-	// 	- securitygroup: security group
-	//
-	// 	- volume: storage volume
-	//
-	// 	- eni: ENI
-	//
-	// 	- ddh: dedicated host
-	//
-	// 	- ddhcluster: dedicated host cluster
-	//
-	// 	- keypair: SSH key pair
-	//
-	// 	- launchtemplate: launch template
-	//
-	// 	- reservedinstance: reserved instance
-	//
-	// 	- snapshotpolicy: automatic snapshot policy
-	//
-	// 	- elasticityassurance: elasticity assurance
-	//
-	// 	- capacityreservation: capacity reservation
-	//
-	// 	- command: Cloud Assistant command
-	//
-	// 	- invocation: Cloud Assistant command execution result
-	//
-	// 	- activation: activation code for a Cloud Assistant managed instance
-	//
-	// 	- managedinstance: Cloud Assistant managed instance
-	//
-	// example:
-	//
-	// instance
+	ResourceId   *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
 	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
-	// The tag key of the resource.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the resource.
-	//
-	// example:
-	//
-	// TestValue
-	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
+	TagKey       *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
+	TagValue     *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 
 func (s ListTagResourcesResponseBodyTagResourcesTagResource) String() string {

@@ -22,7 +22,6 @@ type iDescribeAutoProvisioningGroupHistoryResponseBody interface {
 }
 
 type DescribeAutoProvisioningGroupHistoryResponseBody struct {
-	// An array consisting of AutoProvisioningGroupHistory data.
 	AutoProvisioningGroupHistories *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistories `json:"AutoProvisioningGroupHistories,omitempty" xml:"AutoProvisioningGroupHistories,omitempty" type:"Struct"`
 	// The page number of the returned page.
 	//
@@ -147,38 +146,11 @@ func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHi
 }
 
 type DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistory struct {
-	// An array consisting of ActivityDetail data.
 	ActivityDetails *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetails `json:"ActivityDetails,omitempty" xml:"ActivityDetails,omitempty" type:"Struct"`
-	// The execution time of the last instance creation performed by the single scheduling task.
-	//
-	// example:
-	//
-	// 2019-04-01T15:10:20Z
-	LastEventTime *string `json:"LastEventTime,omitempty" xml:"LastEventTime,omitempty"`
-	// The start time of executing the single scheduling task.
-	//
-	// example:
-	//
-	// 2019-04-01T15:10:20Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The execution status of the single scheduling task. Valid values:
-	//
-	// 	- prepare: The scheduling task is being executed.
-	//
-	// 	- success: The scheduling task is executed.
-	//
-	// 	- failed: The scheduling task failed to be executed.
-	//
-	// example:
-	//
-	// success
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The ID of the scheduling task.
-	//
-	// example:
-	//
-	// apg-task-bp67acfmxazb4p****
-	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
+	LastEventTime   *string                                                                                                                    `json:"LastEventTime,omitempty" xml:"LastEventTime,omitempty"`
+	StartTime       *string                                                                                                                    `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	Status          *string                                                                                                                    `json:"Status,omitempty" xml:"Status,omitempty"`
+	TaskId          *string                                                                                                                    `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
 }
 
 func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistory) String() string {
@@ -278,26 +250,11 @@ func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHi
 }
 
 type DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail struct {
-	// The execution details of instance creation performed by the single scheduling task.
-	//
-	// example:
-	//
-	// New ECS instances "i-bp67acfmxazb4p****, i-bp67acfmxazb5p****" created.
-	Detail *string `json:"Detail,omitempty" xml:"Detail,omitempty"`
-	// The execution status of instance creation performed by the single scheduling task. Valid values:
-	//
-	// 	- Successful: Instances are created.
-	//
-	// 	- Failed: Instances failed to be created.
-	//
-	// 	- InProgress: Instances are being created.
-	//
-	// 	- Warning: Some instances are created.
-	//
-	// example:
-	//
-	// Successful
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	CreatedInstanceIds   *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailCreatedInstanceIds   `json:"CreatedInstanceIds,omitempty" xml:"CreatedInstanceIds,omitempty" type:"Struct"`
+	DestroyedInstanceIds *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailDestroyedInstanceIds `json:"DestroyedInstanceIds,omitempty" xml:"DestroyedInstanceIds,omitempty" type:"Struct"`
+	Detail               *string                                                                                                                                                      `json:"Detail,omitempty" xml:"Detail,omitempty"`
+	ErrorMessages        *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessages        `json:"ErrorMessages,omitempty" xml:"ErrorMessages,omitempty" type:"Struct"`
+	Status               *string                                                                                                                                                      `json:"Status,omitempty" xml:"Status,omitempty"`
 }
 
 func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) String() string {
@@ -308,16 +265,43 @@ func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHis
 	return s.String()
 }
 
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) GetCreatedInstanceIds() *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailCreatedInstanceIds {
+	return s.CreatedInstanceIds
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) GetDestroyedInstanceIds() *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailDestroyedInstanceIds {
+	return s.DestroyedInstanceIds
+}
+
 func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) GetDetail() *string {
 	return s.Detail
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) GetErrorMessages() *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessages {
+	return s.ErrorMessages
 }
 
 func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) GetStatus() *string {
 	return s.Status
 }
 
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) SetCreatedInstanceIds(v *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailCreatedInstanceIds) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail {
+	s.CreatedInstanceIds = v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) SetDestroyedInstanceIds(v *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailDestroyedInstanceIds) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail {
+	s.DestroyedInstanceIds = v
+	return s
+}
+
 func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) SetDetail(v string) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail {
 	s.Detail = &v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) SetErrorMessages(v *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessages) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail {
+	s.ErrorMessages = v
 	return s
 }
 
@@ -327,5 +311,185 @@ func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHi
 }
 
 func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetail) Validate() error {
+	if s.CreatedInstanceIds != nil {
+		if err := s.CreatedInstanceIds.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.DestroyedInstanceIds != nil {
+		if err := s.DestroyedInstanceIds.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.ErrorMessages != nil {
+		if err := s.ErrorMessages.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailCreatedInstanceIds struct {
+	CreatedInstanceId []*string `json:"CreatedInstanceId,omitempty" xml:"CreatedInstanceId,omitempty" type:"Repeated"`
+}
+
+func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailCreatedInstanceIds) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailCreatedInstanceIds) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailCreatedInstanceIds) GetCreatedInstanceId() []*string {
+	return s.CreatedInstanceId
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailCreatedInstanceIds) SetCreatedInstanceId(v []*string) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailCreatedInstanceIds {
+	s.CreatedInstanceId = v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailCreatedInstanceIds) Validate() error {
+	return dara.Validate(s)
+}
+
+type DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailDestroyedInstanceIds struct {
+	DestroyedInstanceId []*string `json:"DestroyedInstanceId,omitempty" xml:"DestroyedInstanceId,omitempty" type:"Repeated"`
+}
+
+func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailDestroyedInstanceIds) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailDestroyedInstanceIds) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailDestroyedInstanceIds) GetDestroyedInstanceId() []*string {
+	return s.DestroyedInstanceId
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailDestroyedInstanceIds) SetDestroyedInstanceId(v []*string) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailDestroyedInstanceIds {
+	s.DestroyedInstanceId = v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailDestroyedInstanceIds) Validate() error {
+	return dara.Validate(s)
+}
+
+type DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessages struct {
+	ErrorMessage []*DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage `json:"ErrorMessage,omitempty" xml:"ErrorMessage,omitempty" type:"Repeated"`
+}
+
+func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessages) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessages) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessages) GetErrorMessage() []*DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage {
+	return s.ErrorMessage
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessages) SetErrorMessage(v []*DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessages {
+	s.ErrorMessage = v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessages) Validate() error {
+	if s.ErrorMessage != nil {
+		for _, item := range s.ErrorMessage {
+			if item != nil {
+				if err := item.Validate(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+type DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage struct {
+	// example:
+	//
+	// InvalidSecurityGroupId.NotFound
+	Code              *string                                                                                                                                                                            `json:"Code,omitempty" xml:"Code,omitempty"`
+	FailedInstanceIds *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessageFailedInstanceIds `json:"FailedInstanceIds,omitempty" xml:"FailedInstanceIds,omitempty" type:"Struct"`
+	// example:
+	//
+	// The specified SecurityGroupId "sg-bp1d8modxxxxx" is not found.
+	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
+}
+
+func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage) GetCode() *string {
+	return s.Code
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage) GetFailedInstanceIds() *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessageFailedInstanceIds {
+	return s.FailedInstanceIds
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage) GetMessage() *string {
+	return s.Message
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage) SetCode(v string) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage {
+	s.Code = &v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage) SetFailedInstanceIds(v *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessageFailedInstanceIds) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage {
+	s.FailedInstanceIds = v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage) SetMessage(v string) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage {
+	s.Message = &v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessage) Validate() error {
+	if s.FailedInstanceIds != nil {
+		if err := s.FailedInstanceIds.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessageFailedInstanceIds struct {
+	FailedInstanceId []*string `json:"FailedInstanceId,omitempty" xml:"FailedInstanceId,omitempty" type:"Repeated"`
+}
+
+func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessageFailedInstanceIds) String() string {
+	return dara.Prettify(s)
+}
+
+func (s DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessageFailedInstanceIds) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessageFailedInstanceIds) GetFailedInstanceId() []*string {
+	return s.FailedInstanceId
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessageFailedInstanceIds) SetFailedInstanceId(v []*string) *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessageFailedInstanceIds {
+	s.FailedInstanceId = v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupHistoryResponseBodyAutoProvisioningGroupHistoriesAutoProvisioningGroupHistoryActivityDetailsActivityDetailErrorMessagesErrorMessageFailedInstanceIds) Validate() error {
 	return dara.Validate(s)
 }

@@ -22,7 +22,6 @@ type iDescribeElasticityAssuranceInstancesResponseBody interface {
 }
 
 type DescribeElasticityAssuranceInstancesResponseBody struct {
-	// Details about the instances that match and use the elasticity assurance.
 	ElasticityAssuranceItem *DescribeElasticityAssuranceInstancesResponseBodyElasticityAssuranceItem `json:"ElasticityAssuranceItem,omitempty" xml:"ElasticityAssuranceItem,omitempty" type:"Struct"`
 	// The number of entries returned per page.
 	//
@@ -147,11 +146,6 @@ func (s *DescribeElasticityAssuranceInstancesResponseBodyElasticityAssuranceItem
 }
 
 type DescribeElasticityAssuranceInstancesResponseBodyElasticityAssuranceItemInstanceIdSet struct {
-	// The instance ID
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4****
 	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 }
 

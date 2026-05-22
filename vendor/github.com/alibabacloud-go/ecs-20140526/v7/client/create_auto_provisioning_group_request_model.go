@@ -15,6 +15,8 @@ type iCreateAutoProvisioningGroupRequest interface {
 	GetAutoProvisioningGroupName() *string
 	SetAutoProvisioningGroupType(v string) *CreateAutoProvisioningGroupRequest
 	GetAutoProvisioningGroupType() *string
+	SetCandidateOptions(v *CreateAutoProvisioningGroupRequestCandidateOptions) *CreateAutoProvisioningGroupRequest
+	GetCandidateOptions() *CreateAutoProvisioningGroupRequestCandidateOptions
 	SetClientToken(v string) *CreateAutoProvisioningGroupRequest
 	GetClientToken() *string
 	SetDataDiskConfig(v []*CreateAutoProvisioningGroupRequestDataDiskConfig) *CreateAutoProvisioningGroupRequest
@@ -104,7 +106,8 @@ type CreateAutoProvisioningGroupRequest struct {
 	// example:
 	//
 	// maintain
-	AutoProvisioningGroupType *string `json:"AutoProvisioningGroupType,omitempty" xml:"AutoProvisioningGroupType,omitempty"`
+	AutoProvisioningGroupType *string                                             `json:"AutoProvisioningGroupType,omitempty" xml:"AutoProvisioningGroupType,omitempty"`
+	CandidateOptions          *CreateAutoProvisioningGroupRequestCandidateOptions `json:"CandidateOptions,omitempty" xml:"CandidateOptions,omitempty" type:"Struct"`
 	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests. The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How to ensure idempotence](https://help.aliyun.com/document_detail/25693.html).
 	//
 	// example:
@@ -350,6 +353,10 @@ func (s *CreateAutoProvisioningGroupRequest) GetAutoProvisioningGroupType() *str
 	return s.AutoProvisioningGroupType
 }
 
+func (s *CreateAutoProvisioningGroupRequest) GetCandidateOptions() *CreateAutoProvisioningGroupRequestCandidateOptions {
+	return s.CandidateOptions
+}
+
 func (s *CreateAutoProvisioningGroupRequest) GetClientToken() *string {
 	return s.ClientToken
 }
@@ -494,6 +501,11 @@ func (s *CreateAutoProvisioningGroupRequest) SetAutoProvisioningGroupName(v stri
 
 func (s *CreateAutoProvisioningGroupRequest) SetAutoProvisioningGroupType(v string) *CreateAutoProvisioningGroupRequest {
 	s.AutoProvisioningGroupType = &v
+	return s
+}
+
+func (s *CreateAutoProvisioningGroupRequest) SetCandidateOptions(v *CreateAutoProvisioningGroupRequestCandidateOptions) *CreateAutoProvisioningGroupRequest {
+	s.CandidateOptions = v
 	return s
 }
 
@@ -665,6 +677,11 @@ func (s *CreateAutoProvisioningGroupRequest) SetValidUntil(v string) *CreateAuto
 func (s *CreateAutoProvisioningGroupRequest) Validate() error {
 	if s.LaunchConfiguration != nil {
 		if err := s.LaunchConfiguration.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.CandidateOptions != nil {
+		if err := s.CandidateOptions.Validate(); err != nil {
 			return err
 		}
 	}
@@ -2199,6 +2216,44 @@ func (s *CreateAutoProvisioningGroupRequestLaunchConfigurationSecurityOptions) S
 }
 
 func (s *CreateAutoProvisioningGroupRequestLaunchConfigurationSecurityOptions) Validate() error {
+	return dara.Validate(s)
+}
+
+type CreateAutoProvisioningGroupRequestCandidateOptions struct {
+	Evaluate *bool `json:"Evaluate,omitempty" xml:"Evaluate,omitempty"`
+	// example:
+	//
+	// 60
+	TimeoutMinutes *int32 `json:"TimeoutMinutes,omitempty" xml:"TimeoutMinutes,omitempty"`
+}
+
+func (s CreateAutoProvisioningGroupRequestCandidateOptions) String() string {
+	return dara.Prettify(s)
+}
+
+func (s CreateAutoProvisioningGroupRequestCandidateOptions) GoString() string {
+	return s.String()
+}
+
+func (s *CreateAutoProvisioningGroupRequestCandidateOptions) GetEvaluate() *bool {
+	return s.Evaluate
+}
+
+func (s *CreateAutoProvisioningGroupRequestCandidateOptions) GetTimeoutMinutes() *int32 {
+	return s.TimeoutMinutes
+}
+
+func (s *CreateAutoProvisioningGroupRequestCandidateOptions) SetEvaluate(v bool) *CreateAutoProvisioningGroupRequestCandidateOptions {
+	s.Evaluate = &v
+	return s
+}
+
+func (s *CreateAutoProvisioningGroupRequestCandidateOptions) SetTimeoutMinutes(v int32) *CreateAutoProvisioningGroupRequestCandidateOptions {
+	s.TimeoutMinutes = &v
+	return s
+}
+
+func (s *CreateAutoProvisioningGroupRequestCandidateOptions) Validate() error {
 	return dara.Validate(s)
 }
 

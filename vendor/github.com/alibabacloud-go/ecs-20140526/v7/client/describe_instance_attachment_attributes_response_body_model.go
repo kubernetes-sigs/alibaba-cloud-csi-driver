@@ -22,7 +22,6 @@ type iDescribeInstanceAttachmentAttributesResponseBody interface {
 }
 
 type DescribeInstanceAttachmentAttributesResponseBody struct {
-	// The information about the association between private pools and instances.
 	Instances *DescribeInstanceAttachmentAttributesResponseBodyInstances `json:"Instances,omitempty" xml:"Instances,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,29 +146,8 @@ func (s *DescribeInstanceAttachmentAttributesResponseBodyInstances) Validate() e
 }
 
 type DescribeInstanceAttachmentAttributesResponseBodyInstancesInstance struct {
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The ID of the private pool. If the value of `PrivatePoolOptionsMatchCriteria` is `Open`, the value of PrivatePoolOptionsId is the ID of the private pool that is automatically matched to the instance.
-	//
-	// example:
-	//
-	// eap-bp67acfmxazb4****
-	PrivatePoolOptionsId *string `json:"PrivatePoolOptionsId,omitempty" xml:"PrivatePoolOptionsId,omitempty"`
-	// The match mode of the private pool. Valid values:
-	//
-	// 	- Open: open private pool. Instances automatically match an open private pool.
-	//
-	// 	- Target: specified private pool. Instances match a specified private pool.
-	//
-	// 	- None: no private pool. Instances do not use private pools.
-	//
-	// example:
-	//
-	// Open
+	InstanceId                      *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	PrivatePoolOptionsId            *string `json:"PrivatePoolOptionsId,omitempty" xml:"PrivatePoolOptionsId,omitempty"`
 	PrivatePoolOptionsMatchCriteria *string `json:"PrivatePoolOptionsMatchCriteria,omitempty" xml:"PrivatePoolOptionsMatchCriteria,omitempty"`
 }
 

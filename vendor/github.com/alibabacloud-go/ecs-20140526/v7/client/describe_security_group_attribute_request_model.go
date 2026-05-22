@@ -34,7 +34,9 @@ type iDescribeSecurityGroupAttributeRequest interface {
 }
 
 type DescribeSecurityGroupAttributeRequest struct {
-	// The attributes of the security group. Valid value: snapshotPolicyIds: queries information about snapshot policies associated with a security group.
+	// The attributes of the security group. Valid value:
+	//
+	// 	- snapshotPolicyIds: queries information about snapshot policies associated with a security group.
 	//
 	// example:
 	//

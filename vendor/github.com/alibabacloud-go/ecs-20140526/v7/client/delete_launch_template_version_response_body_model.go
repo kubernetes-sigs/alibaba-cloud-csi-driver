@@ -16,7 +16,6 @@ type iDeleteLaunchTemplateVersionResponseBody interface {
 }
 
 type DeleteLaunchTemplateVersionResponseBody struct {
-	// The deleted launch template versions.
 	LaunchTemplateVersions *DeleteLaunchTemplateVersionResponseBodyLaunchTemplateVersions `json:"LaunchTemplateVersions,omitempty" xml:"LaunchTemplateVersions,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,18 +95,8 @@ func (s *DeleteLaunchTemplateVersionResponseBodyLaunchTemplateVersions) Validate
 }
 
 type DeleteLaunchTemplateVersionResponseBodyLaunchTemplateVersionsLaunchTemplateVersion struct {
-	// The ID of the launch template.
-	//
-	// example:
-	//
-	// lt-m5eiaupmvm2op9d****
-	LaunchTemplateId *string `json:"LaunchTemplateId,omitempty" xml:"LaunchTemplateId,omitempty"`
-	// The version number of the launch template.
-	//
-	// example:
-	//
-	// 2
-	LaunchTemplateVersionNumber *int64 `json:"LaunchTemplateVersionNumber,omitempty" xml:"LaunchTemplateVersionNumber,omitempty"`
+	LaunchTemplateId            *string `json:"LaunchTemplateId,omitempty" xml:"LaunchTemplateId,omitempty"`
+	LaunchTemplateVersionNumber *int64  `json:"LaunchTemplateVersionNumber,omitempty" xml:"LaunchTemplateVersionNumber,omitempty"`
 }
 
 func (s DeleteLaunchTemplateVersionResponseBodyLaunchTemplateVersionsLaunchTemplateVersion) String() string {

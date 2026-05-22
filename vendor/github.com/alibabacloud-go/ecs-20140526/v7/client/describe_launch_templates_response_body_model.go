@@ -22,7 +22,6 @@ type iDescribeLaunchTemplatesResponseBody interface {
 }
 
 type DescribeLaunchTemplatesResponseBody struct {
-	// The queried launch templates.
 	LaunchTemplateSets *DescribeLaunchTemplatesResponseBodyLaunchTemplateSets `json:"LaunchTemplateSets,omitempty" xml:"LaunchTemplateSets,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,62 +146,15 @@ func (s *DescribeLaunchTemplatesResponseBodyLaunchTemplateSets) Validate() error
 }
 
 type DescribeLaunchTemplatesResponseBodyLaunchTemplateSetsLaunchTemplateSet struct {
-	// The time when the launch template was created.
-	//
-	// The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2018-05-14T14:18:00Z
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The ID of the Alibaba Cloud account that created the launch template.
-	//
-	// example:
-	//
-	// 1234567890
-	CreatedBy *string `json:"CreatedBy,omitempty" xml:"CreatedBy,omitempty"`
-	// The default version number of the launch template.
-	//
-	// example:
-	//
-	// 1
-	DefaultVersionNumber *int64 `json:"DefaultVersionNumber,omitempty" xml:"DefaultVersionNumber,omitempty"`
-	// The latest version number of the launch template.
-	//
-	// example:
-	//
-	// 1
-	LatestVersionNumber *int64 `json:"LatestVersionNumber,omitempty" xml:"LatestVersionNumber,omitempty"`
-	// The ID of the launch template.
-	//
-	// example:
-	//
-	// lt-m5e3ofjr1zn1aw7q****
-	LaunchTemplateId *string `json:"LaunchTemplateId,omitempty" xml:"LaunchTemplateId,omitempty"`
-	// The name of the launch template.
-	//
-	// example:
-	//
-	// wd-152630748****
-	LaunchTemplateName *string `json:"LaunchTemplateName,omitempty" xml:"LaunchTemplateName,omitempty"`
-	// The time when a version was added to or deleted from the launch template.
-	//
-	// The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2018-05-14T14:18:00Z
-	ModifiedTime *string `json:"ModifiedTime,omitempty" xml:"ModifiedTime,omitempty"`
-	// The ID of the resource group to which the launch template belongs.
-	//
-	// example:
-	//
-	// rg-acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags of the launch template.
-	//
-	// >  You can only call API operations to add tags to and query the tags of a launch template. You cannot add tags to or view the tags of a launch template in the ECS console.
-	Tags *DescribeLaunchTemplatesResponseBodyLaunchTemplateSetsLaunchTemplateSetTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	CreateTime           *string                                                                     `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	CreatedBy            *string                                                                     `json:"CreatedBy,omitempty" xml:"CreatedBy,omitempty"`
+	DefaultVersionNumber *int64                                                                      `json:"DefaultVersionNumber,omitempty" xml:"DefaultVersionNumber,omitempty"`
+	LatestVersionNumber  *int64                                                                      `json:"LatestVersionNumber,omitempty" xml:"LatestVersionNumber,omitempty"`
+	LaunchTemplateId     *string                                                                     `json:"LaunchTemplateId,omitempty" xml:"LaunchTemplateId,omitempty"`
+	LaunchTemplateName   *string                                                                     `json:"LaunchTemplateName,omitempty" xml:"LaunchTemplateName,omitempty"`
+	ModifiedTime         *string                                                                     `json:"ModifiedTime,omitempty" xml:"ModifiedTime,omitempty"`
+	ResourceGroupId      *string                                                                     `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	Tags                 *DescribeLaunchTemplatesResponseBodyLaunchTemplateSetsLaunchTemplateSetTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 }
 
 func (s DescribeLaunchTemplatesResponseBodyLaunchTemplateSetsLaunchTemplateSet) String() string {
@@ -338,17 +290,7 @@ func (s *DescribeLaunchTemplatesResponseBodyLaunchTemplateSetsLaunchTemplateSetT
 }
 
 type DescribeLaunchTemplatesResponseBodyLaunchTemplateSetsLaunchTemplateSetTagsTag struct {
-	// The tag value of the launch template.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag key of the launch template.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

@@ -16,7 +16,6 @@ type iDescribeRecommendInstanceTypeResponseBody interface {
 }
 
 type DescribeRecommendInstanceTypeResponseBody struct {
-	// The details of the recommended instance types.
 	Data *DescribeRecommendInstanceTypeResponseBodyData `json:"Data,omitempty" xml:"Data,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,58 +95,16 @@ func (s *DescribeRecommendInstanceTypeResponseBodyData) Validate() error {
 }
 
 type DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceType struct {
-	// The commodity code of the instance type.
-	//
-	// example:
-	//
-	// ecs
-	CommodityCode *string `json:"CommodityCode,omitempty" xml:"CommodityCode,omitempty"`
-	// The billing method of the instances.
-	//
-	// example:
-	//
-	// PostPaid
-	InstanceChargeType *string `json:"InstanceChargeType,omitempty" xml:"InstanceChargeType,omitempty"`
-	// The details of the instance type.
-	InstanceType *DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceTypeInstanceType `json:"InstanceType,omitempty" xml:"InstanceType,omitempty" type:"Struct"`
-	// The network type of the ECS instances.
-	//
-	// example:
-	//
-	// vpc
-	NetworkType *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
-	// The priority based on which the system sorts the instance types.
-	//
-	// example:
-	//
-	// 2
-	Priority *int32 `json:"Priority,omitempty" xml:"Priority,omitempty"`
-	// The ID of the region in which the instance type is available.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The scenario in which the instance type is recommended.
-	//
-	// example:
-	//
-	// CREATE
-	Scene *string `json:"Scene,omitempty" xml:"Scene,omitempty"`
-	// The bidding policy for the spot instances.
-	//
-	// example:
-	//
-	// NoSpot
-	SpotStrategy *string `json:"SpotStrategy,omitempty" xml:"SpotStrategy,omitempty"`
-	// The ID of the zone in which the instance type is available.
-	//
-	// example:
-	//
-	// cn-hangzhou-h
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
-	// The details of the zones in which the instance type is available.
-	Zones *DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceTypeZones `json:"Zones,omitempty" xml:"Zones,omitempty" type:"Struct"`
+	CommodityCode      *string                                                                         `json:"CommodityCode,omitempty" xml:"CommodityCode,omitempty"`
+	InstanceChargeType *string                                                                         `json:"InstanceChargeType,omitempty" xml:"InstanceChargeType,omitempty"`
+	InstanceType       *DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceTypeInstanceType `json:"InstanceType,omitempty" xml:"InstanceType,omitempty" type:"Struct"`
+	NetworkType        *string                                                                         `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
+	Priority           *int32                                                                          `json:"Priority,omitempty" xml:"Priority,omitempty"`
+	RegionId           *string                                                                         `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	Scene              *string                                                                         `json:"Scene,omitempty" xml:"Scene,omitempty"`
+	SpotStrategy       *string                                                                         `json:"SpotStrategy,omitempty" xml:"SpotStrategy,omitempty"`
+	ZoneId             *string                                                                         `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	Zones              *DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceTypeZones        `json:"Zones,omitempty" xml:"Zones,omitempty" type:"Struct"`
 }
 
 func (s DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceType) String() string {
@@ -263,41 +220,11 @@ func (s *DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceType) Val
 }
 
 type DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceTypeInstanceType struct {
-	// The number of vCPUs of the instance type.
-	//
-	// example:
-	//
-	// 1
-	Cores *int32 `json:"Cores,omitempty" xml:"Cores,omitempty"`
-	// The generation of the instance family.
-	//
-	// example:
-	//
-	// ecs-4
-	Generation *string `json:"Generation,omitempty" xml:"Generation,omitempty"`
-	// The name of the instance type.
-	//
-	// example:
-	//
-	// ecs.hfg6.large
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The instance family.
-	//
-	// example:
-	//
-	// ecs.hfg6
+	Cores              *int32  `json:"Cores,omitempty" xml:"Cores,omitempty"`
+	Generation         *string `json:"Generation,omitempty" xml:"Generation,omitempty"`
+	InstanceType       *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
 	InstanceTypeFamily *string `json:"InstanceTypeFamily,omitempty" xml:"InstanceTypeFamily,omitempty"`
-	// The memory size of the instance type. Unit: MB.
-	//
-	// example:
-	//
-	// 8192
-	Memory *int32 `json:"Memory,omitempty" xml:"Memory,omitempty"`
-	// Indicates whether the instance type supports I/O optimization.
-	//
-	// example:
-	//
-	// optimized
+	Memory             *int32  `json:"Memory,omitempty" xml:"Memory,omitempty"`
 	SupportIoOptimized *string `json:"SupportIoOptimized,omitempty" xml:"SupportIoOptimized,omitempty"`
 }
 
@@ -402,14 +329,8 @@ func (s *DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceTypeZones
 }
 
 type DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceTypeZonesZone struct {
-	// The details of the network types of the instance type.
 	NetworkTypes *DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceTypeZonesZoneNetworkTypes `json:"NetworkTypes,omitempty" xml:"NetworkTypes,omitempty" type:"Struct"`
-	// The ID of the zone in which the instance type is available.
-	//
-	// example:
-	//
-	// cn-hangzhou-h
-	ZoneNo *string `json:"ZoneNo,omitempty" xml:"ZoneNo,omitempty"`
+	ZoneNo       *string                                                                                  `json:"ZoneNo,omitempty" xml:"ZoneNo,omitempty"`
 }
 
 func (s DescribeRecommendInstanceTypeResponseBodyDataRecommendInstanceTypeZonesZone) String() string {
