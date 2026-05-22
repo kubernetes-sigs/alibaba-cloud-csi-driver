@@ -8,6 +8,7 @@ import (
 	"time"
 
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 )
 
@@ -32,6 +33,9 @@ func NewOssCmdMounter(execPath, volumeID string, inner mount.Interface) Mounter 
 func (m *OssCmdMounter) ExtendedMount(ctx context.Context, op *MountOperation) error {
 	if op == nil {
 		return nil
+	}
+	if op.FdPassing || op.Recovery {
+		klog.Warningf("CmdMounter: FdPassing or Recovery is not supported, fallback to default mounter")
 	}
 
 	args := []string{"--scope", "--", m.execPath}

@@ -28,8 +28,16 @@ type MountOperation struct {
 	Secrets     map[string]string
 	MetricsPath string
 	VolumeID    string
+	FuseFd      int  // FUSE file descriptor from client; 0 means not available; valid fd > 0
+	FdPassing   bool // whether to use fd-passing mode (client does kernel mount, passes fd to server)
+	Recovery    bool // whether to enable recovery loop on process exit
 
 	MountResult any
+
+	// Callbacks for lifecycle events (registered by interceptors, invoked by driver)
+	OnProcessExit     func(exitErr error)                                // Called when process exits unexpectedly
+	OnRecoverySuccess func(pid int, exitErr error, attempts int)         // Called after recovery restart succeeds
+	OnRecoveryFailed  func(exitErr error, recoveryErr error, attempts int) // Called after recovery exhausts all retries
 }
 
 type MountHandler func(ctx context.Context, op *MountOperation) error
