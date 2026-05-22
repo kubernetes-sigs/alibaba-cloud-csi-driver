@@ -870,6 +870,7 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 	tests := []struct {
 		name        string
 		options     []string
+		mountFlags  []string
 		cfglevel    string
 		enabledMime bool
 		want        []string
@@ -918,6 +919,20 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 			options: []string{"others", "allow_other"},
 			want:    []string{"others", "allow_other", "dbglevel=warn", "use_metrics", "listobjectsv2"},
 		},
+		{
+			// ossfs appends mountFlags to options (legacy behavior); a deprecation warning is logged.
+			name:       "non-empty mountFlags appended to options",
+			options:    []string{"others"},
+			mountFlags: []string{"flag1", "flag2=value"},
+			want:       []string{"others", "flag1", "flag2=value", "dbglevel=warn", "allow_other", "use_metrics", "listobjectsv2"},
+		},
+		{
+			// mountFlags can also satisfy default-fill keys (e.g. allow_other) so defaults are not re-added.
+			name:       "mountFlags satisfies default-fill key",
+			options:    []string{"others"},
+			mountFlags: []string{"allow_other"},
+			want:       []string{"others", "allow_other", "dbglevel=warn", "use_metrics", "listobjectsv2"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -925,7 +940,7 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 			fakeOssfs.config.Extra = map[string]string{
 				"mime-support": fmt.Sprintf("%t", tt.enabledMime),
 			}
-			got := fakeOssfs.AddDefaultMountOptions(tt.options)
+			got := fakeOssfs.AddDefaultMountOptions(tt.options, tt.mountFlags)
 			assert.Equal(t, tt.want, got)
 		})
 	}

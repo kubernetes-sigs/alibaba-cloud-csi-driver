@@ -248,10 +248,48 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 			},
 		},
 	}
+
+	// Mount /sys/fs/fuse/connections directory for recovery support.
+	// When recovery is triggered, the server needs to write to the flush file
+	// (e.g., echo 1 > /sys/fs/fuse/connections/<ctr>/abort) to abort stale FUSE
+	// connections before remounting. This directory must be accessible from within
+	// the fuse pod.
+	fuseConnectionsDir := "/sys/fs/fuse/connections"
+	fuseConnectionsDirVolume := corev1.Volume{
+		Name: "fuse-connections-dir",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: fuseConnectionsDir,
+				Type: ptr.To(corev1.HostPathDirectory),
+			},
+		},
+	}
+
 	spec.Volumes = []corev1.Volume{targetDirVolume, metricsDirVolume}
+	if c.Recovery {
+		spec.Volumes = append(spec.Volumes, fuseConnectionsDirVolume)
+	}
 
 	bidirectional := corev1.MountPropagationBidirectional
 	socketPath := mounterutils.GetMountProxySocketPath(c.VolumeId)
+
+	// If FdPassing is enabled, the fuse pod no longer needs privileged mode because
+	// the kernel mount is performed by the CSI client (csi-plugin or csi-agent) and
+	// the FUSE fd is passed to this pod via SCM_RIGHTS.
+	//
+	// Caveat: if EnableFUSEFdPassing is enabled on the node (csi-plugin) but NOT on
+	// the controller (csi-provisioner), the controller will NOT set FdPassing=true
+	// in the mount request. The pod will therefore be created with privileged=true,
+	// even though the feature gate is enabled on the node. Both components must have
+	// the feature gate enabled for non-privileged mode to take effect.
+	privileged := !c.FdPassing
+
+	// Similarly, if recovery is enabled on the node but NOT on the controller,
+	// the controller will NOT set Recovery=true in the mount request. The fuse pod
+	// will be created without /sys/fs/fuse/connections mount and without recovery
+	// capabilities, even though the node supports it. Both components must have
+	// recovery enabled for automatic healing to work.
+
 	container := corev1.Container{
 		Name:  f.Name(),
 		Image: f.config.Image,
@@ -266,7 +304,7 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
-			Privileged: new(true),
+			Privileged: &privileged,
 		},
 		ReadinessProbe: &corev1.Probe{
 			ProbeHandler: corev1.ProbeHandler{
@@ -279,6 +317,13 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 			PeriodSeconds:    2,
 			FailureThreshold: 5,
 		},
+	}
+
+	if c.Recovery {
+		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+			Name:      fuseConnectionsDirVolume.Name,
+			MountPath: fuseConnectionsDir,
+		})
 	}
 
 	f.buildAuthSpec(c, target, &spec, &container)
@@ -303,7 +348,15 @@ const (
 	KeyLogDir   = "log_dir"
 )
 
-func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
+func (f *fuseOssfs) AddDefaultMountOptions(options []string, mountFlags []string) []string {
+	// For ossfs2, mountFlags are NOT passed to the daemon.
+	// They are only used for FUSE kernel mount in fd-passing mode.
+	if len(mountFlags) > 0 {
+		klog.Warningf("NodePublishVolume: ossfs2 does not support mountOptions/mountFlags; " +
+			"FUSE mount parameters in mountFlags are used for the kernel mount only. " +
+			"Configure ossfs2 daemon options via volumeAttributes.otherOpts instead.")
+	}
+
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS2_OPTIONS")
 	if defaultOSSFSOptions != "" {
 		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
