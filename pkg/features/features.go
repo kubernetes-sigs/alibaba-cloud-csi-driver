@@ -72,6 +72,38 @@ const (
 	// instance type does not support high density incur no extra call. When disabled,
 	// the behavior is byte-identical to before (no extra API call).
 	DiskHighDensityMode featuregate.Feature = "DiskHighDensityMode"
+
+	// Enable FUSE fd passing for libfuse3-based clients.
+	// When enabled, supported drivers (e.g., ossfs2) will use fd-passing protocol
+	// where the client performs the kernel mount and passes the FUSE fd to the server.
+	// This is an internal mechanism and not directly exposed to end users.
+	//
+	// Deployment note: this feature gate must be configured on BOTH the csi-provisioner
+	// (controller) and the csi-plugin (node) components. The controller uses it to gate
+	// capability validation in checkOssOptions; the node uses it to actually drive the
+	// fd-passing code path. Mismatched configuration leads to inconsistent behavior.
+	//
+	// Mount leakage: when the fuse pod (RunC) or csi-agent container (RunD) exits
+	// abnormally (e.g. OOM killed, crash, SIGKILL), the FUSE mount at attachPath will
+	// become stale ("Transport endpoint is not connected") and remain on the node
+	// until NodeUnstageVolume is called to clean it up. During this window, workload
+	// pods using this volume will experience IO failures.
+	EnableFUSEFdPassing featuregate.Feature = "EnableFUSEFdPassing"
+
+	// Enable FUSE recovery for ossfs2.
+	// When enabled, ossfs2 mounts will automatically recover (flush FUSE connection
+	// and restart ossfs2) on non-SIGTERM process exit. This feature implies
+	// fd-passing for ossfs2.
+	//
+	// Deployment note: this feature gate must be configured on BOTH the csi-provisioner
+	// (controller) and the csi-plugin (node) components, same as EnableFUSEFdPassing.
+	//
+	// Node OS/kernel requirement: before enabling this feature, the operator must
+	// confirm that all nodes intended to host ossfs2 recovery mounts satisfy the
+	// kernel/OS prerequisites enforced by the recovery kernel check (see
+	// pkg/utils/os/kernel.go, ErrPrefixRecoveryKernel). Nodes that fail the check
+	// will reject recovery-enabled mounts at runtime.
+	EnableOssfs2Recovery featuregate.Feature = "EnableOssfs2Recovery"
 )
 
 var (
@@ -89,6 +121,7 @@ var (
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		UpdatedOssfsVersion:      {Default: true, PreRelease: featuregate.Beta},
 		ConstrainFusePodDeleteRV: {Default: true, PreRelease: featuregate.Beta},
+		EnableOssfs2Recovery:     {Default: false, PreRelease: featuregate.Alpha},
 	}
 
 	defaultNasFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
@@ -96,7 +129,8 @@ var (
 	}
 
 	otherFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
-		RundCSIProtocol3: {Default: false, PreRelease: featuregate.Alpha},
+		RundCSIProtocol3:    {Default: false, PreRelease: featuregate.Alpha},
+		EnableFUSEFdPassing: {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 
