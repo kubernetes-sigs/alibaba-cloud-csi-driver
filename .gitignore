@@ -4,6 +4,7 @@
 .qoder/
 .qwen/
 .local/
+.gocache/
 .DS_Store
 diskplugin.csi.alibabacloud.com
 nasplugin.csi.alibabacloud.com
@@ -15,3 +16,7 @@ build/Dockerfile
 /alibaba-cloud-csi-driver
 .devcontainer/
 bin
+
+# Environment files with credentials
+.env
+**/.env

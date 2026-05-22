@@ -59,7 +59,7 @@ func (d *slowDriver) Init()                                         {}
 func (d *slowDriver) Terminate()                                    {}
 func (d *slowDriver) ApplyOptionDefaults(options []string) []string { return options }
 
-func (d *slowDriver) Mount(ctx context.Context, _ *proxy.MountRequest) error {
+func (d *slowDriver) Mount(ctx context.Context, _ *proxy.MountRequest, _ int) error {
 	d.mountCalled <- struct{}{}
 	<-ctx.Done()
 	return ctx.Err()
