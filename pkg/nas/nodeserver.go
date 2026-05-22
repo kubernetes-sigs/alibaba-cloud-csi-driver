@@ -196,7 +196,6 @@ func DetermineClientTypeAndMountProtocol(cnfs *v1beta1.ContainerNetworkFileSyste
 }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.Infof("NodePublishVolume:: Nas Volume %s mount with req: %+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
 	if err := validateNodePublishVolumeRequest(req); err != nil {
 		return nil, err
