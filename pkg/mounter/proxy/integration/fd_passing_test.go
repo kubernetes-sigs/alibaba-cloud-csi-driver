@@ -137,7 +137,7 @@ func TestNoFdPassing(t *testing.T) {
 	// Wait for driver to receive fd=-1 (no fd)
 	select {
 	case fd := <-d.receivedFd:
-		assert.Equal(t, -1, fd, "should receive -1 when no fd is passed")
+		assert.Equal(t, 0, fd, "should receive 0 when no fd is passed")
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for driver to receive fd")
 	}

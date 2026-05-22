@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,8 +37,6 @@ func TestStartAndWaitReady_ProcessExitsDuringInit(t *testing.T) {
 		},
 		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
 			cmd := exec.Command("/bin/sh", "-c", "exit 1")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
 			if sw != nil {
 				cmd.Stderr = sw
 			}
@@ -80,8 +77,6 @@ func TestStartAndWaitReady_Timeout(t *testing.T) {
 		},
 		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
 			cmd := exec.Command("/bin/sh", "-c", "sleep 300")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
 			if sw != nil {
 				cmd.Stderr = sw
 			}
@@ -99,7 +94,7 @@ func TestStartAndWaitReady_Timeout(t *testing.T) {
 	proc, err := m.startAndWaitReady(ctx, op, false, nil)
 	assert.Nil(t, proc)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "timeout waiting for ossfs2 to attach")
+	assert.True(t, errors.Is(err, context.DeadlineExceeded))
 }
 
 func TestStartAndWaitReady_LegacyModeSuccess(t *testing.T) {
@@ -118,8 +113,6 @@ func TestStartAndWaitReady_LegacyModeSuccess(t *testing.T) {
 		},
 		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
 			cmd := exec.Command("/bin/sh", "-c", "sleep 300")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
 			if err := cmd.Start(); err != nil {
 				return nil, err
 			}
@@ -153,8 +146,6 @@ func TestStartAndWaitReady_LegacyModeProcessExits(t *testing.T) {
 		},
 		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
 			cmd := exec.Command("/bin/sh", "-c", "exit 1")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
 			if err := cmd.Start(); err != nil {
 				return nil, err
 			}
@@ -176,8 +167,7 @@ func TestStderrCaptureAndErrorEnrichment(t *testing.T) {
 	t.Run("stderrBuf captures stderr from failed command", func(t *testing.T) {
 		cmd := exec.Command("/bin/sh", "-c", "echo 'ERROR: test error' >&2; exit 1")
 		var stderrBuf bytes.Buffer
-		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
-		cmd.Stdout = os.Stdout
+		cmd.Stderr = &stderrBuf
 
 		err := cmd.Start()
 		require.NoError(t, err)

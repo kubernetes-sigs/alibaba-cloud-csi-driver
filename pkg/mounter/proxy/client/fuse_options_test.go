@@ -2,23 +2,24 @@ package client
 
 import (
 	"bytes"
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/textlogger"
 )
 
-// captureKlog redirects klog output to a buffer and restores it on cleanup.
-// Returns a function that flushes klog and returns the captured output.
+// captureKlog redirects klog output to a buffer via textlogger and restores it on cleanup.
+// Returns a function that returns the captured output.
 func captureKlog(t *testing.T) func() string {
 	t.Helper()
 	var buf bytes.Buffer
-	klog.SetOutput(&buf)
-	t.Cleanup(func() { klog.SetOutput(io.Discard) })
+	config := textlogger.NewConfig(textlogger.Output(&buf), textlogger.Verbosity(10))
+	logger := textlogger.NewLogger(config)
+	klog.SetLoggerWithOptions(logger, klog.FlushLogger(func() {}))
+	t.Cleanup(func() { klog.ClearLogger() })
 	return func() string {
-		klog.Flush()
 		return buf.String()
 	}
 }

@@ -22,6 +22,12 @@ const recoveryMaxAttempts = 5
 // superviseProcess watches the ossfs2 process lifecycle.
 // When recovery is false, it waits for exit and signals trulyExited (mount becomes stale).
 // When recovery is true, it attempts to restart ossfs2 after crashes with exponential backoff.
+//
+// trulyExited (buffered, cap=1) serves two purposes:
+//   - Lifecycle: defer close(trulyExited) unblocks the interceptor goroutine on all exit paths.
+//   - Metrics: only the recovery=false path sends the actual exitErr so the interceptor can
+//     call HandleMountFailureOrExit. Recovery=true paths handle metrics via OnProcessExit /
+//     OnRecoverySuccess / OnRecoveryFailed callbacks instead; sending here would double-write.
 func (m *extendedMounter) superviseProcess(
 	proc *startedProcess,
 	op *mounter.MountOperation,
@@ -42,6 +48,9 @@ func (m *extendedMounter) superviseProcess(
 		logger.Error(exitErr, "ossfs2 exited", "mountpoint", target, "pid", currentPid)
 
 		if !recovery {
+			// Send real exitErr so interceptor can update metrics immediately.
+			// Other break paths rely on recovery callbacks for metrics instead.
+			trulyExited <- exitErr
 			break
 		}
 
