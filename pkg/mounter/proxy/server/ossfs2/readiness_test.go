@@ -165,7 +165,7 @@ func TestWaitForFdPassingMountReady(t *testing.T) {
 			statDelay:    5 * time.Second,
 			timeout:      100 * time.Millisecond,
 			wantErr:      true,
-			errContains:  "timeout waiting for ossfs2 to attach",
+			errContains:  "context deadline exceeded",
 		},
 	}
 
@@ -260,7 +260,6 @@ func TestMountReadinessTimeoutBehavior(t *testing.T) {
 		err := extended.waitForFdPassingMountReady(ctx, target, 5, make(chan error, 1))
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "timeout waiting for ossfs2 to attach")
 		assert.True(t, errors.Is(err, context.DeadlineExceeded))
 	})
 

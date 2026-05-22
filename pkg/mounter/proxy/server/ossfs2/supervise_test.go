@@ -188,11 +188,6 @@ func TestRecoveryRestart_MaxAttemptsExhausted(t *testing.T) {
 		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
 			attemptCount.Add(1)
 			cmd := exec.Command("/bin/sh", "-c", "exit 1")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if sw != nil {
-				cmd.Stderr = sw
-			}
 			if err := cmd.Start(); err != nil {
 				return nil, err
 			}
@@ -242,16 +237,12 @@ func TestRecoveryRestart_SucceedsAfterRetries(t *testing.T) {
 			assert.True(t, recovery)
 			if n <= 2 {
 				cmd := exec.Command("/bin/sh", "-c", "exit 1")
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
 				if err := cmd.Start(); err != nil {
 					return nil, err
 				}
 				return cmd, nil
 			}
 			cmd := exec.Command("/bin/sh", "-c", "sleep 300")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
 			if err := cmd.Start(); err != nil {
 				return nil, err
 			}
@@ -383,7 +374,8 @@ func TestSuperviseProcess_RecoverySuccess(t *testing.T) {
 	default:
 	}
 
-	// Kill the recovered process to unblock supervision
+	// Set terminating before kill so the loop doesn't attempt another recovery
+	driver.terminating.Store(true)
 	storedCmd, _ := driver.pids.Load(newPid)
 	storedCmd.(*exec.Cmd).Process.Kill()
 
