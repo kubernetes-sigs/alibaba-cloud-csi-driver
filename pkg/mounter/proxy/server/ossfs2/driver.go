@@ -1,18 +1,13 @@
 package ossfs2
 
 import (
-	"bytes"
 	"context"
-	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"syscall"
-	"time"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
@@ -32,6 +27,7 @@ type Driver struct {
 	pids           *sync.Map
 	monitorManager *server.MountMonitorManager
 	wg             sync.WaitGroup
+	terminating    atomic.Bool // Set to true during Terminate() to block recovery
 }
 
 func NewDriver() *Driver {
@@ -59,7 +55,7 @@ func (h *Driver) Fstypes() []string {
 	return []string{"ossfs2"}
 }
 
-func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
+func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest, fuseFd int) error {
 	return h.ExtendedMount(ctx, &mounter.MountOperation{
 		Source:      req.Source,
 		Target:      req.Target,
@@ -68,6 +64,8 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		Secrets:     req.Secrets,
 		MetricsPath: req.MetricsPath,
 		VolumeID:    req.VolumeID,
+		FuseFd:      fuseFd,
+		Recovery:    req.Recovery,
 	})
 }
 
@@ -80,10 +78,14 @@ func (h *Driver) ApplyOptionDefaults(options []string) []string {
 }
 
 func (h *Driver) Terminate() {
+	// Signal all supervision goroutines to stop recovery
+	h.terminating.Store(true)
+
 	// Stop all mount monitoring
 	h.monitorManager.StopAllMonitoring()
 
-	// terminate all running ossfs2
+	// Terminate all running ossfs2 processes.
+	// sync.Map.Range() is safe for concurrent use.
 	h.pids.Range(func(key, value any) bool {
 		err := value.(*exec.Cmd).Process.Signal(syscall.SIGTERM)
 		if err != nil {
@@ -94,6 +96,8 @@ func (h *Driver) Terminate() {
 	})
 
 	// wait all ossfs2 processes and monitoring goroutines to exit
+	// wg.Wait() blocks until all superviseOssfsProcess goroutines complete.
+	// This ensures that even if processes are in the middle of recovery,
 	h.monitorManager.WaitForAllMonitoring()
 	h.wg.Wait()
 	klog.InfoS("All ossfs2 processes and monitoring goroutines exited")
@@ -102,119 +106,24 @@ func (h *Driver) Terminate() {
 type extendedMounter struct {
 	driver *Driver
 	mount.Interface
+	// statFunc is used for testing to mock os.Stat
+	statFunc func(name string) (os.FileInfo, error)
+	// runCmdOverride is used for testing to replace real ossfs2 command execution
+	runCmdOverride func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error)
+	// recoveryBackoff overrides the default backoff for testing. Zero value uses production defaults.
+	recoveryBackoff wait.Backoff
+	// flushFunc overrides flushFuseConnection for testing. Nil uses the real implementation.
+	flushFunc func(chanId uint64) error
 }
 
 var _ mounter.Mounter = &extendedMounter{}
 
 func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
-	logger := klog.FromContext(ctx)
-	options := m.driver.ApplyOptionDefaults(op.Options)
-	target := op.Target
+	return m.mount(ctx, op)
+}
 
-	args := []string{"mount", op.Target}
-	// ossfs2.0 forbid to use FUSE args
-	// args = append(args, req.MountFlags...)
-	args = append(args, op.Args...)
-	for _, o := range options {
-		args = append(args, fmt.Sprintf("--%s", o))
-	}
-	args = append(args, "-f")
-
-	var stderrBuf bytes.Buffer
-	multiWriter := io.MultiWriter(os.Stderr, &stderrBuf)
-	sw := server.NewSwitchableWriter(multiWriter)
-	cmd := exec.Command("ossfs2", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = sw
-	defer func() {
-		sw.SwitchTarget(os.Stderr)
-	}()
-
-	err := cmd.Start()
-	if err != nil {
-		return fmt.Errorf("start ossfs2 failed: %w", err)
-	}
-
-	pid := cmd.Process.Pid
-	logger.Info("Started ossfs2", "pid", pid, "args", args)
-
-	if dumpable := os.Getenv("SET_DUMPABLE"); dumpable == "true" {
-		err = unix.Prctl(unix.PR_SET_DUMPABLE, 1, 0, 0, 0)
-		if err != nil {
-			logger.Error(err, "Failed to set process as dumpable")
-		}
-	}
-
-	// Wait for mount to complete
-	ossfsExited := make(chan error, 1)
-	m.driver.wg.Add(1)
-	m.driver.pids.Store(pid, cmd)
-	go func() {
-		defer m.driver.wg.Done()
-		defer m.driver.pids.Delete(pid)
-
-		err := cmd.Wait()
-		if err != nil {
-			stderrContent := stderrBuf.String()
-			if stderrContent != "" {
-				err = fmt.Errorf("%w, with stderr: %s", err, stderrContent)
-			}
-			logger.Error(err, "ossfs2 exited with error",
-				"mountpoint", target,
-				"pid", pid)
-		} else {
-			logger.Info("ossfs2 exited", "mountpoint", target, "pid", pid)
-		}
-		// Notify poll loop after metrics are updated
-		ossfsExited <- err
-		close(ossfsExited)
-	}()
-
-	err = wait.PollUntilContextCancel(ctx, 100*time.Millisecond, true, func(ctx context.Context) (done bool, err error) {
-		select {
-		case err := <-ossfsExited:
-			if err != nil {
-				return false, fmt.Errorf("ossfs2 exited: %w", err)
-			}
-			return false, fmt.Errorf("ossfs2 exited")
-		default:
-			notMnt, err := m.IsLikelyNotMountPoint(target)
-			if err != nil {
-				logger.Error(err, "check mountpoint", "mountpoint", target)
-				return false, nil
-			}
-			if !notMnt {
-				logger.Info("Successfully mounted", "mountpoint", target)
-				return true, nil
-			}
-			return false, nil
-		}
-	})
-
-	if err == nil {
-		op.MountResult = server.OssfsMountResult{
-			PID:      pid,
-			ExitChan: ossfsExited,
-		}
-		return nil
-	}
-
-	if wait.Interrupted(err) {
-		// terminate ossfs process when timeout
-		terr := cmd.Process.Signal(syscall.SIGTERM)
-		if terr != nil {
-			logger.Error(err, "Failed to terminate ossfs2", "pid", pid)
-		}
-		select {
-		case <-ossfsExited:
-		case <-time.After(time.Second * 2):
-			kerr := cmd.Process.Kill()
-			if kerr != nil && errors.Is(kerr, os.ErrProcessDone) {
-				logger.Error(err, "Failed to kill ossfs2", "pid", pid)
-			}
-		}
-	}
-	// Process exit handling (including metrics) is done in the Wait goroutine.
-	// Just return the error to caller to avoid double counting.
-	return err
+// switchWriter wraps an io.Writer with the ability to switch target.
+type switchWriter interface {
+	io.Writer
+	SwitchTarget(newTarget io.Writer)
 }
