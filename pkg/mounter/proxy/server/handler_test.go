@@ -16,14 +16,14 @@ import (
 func TestHandlePing(t *testing.T) {
 	resp := handle(context.Background(), &rawRequest{
 		Header: proxy.Header{Method: proxy.Ping},
-	})
+	}, -1)
 	assert.Empty(t, resp.Error)
 }
 
 func TestHandleInvalidMethod(t *testing.T) {
 	resp := handle(context.Background(), &rawRequest{
 		Header: proxy.Header{Method: "unknown"},
-	})
+	}, -1)
 	assert.Equal(t, "invalid method", resp.Error)
 }
 
@@ -31,7 +31,7 @@ func TestHandleMountBadBody(t *testing.T) {
 	resp := handle(context.Background(), &rawRequest{
 		Header: proxy.Header{Method: proxy.Mount},
 		Body:   json.RawMessage(`{bad`),
-	})
+	}, -1)
 	assert.NotEmpty(t, resp.Error)
 }
 
@@ -39,7 +39,7 @@ func TestHandleMountUnsupportedFstype(t *testing.T) {
 	resp := handle(context.Background(), &rawRequest{
 		Header: proxy.Header{Method: proxy.Mount},
 		Body:   json.RawMessage(`{"fstype":"nonexistent","source":"fake://bucket","target":"/tmp/fake"}`),
-	})
+	}, -1)
 	assert.Contains(t, resp.Error, "not supported")
 }
 
@@ -101,7 +101,9 @@ func TestNoMessageEnd(t *testing.T) {
 
 	conn := dialTestServer(t, socketPath)
 
-	// Send valid JSON without the trailing newline delimiter
+	// Send valid JSON without the trailing newline delimiter.
+	// With ReadMsgUnix, the entire message is received in one call,
+	// so missing MessageEnd is no longer an error.
 	data, err := json.Marshal(&proxy.Request{
 		Header: proxy.Header{Method: proxy.Ping},
 	})
@@ -109,10 +111,9 @@ func TestNoMessageEnd(t *testing.T) {
 	_, err = conn.Write(data)
 	require.NoError(t, err)
 
-	// Server should timeout waiting for the message end,
-	// then send an error response.
+	// Server now accepts the message and responds successfully.
 	var resp proxy.Response
 	err = proxy.ReadMsg(conn, &resp)
 	require.NoError(t, err, "read response")
-	assert.Contains(t, resp.Error, "read request")
+	assert.Empty(t, resp.Error)
 }

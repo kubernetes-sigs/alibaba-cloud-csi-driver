@@ -60,7 +60,13 @@ func (h *Driver) Fstypes() []string {
 	return []string{"ossfs"}
 }
 
-func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
+func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest, fuseFd int) error {
+	if fuseFd > 0 {
+		// ossfs (libfuse2) does not support fd-passing; close the received fd to prevent leak
+		// and fall back to normal mount.
+		unix.Close(fuseFd)
+		klog.FromContext(ctx).Error(nil, "ossfs (libfuse2) does not support fd-passing, falling back to normal mount", "target", req.Target)
+	}
 	return h.ExtendedMount(ctx, &mounter.MountOperation{
 		Source:      req.Source,
 		Target:      req.Target,
