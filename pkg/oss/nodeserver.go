@@ -33,6 +33,7 @@ import (
 
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilsos "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/os"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
@@ -56,6 +57,23 @@ type nodeServer struct {
 	// it priority over the per-volume socket in PublishContext, and falls back to
 	// that value when it is empty.
 	mountProxySock string
+	// kernelSupportsRecovery records whether this node's kernel has the
+	// fuse_flush_pq symbol (see utilsos.CheckKernelForRecovery). Probed once at
+	// startup. When false, opts.Recovery is forced off even if the feature gate
+	// is on, falling back to non-recovery mode gracefully.
+	kernelSupportsRecovery bool
+}
+
+// detectKernelRecoverySupport checks /proc/kallsyms for the fuse_flush_pq
+// symbol to determine whether this node's kernel supports FUSE recovery.
+// Returns false on any error (symbol missing, file unreadable, etc.).
+func detectKernelRecoverySupport() bool {
+	if err := utilsos.CheckKernelForRecovery(); err != nil {
+		klog.Warningf("Node kernel does NOT support FUSE recovery; ossfs2 mounts on this node will fall back to non-recovery mode: %v", err)
+		return false
+	}
+	klog.Info("Node kernel supports FUSE recovery; ossfs2 recovery requests will be honored on this node")
+	return true
 }
 
 const (
@@ -133,7 +151,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Parse options and ensure fuseType is not empty
-	opts, err := parseOptions(ctx, ns.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", true, ns.metadata)
+	opts, err := parseOptions(ctx, ns.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", true, ns.kernelSupportsRecovery, ns.metadata)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -208,6 +226,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	var ossfsMounter mounter.Mounter
 	var mountOptions []string
+	var mountFlags []string
 
 	// New mounter in MicroVM scenario
 	if runtimeType == RuntimeTypeMicroVM {
@@ -222,11 +241,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if err = checkOssOptions(opts, fusePodManager); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions, err = makeMountOptions(opts, fusePodManager, ns.metadata, req.VolumeCapability)
+			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, fusePodManager, ns.metadata, req.VolumeCapability)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions = fusePodManager.AddDefaultMountOptions(mountOptions)
+			mountOptions = fusePodManager.AddDefaultMountOptions(mountOptions, mountFlags)
 			// only for MicroVM
 			mountOptions, err = ossfpm.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
 			if err != nil {
@@ -261,11 +280,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if err = checkOssOptions(opts, fusePodManager); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions, err = makeMountOptions(opts, fusePodManager, ns.metadata, req.VolumeCapability)
+			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, fusePodManager, ns.metadata, req.VolumeCapability)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions = fusePodManager.AddDefaultMountOptions(mountOptions)
+			mountOptions = fusePodManager.AddDefaultMountOptions(mountOptions, mountFlags)
 		}
 		// needRotateToken or new mount
 		// case 2 & 3: New mounter with proxy-mounter.
@@ -285,14 +304,19 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			// new mounts
 			metricsPath = utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.MountBucket())
 		}
+		// Mounter will be capable of handling fd passing and recovery.
+		// If not supported, it will fall back to normal mount.
 		err := ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
 			Source:      mountSource,
 			Target:      targetPath,
 			FsType:      opts.FuseType,
 			Options:     mountOptions,
+			Args:        mountFlags,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
 			Overlay:     opts.Overlay,
+			FdPassing:   opts.FdPassing,
+			Recovery:    opts.Recovery,
 		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -326,8 +350,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			Target:      attachPath,
 			FsType:      opts.FuseType,
 			Options:     mountOptions,
+			Args:        mountFlags,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
+			FdPassing:   opts.FdPassing,
+			Recovery:    opts.Recovery,
 		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
