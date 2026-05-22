@@ -167,7 +167,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// parse options
 	nodeName := req.NodeId
 	// ensure fuseType is not empty
-	opts, err := parseOptions(ctx, cs.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", false, cs.metadata)
+	opts, err := parseOptions(ctx, cs.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", false, false, cs.metadata)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -206,9 +206,11 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		Namespace:         fusePodNamespace,
 		NodeName:          nodeName,
 		VolumeId:          req.VolumeId,
+		FuseType:          opts.FuseType,
+		FdPassing:         opts.FdPassing,
+		Recovery:          opts.Recovery,
 		AuthConfig:        authCfg,
 		PodTemplateConfig: ptCfg,
-		FuseType:          opts.FuseType,
 	}, controllerPublishPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create %s pod: %v", opts.FuseType, err)
