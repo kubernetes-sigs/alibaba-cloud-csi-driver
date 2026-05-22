@@ -17,8 +17,8 @@ import (
 
 var (
 	defaultOssfsImageTag        = "v1.88.4-80d165c-aliyun"
-	defaultOssfsUpdatedImageTag = "v1.91.9.ack.1-b81059f"
-	defaultOssfs2ImageTag       = "v2.0.5.ack.1-663afcf"
+	defaultOssfsUpdatedImageTag = "v1.91.10.ack.1-318a02a"
+	defaultOssfs2ImageTag       = "v2.0.7.ack.1-2d5bf24"
 )
 
 func SetDefaultImage(fuseType string, m metadata.MetadataProvider, config *fpm.FuseContainerConfig) {
