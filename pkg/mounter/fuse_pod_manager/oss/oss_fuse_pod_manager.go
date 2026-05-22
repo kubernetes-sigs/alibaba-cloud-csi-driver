@@ -120,6 +120,10 @@ type Options struct {
 
 	// pod template
 	DnsPolicy corev1.DNSPolicy `json:"dnsPolicy"`
+
+	// recovery
+	FdPassing bool `json:"fdPassing"`
+	Recovery  bool `json:"recovery"`
 }
 
 // MountBucket returns the effective bucket name for mounting.
