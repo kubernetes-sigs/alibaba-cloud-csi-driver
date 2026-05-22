@@ -4,6 +4,7 @@
 .qoder/
 .qwen/
 .local/
+.gocache/
 .DS_Store
 diskplugin.csi.alibabacloud.com
 nasplugin.csi.alibabacloud.com
@@ -17,3 +18,7 @@ build/Dockerfile
 .agents/skills/debug-csi/.local/
 .omo/
 bin
+
+# Environment files with credentials
+.env
+**/.env
