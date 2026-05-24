@@ -37,6 +37,7 @@ func (m *extendedMounter) superviseProcess(
 ) {
 	defer m.driver.wg.Done()
 	defer close(trulyExited)
+	defer m.driver.activeTargets.Delete(op.Target)
 
 	logger := klog.FromContext(context.Background())
 	target := op.Target

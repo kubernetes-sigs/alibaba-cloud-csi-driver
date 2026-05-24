@@ -67,6 +67,7 @@ func (m *extendedMounter) mount(ctx context.Context, op *mounter.MountOperation)
 
 	trulyExited := make(chan error, 1)
 	m.driver.pids.Store(pid, proc.cmd)
+	m.driver.activeTargets.Store(target, struct{}{})
 	op.MountResult = server.OssfsMountResult{
 		PID:      pid,
 		ExitChan: trulyExited,

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -198,4 +199,49 @@ func TestStderrCaptureAndErrorEnrichment(t *testing.T) {
 		assert.Equal(t, "exit status 0", exitErr.Error())
 		assert.NotContains(t, exitErr.Error(), "with stderr:")
 	})
+}
+
+func TestMount_ActiveTargetsStored(t *testing.T) {
+	driver := &Driver{pids: new(sync.Map)}
+
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "mount")
+	require.NoError(t, os.Mkdir(target, 0o755))
+
+	m := &extendedMounter{
+		driver: driver,
+		Interface: &mockMounter{
+			isLikelyNotMountPointFunc: func(path string) (bool, error) {
+				return false, nil
+			},
+		},
+		statFunc: func(name string) (os.FileInfo, error) {
+			return os.Stat(name)
+		},
+		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
+			cmd := exec.Command("/bin/sh", "-c", "sleep 300")
+			if err := cmd.Start(); err != nil {
+				return nil, err
+			}
+			return cmd, nil
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	op := &mounter.MountOperation{Target: target, FuseFd: 5}
+	err := m.mount(ctx, op)
+	require.NoError(t, err)
+
+	_, loaded := driver.activeTargets.Load(target)
+	assert.True(t, loaded, "active target should be stored after mount succeeds")
+
+	result, ok := op.MountResult.(server.OssfsMountResult)
+	require.True(t, ok)
+	defer func() {
+		if p, _ := os.FindProcess(result.PID); p != nil {
+			p.Kill()
+		}
+	}()
 }

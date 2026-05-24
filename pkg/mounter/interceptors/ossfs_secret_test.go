@@ -863,11 +863,13 @@ func TestRotateTokenFiles(t *testing.T) {
 // (mount point already exists) scenarios.
 func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 	tests := []struct {
-		name           string
-		fuseType       string
-		mountPoint     string // if empty, mount point doesn't exist
-		expectSkip     bool
-		expectTokenDir bool
+		name            string
+		fuseType        string
+		mountPoint      string // if empty, mount point doesn't exist
+		fuseFd          int    // FUSE fd; >0 means fd-passing mode
+		hasActiveDaemon bool   // true when daemon is already running (server-side)
+		expectSkip      bool
+		expectTokenDir  bool
 	}{
 		{
 			name:           "ossfs first time mount - mount point doesn't exist",
@@ -896,6 +898,31 @@ func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 			mountPoint:     "target", // mount point exists
 			expectSkip:     true,
 			expectTokenDir: true,
+		},
+		{
+			name:           "ossfs2 fd-passing first mount - mount point exists but no active daemon",
+			fuseType:       "ossfs2",
+			mountPoint:     "target", // mount point exists (created by client's kernel mount)
+			fuseFd:         3,        // fd-passing mode
+			expectSkip:     false,    // must NOT skip — daemon needs to start
+			expectTokenDir: true,
+		},
+		{
+			name:            "ossfs2 fd-passing token rotation - active daemon",
+			fuseType:        "ossfs2",
+			mountPoint:      "target",
+			fuseFd:          3,
+			hasActiveDaemon: true,
+			expectSkip:      true, // daemon already running, skip mount
+			expectTokenDir:  true,
+		},
+		{
+			name:            "ossfs2 legacy token rotation - active daemon flag",
+			fuseType:        "ossfs2",
+			mountPoint:      "target",
+			hasActiveDaemon: true,
+			expectSkip:      true,
+			expectTokenDir:  true,
 		},
 	}
 
@@ -949,12 +976,14 @@ func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 
 			op := &mounter.MountOperation{
 				Target: target,
+				FuseFd: tt.fuseFd,
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "newAKID",
 					mounterutils.KeyAccessKeySecret: "newAKSecret",
 					mounterutils.KeySecurityToken:   "newToken",
 					mounterutils.KeyExpiration:      "2024-12-31T23:59:59Z",
 				},
+				HasActiveDaemon: tt.hasActiveDaemon,
 			}
 
 			handlerCalled := false

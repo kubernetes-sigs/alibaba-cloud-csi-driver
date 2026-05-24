@@ -281,6 +281,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		// Mounter will be capable of handling fd passing and recovery.
 		// If not supported, it will fall back to normal mount.
+		// For token rotation (targetPath already mounted), disable fd-passing and recovery:
+		// no new kernel mount or daemon start is needed — only token files are updated.
 		err := ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
 			Source:      mountSource,
 			Target:      targetPath,
@@ -289,8 +291,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			Args:        mountFlags,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
-			FdPassing:   opts.FdPassing,
-			Recovery:    opts.Recovery,
+			FdPassing:   opts.FdPassing && notMntTarget,
+			Recovery:    opts.Recovery && notMntTarget,
 		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -320,6 +322,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			// new mounts
 			metricsPath = utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opts.FuseType, "oss", opts.Bucket, attachPath)
 		}
+		// For token rotation (attachPath already mounted), disable fd-passing and recovery:
+		// no new kernel mount or daemon start is needed — only token files are updated.
 		err = ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
 			Source:      mountSource,
 			Target:      attachPath,
@@ -328,8 +332,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			Args:        mountFlags,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
-			FdPassing:   opts.FdPassing,
-			Recovery:    opts.Recovery,
+			FdPassing:   opts.FdPassing && notMntAttach,
+			Recovery:    opts.Recovery && notMntAttach,
 		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
