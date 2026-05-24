@@ -660,16 +660,26 @@ func (d *driver) GetPCIDeviceDriverType() string {
 }
 
 func (d *driver) CheckVFIOUsage() error {
-	actualPath, err := filepath.EvalSymlinks(filepath.Join("/sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "iommu_group"))
+	actualPath, err := os.Readlink(filepath.Join("/sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "iommu_group"))
 	if err != nil {
 		return err
 	}
 	klog.V(5).InfoS("CheckVFIOUsage: eval symlink success", "path", actualPath)
 	groupNumber := filepath.Base(actualPath)
-	// the command returns -1 if nothing is returned
-	output, _ := exec.Command("lsof", filepath.Join("/dev/vfio", groupNumber)).CombinedOutput()
-	if strings.TrimSpace(string(output)) != "" {
-		return errors.Errorf("CheckVFIOUsage: device: %s is still be in used, output: %s", d.deviceNumber, output)
+	fd, err := unix.Open("/dev/vfio/"+groupNumber, unix.O_RDWR, 0)
+
+	switch err {
+	case nil:
+		err = unix.Close(fd)
+		if err != nil {
+			klog.ErrorS(err, "close vfio fd", "fd", fd, "iommu_group", groupNumber)
+		}
+		return nil
+	case unix.ENOENT:
+		return nil
+	case unix.EBUSY:
+		return fmt.Errorf("VFIO group %s is in use", groupNumber)
+	default:
+		return fmt.Errorf("cannot verify VFIO group %s is free: %w", groupNumber, err)
 	}
-	return nil
 }
