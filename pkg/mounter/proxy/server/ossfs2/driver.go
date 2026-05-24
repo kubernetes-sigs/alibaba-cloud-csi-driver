@@ -27,6 +27,7 @@ func init() {
 type Driver struct {
 	mounter.Mounter
 	pids           *sync.Map
+	activeTargets  sync.Map // target path → struct{}; tracks targets with a running daemon
 	monitorManager *server.MountMonitorManager
 	wg             sync.WaitGroup
 	overlay        *server.OverlayManager
@@ -62,17 +63,19 @@ func (h *Driver) Fstypes() []string {
 }
 
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest, fuseFd int) error {
+	_, hasActive := h.activeTargets.Load(req.Target)
 	return h.ExtendedMount(ctx, &mounter.MountOperation{
-		Source:      req.Source,
-		Target:      req.Target,
-		FsType:      req.Fstype,
-		Options:     req.Options,
-		Secrets:     req.Secrets,
-		MetricsPath: req.MetricsPath,
-		VolumeID:    req.VolumeID,
-		Overlay:     req.Overlay,
-		FuseFd:      fuseFd,
-		Recovery:    req.Recovery,
+		Source:          req.Source,
+		Target:          req.Target,
+		FsType:          req.Fstype,
+		Options:         req.Options,
+		Secrets:         req.Secrets,
+		MetricsPath:     req.MetricsPath,
+		VolumeID:        req.VolumeID,
+		Overlay:         req.Overlay,
+		FuseFd:          fuseFd,
+		Recovery:        req.Recovery,
+		HasActiveDaemon: hasActive,
 	})
 }
 

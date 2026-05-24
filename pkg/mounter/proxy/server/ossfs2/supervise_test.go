@@ -37,13 +37,15 @@ func startTestProcess(t *testing.T, script string) (*startedProcess, *exec.Cmd) 
 
 func TestSuperviseProcess_NoRecovery(t *testing.T) {
 	driver := &Driver{pids: new(sync.Map)}
+	target := "/tmp/test"
 
 	proc, cmd := startTestProcess(t, "exit 1")
 	trulyExited := make(chan error, 1)
 
 	m := &extendedMounter{driver: driver}
-	op := &mounter.MountOperation{Target: "/tmp/test"}
+	op := &mounter.MountOperation{Target: target}
 	driver.pids.Store(cmd.Process.Pid, cmd)
+	driver.activeTargets.Store(target, struct{}{})
 
 	driver.wg.Add(1)
 	go m.superviseProcess(proc, op, 0, false, trulyExited)
@@ -56,10 +58,13 @@ func TestSuperviseProcess_NoRecovery(t *testing.T) {
 
 	_, loaded := driver.pids.Load(cmd.Process.Pid)
 	assert.False(t, loaded, "PID should be removed after exit")
+	_, loaded = driver.activeTargets.Load(target)
+	assert.False(t, loaded, "active target should be removed after exit")
 }
 
 func TestSuperviseProcess_SIGTERMNoRecovery(t *testing.T) {
 	driver := &Driver{pids: new(sync.Map)}
+	target := "/tmp/test"
 
 	proc, cmd := startTestProcess(t, "sleep 100")
 	trulyExited := make(chan error, 1)
@@ -67,12 +72,13 @@ func TestSuperviseProcess_SIGTERMNoRecovery(t *testing.T) {
 	var processExitCalled atomic.Bool
 	m := &extendedMounter{driver: driver}
 	op := &mounter.MountOperation{
-		Target: "/tmp/test",
+		Target: target,
 		OnProcessExit: func(exitErr error) {
 			processExitCalled.Store(true)
 		},
 	}
 	driver.pids.Store(cmd.Process.Pid, cmd)
+	driver.activeTargets.Store(target, struct{}{})
 
 	driver.wg.Add(1)
 	go m.superviseProcess(proc, op, 0, true, trulyExited)
@@ -87,6 +93,8 @@ func TestSuperviseProcess_SIGTERMNoRecovery(t *testing.T) {
 
 	_, loaded := driver.pids.Load(cmd.Process.Pid)
 	assert.False(t, loaded, "PID should be removed after exit")
+	_, loaded = driver.activeTargets.Load(target)
+	assert.False(t, loaded, "active target should be removed after SIGTERM exit")
 	assert.False(t, processExitCalled.Load(), "OnProcessExit should not be called for SIGTERM exit")
 }
 
