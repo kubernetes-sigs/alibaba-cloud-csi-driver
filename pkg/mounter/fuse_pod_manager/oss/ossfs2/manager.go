@@ -251,7 +251,7 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 
 	// Mount /sys/fs/fuse/connections directory for recovery support.
 	// When recovery is triggered, the server needs to write to the flush file
-	// (e.g., echo 1 > /sys/fs/fuse/connections/<ctr>/abort) to abort stale FUSE
+	// (e.g., echo 1 > /sys/fs/fuse/connections/<ctr>/flush) to abort stale FUSE
 	// connections before remounting. This directory must be accessible from within
 	// the fuse pod.
 	fuseConnectionsDir := "/sys/fs/fuse/connections"
