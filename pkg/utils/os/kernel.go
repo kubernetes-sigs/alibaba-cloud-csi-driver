@@ -9,7 +9,7 @@ import (
 )
 
 // ErrPrefixRecoveryKernel is the common prefix for recovery kernel validation errors.
-const ErrPrefixRecoveryKernel = "recovery requires kernel >= 5.10.134-18 on Alibaba Cloud Linux (al8+), x86_64"
+const ErrPrefixRecoveryKernel = "recovery requires kernel >= 5.10.134-18 on Alibaba Cloud Linux 3 or above, x86_64"
 
 // KernelVersion represents a parsed kernel version string from uname.
 // Example: "5.10.134-18.al8.x86_64" → {Major:5, Minor:10, Patch:134, Sublevel:18, OSDist:"al8", Arch:"x86_64"}
@@ -44,23 +44,21 @@ func UnameMachine() (string, error) {
 }
 
 // ParseKernelVersion parses a kernel release string like "5.10.134-18.al8.x86_64".
-// Format: <major>.<minor>.<patch>-<sublevel>.<osdist>.<arch>
-// The function is lenient: it parses as much as it can and leaves unset fields at zero/empty.
+// It tolerates arbitrary numeric sub-segments in both the version and suffix parts
+// (e.g. "5.10.134.1.2-19.3.1.al8.x86_64").
 func ParseKernelVersion(release string) (*KernelVersion, error) {
 	kv := &KernelVersion{raw: release}
 	if release == "" {
 		return nil, fmt.Errorf("empty kernel release string")
 	}
 
-	// Split into version part and suffix part at the first hyphen
 	versionPart, suffix, hasSuffix := strings.Cut(release, "-")
 
-	// Parse major.minor.patch
-	parts := strings.SplitN(versionPart, ".", 3)
+	// Version part: take first 3 numeric segments as major.minor.patch.
+	parts := strings.Split(versionPart, ".")
 	if len(parts) < 3 {
 		return nil, fmt.Errorf("kernel version %q: expected major.minor.patch", release)
 	}
-
 	var err error
 	kv.Major, err = strconv.Atoi(parts[0])
 	if err != nil {
@@ -79,29 +77,22 @@ func ParseKernelVersion(release string) (*KernelVersion, error) {
 		return kv, nil
 	}
 
-	// Parse suffix: <sublevel>.<osdist>.<arch>
-	// The sublevel is the leading numeric portion before the first dot.
-	// Examples:
-	//   "18.al8.x86_64"  → sublevel=18, osdist="al8", arch="x86_64"
-	//   "18.el8.x86_64"  → sublevel=18, osdist="el8", arch="x86_64"
-	//   "0-18-generic"   → would not have a dot after sublevel (Ubuntu), handled by lenient parsing
-	suffixParts := strings.SplitN(suffix, ".", 3)
-
-	// First part: sublevel (numeric)
-	if sublevelStr, err := strconv.Atoi(suffixParts[0]); err == nil {
-		kv.Sublevel = sublevelStr
+	// Suffix: e.g. "19.3.1.al8.x86_64" or "18.al8.x86_64"
+	// Sublevel is the first numeric segment. OSDist is the first non-numeric
+	// segment. Everything after OSDist is Arch.
+	suffixParts := strings.Split(suffix, ".")
+	if v, err := strconv.Atoi(suffixParts[0]); err == nil {
+		kv.Sublevel = v
 	}
-
-	// Second part: OS distribution tag
-	if len(suffixParts) >= 2 {
-		kv.OSDist = suffixParts[1]
+	for i := 1; i < len(suffixParts); i++ {
+		if _, err := strconv.Atoi(suffixParts[i]); err != nil {
+			kv.OSDist = suffixParts[i]
+			if i+1 < len(suffixParts) {
+				kv.Arch = strings.Join(suffixParts[i+1:], ".")
+			}
+			break
+		}
 	}
-
-	// Third part: architecture
-	if len(suffixParts) >= 3 {
-		kv.Arch = suffixParts[2]
-	}
-
 	return kv, nil
 }
 
@@ -128,8 +119,8 @@ func (kv *KernelVersion) String() string {
 // CheckKernelForRecovery validates that the kernel meets the minimum requirements
 // for FUSE recovery support:
 //   - Kernel version >= 5.10.134-18
-//   - OS distribution is Alibaba Cloud Linux (al8 / al9)
-//   - Architecture is x86_64 or aarch64
+//   - OS distribution is Alibaba Cloud Linux 3 or above (al8 or alnx4+)
+//   - Architecture is x86_64
 //
 // Returns an error describing which requirement is not met.
 func CheckKernelForRecovery() error {
@@ -158,7 +149,7 @@ func checkKernelForRecoveryWithInputs(release, machine string) error {
 	}
 
 	if !isAlinux(kv.OSDist) {
-		return fmt.Errorf("%s, got OS dist %q from kernel %s", ErrPrefixRecoveryKernel, kv.OSDist, release)
+		return fmt.Errorf("%s: unsupported OS distribution %q (kernel %s)", ErrPrefixRecoveryKernel, kv.OSDist, release)
 	}
 
 	// TODO: support aarch64 architecture for recovery
@@ -169,17 +160,19 @@ func checkKernelForRecoveryWithInputs(release, machine string) error {
 	return nil
 }
 
-// isAlinux checks whether the OS distribution tag indicates Alibaba Cloud Linux (al8+).
-// It matches "al" prefix followed by a version number >= 8 (e.g. al8, al9, al10).
+// isAlinux checks whether the OS distribution tag indicates Alibaba Cloud Linux 3 or above.
+// Two naming conventions:
+//   - Alibaba Cloud Linux 3: "al8" (the only format for this version)
+//   - Alibaba Cloud Linux 4+: "alnx" + version >= 4 (e.g. alnx4, alnx5)
 func isAlinux(osDist string) bool {
-	if !strings.HasPrefix(osDist, "al") {
-		return false
+	if osDist == "al8" {
+		return true
 	}
-	ver, err := strconv.Atoi(strings.TrimPrefix(osDist, "al"))
-	if err != nil {
-		return false
+	if verStr, ok := strings.CutPrefix(osDist, "alnx"); ok {
+		ver, err := strconv.Atoi(verStr)
+		return err == nil && ver >= 4
 	}
-	return ver >= 8
+	return false
 }
 
 // utsnameToString converts a C-style char array from Utsname to a Go string.
