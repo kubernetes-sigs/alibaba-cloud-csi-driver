@@ -270,7 +270,6 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 		spec.Volumes = append(spec.Volumes, fuseConnectionsDirVolume)
 	}
 
-	bidirectional := corev1.MountPropagationBidirectional
 	socketPath := mounterutils.GetMountProxySocketPath(c.VolumeId)
 
 	// If FdPassing is enabled, the fuse pod no longer needs privileged mode because
@@ -290,15 +289,29 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 	// capabilities, even though the node supports it. Both components must have
 	// recovery enabled for automatic healing to work.
 
+	// Legacy mode: Bidirectional propagation so the fuse pod's FUSE mount is
+	// visible on the host. Requires privileged.
+	// Fd-passing mode: HostToContainer propagation so the host's FUSE mount
+	// (done by csi-plugin) is visible inside the fuse pod for mount-point
+	// validation and FUSE channel ID lookup. Does not require privileged.
+	targetDirMount := corev1.VolumeMount{
+		Name:      targetDirVolume.Name,
+		MountPath: targetDir,
+	}
+	if c.FdPassing {
+		hostToContainer := corev1.MountPropagationHostToContainer
+		targetDirMount.MountPropagation = &hostToContainer
+	} else {
+		bidirectional := corev1.MountPropagationBidirectional
+		targetDirMount.MountPropagation = &bidirectional
+	}
+
 	container := corev1.Container{
 		Name:  f.Name(),
 		Image: f.config.Image,
 		VolumeMounts: []corev1.VolumeMount{
+			targetDirMount,
 			{
-				Name:             targetDirVolume.Name,
-				MountPath:        targetDir,
-				MountPropagation: &bidirectional,
-			}, {
 				Name:      metricsDirVolume.Name,
 				MountPath: metricsDirVolume.HostPath.Path,
 			},

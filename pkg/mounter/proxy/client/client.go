@@ -149,8 +149,7 @@ func (c *client) Mount(ctx context.Context, req *proxy.MountRequest) (*proxy.Res
 func (c *client) prepareFuseFd(ctx context.Context, req *proxy.MountRequest, mounter mount.Interface) (int, error) {
 	logger := klog.FromContext(ctx)
 
-	// Open /dev/fuse
-	fuseFd, err := unix.Open("/dev/fuse", unix.O_RDWR|unix.O_CLOEXEC, 0o644)
+	fuseFd, err := unix.Open("/dev/fuse", unix.O_RDWR, 0o644)
 	if err != nil {
 		return 0, fmt.Errorf("open /dev/fuse: %w", err)
 	}
