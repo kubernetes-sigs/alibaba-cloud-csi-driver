@@ -52,7 +52,7 @@ func TestBuildOssfs2Args(t *testing.T) {
 			wantArgs: []string{
 				"mount", target,
 				"-f",
-				"--fuse_device_id=3",
+				"--fuse_device_fd=3",
 			},
 			wantDir: false,
 			wantErr: false,
@@ -68,7 +68,7 @@ func TestBuildOssfs2Args(t *testing.T) {
 				"mount", target,
 				"-f",
 				"--runtime_state_dir=" + failoverDir,
-				"--fuse_device_id=3",
+				"--fuse_device_fd=3",
 			},
 			wantDir: true,
 			wantErr: false,

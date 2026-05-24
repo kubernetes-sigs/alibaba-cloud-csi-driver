@@ -81,7 +81,7 @@ func buildOssfs2Args(op *mounter.MountOperation, recovery bool) ([]string, error
 	}
 
 	if op.FuseFd > 0 {
-		args = append(args, "--fuse_device_id=3")
+		args = append(args, "--fuse_device_fd=3")
 	}
 
 	return args, nil
