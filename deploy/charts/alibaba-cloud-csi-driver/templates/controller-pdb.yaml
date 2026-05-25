@@ -1,0 +1,12 @@
+{{- if and .Values.controller.enabled .Values.controller.pdb.enabled -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: csi-provisioner
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: csi-provisioner
+  maxUnavailable: {{ .Values.controller.pdb.maxUnavailable }}
+{{- end -}}
