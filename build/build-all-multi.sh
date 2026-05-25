@@ -20,9 +20,25 @@ BUILD_ARGS=(
 )
 BUILD_ARGS+=("$@")
 
+should_build() {
+    if [ -z "$IMAGES" ]; then
+        return 0
+    fi
+    local name=${1%%:*}
+    for img in $IMAGES; do
+        if [ "$img" = "$name" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 build_image() {
     local image=$1
     shift
+    if ! should_build "$image"; then
+        return 0
+    fi
     buildctl build "${BUILD_ARGS[@]}" "$@" \
         --output "type=image,push=$PUSH,name=${IMAGE_REPO}/${image}"
 }
@@ -32,8 +48,12 @@ build_image "csi-plugin:${IMAGE_TAG}"             "${MAIN_ARGS[@]}"
 build_image "csi-plugin:${IMAGE_TAG}-controller"  "${MAIN_ARGS[@]}" --opt target=csi-controller
 build_image "csi-plugin:${IMAGE_TAG}-init"        "${MAIN_ARGS[@]}" --opt target=init
 
+AGENT_ARGS=(--local dockerfile=build/csi-agent --opt filename=Dockerfile)
+build_image "csi-agent:${IMAGE_TAG}" "${AGENT_ARGS[@]}"
+
 PROXY_ARGS=(--local dockerfile=build/mount-proxy --opt filename=Dockerfile)
 build_image "csi-ossfs:${IMAGE_TAG}"      "${PROXY_ARGS[@]}" --opt target=ossfs
 build_image "csi-ossfs:${IMAGE_TAG}-1.88" "${PROXY_ARGS[@]}" --opt target=ossfs-1.88
 build_image "csi-ossfs2:${IMAGE_TAG}"     "${PROXY_ARGS[@]}" --opt target=ossfs2
 build_image "csi-alinas:${IMAGE_TAG}"     "${PROXY_ARGS[@]}" --opt target=alinas
+build_image "mount-proxy:${IMAGE_TAG}"    "${PROXY_ARGS[@]}" --opt target=aio

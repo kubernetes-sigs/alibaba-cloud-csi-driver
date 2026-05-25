@@ -164,11 +164,12 @@ The script reads registry and secret name from `.local/test-values.yaml`, so it 
 
 Prerequisite: user must have run `docker login <registry>` locally first. If credentials are missing, the script tells them to do so.
 
-Run the script to create secrets in both required namespaces:
+Run the script to create secrets in all used namespaces:
 
 ```bash
 scripts/create-image-pull-secret.sh -n kube-system
 scripts/create-image-pull-secret.sh -n ack-csi-fuse
+scripts/create-image-pull-secret.sh -n cnfs-system
 ```
 
 ## Post-setup notes

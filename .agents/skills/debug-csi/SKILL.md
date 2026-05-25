@@ -27,12 +27,23 @@ If there's a `csi` release, it's already a debug version — skip uninstall. Oth
 
 ### Build and push images
 
+When building from a non-VPC environment (e.g. local machine), apply the yum mirror patch first so that container builds can access Alinux repos:
+```bash
+git apply .agents/skills/debug-csi/yum-mirror.diff
+```
+This is a local-only patch — do not commit it. Just revert it if it gets into your way, and apply it again when building again.
+
 ```bash
 PLATFORM=linux/amd64 IMAGE_REPO=<registry>/<namespace> IMAGE_TAG=latest ./build/build-all-multi.sh
 ```
 Refer to `.local/test-values.yaml` for the registry and namespace.
 `IMAGE_TAG` defaults to `latest`; set it to a custom tag (e.g. `v1.35.3-dev`) if needed.
-The script builds and pushes all images: `csi-plugin`, `csi-plugin:init`, `csi-plugin:controller`, `csi-ossfs`, `csi-ossfs2`, `csi-alinas`, and their variants.
+The script builds and pushes all images: `csi-plugin`, `csi-plugin:init`, `csi-plugin:controller`, `csi-agent`, `csi-ossfs`, `csi-ossfs2`, `csi-alinas`, `mount-proxy`.
+
+To build only specific images, set `IMAGES` (space-separated names without tags):
+```bash
+IMAGES="mount-proxy csi-agent" PLATFORM=linux/amd64 IMAGE_REPO=<registry>/<namespace> ./build/build-all-multi.sh
+```
 
 ### Deploy via helm
 
@@ -75,3 +86,7 @@ Docker Hub and other registries outside China are unreliable due to network issu
 ## OSS / OSSFS
 
 For OSSFS-related debugging (fuse pod image config, fuse pod logs, fuse pod lifecycle), read `references/oss.md`.
+
+## NAS / cnfs-nas-daemon
+
+For NAS mount proxy debugging (enabling the proxy, testing cnfs-nas-daemon images, EFC mount flow), read `references/nas.md`.
