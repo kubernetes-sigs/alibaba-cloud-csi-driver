@@ -4,9 +4,12 @@ import (
 	"maps"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	k8sver "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -65,13 +68,48 @@ func GetAllRegisteredFuseTypes() []string {
 	return types
 }
 
+// ShouldConstrainResourceVersion determines whether to constrain ResourceVersion to "0" for fuse pod delete.
+// Priority: FeatureGate explicit override > K8s version detection
+// - FeatureGate ConstrainFusePodDeleteRV explicitly set: use that value
+// - K8s >= 1.31: false (Consistent Reads from Cache supported, no need to constrain)
+// - K8s < 1.31: true (Constrain RV="0" to use watch cache and avoid etcd pressure)
+// - K8s unknown: true (Conservative approach, constrain RV="0")
+func ShouldConstrainResourceVersion(k8sVersion *k8sver.Version) bool {
+	fg := features.FunctionalMutableFeatureGate
+	if fg.ExplicitlySet(features.ConstrainFusePodDeleteRV) {
+		constrained := fg.Enabled(features.ConstrainFusePodDeleteRV)
+		if constrained {
+			klog.Warningf("FeatureGate ConstrainFusePodDeleteRV=true, constraining ResourceVersion to '0' for fuse pod delete operations")
+		} else {
+			klog.Infof("FeatureGate ConstrainFusePodDeleteRV=false, using ResourceVersion='' for fuse pod delete operations")
+		}
+		return constrained
+	}
+
+	// Fall back to K8s version detection
+	if k8sVersion == nil {
+		klog.Warningf("K8s version unknown, constraining ResourceVersion to '0' for fuse pod delete operations (conservative approach)")
+		return true
+	}
+
+	if k8sVersion.AtLeast(k8sver.MajorMinor(1, 31)) {
+		klog.Infof("K8s version %s >= 1.31, not constraining ResourceVersion (Consistent Reads from Cache supported)", k8sVersion.String())
+		return false
+	}
+
+	klog.Warningf("K8s version %s < 1.31, constraining ResourceVersion to '0' for fuse pod delete operations (avoid etcd pressure)", k8sVersion.String())
+	return true
+}
+
 // GetAllOSSFusePodManagers creates a map of all registered OSS fuse pod managers
 // configmap can be nil if not available (e.g., in CSI agent mode)
 // client can be nil if not needed (e.g., in CSI agent mode)
-func GetAllOSSFusePodManagers(csiCfg utils.Config, m metadata.MetadataProvider, client kubernetes.Interface) map[string]*OSSFusePodManager {
+func GetAllOSSFusePodManagers(csiCfg utils.Config, m metadata.MetadataProvider, client kubernetes.Interface, k8sVersion *k8sver.Version) map[string]*OSSFusePodManager {
+	constrainRV := ShouldConstrainResourceVersion(k8sVersion)
+
 	fusePodManagers := make(map[string]*OSSFusePodManager, len(fstypeToFactory))
 	for fstype, factory := range fstypeToFactory {
-		fusePodManagers[fstype] = NewOSSFusePodManager(factory(csiCfg, m), client)
+		fusePodManagers[fstype] = NewOSSFusePodManager(factory(csiCfg, m), client, constrainRV)
 	}
 	return fusePodManagers
 }

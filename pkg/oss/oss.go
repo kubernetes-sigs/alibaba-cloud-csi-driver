@@ -30,6 +30,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
+	k8sver "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -48,8 +49,11 @@ type OSS struct {
 }
 
 // NewDriver init oss type of csi driver
-func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.ServiceType, csiCfg utils.Config) *OSS {
+func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version) *OSS {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
+	if k8sVersion != nil {
+		klog.Infof("Kubernetes version: %s", k8sVersion.String())
+	}
 
 	d := &OSS{}
 	d.endpoint = endpoint
@@ -76,7 +80,7 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 		cnfsGetter = cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(crdCfg))
 	}
 
-	fusePodManagers := ossfpm.GetAllOSSFusePodManagers(csiCfg, m, clientset)
+	fusePodManagers := ossfpm.GetAllOSSFusePodManagers(csiCfg, m, clientset, k8sVersion)
 
 	var servers common.Servers
 	servers.IdentityServer = newIdentityServer()

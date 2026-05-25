@@ -4,12 +4,14 @@ import (
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	k8sver "k8s.io/apimachinery/pkg/util/version"
 )
 
 func TestGetFuseMounterPath(t *testing.T) {
@@ -71,6 +73,69 @@ func TestGetAllRegisteredFuseTypes(t *testing.T) {
 	assert.True(t, typeMap[testType], "test type should be registered")
 }
 
+func TestShouldConstrainResourceVersion(t *testing.T) {
+	tests := []struct {
+		name             string
+		k8sVersion       *k8sver.Version
+		featureGateValue string // "true", "false", or "" (not set)
+		expectedResult   bool
+	}{
+		{
+			name:           "K8s 1.31 should not constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 31),
+			expectedResult: false,
+		},
+		{
+			name:           "K8s 1.32 should not constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 32),
+			expectedResult: false,
+		},
+		{
+			name:           "K8s 1.30 should constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 30),
+			expectedResult: true,
+		},
+		{
+			name:           "K8s 1.28 should constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 28),
+			expectedResult: true,
+		},
+		{
+			name:           "nil version should constrain RV",
+			k8sVersion:     nil,
+			expectedResult: true,
+		},
+		{
+			name:             "FeatureGate=true should override K8s 1.31",
+			k8sVersion:       k8sver.MajorMinor(1, 31),
+			featureGateValue: "true",
+			expectedResult:   true,
+		},
+		{
+			name:             "FeatureGate=false should override K8s 1.30",
+			k8sVersion:       k8sver.MajorMinor(1, 30),
+			featureGateValue: "false",
+			expectedResult:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.featureGateValue != "" {
+				assert.NoError(t, features.FunctionalMutableFeatureGate.SetFromMap(map[string]bool{
+					string(features.ConstrainFusePodDeleteRV): tt.featureGateValue == "true",
+				}))
+				t.Cleanup(func() {
+					assert.NoError(t, features.FunctionalMutableFeatureGate.ResetFeatureValueToDefault(features.ConstrainFusePodDeleteRV))
+				})
+			}
+
+			result := ShouldConstrainResourceVersion(tt.k8sVersion)
+			assert.Equal(t, tt.expectedResult, result)
+		})
+	}
+}
+
 func TestGetAllOSSFusePodManagers(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
 
@@ -82,7 +147,7 @@ func TestGetAllOSSFusePodManagers(t *testing.T) {
 	RegisterFuseMounter(testType, testFactory)
 
 	// Test with nil configmap and nil client (CSI agent mode)
-	managers := GetAllOSSFusePodManagers(utils.Config{}, fakeMeta, nil)
+	managers := GetAllOSSFusePodManagers(utils.Config{}, fakeMeta, nil, nil)
 
 	// Should have at least the test manager
 	assert.GreaterOrEqual(t, len(managers), 1, "Should have at least 1 fuse pod manager")
