@@ -2,10 +2,9 @@ package oss
 
 import (
 	"maps"
-	"os"
-	"strconv"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	k8sver "k8s.io/apimachinery/pkg/util/version"
@@ -69,24 +68,22 @@ func GetAllRegisteredFuseTypes() []string {
 	return types
 }
 
-// ShouldConstrainResourceVersion determines whether to constrain ResourceVersion to "" for consistent reads
-// Priority: ENV override > K8s version detection
-// - ENV OSS_FUSE_CONSTRAIN_RV=true/false: If set, use this value
+// ShouldConstrainResourceVersion determines whether to constrain ResourceVersion to "0" for fuse pod delete.
+// Priority: FeatureGate explicit override > K8s version detection
+// - FeatureGate ConstrainFusePodDeleteRV explicitly set: use that value
 // - K8s >= 1.31: false (Consistent Reads from Cache supported, no need to constrain)
 // - K8s < 1.31: true (Constrain RV="0" to use watch cache and avoid etcd pressure)
 // - K8s unknown: true (Conservative approach, constrain RV="0")
 func ShouldConstrainResourceVersion(k8sVersion *k8sver.Version) bool {
-	// Check ENV override first
-	if envVal := os.Getenv("OSS_FUSE_CONSTRAIN_RV"); envVal != "" {
-		if constrained, err := strconv.ParseBool(envVal); err == nil {
-			if constrained {
-				klog.Warningf("ENV OSS_FUSE_CONSTRAIN_RV=true, constraining ResourceVersion to '0' for fuse pod delete operations")
-			} else {
-				klog.Infof("ENV OSS_FUSE_CONSTRAIN_RV=false, using ResourceVersion='' for fuse pod delete operations")
-			}
-			return constrained
+	fg := features.FunctionalMutableFeatureGate
+	if fg.ExplicitlySet(features.ConstrainFusePodDeleteRV) {
+		constrained := fg.Enabled(features.ConstrainFusePodDeleteRV)
+		if constrained {
+			klog.Warningf("FeatureGate ConstrainFusePodDeleteRV=true, constraining ResourceVersion to '0' for fuse pod delete operations")
+		} else {
+			klog.Infof("FeatureGate ConstrainFusePodDeleteRV=false, using ResourceVersion='' for fuse pod delete operations")
 		}
-		klog.Warningf("ENV OSS_FUSE_CONSTRAIN_RV has invalid value %q, ignoring", envVal)
+		return constrained
 	}
 
 	// Fall back to K8s version detection

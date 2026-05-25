@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
@@ -74,10 +75,10 @@ func TestGetAllRegisteredFuseTypes(t *testing.T) {
 
 func TestShouldConstrainResourceVersion(t *testing.T) {
 	tests := []struct {
-		name           string
-		k8sVersion     *k8sver.Version
-		envValue       string
-		expectedResult bool
+		name             string
+		k8sVersion       *k8sver.Version
+		featureGateValue string // "true", "false", or "" (not set)
+		expectedResult   bool
 	}{
 		{
 			name:           "K8s 1.31 should not constrain RV",
@@ -105,30 +106,28 @@ func TestShouldConstrainResourceVersion(t *testing.T) {
 			expectedResult: true,
 		},
 		{
-			name:           "ENV=true should override K8s 1.31",
-			k8sVersion:     k8sver.MajorMinor(1, 31),
-			envValue:       "true",
-			expectedResult: true,
+			name:             "FeatureGate=true should override K8s 1.31",
+			k8sVersion:       k8sver.MajorMinor(1, 31),
+			featureGateValue: "true",
+			expectedResult:   true,
 		},
 		{
-			name:           "ENV=false should override K8s 1.30",
-			k8sVersion:     k8sver.MajorMinor(1, 30),
-			envValue:       "false",
-			expectedResult: false,
-		},
-		{
-			name:           "ENV invalid value should be ignored",
-			k8sVersion:     k8sver.MajorMinor(1, 30),
-			envValue:       "invalid",
-			expectedResult: true,
+			name:             "FeatureGate=false should override K8s 1.30",
+			k8sVersion:       k8sver.MajorMinor(1, 30),
+			featureGateValue: "false",
+			expectedResult:   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set ENV if specified
-			if tt.envValue != "" {
-				t.Setenv("OSS_FUSE_CONSTRAIN_RV", tt.envValue)
+			if tt.featureGateValue != "" {
+				assert.NoError(t, features.FunctionalMutableFeatureGate.SetFromMap(map[string]bool{
+					string(features.ConstrainFusePodDeleteRV): tt.featureGateValue == "true",
+				}))
+				t.Cleanup(func() {
+					assert.NoError(t, features.FunctionalMutableFeatureGate.ResetFeatureValueToDefault(features.ConstrainFusePodDeleteRV))
+				})
 			}
 
 			result := ShouldConstrainResourceVersion(tt.k8sVersion)

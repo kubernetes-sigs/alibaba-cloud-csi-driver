@@ -57,6 +57,11 @@ const (
 
 	// Use cnfs-alinas-daemon instead of csiplugin-connector for alinas and efc mounting.
 	AlinasMountProxy featuregate.Feature = "AlinasMountProxy"
+
+	// ConstrainFusePodDeleteRV controls whether to constrain ResourceVersion to "0"
+	// for fuse pod delete operations. When not explicitly set via --feature-gates,
+	// the behavior is determined by the Kubernetes server version.
+	ConstrainFusePodDeleteRV featuregate.Feature = "ConstrainFusePodDeleteRV"
 )
 
 var (
@@ -71,7 +76,8 @@ var (
 	}
 
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
-		UpdatedOssfsVersion: {Default: true, PreRelease: featuregate.Beta},
+		UpdatedOssfsVersion:      {Default: true, PreRelease: featuregate.Beta},
+		ConstrainFusePodDeleteRV: {Default: true, PreRelease: featuregate.Beta},
 	}
 
 	defaultNasFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
