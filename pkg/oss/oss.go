@@ -42,9 +42,8 @@ const (
 
 // OSS the OSS object
 type OSS struct {
-	endpoint   string
-	servers    common.Servers
-	k8sVersion *k8sver.Version
+	endpoint string
+	servers  common.Servers
 }
 
 // NewDriver init oss type of csi driver
@@ -56,7 +55,6 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 
 	d := &OSS{}
 	d.endpoint = endpoint
-	d.k8sVersion = k8sVersion
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if serviceType&utils.Node > 0 {
@@ -80,7 +78,7 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 		cnfsGetter = cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(crdCfg))
 	}
 
-	fusePodManagers := ossfpm.GetAllOSSFusePodManagers(csiCfg, m, clientset, d.k8sVersion)
+	fusePodManagers := ossfpm.GetAllOSSFusePodManagers(csiCfg, m, clientset, k8sVersion)
 
 	var servers common.Servers
 	servers.IdentityServer = newIdentityServer()
@@ -91,7 +89,6 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 			cnfsGetter:      cnfsGetter,
 			metadata:        m,
 			fusePodManagers: fusePodManagers,
-			k8sVersion:      d.k8sVersion,
 		}
 	}
 	if serviceType&utils.Node != 0 {

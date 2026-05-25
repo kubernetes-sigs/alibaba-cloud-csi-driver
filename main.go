@@ -150,12 +150,11 @@ func main() {
 	meta.EnableEcs(http.DefaultTransport)
 
 	cfg, err := options.GetRestConfig()
-	var kubeClient kubernetes.Interface
 	var k8sVersion *k8sversion.Version
 	if err != nil {
 		klog.Warningf("newGlobalConfig: build kubeconfig failed: %v", err)
 	} else {
-		kubeClient, err = kubernetes.NewForConfig(cfg)
+		kubeClient, err := kubernetes.NewForConfig(cfg)
 		if err != nil {
 			klog.Warningf("Error building kubernetes clientset: %v", err)
 		} else {

@@ -88,7 +88,7 @@ func ShouldConstrainResourceVersion(k8sVersion *k8sver.Version) bool {
 
 	// Fall back to K8s version detection
 	if k8sVersion == nil {
-		klog.Errorf("K8s version unknown, constraining ResourceVersion to '0' for fuse pod delete operations (conservative approach)")
+		klog.Warningf("K8s version unknown, constraining ResourceVersion to '0' for fuse pod delete operations (conservative approach)")
 		return true
 	}
 
