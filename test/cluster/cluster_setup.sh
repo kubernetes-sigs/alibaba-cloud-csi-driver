@@ -48,7 +48,7 @@ function create-vpc {
 
     local subnet=0
     local zone
-    local -a vswitch_ids
+    vswitch_ids=()
     for zone in $ACK_ZONE; do
         echo "Creating VSwitch for zone $zone"
         local id
