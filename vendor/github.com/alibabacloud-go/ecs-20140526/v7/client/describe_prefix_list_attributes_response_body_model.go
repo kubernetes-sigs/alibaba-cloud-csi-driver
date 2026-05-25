@@ -49,9 +49,8 @@ type DescribePrefixListAttributesResponseBody struct {
 	// example:
 	//
 	// This is description.
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Details about the entries in the prefix list.
-	Entries *DescribePrefixListAttributesResponseBodyEntries `json:"Entries,omitempty" xml:"Entries,omitempty" type:"Struct"`
+	Description *string                                          `json:"Description,omitempty" xml:"Description,omitempty"`
+	Entries     *DescribePrefixListAttributesResponseBodyEntries `json:"Entries,omitempty" xml:"Entries,omitempty" type:"Struct"`
 	// The maximum number of entries in the prefix list.
 	//
 	// example:
@@ -202,17 +201,7 @@ func (s *DescribePrefixListAttributesResponseBodyEntries) Validate() error {
 }
 
 type DescribePrefixListAttributesResponseBodyEntriesEntry struct {
-	// The CIDR block in entry N.
-	//
-	// example:
-	//
-	// 192.168.1.0/24
-	Cidr *string `json:"Cidr,omitempty" xml:"Cidr,omitempty"`
-	// The description in entry N.
-	//
-	// example:
-	//
-	// Description Sample 01
+	Cidr        *string `json:"Cidr,omitempty" xml:"Cidr,omitempty"`
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 }
 

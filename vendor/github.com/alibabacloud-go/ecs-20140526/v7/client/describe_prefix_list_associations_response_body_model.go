@@ -23,8 +23,7 @@ type DescribePrefixListAssociationsResponseBody struct {
 	// example:
 	//
 	// AAAAAdDWBF2****
-	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// Details about the resources that are associated with the prefix list.
+	NextToken              *string                                                           `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	PrefixListAssociations *DescribePrefixListAssociationsResponseBodyPrefixListAssociations `json:"PrefixListAssociations,omitempty" xml:"PrefixListAssociations,omitempty" type:"Struct"`
 	// The ID of the request.
 	//
@@ -113,17 +112,7 @@ func (s *DescribePrefixListAssociationsResponseBodyPrefixListAssociations) Valid
 }
 
 type DescribePrefixListAssociationsResponseBodyPrefixListAssociationsPrefixListAssociation struct {
-	// The ID of the resource.
-	//
-	// example:
-	//
-	// sg-bp11ujym6xsff6l0****
-	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The type of the resource.
-	//
-	// example:
-	//
-	// securitygroup
+	ResourceId   *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
 	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
 }
 

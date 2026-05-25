@@ -28,7 +28,6 @@ type iDescribeImageSharePermissionResponseBody interface {
 }
 
 type DescribeImageSharePermissionResponseBody struct {
-	// The Alibaba Cloud accounts.
 	Accounts *DescribeImageSharePermissionResponseBodyAccounts `json:"Accounts,omitempty" xml:"Accounts,omitempty" type:"Struct"`
 	// The ID of the custom image.
 	//
@@ -59,8 +58,7 @@ type DescribeImageSharePermissionResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The shared groups.
+	RequestId   *string                                              `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	ShareGroups *DescribeImageSharePermissionResponseBodyShareGroups `json:"ShareGroups,omitempty" xml:"ShareGroups,omitempty" type:"Struct"`
 	// The total number of entries returned.
 	//
@@ -199,17 +197,7 @@ func (s *DescribeImageSharePermissionResponseBodyAccounts) Validate() error {
 }
 
 type DescribeImageSharePermissionResponseBodyAccountsAccount struct {
-	// The ID of the Alibaba Cloud account.
-	//
-	// example:
-	//
-	// 1234567890
-	AliyunId *string `json:"AliyunId,omitempty" xml:"AliyunId,omitempty"`
-	// The time when the image was shared. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2023-01-01T12:05:00Z
+	AliyunId   *string `json:"AliyunId,omitempty" xml:"AliyunId,omitempty"`
 	SharedTime *string `json:"SharedTime,omitempty" xml:"SharedTime,omitempty"`
 }
 
@@ -278,11 +266,6 @@ func (s *DescribeImageSharePermissionResponseBodyShareGroups) Validate() error {
 }
 
 type DescribeImageSharePermissionResponseBodyShareGroupsShareGroup struct {
-	// The shared group.
-	//
-	// example:
-	//
-	// all
 	Group *string `json:"Group,omitempty" xml:"Group,omitempty"`
 }
 

@@ -22,7 +22,6 @@ type iDescribeInstanceAutoRenewAttributeResponseBody interface {
 }
 
 type DescribeInstanceAutoRenewAttributeResponseBody struct {
-	// The renewal attributes of instances.
 	InstanceRenewAttributes *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributes `json:"InstanceRenewAttributes,omitempty" xml:"InstanceRenewAttributes,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,42 +146,12 @@ func (s *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributes) 
 }
 
 type DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesInstanceRenewAttribute struct {
-	// Indicates whether auto-renewal is enabled.
-	//
-	// example:
-	//
-	// false
-	AutoRenewEnabled *bool `json:"AutoRenewEnabled,omitempty" xml:"AutoRenewEnabled,omitempty"`
-	// The auto-renewal duration.
-	//
-	// example:
-	//
-	// 1
-	Duration *int32 `json:"Duration,omitempty" xml:"Duration,omitempty"`
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-bp18x3z4hc7bixhx****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The unit of the auto-renewal duration.
-	//
-	// example:
-	//
-	// week
-	PeriodUnit *string `json:"PeriodUnit,omitempty" xml:"PeriodUnit,omitempty"`
-	// The auto-renewal state of the instance. Valid values:
-	//
-	// 	- AutoRenewal: Auto-renewal is enabled for the instance.
-	//
-	// 	- Normal: Auto-renewal is disabled for the instance.
-	//
-	// 	- NotRenewal: The instance is not to be renewed. The system sends no more expiration reminders, but sends only a non-renewal reminder three days before the expiration date. For an instance that is not to be renewed, you can call the [ModifyInstanceAutoRenewAttribute](https://help.aliyun.com/document_detail/52843.html) operation to change its auto-renewal status to `Normal`. Then, you can manually renew the instance or enable auto-renewal for the instance.
-	//
-	// example:
-	//
-	// Normal
-	RenewalStatus *string `json:"RenewalStatus,omitempty" xml:"RenewalStatus,omitempty"`
+	AutoRenewEnabled       *bool   `json:"AutoRenewEnabled,omitempty" xml:"AutoRenewEnabled,omitempty"`
+	Duration               *int32  `json:"Duration,omitempty" xml:"Duration,omitempty"`
+	EnableExpectedRenewDay *bool   `json:"EnableExpectedRenewDay,omitempty" xml:"EnableExpectedRenewDay,omitempty"`
+	InstanceId             *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	PeriodUnit             *string `json:"PeriodUnit,omitempty" xml:"PeriodUnit,omitempty"`
+	RenewalStatus          *string `json:"RenewalStatus,omitempty" xml:"RenewalStatus,omitempty"`
 }
 
 func (s DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesInstanceRenewAttribute) String() string {
@@ -199,6 +168,10 @@ func (s *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesIn
 
 func (s *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesInstanceRenewAttribute) GetDuration() *int32 {
 	return s.Duration
+}
+
+func (s *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesInstanceRenewAttribute) GetEnableExpectedRenewDay() *bool {
+	return s.EnableExpectedRenewDay
 }
 
 func (s *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesInstanceRenewAttribute) GetInstanceId() *string {
@@ -220,6 +193,11 @@ func (s *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesIn
 
 func (s *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesInstanceRenewAttribute) SetDuration(v int32) *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesInstanceRenewAttribute {
 	s.Duration = &v
+	return s
+}
+
+func (s *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesInstanceRenewAttribute) SetEnableExpectedRenewDay(v bool) *DescribeInstanceAutoRenewAttributeResponseBodyInstanceRenewAttributesInstanceRenewAttribute {
+	s.EnableExpectedRenewDay = &v
 	return s
 }
 

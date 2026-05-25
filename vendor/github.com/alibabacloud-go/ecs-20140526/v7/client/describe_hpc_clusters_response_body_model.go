@@ -22,7 +22,6 @@ type iDescribeHpcClustersResponseBody interface {
 }
 
 type DescribeHpcClustersResponseBody struct {
-	// The name of the HPC cluster.
 	HpcClusters *DescribeHpcClustersResponseBodyHpcClusters `json:"HpcClusters,omitempty" xml:"HpcClusters,omitempty" type:"Struct"`
 	// Details about the HPC clusters. The value is an array that consists of the information of each HPC cluster.
 	//
@@ -147,24 +146,9 @@ func (s *DescribeHpcClustersResponseBodyHpcClusters) Validate() error {
 }
 
 type DescribeHpcClustersResponseBodyHpcClustersHpcCluster struct {
-	// The description of the HPC cluster.
-	//
-	// example:
-	//
-	// testDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The description of the HPC cluster.
-	//
-	// example:
-	//
-	// hpc-bp1a5zr3u7nq9cx****
+	Description  *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	HpcClusterId *string `json:"HpcClusterId,omitempty" xml:"HpcClusterId,omitempty"`
-	// The name of the HPC cluster.
-	//
-	// example:
-	//
-	// testName
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
+	Name         *string `json:"Name,omitempty" xml:"Name,omitempty"`
 }
 
 func (s DescribeHpcClustersResponseBodyHpcClustersHpcCluster) String() string {

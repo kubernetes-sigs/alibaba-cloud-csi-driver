@@ -22,7 +22,6 @@ type iDescribeLaunchTemplateVersionsResponseBody interface {
 }
 
 type DescribeLaunchTemplateVersionsResponseBody struct {
-	// Details about the launch template versions.
 	LaunchTemplateVersionSets *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSets `json:"LaunchTemplateVersionSets,omitempty" xml:"LaunchTemplateVersionSets,omitempty" type:"Struct"`
 	// The page number of the returned page.
 	//
@@ -147,56 +146,15 @@ func (s *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSets) Va
 }
 
 type DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSet struct {
-	// The time when the launch template version was created.
-	//
-	// example:
-	//
-	// 2022-01-17T08:22:43Z
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The ID of the Alibaba Cloud account that created the launch template.
-	//
-	// example:
-	//
-	// 123456789****
-	CreatedBy *string `json:"CreatedBy,omitempty" xml:"CreatedBy,omitempty"`
-	// Indicates whether the launch template version is the default version.
-	//
-	// example:
-	//
-	// true
-	DefaultVersion *bool `json:"DefaultVersion,omitempty" xml:"DefaultVersion,omitempty"`
-	// The configurations of the launch template.
+	CreateTime         *string                                                                                                        `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	CreatedBy          *string                                                                                                        `json:"CreatedBy,omitempty" xml:"CreatedBy,omitempty"`
+	DefaultVersion     *bool                                                                                                          `json:"DefaultVersion,omitempty" xml:"DefaultVersion,omitempty"`
 	LaunchTemplateData *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateData `json:"LaunchTemplateData,omitempty" xml:"LaunchTemplateData,omitempty" type:"Struct"`
-	// The ID of the launch template.
-	//
-	// example:
-	//
-	// lt-bp67acfmxazb4p****
-	LaunchTemplateId *string `json:"LaunchTemplateId,omitempty" xml:"LaunchTemplateId,omitempty"`
-	// The name of the launch template.
-	//
-	// example:
-	//
-	// testLaunchTemplateName
-	LaunchTemplateName *string `json:"LaunchTemplateName,omitempty" xml:"LaunchTemplateName,omitempty"`
-	// The time when the launch template version was modified.
-	//
-	// example:
-	//
-	// 2022-01-17T08:40:00Z
-	ModifiedTime *string `json:"ModifiedTime,omitempty" xml:"ModifiedTime,omitempty"`
-	// The description of the launch template version.
-	//
-	// example:
-	//
-	// testVersionDescription
-	VersionDescription *string `json:"VersionDescription,omitempty" xml:"VersionDescription,omitempty"`
-	// The number of the launch template version.
-	//
-	// example:
-	//
-	// 1
-	VersionNumber *int64 `json:"VersionNumber,omitempty" xml:"VersionNumber,omitempty"`
+	LaunchTemplateId   *string                                                                                                        `json:"LaunchTemplateId,omitempty" xml:"LaunchTemplateId,omitempty"`
+	LaunchTemplateName *string                                                                                                        `json:"LaunchTemplateName,omitempty" xml:"LaunchTemplateName,omitempty"`
+	ModifiedTime       *string                                                                                                        `json:"ModifiedTime,omitempty" xml:"ModifiedTime,omitempty"`
+	VersionDescription *string                                                                                                        `json:"VersionDescription,omitempty" xml:"VersionDescription,omitempty"`
+	VersionNumber      *int64                                                                                                         `json:"VersionNumber,omitempty" xml:"VersionNumber,omitempty"`
 }
 
 func (s DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSet) String() string {
@@ -298,326 +256,52 @@ func (s *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaun
 }
 
 type DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateData struct {
-	SystemDisk *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataSystemDisk `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
-	// The automatic release time of the instance.
-	//
-	// example:
-	//
-	// 2018-05-14T14:18:00Z
-	AutoReleaseTime *string `json:"AutoReleaseTime,omitempty" xml:"AutoReleaseTime,omitempty"`
-	// Indicates whether auto-renewal is enabled for the instance. This parameter is valid only if `InstanceChargeType` is set to `PrePaid`. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// Default value: false.
-	//
-	// example:
-	//
-	// true
-	AutoRenew *bool `json:"AutoRenew,omitempty" xml:"AutoRenew,omitempty"`
-	// The auto-renewal period of the instance. Valid values:
-	//
-	// Valid values when PeriodUnit is set to Month: 1, 2, 3, 6, 12, 24, 36, 48, and 60.
-	//
-	// Default value: 1.
-	//
-	// example:
-	//
-	// 1
-	AutoRenewPeriod *int32 `json:"AutoRenewPeriod,omitempty" xml:"AutoRenewPeriod,omitempty"`
-	// The performance mode of the burstable instance. Valid values:
-	//
-	// 	- Standard: the standard mode. For more information, see the "Standard mode" section in [Overview of burstable instances](https://help.aliyun.com/document_detail/59977.html).
-	//
-	// 	- Unlimited: the unlimited mode. For more information, see the "Unlimited mode" section in [Overview of burstable instances](https://help.aliyun.com/document_detail/59977.html).
-	//
-	// example:
-	//
-	// Standard
-	CreditSpecification *string `json:"CreditSpecification,omitempty" xml:"CreditSpecification,omitempty"`
-	// Details about the data disks.
-	DataDisks *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataDataDisks `json:"DataDisks,omitempty" xml:"DataDisks,omitempty" type:"Struct"`
-	// Indicates whether release protection is enabled for the instance. This parameter indicates whether you can use the ECS console or call the [DeleteInstance](https://help.aliyun.com/document_detail/25507.html) operation to release the instance. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// Default value: false.
-	//
-	// >  This parameter is applicable only to pay-as-you-go instances. The release protection feature can protect instances against manual releases, but not against automatic releases.
-	//
-	// example:
-	//
-	// false
-	DeletionProtection *bool `json:"DeletionProtection,omitempty" xml:"DeletionProtection,omitempty"`
-	// The ID of the deployment set.
-	//
-	// example:
-	//
-	// ds-bp1brhwhoqinyjd6****
-	DeploymentSetId *string `json:"DeploymentSetId,omitempty" xml:"DeploymentSetId,omitempty"`
-	// The description of the system disk.
-	//
-	// example:
-	//
-	// testInstanceDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Indicates whether the operating system configuration of the instance is enabled.
-	//
-	// example:
-	//
-	// false
-	EnableVmOsConfig *bool `json:"EnableVmOsConfig,omitempty" xml:"EnableVmOsConfig,omitempty"`
-	// The hostname of the instance.
-	//
-	// example:
-	//
-	// testHostName
-	HostName *string `json:"HostName,omitempty" xml:"HostName,omitempty"`
-	// Indicates whether the access channel is enabled for instance metadata. Valid values:
-	//
-	// 	- enabled
-	//
-	// 	- disabled
-	//
-	// Default value: enabled.
-	//
-	// >  For information about instance metadata, see [Obtain information about an ECS instance, such as instance attributes, by using instance metadata](https://help.aliyun.com/document_detail/108460.html).
-	//
-	// example:
-	//
-	// enabled
-	HttpEndpoint *string `json:"HttpEndpoint,omitempty" xml:"HttpEndpoint,omitempty"`
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// 3
-	HttpPutResponseHopLimit *int32 `json:"HttpPutResponseHopLimit,omitempty" xml:"HttpPutResponseHopLimit,omitempty"`
-	// Indicates whether the security hardening mode (IMDSv2) is forcefully used to access instance metadata. Valid values:
-	//
-	// 	- optional: The security hardening mode (IMDSv2) is not forcefully used.
-	//
-	// 	- required: The security hardening mode (IMDSv2) is forcefully used. After you set this parameter to required, you cannot access instance metadata in normal mode.
-	//
-	// Default value: optional.
-	//
-	// >  For more information about the modes of accessing instance metadata, see [Obtain information about an ECS instance, such as instance attributes, by using instance metadata](https://help.aliyun.com/document_detail/108460.html).
-	//
-	// example:
-	//
-	// optional
-	HttpTokens *string `json:"HttpTokens,omitempty" xml:"HttpTokens,omitempty"`
-	// The ID of the image.
-	//
-	// example:
-	//
-	// m-bp67acfmxazb4p****
-	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
-	// Details about the image options.
-	ImageOptions *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataImageOptions `json:"ImageOptions,omitempty" xml:"ImageOptions,omitempty" type:"Struct"`
-	// The source of the image. Valid values:
-	//
-	// 	- system: public image provided by Alibaba Cloud
-	//
-	// 	- self: custom image that you created
-	//
-	// 	- others: shared image from another Alibaba Cloud account
-	//
-	// 	- marketplace: Alibaba Cloud Marketplace image
-	//
-	// example:
-	//
-	// system
-	ImageOwnerAlias *string `json:"ImageOwnerAlias,omitempty" xml:"ImageOwnerAlias,omitempty"`
-	// The billing method of the instance. Valid values:
-	//
-	// 	- PrePaid: subscription
-	//
-	// 	- PostPaid: pay-as-you-go
-	//
-	// example:
-	//
-	// Postpaid
-	InstanceChargeType *string `json:"InstanceChargeType,omitempty" xml:"InstanceChargeType,omitempty"`
-	// The name of the instance.
-	//
-	// example:
-	//
-	// testInstanceName
-	InstanceName *string `json:"InstanceName,omitempty" xml:"InstanceName,omitempty"`
-	// The instance type of the instance.
-	//
-	// example:
-	//
-	// ecs.g5.large
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The billing method for network usage.
-	//
-	// example:
-	//
-	// PayByTraffic
-	InternetChargeType *string `json:"InternetChargeType,omitempty" xml:"InternetChargeType,omitempty"`
-	// The maximum inbound public bandwidth.
-	//
-	// example:
-	//
-	// 5
-	InternetMaxBandwidthIn *int32 `json:"InternetMaxBandwidthIn,omitempty" xml:"InternetMaxBandwidthIn,omitempty"`
-	// The maximum outbound public bandwidth.
-	//
-	// example:
-	//
-	// 100
-	InternetMaxBandwidthOut *int32 `json:"InternetMaxBandwidthOut,omitempty" xml:"InternetMaxBandwidthOut,omitempty"`
-	// Indicates whether the instance is I/O optimized.
-	//
-	// example:
-	//
-	// none
-	IoOptimized *string `json:"IoOptimized,omitempty" xml:"IoOptimized,omitempty"`
-	// The number of IPv6 addresses to assign to the instance.
-	//
-	// example:
-	//
-	// 1
-	Ipv6AddressCount *int32 `json:"Ipv6AddressCount,omitempty" xml:"Ipv6AddressCount,omitempty"`
-	// The name of the key pair.
-	//
-	// example:
-	//
-	// testKeyPairName
-	KeyPairName *string `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
-	// Details about the secondary elastic network interfaces (ENIs).
-	NetworkInterfaces *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataNetworkInterfaces `json:"NetworkInterfaces,omitempty" xml:"NetworkInterfaces,omitempty" type:"Struct"`
-	// The network type. Valid values:
-	//
-	// 	- classic: classic network
-	//
-	// 	- vpc: VPC
-	//
-	// example:
-	//
-	// vpc
-	NetworkType *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
-	// Indicates whether the username and password preset in the image are used.
-	//
-	// example:
-	//
-	// true
-	PasswordInherit *bool `json:"PasswordInherit,omitempty" xml:"PasswordInherit,omitempty"`
-	// The subscription duration of the instance.
-	//
-	// example:
-	//
-	// 1
-	Period *int32 `json:"Period,omitempty" xml:"Period,omitempty"`
-	// The unit of the subscription period. Valid values:
-	//
-	// Month (default)
-	//
-	// example:
-	//
-	// Month
-	PeriodUnit *string `json:"PeriodUnit,omitempty" xml:"PeriodUnit,omitempty"`
-	// The private IP address to assign to the instance.
-	//
-	// example:
-	//
-	// ``10.1.**.**``
-	PrivateIpAddress *string `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
-	// The name of the instance Resource Access Management (RAM) role.
-	//
-	// example:
-	//
-	// testRamRoleName
-	RamRoleName *string `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
-	// The ID of the resource group to which the launch template belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// Indicates whether Security Hardening is enabled.
-	//
-	// example:
-	//
-	// active
-	SecurityEnhancementStrategy *string `json:"SecurityEnhancementStrategy,omitempty" xml:"SecurityEnhancementStrategy,omitempty"`
-	// The ID of the security group to which to assign the instance.
-	//
-	// >  `SecurityGroupId` and `SecurityGroupIds` are mutually exclusive in the response.
-	//
-	// example:
-	//
-	// sg-bp67acfmxazb4p****
-	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
-	// The IDs of the security groups to which to assign the instance.
-	//
-	// >  `SecurityGroupId` and `SecurityGroupIds` are mutually exclusive in the response.
-	SecurityGroupIds *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataSecurityGroupIds `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
-	SecurityOptions  *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataSecurityOptions  `json:"SecurityOptions,omitempty" xml:"SecurityOptions,omitempty" type:"Struct"`
-	// The protection period of the spot instance. Unit: hours. Valid values:
-	//
-	// 	- 1: After a spot instance is created, Alibaba Cloud ensures that the instance is not automatically released within 1 hour. After the 1-hour protection period ends, the system compares the bid price with the market price and checks the resource inventory to determine whether to retain or release the instance.
-	//
-	// 	- 0: After a spot instance is created, Alibaba Cloud does not ensure that the instance runs for 1 hour. The system compares the bid price with the market price and checks the resource inventory to determine whether to retain or release the instance.
-	//
-	// Alibaba Cloud sends an ECS system event to notify you 5 minutes before the instance is released. Spot instances are billed by second. We recommend that you specify a protection period based on your business requirements.
-	//
-	// >  This parameter is returned when SpotStrategy is set to SpotWithPriceLimit or SpotAsPriceGo.
-	//
-	// example:
-	//
-	// 1
-	SpotDuration *int32 `json:"SpotDuration,omitempty" xml:"SpotDuration,omitempty"`
-	// The maximum hourly price of the spot instance.
-	//
-	// example:
-	//
-	// 0.98
-	SpotPriceLimit *float32 `json:"SpotPriceLimit,omitempty" xml:"SpotPriceLimit,omitempty"`
-	// The bidding policy for the pay-as-you-go instance. Valid values:
-	//
-	// 	- NoSpot: The instance is a regular pay-as-you-go instance.
-	//
-	// 	- SpotWithPriceLimit: The instance is a spot instance with a user-defined maximum hourly price.
-	//
-	// 	- SpotAsPriceGo: The instance is a spot instance for which the market price at the time of purchase is automatically used as the bid price. The market price can be up to the pay-as-you-go price.
-	//
-	// example:
-	//
-	// NoSpot
-	SpotStrategy *string `json:"SpotStrategy,omitempty" xml:"SpotStrategy,omitempty"`
-	// The tags to add to the instance.
-	Tags *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The user data of the instance, which is Base64-encoded.
-	//
-	// example:
-	//
-	// SGVsbG9FQ1M=
-	UserData *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
-	// The ID of the vSwitch to which to connect the instance.
-	//
-	// example:
-	//
-	// vsw-bp67acfmxazb4p****
-	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// The ID of the virtual private cloud (VPC).
-	//
-	// example:
-	//
-	// v-bp67acfmxazb4p****
-	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
-	// The zone ID of the instance.
-	//
-	// example:
-	//
-	// cn-hangzhou-g
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	SystemDisk                  *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataSystemDisk        `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
+	AutoReleaseTime             *string                                                                                                                         `json:"AutoReleaseTime,omitempty" xml:"AutoReleaseTime,omitempty"`
+	AutoRenew                   *bool                                                                                                                           `json:"AutoRenew,omitempty" xml:"AutoRenew,omitempty"`
+	AutoRenewPeriod             *int32                                                                                                                          `json:"AutoRenewPeriod,omitempty" xml:"AutoRenewPeriod,omitempty"`
+	CreditSpecification         *string                                                                                                                         `json:"CreditSpecification,omitempty" xml:"CreditSpecification,omitempty"`
+	DataDisks                   *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataDataDisks         `json:"DataDisks,omitempty" xml:"DataDisks,omitempty" type:"Struct"`
+	DeletionProtection          *bool                                                                                                                           `json:"DeletionProtection,omitempty" xml:"DeletionProtection,omitempty"`
+	DeploymentSetId             *string                                                                                                                         `json:"DeploymentSetId,omitempty" xml:"DeploymentSetId,omitempty"`
+	Description                 *string                                                                                                                         `json:"Description,omitempty" xml:"Description,omitempty"`
+	EnableVmOsConfig            *bool                                                                                                                           `json:"EnableVmOsConfig,omitempty" xml:"EnableVmOsConfig,omitempty"`
+	HostName                    *string                                                                                                                         `json:"HostName,omitempty" xml:"HostName,omitempty"`
+	HttpEndpoint                *string                                                                                                                         `json:"HttpEndpoint,omitempty" xml:"HttpEndpoint,omitempty"`
+	HttpPutResponseHopLimit     *int32                                                                                                                          `json:"HttpPutResponseHopLimit,omitempty" xml:"HttpPutResponseHopLimit,omitempty"`
+	HttpTokens                  *string                                                                                                                         `json:"HttpTokens,omitempty" xml:"HttpTokens,omitempty"`
+	ImageId                     *string                                                                                                                         `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
+	ImageOptions                *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataImageOptions      `json:"ImageOptions,omitempty" xml:"ImageOptions,omitempty" type:"Struct"`
+	ImageOwnerAlias             *string                                                                                                                         `json:"ImageOwnerAlias,omitempty" xml:"ImageOwnerAlias,omitempty"`
+	InstanceChargeType          *string                                                                                                                         `json:"InstanceChargeType,omitempty" xml:"InstanceChargeType,omitempty"`
+	InstanceName                *string                                                                                                                         `json:"InstanceName,omitempty" xml:"InstanceName,omitempty"`
+	InstanceType                *string                                                                                                                         `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
+	InternetChargeType          *string                                                                                                                         `json:"InternetChargeType,omitempty" xml:"InternetChargeType,omitempty"`
+	InternetMaxBandwidthIn      *int32                                                                                                                          `json:"InternetMaxBandwidthIn,omitempty" xml:"InternetMaxBandwidthIn,omitempty"`
+	InternetMaxBandwidthOut     *int32                                                                                                                          `json:"InternetMaxBandwidthOut,omitempty" xml:"InternetMaxBandwidthOut,omitempty"`
+	IoOptimized                 *string                                                                                                                         `json:"IoOptimized,omitempty" xml:"IoOptimized,omitempty"`
+	Ipv6AddressCount            *int32                                                                                                                          `json:"Ipv6AddressCount,omitempty" xml:"Ipv6AddressCount,omitempty"`
+	KeyPairName                 *string                                                                                                                         `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
+	NetworkInterfaces           *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataNetworkInterfaces `json:"NetworkInterfaces,omitempty" xml:"NetworkInterfaces,omitempty" type:"Struct"`
+	NetworkType                 *string                                                                                                                         `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
+	PasswordInherit             *bool                                                                                                                           `json:"PasswordInherit,omitempty" xml:"PasswordInherit,omitempty"`
+	Period                      *int32                                                                                                                          `json:"Period,omitempty" xml:"Period,omitempty"`
+	PeriodUnit                  *string                                                                                                                         `json:"PeriodUnit,omitempty" xml:"PeriodUnit,omitempty"`
+	PrivateIpAddress            *string                                                                                                                         `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
+	RamRoleName                 *string                                                                                                                         `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
+	ResourceGroupId             *string                                                                                                                         `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	SecurityEnhancementStrategy *string                                                                                                                         `json:"SecurityEnhancementStrategy,omitempty" xml:"SecurityEnhancementStrategy,omitempty"`
+	SecurityGroupId             *string                                                                                                                         `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
+	SecurityGroupIds            *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataSecurityGroupIds  `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
+	SecurityOptions             *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataSecurityOptions   `json:"SecurityOptions,omitempty" xml:"SecurityOptions,omitempty" type:"Struct"`
+	SpotDuration                *int32                                                                                                                          `json:"SpotDuration,omitempty" xml:"SpotDuration,omitempty"`
+	SpotPriceLimit              *float32                                                                                                                        `json:"SpotPriceLimit,omitempty" xml:"SpotPriceLimit,omitempty"`
+	SpotStrategy                *string                                                                                                                         `json:"SpotStrategy,omitempty" xml:"SpotStrategy,omitempty"`
+	Tags                        *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataTags              `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	UserData                    *string                                                                                                                         `json:"UserData,omitempty" xml:"UserData,omitempty"`
+	VSwitchId                   *string                                                                                                                         `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	VpcId                       *string                                                                                                                         `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	ZoneId                      *string                                                                                                                         `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateData) String() string {
@@ -1251,106 +935,19 @@ func (s *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaun
 }
 
 type DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataDataDisksDataDisk struct {
-	// The ID of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// sp-wz91dz3ghear2a5s****
 	AutoSnapshotPolicyId *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
-	// Indicates whether the performance burst feature is enabled. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// example:
-	//
-	// true
-	BurstingEnabled *bool `json:"BurstingEnabled,omitempty" xml:"BurstingEnabled,omitempty"`
-	// The category of the data disk.
-	//
-	// example:
-	//
-	// cloud_ssd
-	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
-	// Indicates whether to release the data disk when the instance is released.
-	//
-	// example:
-	//
-	// true
-	DeleteWithInstance *bool `json:"DeleteWithInstance,omitempty" xml:"DeleteWithInstance,omitempty"`
-	// The description of the data disk.
-	//
-	// example:
-	//
-	// testDiskDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The mount point of the data disk. The mount points are named based on the number of data disks:
-	//
-	// 	- 1st to 25th data disks: /dev/xvd`[b-z]`.
-	//
-	// 	- From the 26th data disk on: /dev/xvd`[aa-zz]`. For example, the 26th data disk is named /dev/xvdaa, the 27th data disk is named /dev/xvdab, and so on.
-	//
-	// >  This parameter is applicable to scenarios in which a full image is used to create instances. A full image is an image that contains an operating system, application software, and business data. For these scenarios, you can set the parameter to the mount point of data disk N contained in the full image and modify `DataDisk.N.Size` and `DataDisk.N.Category` to change the category and size of data disk N created based on the image.
-	//
-	// example:
-	//
-	// /dev/xvda
-	Device *string `json:"Device,omitempty" xml:"Device,omitempty"`
-	// The name of the data disk.
-	//
-	// example:
-	//
-	// testDiskName
-	DiskName *string `json:"DiskName,omitempty" xml:"DiskName,omitempty"`
-	// Indicates whether the data disk is encrypted.
-	//
-	// example:
-	//
-	// false
-	Encrypted *string `json:"Encrypted,omitempty" xml:"Encrypted,omitempty"`
-	// The ID of the KMS key used for the data disk.
-	//
-	// example:
-	//
-	// 0e478b7a-4262-4802-b8cb-00d3fb40****
-	KMSKeyId *string `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
-	// The performance level of the ESSD to use as a data disk. This parameter is returned only when the value of `Category` is cloud_essd. Valid values:
-	//
-	// 	- PL0: A single ESSD can deliver up to 10,000 random read/write IOPS.
-	//
-	// 	- PL1: A single ESSD can deliver up to 50,000 random read/write IOPS.
-	//
-	// 	- PL2: A single ESSD can deliver up to 100,000 random read/write IOPS.
-	//
-	// 	- PL3: A single ESSD can deliver up to 1,000,000 random read/write IOPS.
-	//
-	// example:
-	//
-	// PL1
-	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
-	// The provisioned read/write IOPS of the ESSD AutoPL disk. Valid values: 0 to min{50,000, 1,000 × Capacity - Baseline IOPS}.
-	//
-	// Baseline IOPS = min{1,800 + 50 × Capacity, 50,000}.
-	//
-	// >  This parameter is available only if you set DataDisk.N.Category to cloud_auto. For more information, see [ESSD AutoPL disks](https://help.aliyun.com/document_detail/368372.html) and [Modify the performance configurations of an ESSD AutoPL disk](https://help.aliyun.com/document_detail/413275.html).
-	//
-	// example:
-	//
-	// 50000
-	ProvisionedIops *int64 `json:"ProvisionedIops,omitempty" xml:"ProvisionedIops,omitempty"`
-	// The size of the data disk.
-	//
-	// example:
-	//
-	// 2000
-	Size *int32 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The ID of the snapshot to use to create the data disk.
-	//
-	// example:
-	//
-	// s-bp67acfmxazb4p****
-	SnapshotId *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
+	BurstingEnabled      *bool   `json:"BurstingEnabled,omitempty" xml:"BurstingEnabled,omitempty"`
+	Category             *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	DeleteWithInstance   *bool   `json:"DeleteWithInstance,omitempty" xml:"DeleteWithInstance,omitempty"`
+	Description          *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	Device               *string `json:"Device,omitempty" xml:"Device,omitempty"`
+	DiskName             *string `json:"DiskName,omitempty" xml:"DiskName,omitempty"`
+	Encrypted            *string `json:"Encrypted,omitempty" xml:"Encrypted,omitempty"`
+	KMSKeyId             *string `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
+	PerformanceLevel     *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
+	ProvisionedIops      *int64  `json:"ProvisionedIops,omitempty" xml:"ProvisionedIops,omitempty"`
+	Size                 *int32  `json:"Size,omitempty" xml:"Size,omitempty"`
+	SnapshotId           *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
 }
 
 func (s DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataDataDisksDataDisk) String() string {
@@ -1483,15 +1080,6 @@ func (s *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaun
 }
 
 type DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataImageOptions struct {
-	// Specifies whether the instance that uses the image supports logons of the ecs-user user. Valid values:
-	//
-	// - true
-	//
-	// - false
-	//
-	// example:
-	//
-	// false
 	LoginAsNonRoot *bool `json:"LoginAsNonRoot,omitempty" xml:"LoginAsNonRoot,omitempty"`
 }
 
@@ -1551,68 +1139,15 @@ func (s *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaun
 }
 
 type DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataNetworkInterfacesNetworkInterface struct {
-	// Indicates whether to retain the ENI when the associated instance is released. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// example:
-	//
-	// true
-	DeleteOnRelease *bool `json:"DeleteOnRelease,omitempty" xml:"DeleteOnRelease,omitempty"`
-	// The description of the secondary ENI.
-	//
-	// example:
-	//
-	// testNetworkInterfacesDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The instance type of the instance.
-	//
-	// example:
-	//
-	// ecs.s2.xlarge
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The name of the secondary ENI.
-	//
-	// example:
-	//
-	// testNetworkInterfaceName
-	NetworkInterfaceName *string `json:"NetworkInterfaceName,omitempty" xml:"NetworkInterfaceName,omitempty"`
-	// The communication mode of the primary ENI. Valid values:
-	//
-	// 	- Standard: uses the TCP communication mode.
-	//
-	// 	- HighPerformance: uses the remote direct memory access (RDMA) communication mode with Elastic RDMA Interface (ERI) enabled.
-	//
-	// example:
-	//
-	// Standard
-	NetworkInterfaceTrafficMode *string `json:"NetworkInterfaceTrafficMode,omitempty" xml:"NetworkInterfaceTrafficMode,omitempty"`
-	// The primary private IP address of the secondary ENI.
-	//
-	// example:
-	//
-	// 203.0.*.*
-	PrimaryIpAddress *string `json:"PrimaryIpAddress,omitempty" xml:"PrimaryIpAddress,omitempty"`
-	// The ID of the security group to which to assign the secondary ENI. The security group and the ENI must belong to the same VPC.
-	//
-	// >  SecurityGroupId and SecurityGroupIds are mutually exclusive in the response.
-	//
-	// example:
-	//
-	// sg-bp67acfmxazb4p****
-	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
-	// The IDs of the security groups to which to assign the secondary ENI.
-	//
-	// >  SecurityGroupId and SecurityGroupIds are mutually exclusive in the response.
-	SecurityGroupIds *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataNetworkInterfacesNetworkInterfaceSecurityGroupIds `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
-	// The ID of the vSwitch to which to connect the ENI.
-	//
-	// example:
-	//
-	// vsw-bp67acfmxazb4p****
-	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	DeleteOnRelease             *bool                                                                                                                                                           `json:"DeleteOnRelease,omitempty" xml:"DeleteOnRelease,omitempty"`
+	Description                 *string                                                                                                                                                         `json:"Description,omitempty" xml:"Description,omitempty"`
+	InstanceType                *string                                                                                                                                                         `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
+	NetworkInterfaceName        *string                                                                                                                                                         `json:"NetworkInterfaceName,omitempty" xml:"NetworkInterfaceName,omitempty"`
+	NetworkInterfaceTrafficMode *string                                                                                                                                                         `json:"NetworkInterfaceTrafficMode,omitempty" xml:"NetworkInterfaceTrafficMode,omitempty"`
+	PrimaryIpAddress            *string                                                                                                                                                         `json:"PrimaryIpAddress,omitempty" xml:"PrimaryIpAddress,omitempty"`
+	SecurityGroupId             *string                                                                                                                                                         `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
+	SecurityGroupIds            *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataNetworkInterfacesNetworkInterfaceSecurityGroupIds `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
+	VSwitchId                   *string                                                                                                                                                         `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
 }
 
 func (s DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataNetworkInterfacesNetworkInterface) String() string {
@@ -1823,17 +1358,7 @@ func (s *DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaun
 }
 
 type DescribeLaunchTemplateVersionsResponseBodyLaunchTemplateVersionSetsLaunchTemplateVersionSetLaunchTemplateDataTagsInstanceTag struct {
-	// The key of the tag to add to the instance.
-	//
-	// example:
-	//
-	// TestKey
-	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The value of the tag to add to the instance.
-	//
-	// example:
-	//
-	// TestValue
+	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

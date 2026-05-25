@@ -22,7 +22,6 @@ type iDescribeImagePipelineExecutionsResponseBody interface {
 }
 
 type DescribeImagePipelineExecutionsResponseBody struct {
-	// The total number of returned image components.
 	ImagePipelineExecution *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecution `json:"ImagePipelineExecution,omitempty" xml:"ImagePipelineExecution,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -149,80 +148,17 @@ func (s *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecution) Vali
 }
 
 type DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet struct {
-	// Details of the image creation tasks.
-	//
-	// example:
-	//
-	// 2020-11-24T06:00:00Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The data returned.
-	//
-	// example:
-	//
-	// exec-5fb8facb8ed7427c****
-	ExecutionId *string `json:"ExecutionId,omitempty" xml:"ExecutionId,omitempty"`
-	// The ID of the resource group.
-	//
-	// example:
-	//
-	// m-bp67acfmxazb4p****
-	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
-	// Details of the image creation task.
-	//
-	// example:
-	//
-	// ip-2ze5tsl5bp6nf2b3****
-	ImagePipelineId *string `json:"ImagePipelineId,omitempty" xml:"ImagePipelineId,omitempty"`
-	// The last modification time of the image creation task.
-	//
-	// example:
-	//
-	// Create transition vpc "vpc-2ze70rc7093j9idu6****" success!
-	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// The ID of the image template.
-	//
-	// example:
-	//
-	// 2020-11-25T06:00:00Z
-	ModifiedTime *string `json:"ModifiedTime,omitempty" xml:"ModifiedTime,omitempty"`
-	// The status of the image creation task. Valid values:
-	//
-	// 	- PREPARING: Resources, such as intermediate instances, are being created.
-	//
-	// 	- REPAIRING: The source image is being repaired.
-	//
-	// 	- BUILDING: The user-defined commands are being run and an image is being created.
-	//
-	// 	- TESTING: The user-defined test commands are being run.
-	//
-	// 	- DISTRIBUTING: The created image is being copied and shared.
-	//
-	// 	- RELEASING: The temporary resources generated during the image creation process are being released.
-	//
-	// 	- SUCCESS The image creation task is completed.
-	//
-	// 	- PARTITION_SUCCESS: The image creation task is partially completed. The image is created, but exceptions may occur when the image was copied or shared or when temporary resources were released.
-	//
-	// 	- FAILED: The image creation task fails.
-	//
-	// 	- TEST_FAILED: The image is created, but the test fails.
-	//
-	// 	- CANCELLING: The image creation task is being canceled.
-	//
-	// 	- CANCELLED: The image creation task is canceled.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The time when the image creation task was created.
-	//
-	// example:
-	//
-	// BUILDING
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The ID of the image.
-	Tags *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSetTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	CreationTime    *string                                                                                         `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	ErrorCode       *string                                                                                         `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
+	ErrorInfo       *string                                                                                         `json:"ErrorInfo,omitempty" xml:"ErrorInfo,omitempty"`
+	ExecutionId     *string                                                                                         `json:"ExecutionId,omitempty" xml:"ExecutionId,omitempty"`
+	ImageId         *string                                                                                         `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
+	ImagePipelineId *string                                                                                         `json:"ImagePipelineId,omitempty" xml:"ImagePipelineId,omitempty"`
+	Message         *string                                                                                         `json:"Message,omitempty" xml:"Message,omitempty"`
+	ModifiedTime    *string                                                                                         `json:"ModifiedTime,omitempty" xml:"ModifiedTime,omitempty"`
+	ResourceGroupId *string                                                                                         `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	Status          *string                                                                                         `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags            *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSetTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 }
 
 func (s DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet) String() string {
@@ -235,6 +171,14 @@ func (s DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePi
 
 func (s *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet) GetCreationTime() *string {
 	return s.CreationTime
+}
+
+func (s *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet) GetErrorCode() *string {
+	return s.ErrorCode
+}
+
+func (s *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet) GetErrorInfo() *string {
+	return s.ErrorInfo
 }
 
 func (s *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet) GetExecutionId() *string {
@@ -271,6 +215,16 @@ func (s *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImageP
 
 func (s *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet) SetCreationTime(v string) *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet {
 	s.CreationTime = &v
+	return s
+}
+
+func (s *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet) SetErrorCode(v string) *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet {
+	s.ErrorCode = &v
+	return s
+}
+
+func (s *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet) SetErrorInfo(v string) *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSet {
+	s.ErrorInfo = &v
 	return s
 }
 
@@ -358,17 +312,7 @@ func (s *DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImageP
 }
 
 type DescribeImagePipelineExecutionsResponseBodyImagePipelineExecutionImagePipelineExecutionSetTagsTag struct {
-	// The tag of the image creation task.
-	//
-	// example:
-	//
-	// TestValue
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tags of the image creation task.
-	//
-	// example:
-	//
-	// TestKey
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

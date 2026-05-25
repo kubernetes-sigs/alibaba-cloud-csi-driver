@@ -59,8 +59,7 @@ type DescribeSecurityGroupsResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The information about the security groups.
+	RequestId      *string                                           `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	SecurityGroups *DescribeSecurityGroupsResponseBodySecurityGroups `json:"SecurityGroups,omitempty" xml:"SecurityGroups,omitempty" type:"Struct"`
 	// The total number of security groups returned. If `MaxResults` and `NextToken` are specified in the request, the value of this parameter is not returned.
 	//
@@ -185,98 +184,20 @@ func (s *DescribeSecurityGroupsResponseBodySecurityGroups) Validate() error {
 }
 
 type DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroup struct {
-	// The number of private IP addresses that can be added to the security group. For more information, see the "Security group capacity" section in [Basic security groups and advanced security groups](~~605897#section-kj9-e46-6v5~~).
-	//
-	// If you set IsQueryEcsCount to True, the return value of AvailableInstanceAmount is valid.
-	//
-	// >  This parameter is deprecated. The returned quantity is provided only for reference. The actual quantity may differ from the returned quantity.
-	//
-	// example:
-	//
-	// 0
-	AvailableInstanceAmount *int32 `json:"AvailableInstanceAmount,omitempty" xml:"AvailableInstanceAmount,omitempty"`
-	// The time when the security group was created. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddThh:mmZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2021-08-31T03:12:29Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the security group.
-	//
-	// example:
-	//
-	// TestDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The number of private IP addresses that are contained in the security group. For more information, see the "Security group capacity" section in [Basic security groups and advanced security groups](~~605897#section-kj9-e46-6v5~~).
-	//
-	// If you set IsQueryEcsCount to True, the return value of EcsCount is valid.
-	//
-	// >  This parameter is deprecated. The returned quantity is provided only for reference. The actual quantity may differ from the returned quantity.
-	//
-	// example:
-	//
-	// 0
-	EcsCount *int32 `json:"EcsCount,omitempty" xml:"EcsCount,omitempty"`
-	// The number of rules that reference security groups in the security group.
-	//
-	// example:
-	//
-	// 5
-	GroupToGroupRuleCount *int32 `json:"GroupToGroupRuleCount,omitempty" xml:"GroupToGroupRuleCount,omitempty"`
-	// The ID of the resource group to which the security group belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The number of rules in the security group.
-	//
-	// example:
-	//
-	// 100
-	RuleCount *int32 `json:"RuleCount,omitempty" xml:"RuleCount,omitempty"`
-	// The ID of the security group.
-	//
-	// example:
-	//
-	// sg-bp67acfmxazb4p****
-	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
-	// The name of the security group.
-	//
-	// example:
-	//
-	// SGTestName
-	SecurityGroupName *string `json:"SecurityGroupName,omitempty" xml:"SecurityGroupName,omitempty"`
-	// The type of the security group. Valid values:
-	//
-	// 	- normal: basic security group
-	//
-	// 	- enterprise: advanced security group
-	//
-	// example:
-	//
-	// normal
-	SecurityGroupType *string `json:"SecurityGroupType,omitempty" xml:"SecurityGroupType,omitempty"`
-	// The ID of the distributor to which the security group belongs.
-	//
-	// example:
-	//
-	// 12345678910
-	ServiceID *int64 `json:"ServiceID,omitempty" xml:"ServiceID,omitempty"`
-	// Indicates whether the user of the security group is an Alibaba Cloud service or a distributor.
-	//
-	// example:
-	//
-	// false
-	ServiceManaged *bool `json:"ServiceManaged,omitempty" xml:"ServiceManaged,omitempty"`
-	// The tags of the security group.
-	Tags *DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroupTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The ID of the VPC to which the security group belongs.
-	//
-	// example:
-	//
-	// vpc-bp67acfmxazb4p****
-	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	AvailableInstanceAmount *int32                                                             `json:"AvailableInstanceAmount,omitempty" xml:"AvailableInstanceAmount,omitempty"`
+	CreationTime            *string                                                            `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	Description             *string                                                            `json:"Description,omitempty" xml:"Description,omitempty"`
+	EcsCount                *int32                                                             `json:"EcsCount,omitempty" xml:"EcsCount,omitempty"`
+	GroupToGroupRuleCount   *int32                                                             `json:"GroupToGroupRuleCount,omitempty" xml:"GroupToGroupRuleCount,omitempty"`
+	ResourceGroupId         *string                                                            `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	RuleCount               *int32                                                             `json:"RuleCount,omitempty" xml:"RuleCount,omitempty"`
+	SecurityGroupId         *string                                                            `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
+	SecurityGroupName       *string                                                            `json:"SecurityGroupName,omitempty" xml:"SecurityGroupName,omitempty"`
+	SecurityGroupType       *string                                                            `json:"SecurityGroupType,omitempty" xml:"SecurityGroupType,omitempty"`
+	ServiceID               *int64                                                             `json:"ServiceID,omitempty" xml:"ServiceID,omitempty"`
+	ServiceManaged          *bool                                                              `json:"ServiceManaged,omitempty" xml:"ServiceManaged,omitempty"`
+	Tags                    *DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroupTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	VpcId                   *string                                                            `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
 
 func (s DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroup) String() string {
@@ -457,17 +378,7 @@ func (s *DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroupTags) Vali
 }
 
 type DescribeSecurityGroupsResponseBodySecurityGroupsSecurityGroupTagsTag struct {
-	// The key of the tag.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The value of the tag.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

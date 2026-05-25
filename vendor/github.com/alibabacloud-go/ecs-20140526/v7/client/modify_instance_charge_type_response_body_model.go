@@ -18,7 +18,6 @@ type iModifyInstanceChargeTypeResponseBody interface {
 }
 
 type ModifyInstanceChargeTypeResponseBody struct {
-	// Details about the charges for the order.
 	FeeOfInstances *ModifyInstanceChargeTypeResponseBodyFeeOfInstances `json:"FeeOfInstances,omitempty" xml:"FeeOfInstances,omitempty" type:"Struct"`
 	// The order ID.
 	//
@@ -113,27 +112,8 @@ func (s *ModifyInstanceChargeTypeResponseBodyFeeOfInstances) Validate() error {
 }
 
 type ModifyInstanceChargeTypeResponseBodyFeeOfInstancesFeeOfInstance struct {
-	// The unit of currency for the bill.
-	//
-	// Alibaba Cloud China site (aliyun.com): CNY.
-	//
-	// Alibaba Cloud International site (alibabacloud.com): USD.
-	//
-	// example:
-	//
-	// CNY
-	Currency *string `json:"Currency,omitempty" xml:"Currency,omitempty"`
-	// The cost value.
-	//
-	// example:
-	//
-	// 0
-	Fee *string `json:"Fee,omitempty" xml:"Fee,omitempty"`
-	// The instance ID.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
+	Currency   *string `json:"Currency,omitempty" xml:"Currency,omitempty"`
+	Fee        *string `json:"Fee,omitempty" xml:"Fee,omitempty"`
 	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 }
 

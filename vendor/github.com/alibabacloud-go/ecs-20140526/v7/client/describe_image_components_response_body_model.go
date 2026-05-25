@@ -22,7 +22,6 @@ type iDescribeImageComponentsResponseBody interface {
 }
 
 type DescribeImageComponentsResponseBody struct {
-	// The information about the image components.
 	ImageComponent *DescribeImageComponentsResponseBodyImageComponent `json:"ImageComponent,omitempty" xml:"ImageComponent,omitempty" type:"Struct"`
 	// The number of entries per page.
 	//
@@ -147,74 +146,18 @@ func (s *DescribeImageComponentsResponseBodyImageComponent) Validate() error {
 }
 
 type DescribeImageComponentsResponseBodyImageComponentImageComponentSet struct {
-	// The type of the image component.
-	//
-	// example:
-	//
-	// Build
-	ComponentType *string `json:"ComponentType,omitempty" xml:"ComponentType,omitempty"`
-	// The version number of the image component.
-	//
-	// example:
-	//
-	// null
-	ComponentVersion *string `json:"ComponentVersion,omitempty" xml:"ComponentVersion,omitempty"`
-	// The content of the image component.
-	//
-	// example:
-	//
-	// RESTART
-	Content *string `json:"Content,omitempty" xml:"Content,omitempty"`
-	// The time when the image component was created.
-	//
-	// example:
-	//
-	// 2020-11-24T06:00:00Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the image component.
-	//
-	// example:
-	//
-	// This is description.
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the image component.
-	//
-	// example:
-	//
-	// ic-bp67acfmxazb4p****
-	ImageComponentId *string `json:"ImageComponentId,omitempty" xml:"ImageComponentId,omitempty"`
-	// The name of the image component.
-	//
-	// example:
-	//
-	// testComponent
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The type of the image component. Valid values:
-	//
-	// 	- SELF: the custom component that you created.
-	//
-	// 	- ALIYUN: the system component provided by Alibaba Cloud.
-	//
-	// example:
-	//
-	// SELF
-	Owner *string `json:"Owner,omitempty" xml:"Owner,omitempty"`
-	// The parameters contained in the image component.
-	Parameters *DescribeImageComponentsResponseBodyImageComponentImageComponentSetParameters `json:"Parameters,omitempty" xml:"Parameters,omitempty" type:"Struct"`
-	// The ID of the resource group to which the image component belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The type of the operating system supported by the image component.
-	//
-	// example:
-	//
-	// Linux
-	SystemType *string `json:"SystemType,omitempty" xml:"SystemType,omitempty"`
-	// The tags of the image component.
-	Tags *DescribeImageComponentsResponseBodyImageComponentImageComponentSetTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	ComponentType    *string                                                                       `json:"ComponentType,omitempty" xml:"ComponentType,omitempty"`
+	ComponentVersion *string                                                                       `json:"ComponentVersion,omitempty" xml:"ComponentVersion,omitempty"`
+	Content          *string                                                                       `json:"Content,omitempty" xml:"Content,omitempty"`
+	CreationTime     *string                                                                       `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	Description      *string                                                                       `json:"Description,omitempty" xml:"Description,omitempty"`
+	ImageComponentId *string                                                                       `json:"ImageComponentId,omitempty" xml:"ImageComponentId,omitempty"`
+	Name             *string                                                                       `json:"Name,omitempty" xml:"Name,omitempty"`
+	Owner            *string                                                                       `json:"Owner,omitempty" xml:"Owner,omitempty"`
+	Parameters       *DescribeImageComponentsResponseBodyImageComponentImageComponentSetParameters `json:"Parameters,omitempty" xml:"Parameters,omitempty" type:"Struct"`
+	ResourceGroupId  *string                                                                       `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	SystemType       *string                                                                       `json:"SystemType,omitempty" xml:"SystemType,omitempty"`
+	Tags             *DescribeImageComponentsResponseBodyImageComponentImageComponentSetTags       `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 }
 
 func (s DescribeImageComponentsResponseBodyImageComponentImageComponentSet) String() string {
@@ -382,32 +325,9 @@ func (s *DescribeImageComponentsResponseBodyImageComponentImageComponentSetParam
 }
 
 type DescribeImageComponentsResponseBodyImageComponentImageComponentSetParametersParameter struct {
-	// The default value of the parameter.
-	//
-	// example:
-	//
-	// null
 	DefaultValue *string `json:"DefaultValue,omitempty" xml:"DefaultValue,omitempty"`
-	// The name of the parameter.
-	//
-	// example:
-	//
-	// null
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The type of the parameter.
-	//
-	// Valid values:
-	//
-	// 	- String
-	//
-	// 	- Number
-	//
-	// 	- Boolean
-	//
-	// example:
-	//
-	// null
-	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
+	Name         *string `json:"Name,omitempty" xml:"Name,omitempty"`
+	Type         *string `json:"Type,omitempty" xml:"Type,omitempty"`
 }
 
 func (s DescribeImageComponentsResponseBodyImageComponentImageComponentSetParametersParameter) String() string {
@@ -484,17 +404,7 @@ func (s *DescribeImageComponentsResponseBodyImageComponentImageComponentSetTags)
 }
 
 type DescribeImageComponentsResponseBodyImageComponentImageComponentSetTagsTag struct {
-	// The key of the tag.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The value of the tag.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

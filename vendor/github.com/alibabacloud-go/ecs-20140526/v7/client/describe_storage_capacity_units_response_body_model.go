@@ -39,8 +39,7 @@ type DescribeStorageCapacityUnitsResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the SCUs.
+	RequestId            *string                                                       `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	StorageCapacityUnits *DescribeStorageCapacityUnitsResponseBodyStorageCapacityUnits `json:"StorageCapacityUnits,omitempty" xml:"StorageCapacityUnits,omitempty" type:"Struct"`
 	// The total number of SCUs.
 	//
@@ -147,80 +146,17 @@ func (s *DescribeStorageCapacityUnitsResponseBodyStorageCapacityUnits) Validate(
 }
 
 type DescribeStorageCapacityUnitsResponseBodyStorageCapacityUnitsStorageCapacityUnit struct {
-	// Indicates the allocation state of the SCU when the AllocationType parameter is set to Shared. Valid values:
-	//
-	// 	- allocated: The SCU is allocated to other accounts.
-	//
-	// 	- BeAllocated: The SCU is allocated from another account.
-	//
-	// example:
-	//
-	// allocated
-	AllocationStatus *string `json:"AllocationStatus,omitempty" xml:"AllocationStatus,omitempty"`
-	// The capacity of the SCU.
-	//
-	// example:
-	//
-	// 20
-	Capacity *int32 `json:"Capacity,omitempty" xml:"Capacity,omitempty"`
-	// The time when the SCU was created.
-	//
-	// example:
-	//
-	// 2021-08-17T02:55Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the SCU.
-	//
-	// example:
-	//
-	// testScuDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The time when the SCU expires.
-	//
-	// example:
-	//
-	// 2021-09-17T16:00Z
-	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The name of the SCU.
-	//
-	// example:
-	//
-	// testScuName
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The region ID of the SCU.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The time when the SCU took effect.
-	//
-	// example:
-	//
-	// 2021-08-17T02:55Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The status of the SCU. Valid values:
-	//
-	// 	- Creating: The SCUs are being created.
-	//
-	// 	- Active: The SCUs are in effect.
-	//
-	// 	- Expired: The SCUs have expired.
-	//
-	// 	- Pending: The SCUs have not taken effect.
-	//
-	// example:
-	//
-	// Active
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The ID of the SCU.
-	//
-	// example:
-	//
-	// scu-bp67acfmxazb4p****
-	StorageCapacityUnitId *string `json:"StorageCapacityUnitId,omitempty" xml:"StorageCapacityUnitId,omitempty"`
-	// The tag key-value pairs of the SCU.
-	Tags *DescribeStorageCapacityUnitsResponseBodyStorageCapacityUnitsStorageCapacityUnitTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	AllocationStatus      *string                                                                              `json:"AllocationStatus,omitempty" xml:"AllocationStatus,omitempty"`
+	Capacity              *int32                                                                               `json:"Capacity,omitempty" xml:"Capacity,omitempty"`
+	CreationTime          *string                                                                              `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	Description           *string                                                                              `json:"Description,omitempty" xml:"Description,omitempty"`
+	ExpiredTime           *string                                                                              `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
+	Name                  *string                                                                              `json:"Name,omitempty" xml:"Name,omitempty"`
+	RegionId              *string                                                                              `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	StartTime             *string                                                                              `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	Status                *string                                                                              `json:"Status,omitempty" xml:"Status,omitempty"`
+	StorageCapacityUnitId *string                                                                              `json:"StorageCapacityUnitId,omitempty" xml:"StorageCapacityUnitId,omitempty"`
+	Tags                  *DescribeStorageCapacityUnitsResponseBodyStorageCapacityUnitsStorageCapacityUnitTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 }
 
 func (s DescribeStorageCapacityUnitsResponseBodyStorageCapacityUnitsStorageCapacityUnit) String() string {
@@ -374,17 +310,7 @@ func (s *DescribeStorageCapacityUnitsResponseBodyStorageCapacityUnitsStorageCapa
 }
 
 type DescribeStorageCapacityUnitsResponseBodyStorageCapacityUnitsStorageCapacityUnitTagsTag struct {
-	// The key of tag N.
-	//
-	// example:
-	//
-	// TestValue
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The value of tag N.
-	//
-	// example:
-	//
-	// TestKey
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

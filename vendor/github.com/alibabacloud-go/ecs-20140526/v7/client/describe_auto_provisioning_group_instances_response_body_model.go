@@ -22,7 +22,6 @@ type iDescribeAutoProvisioningGroupInstancesResponseBody interface {
 }
 
 type DescribeAutoProvisioningGroupInstancesResponseBody struct {
-	// The information about the instances in the auto provisioning group.
 	Instances *DescribeAutoProvisioningGroupInstancesResponseBodyInstances `json:"Instances,omitempty" xml:"Instances,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,86 +146,18 @@ func (s *DescribeAutoProvisioningGroupInstancesResponseBodyInstances) Validate()
 }
 
 type DescribeAutoProvisioningGroupInstancesResponseBodyInstancesInstance struct {
-	// The number of vCPU cores of the instance.
-	//
-	// example:
-	//
-	// 2
-	CPU *int32 `json:"CPU,omitempty" xml:"CPU,omitempty"`
-	// The time when the instance was created.
-	//
-	// example:
-	//
-	// 2017-12-10T04:04Z
+	CPU          *int32  `json:"CPU,omitempty" xml:"CPU,omitempty"`
 	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The instance ID.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The ECS instance type.
-	//
-	// example:
-	//
-	// ecs.g5.large
+	InstanceId   *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// Indicates whether the instance is an I/O optimized instance.
-	//
-	// example:
-	//
-	// true
-	IoOptimized *bool `json:"IoOptimized,omitempty" xml:"IoOptimized,omitempty"`
-	// Indicates whether the instance is a spot instance.
-	//
-	// example:
-	//
-	// true
-	IsSpot *bool `json:"IsSpot,omitempty" xml:"IsSpot,omitempty"`
-	// The memory capacity of the instance. Unit: MiB.
-	//
-	// example:
-	//
-	// 1024
-	Memory *int32 `json:"Memory,omitempty" xml:"Memory,omitempty"`
-	// The network type of the instance. Valid values:
-	//
-	// 	- vpc: Virtual Private Cloud (VPC)
-	//
-	// 	- classic: classic network
-	//
-	// example:
-	//
-	// vpc
-	NetworkType *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
-	// The operating system type of the instance. Valid values:
-	//
-	// 	- windows
-	//
-	// 	- linux
-	//
-	// example:
-	//
-	// linux
-	OsType *string `json:"OsType,omitempty" xml:"OsType,omitempty"`
-	// The region ID of the container group.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The status of the instance.
-	//
-	// example:
-	//
-	// Running
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The ID of the zone to which the instance belongs.
-	//
-	// example:
-	//
-	// cn-hangzhou-g
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	IoOptimized  *bool   `json:"IoOptimized,omitempty" xml:"IoOptimized,omitempty"`
+	IsSpot       *bool   `json:"IsSpot,omitempty" xml:"IsSpot,omitempty"`
+	Memory       *int32  `json:"Memory,omitempty" xml:"Memory,omitempty"`
+	NetworkType  *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
+	OsType       *string `json:"OsType,omitempty" xml:"OsType,omitempty"`
+	RegionId     *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	Status       *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	ZoneId       *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeAutoProvisioningGroupInstancesResponseBodyInstancesInstance) String() string {

@@ -47,8 +47,7 @@ type DescribeSnapshotsResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the snapshots.
+	RequestId *string                                 `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	Snapshots *DescribeSnapshotsResponseBodySnapshots `json:"Snapshots,omitempty" xml:"Snapshots,omitempty" type:"Struct"`
 	// The total number of snapshots.
 	//
@@ -166,226 +165,45 @@ func (s *DescribeSnapshotsResponseBodySnapshots) Validate() error {
 }
 
 type DescribeSnapshotsResponseBodySnapshotsSnapshot struct {
-	// Indicates whether the snapshot can be shared and be used to create or roll back a cloud disk. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// example:
-	//
-	// false
-	Available *bool `json:"Available,omitempty" xml:"Available,omitempty"`
-	// The category of the snapshot. Valid values:
-	//
-	// 	- Standard: standard snapshot.
-	//
-	// 	- Flash: local snapshot. This value will be deprecated. The local snapshot feature is replaced by the instant access feature.
-	//
-	// 	- archive: archive snapshot.
-	//
-	// example:
-	//
-	// standard
-	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
-	// The time when the snapshot was created. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2020-08-20T14:52:28Z
+	Available    *bool   `json:"Available,omitempty" xml:"Available,omitempty"`
+	Category     *string `json:"Category,omitempty" xml:"Category,omitempty"`
 	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the snapshot.
-	//
+	Description  *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	Encrypted    *bool   `json:"Encrypted,omitempty" xml:"Encrypted,omitempty"`
 	// example:
 	//
-	// testDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Indicates whether the snapshot was encrypted. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// example:
-	//
-	// false
-	Encrypted *bool `json:"Encrypted,omitempty" xml:"Encrypted,omitempty"`
-	// Indicates whether the instant access feature is enabled. Valid values:
-	//
-	// 	- true: The instant access feature is enabled. By default, the instant access feature is enabled for Enterprise SSDs (ESSDs) and ESSD Entry disks.
-	//
-	// 	- false: The instant access feature is disabled. The snapshot is a standard snapshot for which the instant access feature is disabled.
-	//
-	// >  This parameter is deprecated. By default, new standard snapshots of ESSDs are upgraded to instant access snapshots free of charge without the need for additional configurations. For more information, see [Use the instant access feature](https://help.aliyun.com/document_detail/193667.html).
-	//
-	// example:
-	//
-	// false
-	InstantAccess *bool `json:"InstantAccess,omitempty" xml:"InstantAccess,omitempty"`
-	// Indicates the validity period of the instant access feature. When the validity period ends, the instant access feature is automatically disabled.
-	//
-	// By default, the value of this parameter is the same as the value of `RetentionDays`.
-	//
-	// >  This parameter is deprecated. By default, new standard snapshots of ESSDs are upgraded to instant access snapshots free of charge without the need for additional configurations. For more information, see [Use the instant access feature](https://help.aliyun.com/document_detail/193667.html).
-	//
-	// example:
-	//
-	// 30
-	InstantAccessRetentionDays *int32 `json:"InstantAccessRetentionDays,omitempty" xml:"InstantAccessRetentionDays,omitempty"`
-	// The ID of the KMS key used for the data disk.
-	//
-	// example:
-	//
-	// 0e478b7a-4262-4802-b8cb-00d3fb40****
-	KMSKeyId *string `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
-	// The time when the snapshot was last modified. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2020-08-25T14:18:09Z
-	LastModifiedTime *string `json:"LastModifiedTime,omitempty" xml:"LastModifiedTime,omitempty"`
-	// The product code of the Alibaba Cloud Marketplace image.
-	//
-	// example:
-	//
-	// jxsc000****
-	ProductCode *string `json:"ProductCode,omitempty" xml:"ProductCode,omitempty"`
-	// The progress of the snapshot creation task. Unit: percent (%).
-	//
-	// example:
-	//
-	// 100%
-	Progress *string `json:"Progress,omitempty" xml:"Progress,omitempty"`
-	// The region ID of the snapshot.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The amount of remaining time required to create the snapshot. Unit: seconds.
-	//
-	// example:
-	//
-	// 38
-	RemainTime *int32 `json:"RemainTime,omitempty" xml:"RemainTime,omitempty"`
-	// The ID of the resource group to which the snapshot belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The retention period of the automatic snapshot. Unit: days.
-	//
-	// example:
-	//
-	// 30
-	RetentionDays *int32 `json:"RetentionDays,omitempty" xml:"RetentionDays,omitempty"`
-	// The ID of the snapshot.
-	//
-	// example:
-	//
-	// s-bp67acfmxazb4p****
-	SnapshotId *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
-	// The ID of the snapshot chain that is associated with the snapshot.
-	//
-	// example:
-	//
-	// sl-bp1grgphbcc9brb5****
-	SnapshotLinkId *string `json:"SnapshotLinkId,omitempty" xml:"SnapshotLinkId,omitempty"`
-	// The name of the snapshot. This parameter is returned only if a snapshot name was specified when the snapshot was created.
-	//
-	// example:
-	//
-	// testSnapshotName
-	SnapshotName *string `json:"SnapshotName,omitempty" xml:"SnapshotName,omitempty"`
-	// The serial number of the snapshot.
-	//
-	// example:
-	//
-	// 64472-116742336-61976****
-	SnapshotSN *string `json:"SnapshotSN,omitempty" xml:"SnapshotSN,omitempty"`
-	// The type of the snapshot. Valid values:
-	//
-	// 	- auto or timer: automatic snapshot
-	//
-	// 	- user: manual snapshot
-	//
-	// 	- all: all snapshot types
-	//
-	// example:
-	//
-	// all
-	SnapshotType *string `json:"SnapshotType,omitempty" xml:"SnapshotType,omitempty"`
-	// The ID of the source disk. This parameter is retained even after the source disk is released.
-	//
-	// example:
-	//
-	// d-bp67acfmxazb4ph****
-	SourceDiskId *string `json:"SourceDiskId,omitempty" xml:"SourceDiskId,omitempty"`
-	// The capacity of the source disk. Unit: GiB.
-	//
-	// example:
-	//
-	// 40
-	SourceDiskSize *string `json:"SourceDiskSize,omitempty" xml:"SourceDiskSize,omitempty"`
-	// The type of the source disk. Valid values:
-	//
-	// 	- system
-	//
-	// 	- data
-	//
-	// example:
-	//
-	// system
-	SourceDiskType *string `json:"SourceDiskType,omitempty" xml:"SourceDiskType,omitempty"`
-	// The region ID of the source snapshot.
-	//
+	// 65535
+	FullSnapshotSizeInBytes    *int64  `json:"FullSnapshotSizeInBytes,omitempty" xml:"FullSnapshotSizeInBytes,omitempty"`
+	InstantAccess              *bool   `json:"InstantAccess,omitempty" xml:"InstantAccess,omitempty"`
+	InstantAccessRetentionDays *int32  `json:"InstantAccessRetentionDays,omitempty" xml:"InstantAccessRetentionDays,omitempty"`
+	KMSKeyId                   *string `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
+	LastModifiedTime           *string `json:"LastModifiedTime,omitempty" xml:"LastModifiedTime,omitempty"`
+	ProductCode                *string `json:"ProductCode,omitempty" xml:"ProductCode,omitempty"`
+	Progress                   *string `json:"Progress,omitempty" xml:"Progress,omitempty"`
+	RegionId                   *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	RemainTime                 *int32  `json:"RemainTime,omitempty" xml:"RemainTime,omitempty"`
+	ResourceGroupId            *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	RetentionDays              *int32  `json:"RetentionDays,omitempty" xml:"RetentionDays,omitempty"`
+	SnapshotId                 *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
+	SnapshotLinkId             *string `json:"SnapshotLinkId,omitempty" xml:"SnapshotLinkId,omitempty"`
+	SnapshotName               *string `json:"SnapshotName,omitempty" xml:"SnapshotName,omitempty"`
+	SnapshotSN                 *string `json:"SnapshotSN,omitempty" xml:"SnapshotSN,omitempty"`
+	SnapshotType               *string `json:"SnapshotType,omitempty" xml:"SnapshotType,omitempty"`
+	SourceDiskId               *string `json:"SourceDiskId,omitempty" xml:"SourceDiskId,omitempty"`
+	SourceDiskSize             *string `json:"SourceDiskSize,omitempty" xml:"SourceDiskSize,omitempty"`
+	SourceDiskType             *string `json:"SourceDiskType,omitempty" xml:"SourceDiskType,omitempty"`
 	// example:
 	//
 	// cn-hangzhou
 	SourceRegionId *string `json:"SourceRegionId,omitempty" xml:"SourceRegionId,omitempty"`
-	// The ID of the source snapshot.
-	//
 	// example:
 	//
 	// s-bp67acfmxazb4p****
-	SourceSnapshotId *string `json:"SourceSnapshotId,omitempty" xml:"SourceSnapshotId,omitempty"`
-	// The category of the source disk.
-	//
-	// >  This parameter will be removed in the future. We recommend that you use other parameters to ensure future compatibility.
-	//
-	// example:
-	//
-	// disk
-	SourceStorageType *string `json:"SourceStorageType,omitempty" xml:"SourceStorageType,omitempty"`
-	// The status of the snapshot. Valid values:
-	//
-	// 	- progressing: The snapshot is being created.
-	//
-	// 	- accomplished: The snapshot is created.
-	//
-	// 	- failed: The snapshot failed to be created.
-	//
-	// example:
-	//
-	// accomplished
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags of the snapshot.
-	Tags *DescribeSnapshotsResponseBodySnapshotsSnapshotTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// Indicates whether the snapshot was used to create images or cloud disks. Valid values:
-	//
-	// 	- image: The snapshot was used to create custom images.
-	//
-	// 	- disk: The snapshot was used to create cloud disks.
-	//
-	// 	- image_disk: The snapshot was used to create custom images and data disks.
-	//
-	// 	- none: The snapshot was not used to create custom images or cloud disks.
-	//
-	// example:
-	//
-	// image
-	Usage *string `json:"Usage,omitempty" xml:"Usage,omitempty"`
+	SourceSnapshotId  *string                                             `json:"SourceSnapshotId,omitempty" xml:"SourceSnapshotId,omitempty"`
+	SourceStorageType *string                                             `json:"SourceStorageType,omitempty" xml:"SourceStorageType,omitempty"`
+	Status            *string                                             `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags              *DescribeSnapshotsResponseBodySnapshotsSnapshotTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Usage             *string                                             `json:"Usage,omitempty" xml:"Usage,omitempty"`
 }
 
 func (s DescribeSnapshotsResponseBodySnapshotsSnapshot) String() string {
@@ -414,6 +232,10 @@ func (s *DescribeSnapshotsResponseBodySnapshotsSnapshot) GetDescription() *strin
 
 func (s *DescribeSnapshotsResponseBodySnapshotsSnapshot) GetEncrypted() *bool {
 	return s.Encrypted
+}
+
+func (s *DescribeSnapshotsResponseBodySnapshotsSnapshot) GetFullSnapshotSizeInBytes() *int64 {
+	return s.FullSnapshotSizeInBytes
 }
 
 func (s *DescribeSnapshotsResponseBodySnapshotsSnapshot) GetInstantAccess() *bool {
@@ -534,6 +356,11 @@ func (s *DescribeSnapshotsResponseBodySnapshotsSnapshot) SetDescription(v string
 
 func (s *DescribeSnapshotsResponseBodySnapshotsSnapshot) SetEncrypted(v bool) *DescribeSnapshotsResponseBodySnapshotsSnapshot {
 	s.Encrypted = &v
+	return s
+}
+
+func (s *DescribeSnapshotsResponseBodySnapshotsSnapshot) SetFullSnapshotSizeInBytes(v int64) *DescribeSnapshotsResponseBodySnapshotsSnapshot {
+	s.FullSnapshotSizeInBytes = &v
 	return s
 }
 
@@ -701,17 +528,7 @@ func (s *DescribeSnapshotsResponseBodySnapshotsSnapshotTags) Validate() error {
 }
 
 type DescribeSnapshotsResponseBodySnapshotsSnapshotTagsTag struct {
-	// The tag key of the snapshot.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the snapshot.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

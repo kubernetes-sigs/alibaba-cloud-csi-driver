@@ -2842,7 +2842,8 @@ type RunInstancesRequestNetworkInterface struct {
 	// example:
 	//
 	// 8192
-	RxQueueSize *int32 `json:"RxQueueSize,omitempty" xml:"RxQueueSize,omitempty"`
+	RxQueueSize                    *int32 `json:"RxQueueSize,omitempty" xml:"RxQueueSize,omitempty"`
+	SecondaryPrivateIpAddressCount *int32 `json:"SecondaryPrivateIpAddressCount,omitempty" xml:"SecondaryPrivateIpAddressCount,omitempty"`
 	// The ID of the security group to which to assign ENI N.
 	//
 	// Take note of the following items:
@@ -2979,6 +2980,10 @@ func (s *RunInstancesRequestNetworkInterface) GetRxQueueSize() *int32 {
 	return s.RxQueueSize
 }
 
+func (s *RunInstancesRequestNetworkInterface) GetSecondaryPrivateIpAddressCount() *int32 {
+	return s.SecondaryPrivateIpAddressCount
+}
+
 func (s *RunInstancesRequestNetworkInterface) GetSecurityGroupId() *string {
 	return s.SecurityGroupId
 }
@@ -3061,6 +3066,11 @@ func (s *RunInstancesRequestNetworkInterface) SetQueuePairNumber(v int64) *RunIn
 
 func (s *RunInstancesRequestNetworkInterface) SetRxQueueSize(v int32) *RunInstancesRequestNetworkInterface {
 	s.RxQueueSize = &v
+	return s
+}
+
+func (s *RunInstancesRequestNetworkInterface) SetSecondaryPrivateIpAddressCount(v int32) *RunInstancesRequestNetworkInterface {
+	s.SecondaryPrivateIpAddressCount = &v
 	return s
 }
 

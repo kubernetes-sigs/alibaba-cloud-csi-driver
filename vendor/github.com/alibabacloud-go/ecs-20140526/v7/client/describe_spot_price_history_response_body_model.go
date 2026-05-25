@@ -37,8 +37,7 @@ type DescribeSpotPriceHistoryResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The zone ID of the spot instance.
+	RequestId  *string                                         `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	SpotPrices *DescribeSpotPriceHistoryResponseBodySpotPrices `json:"SpotPrices,omitempty" xml:"SpotPrices,omitempty" type:"Struct"`
 }
 
@@ -130,52 +129,13 @@ func (s *DescribeSpotPriceHistoryResponseBodySpotPrices) Validate() error {
 }
 
 type DescribeSpotPriceHistoryResponseBodySpotPricesSpotPriceType struct {
-	// The instance type of the spot instance.
-	//
-	// example:
-	//
-	// ecs.g5.large
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// Details about the price history of the spot instance.
-	//
-	// example:
-	//
-	// optimized
-	IoOptimized *string `json:"IoOptimized,omitempty" xml:"IoOptimized,omitempty"`
-	// Queries the price history of a spot instance within the last 30 days.
-	//
-	// example:
-	//
-	// vpc
-	NetworkType *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
-	// The price for a pay-as-you-go instance that has the same configuration as the specified spot instance.
-	//
-	// example:
-	//
-	// 0.354
-	OriginPrice *float32 `json:"OriginPrice,omitempty" xml:"OriginPrice,omitempty"`
-	// The price for a pay-as-you-go instance that has the same configurations as the spot instance.
-	//
-	// example:
-	//
-	// 0.036
-	SpotPrice *float32 `json:"SpotPrice,omitempty" xml:"SpotPrice,omitempty"`
-	// The currency unit of the price.
-	//
-	// Alibaba Cloud China site (aliyun.com): CNY.
-	//
-	// Alibaba Cloud International site (alibabacloud.com): USD.
-	//
-	// example:
-	//
-	// 2019-11-19T06:00:00Z
-	Timestamp *string `json:"Timestamp,omitempty" xml:"Timestamp,omitempty"`
-	// The ID of the request.
-	//
-	// example:
-	//
-	// cn-hangzhou-c
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	InstanceType *string  `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
+	IoOptimized  *string  `json:"IoOptimized,omitempty" xml:"IoOptimized,omitempty"`
+	NetworkType  *string  `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
+	OriginPrice  *float32 `json:"OriginPrice,omitempty" xml:"OriginPrice,omitempty"`
+	SpotPrice    *float32 `json:"SpotPrice,omitempty" xml:"SpotPrice,omitempty"`
+	Timestamp    *string  `json:"Timestamp,omitempty" xml:"Timestamp,omitempty"`
+	ZoneId       *string  `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeSpotPriceHistoryResponseBodySpotPricesSpotPriceType) String() string {

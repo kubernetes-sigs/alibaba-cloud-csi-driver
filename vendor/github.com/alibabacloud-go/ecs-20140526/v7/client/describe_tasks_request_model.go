@@ -31,6 +31,8 @@ type iDescribeTasksRequest interface {
 	GetStartTime() *string
 	SetTaskAction(v string) *DescribeTasksRequest
 	GetTaskAction() *string
+	SetTaskGroupId(v string) *DescribeTasksRequest
+	GetTaskGroupId() *string
 	SetTaskIds(v string) *DescribeTasksRequest
 	GetTaskIds() *string
 	SetTaskStatus(v string) *DescribeTasksRequest
@@ -100,6 +102,9 @@ type DescribeTasksRequest struct {
 	//
 	// ImportImage
 	TaskAction *string `json:"TaskAction,omitempty" xml:"TaskAction,omitempty"`
+	// if can be null:
+	// false
+	TaskGroupId *string `json:"TaskGroupId,omitempty" xml:"TaskGroupId,omitempty"`
 	// The task IDs. You can specify up to 100 task IDs at a time. Separate the task IDs with commas (,).
 	//
 	// example:
@@ -176,6 +181,10 @@ func (s *DescribeTasksRequest) GetTaskAction() *string {
 	return s.TaskAction
 }
 
+func (s *DescribeTasksRequest) GetTaskGroupId() *string {
+	return s.TaskGroupId
+}
+
 func (s *DescribeTasksRequest) GetTaskIds() *string {
 	return s.TaskIds
 }
@@ -236,6 +245,11 @@ func (s *DescribeTasksRequest) SetStartTime(v string) *DescribeTasksRequest {
 
 func (s *DescribeTasksRequest) SetTaskAction(v string) *DescribeTasksRequest {
 	s.TaskAction = &v
+	return s
+}
+
+func (s *DescribeTasksRequest) SetTaskGroupId(v string) *DescribeTasksRequest {
+	s.TaskGroupId = &v
 	return s
 }
 

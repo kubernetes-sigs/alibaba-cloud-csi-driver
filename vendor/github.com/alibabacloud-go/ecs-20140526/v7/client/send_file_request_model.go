@@ -9,6 +9,8 @@ type iSendFileRequest interface {
 	dara.Model
 	String() string
 	GoString() string
+	SetClientToken(v string) *SendFileRequest
+	GetClientToken() *string
 	SetContent(v string) *SendFileRequest
 	GetContent() *string
 	SetContentType(v string) *SendFileRequest
@@ -48,6 +50,7 @@ type iSendFileRequest interface {
 }
 
 type SendFileRequest struct {
+	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// The content of the file. The file must not exceed 32 KB in size after it is encoded in Base64.
 	//
 	// 	- If `ContentType` is set to `PlainText`, the value of Content is in plaintext.
@@ -184,6 +187,10 @@ func (s SendFileRequest) GoString() string {
 	return s.String()
 }
 
+func (s *SendFileRequest) GetClientToken() *string {
+	return s.ClientToken
+}
+
 func (s *SendFileRequest) GetContent() *string {
 	return s.Content
 }
@@ -254,6 +261,11 @@ func (s *SendFileRequest) GetTargetDir() *string {
 
 func (s *SendFileRequest) GetTimeout() *int64 {
 	return s.Timeout
+}
+
+func (s *SendFileRequest) SetClientToken(v string) *SendFileRequest {
+	s.ClientToken = &v
+	return s
 }
 
 func (s *SendFileRequest) SetContent(v string) *SendFileRequest {

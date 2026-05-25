@@ -22,7 +22,6 @@ type iDescribeElasticityAssurancesResponseBody interface {
 }
 
 type DescribeElasticityAssurancesResponseBody struct {
-	// Details about the elasticity assurances.
 	ElasticityAssuranceSet *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSet `json:"ElasticityAssuranceSet,omitempty" xml:"ElasticityAssuranceSet,omitempty" type:"Struct"`
 	// The maximum number of entries returned per page.
 	//
@@ -147,128 +146,25 @@ func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSet) Validat
 }
 
 type DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItem struct {
-	// Details of the allocated resources.
-	AllocatedResources *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResources `json:"AllocatedResources,omitempty" xml:"AllocatedResources,omitempty" type:"Struct"`
-	// The description of the elasticity assurance.
-	//
-	// example:
-	//
-	// This is description.
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// e114477596854834
-	ElasticityAssuranceOwnerId *string `json:"ElasticityAssuranceOwnerId,omitempty" xml:"ElasticityAssuranceOwnerId,omitempty"`
-	// The time when the elasticity assurance expires.
-	//
-	// example:
-	//
-	// 2021-12-03T16:00Z
-	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	// The billing method of the instance. The value can be only PostPaid. Only pay-as-you-go instances can be created by using elasticity assurances.
-	//
-	// example:
-	//
-	// PostPaid
-	InstanceChargeType *string `json:"InstanceChargeType,omitempty" xml:"InstanceChargeType,omitempty"`
-	// > This parameter is not publicly available.
-	//
-	// example:
-	//
-	// null
-	LatestStartTime *string `json:"LatestStartTime,omitempty" xml:"LatestStartTime,omitempty"`
-	// The type of the elasticity assurance. Valid values:
-	//
-	// 	- ElasticityAssurance: the general-purpose elasticity assurance.
-	//
-	// 	- TimeDivisionElasticityAssurance: the time-segmented assurance of the elasticity assurance.
-	//
-	// example:
-	//
-	// ElasticityAssurance
-	PackageType *string `json:"PackageType,omitempty" xml:"PackageType,omitempty"`
-	// The ID of the elasticity assurance.
-	//
-	// example:
-	//
-	// eap-bp1ir35kqtn8ywci****
-	PrivatePoolOptionsId *string `json:"PrivatePoolOptionsId,omitempty" xml:"PrivatePoolOptionsId,omitempty"`
-	// The type of the private pool associated with the elasticity assurance. Valid values:
-	//
-	// 	- Open: open private pool
-	//
-	// 	- Target: specific private pool
-	//
-	// example:
-	//
-	// Target
-	PrivatePoolOptionsMatchCriteria *string `json:"PrivatePoolOptionsMatchCriteria,omitempty" xml:"PrivatePoolOptionsMatchCriteria,omitempty"`
-	// The name of the elasticity assurance.
-	//
-	// example:
-	//
-	// eapTestName
-	PrivatePoolOptionsName *string `json:"PrivatePoolOptionsName,omitempty" xml:"PrivatePoolOptionsName,omitempty"`
-	// The recurrence rules of the time-segmented assurances.
-	RecurrenceRules *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemRecurrenceRules `json:"RecurrenceRules,omitempty" xml:"RecurrenceRules,omitempty" type:"Struct"`
-	// The region ID of the elasticity assurance.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The ID of the resource group.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The time when the elasticity assurance takes effect.
-	//
-	// example:
-	//
-	// 2020-12-03T05:25Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// Indicates when the elasticity assurance takes effect. Valid values:
-	//
-	// 	- Now: The elasticity assurance takes effect immediately after it is created.
-	//
-	// 	- Later: The elasticity assurance takes effect at a specified time.
-	//
-	// example:
-	//
-	// Now
-	StartTimeType *string `json:"StartTimeType,omitempty" xml:"StartTimeType,omitempty"`
-	// The status of the elasticity assurance. Valid values:
-	//
-	// 	- Preparing
-	//
-	// 	- Prepared
-	//
-	// 	- Active
-	//
-	// 	- Released
-	//
-	// example:
-	//
-	// Active
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags of the elasticity assurance.
-	Tags *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The total number of times that the elasticity assurance is applied.
-	//
-	// example:
-	//
-	// Unlimited
-	TotalAssuranceTimes *string `json:"TotalAssuranceTimes,omitempty" xml:"TotalAssuranceTimes,omitempty"`
-	// > This parameter is not publicly available.
-	//
-	// example:
-	//
-	// 0
-	UsedAssuranceTimes *int32 `json:"UsedAssuranceTimes,omitempty" xml:"UsedAssuranceTimes,omitempty"`
+	AllocatedResources              *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResources `json:"AllocatedResources,omitempty" xml:"AllocatedResources,omitempty" type:"Struct"`
+	Description                     *string                                                                                                  `json:"Description,omitempty" xml:"Description,omitempty"`
+	ElasticityAssuranceOwnerId      *string                                                                                                  `json:"ElasticityAssuranceOwnerId,omitempty" xml:"ElasticityAssuranceOwnerId,omitempty"`
+	EndTime                         *string                                                                                                  `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
+	InstanceChargeType              *string                                                                                                  `json:"InstanceChargeType,omitempty" xml:"InstanceChargeType,omitempty"`
+	LatestStartTime                 *string                                                                                                  `json:"LatestStartTime,omitempty" xml:"LatestStartTime,omitempty"`
+	PackageType                     *string                                                                                                  `json:"PackageType,omitempty" xml:"PackageType,omitempty"`
+	PrivatePoolOptionsId            *string                                                                                                  `json:"PrivatePoolOptionsId,omitempty" xml:"PrivatePoolOptionsId,omitempty"`
+	PrivatePoolOptionsMatchCriteria *string                                                                                                  `json:"PrivatePoolOptionsMatchCriteria,omitempty" xml:"PrivatePoolOptionsMatchCriteria,omitempty"`
+	PrivatePoolOptionsName          *string                                                                                                  `json:"PrivatePoolOptionsName,omitempty" xml:"PrivatePoolOptionsName,omitempty"`
+	RecurrenceRules                 *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemRecurrenceRules    `json:"RecurrenceRules,omitempty" xml:"RecurrenceRules,omitempty" type:"Struct"`
+	RegionId                        *string                                                                                                  `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceGroupId                 *string                                                                                                  `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	StartTime                       *string                                                                                                  `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	StartTimeType                   *string                                                                                                  `json:"StartTimeType,omitempty" xml:"StartTimeType,omitempty"`
+	Status                          *string                                                                                                  `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags                            *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemTags               `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	TotalAssuranceTimes             *string                                                                                                  `json:"TotalAssuranceTimes,omitempty" xml:"TotalAssuranceTimes,omitempty"`
+	UsedAssuranceTimes              *int32                                                                                                   `json:"UsedAssuranceTimes,omitempty" xml:"UsedAssuranceTimes,omitempty"`
 }
 
 func (s DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItem) String() string {
@@ -504,38 +400,20 @@ func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticit
 }
 
 type DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource struct {
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// 5
-	AvailableAmount *int32 `json:"AvailableAmount,omitempty" xml:"AvailableAmount,omitempty"`
-	// >  This parameter is not publicly available.
+	AvailableAmount           *int32                                                                                                                                             `json:"AvailableAmount,omitempty" xml:"AvailableAmount,omitempty"`
 	ElasticityAssuranceUsages *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResourceElasticityAssuranceUsages `json:"ElasticityAssuranceUsages,omitempty" xml:"ElasticityAssuranceUsages,omitempty" type:"Struct"`
-	// The instance type.
-	//
 	// example:
 	//
-	// ecs.c6.large
+	// 1
+	FailedAmount *int32  `json:"FailedAmount,omitempty" xml:"FailedAmount,omitempty"`
 	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The total number of instances for which capacity of an instance type is reserved.
-	//
 	// example:
 	//
-	// 2
-	TotalAmount *int32 `json:"TotalAmount,omitempty" xml:"TotalAmount,omitempty"`
-	// The number of instances that have used the elasticity assurance.
-	//
-	// example:
-	//
-	// 2
-	UsedAmount *int32 `json:"UsedAmount,omitempty" xml:"UsedAmount,omitempty"`
-	// The zone ID.
-	//
-	// example:
-	//
-	// cn-hangzhou-h
-	ZoneId *string `json:"zoneId,omitempty" xml:"zoneId,omitempty"`
+	// 1
+	LockedAmount *int32  `json:"LockedAmount,omitempty" xml:"LockedAmount,omitempty"`
+	TotalAmount  *int32  `json:"TotalAmount,omitempty" xml:"TotalAmount,omitempty"`
+	UsedAmount   *int32  `json:"UsedAmount,omitempty" xml:"UsedAmount,omitempty"`
+	ZoneId       *string `json:"zoneId,omitempty" xml:"zoneId,omitempty"`
 }
 
 func (s DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource) String() string {
@@ -554,8 +432,16 @@ func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticit
 	return s.ElasticityAssuranceUsages
 }
 
+func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource) GetFailedAmount() *int32 {
+	return s.FailedAmount
+}
+
 func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource) GetInstanceType() *string {
 	return s.InstanceType
+}
+
+func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource) GetLockedAmount() *int32 {
+	return s.LockedAmount
 }
 
 func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource) GetTotalAmount() *int32 {
@@ -580,8 +466,18 @@ func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticit
 	return s
 }
 
+func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource) SetFailedAmount(v int32) *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource {
+	s.FailedAmount = &v
+	return s
+}
+
 func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource) SetInstanceType(v string) *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource {
 	s.InstanceType = &v
+	return s
+}
+
+func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource) SetLockedAmount(v int32) *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResource {
+	s.LockedAmount = &v
 	return s
 }
 
@@ -644,24 +540,9 @@ func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticit
 }
 
 type DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResourceElasticityAssuranceUsagesElasticityAssuranceUsage struct {
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// 1144775968548340
-	AccountId *string `json:"AccountId,omitempty" xml:"AccountId,omitempty"`
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// name
+	AccountId   *string `json:"AccountId,omitempty" xml:"AccountId,omitempty"`
 	ServiceName *string `json:"ServiceName,omitempty" xml:"ServiceName,omitempty"`
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// 1
-	UsedAmount *int32 `json:"UsedAmount,omitempty" xml:"UsedAmount,omitempty"`
+	UsedAmount  *int32  `json:"UsedAmount,omitempty" xml:"UsedAmount,omitempty"`
 }
 
 func (s DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemAllocatedResourcesAllocatedResourceElasticityAssuranceUsagesElasticityAssuranceUsage) String() string {
@@ -738,42 +619,10 @@ func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticit
 }
 
 type DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemRecurrenceRulesRecurrenceRule struct {
-	// The time when the time-segmented assurance ends.
-	//
-	// example:
-	//
-	// 10
-	EndHour *int32 `json:"EndHour,omitempty" xml:"EndHour,omitempty"`
-	// The type of the recurrence rule. Valid values:
-	//
-	// 	- Daily
-	//
-	// 	- Weekly
-	//
-	// 	- Monthly
-	//
-	// example:
-	//
-	// Daily
-	RecurrenceType *string `json:"RecurrenceType,omitempty" xml:"RecurrenceType,omitempty"`
-	// The recurrence value of the time-segmented assurance. Valid values:
-	//
-	// 	- If you set `RecurrenceType` to `Daily`, you can set RecurrenceValue to only one value. Valid values: 1 to 31. The time-segmented assurance is performed every few days.
-	//
-	// 	- If you set `RecurrenceType` to `Weekly`, you can set RecurrenceValue to one or more values. Separate the values with commas (,). The values that correspond to Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, and Saturday are 0, 1, 2, 3, 4, 5, and 6. For example, `1,2` indicates that the time-segmented assurance is performed on Monday and Tuesday of every week.
-	//
-	// 	- If you set `RecurrenceType` to `Monthly`, you can set RecurrenceValue to two values in the `A-B` format. Valid values of A and B: 1 to 31. B must be greater than or equal to A. For example, `1-5` indicates that the time-segmented assurance is performed from the 1st to the 5th of each month.
-	//
-	// example:
-	//
-	// 1
+	EndHour         *int32  `json:"EndHour,omitempty" xml:"EndHour,omitempty"`
+	RecurrenceType  *string `json:"RecurrenceType,omitempty" xml:"RecurrenceType,omitempty"`
 	RecurrenceValue *string `json:"RecurrenceValue,omitempty" xml:"RecurrenceValue,omitempty"`
-	// The time when the time-segmented assurance takes effect.
-	//
-	// example:
-	//
-	// 4
-	StartHour *int32 `json:"StartHour,omitempty" xml:"StartHour,omitempty"`
+	StartHour       *int32  `json:"StartHour,omitempty" xml:"StartHour,omitempty"`
 }
 
 func (s DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemRecurrenceRulesRecurrenceRule) String() string {
@@ -859,17 +708,7 @@ func (s *DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticit
 }
 
 type DescribeElasticityAssurancesResponseBodyElasticityAssuranceSetElasticityAssuranceItemTagsTag struct {
-	// The key of the tag.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The value of the tag.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

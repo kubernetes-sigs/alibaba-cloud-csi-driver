@@ -22,7 +22,6 @@ type iDescribeClassicLinkInstancesResponseBody interface {
 }
 
 type DescribeClassicLinkInstancesResponseBody struct {
-	// The details of the ClassicLink connections between the instances reside in the classic network and VPCs.
 	Links *DescribeClassicLinkInstancesResponseBodyLinks `json:"Links,omitempty" xml:"Links,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,18 +146,8 @@ func (s *DescribeClassicLinkInstancesResponseBodyLinks) Validate() error {
 }
 
 type DescribeClassicLinkInstancesResponseBodyLinksLink struct {
-	// The instance ID.
-	//
-	// example:
-	//
-	// i-test
 	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The VPC ID.
-	//
-	// example:
-	//
-	// vpc-test
-	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	VpcId      *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
 
 func (s DescribeClassicLinkInstancesResponseBodyLinksLink) String() string {

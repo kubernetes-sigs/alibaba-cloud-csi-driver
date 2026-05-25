@@ -53,8 +53,7 @@ type DescribeSecurityGroupAttributeResponseBody struct {
 	// example:
 	//
 	// AAAAAdDWBF2****
-	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// Details about the security group rules.
+	NextToken   *string                                                `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	Permissions *DescribeSecurityGroupAttributeResponseBodyPermissions `json:"Permissions,omitempty" xml:"Permissions,omitempty" type:"Struct"`
 	// The ID of the region.
 	//
@@ -236,162 +235,32 @@ func (s *DescribeSecurityGroupAttributeResponseBodyPermissions) Validate() error
 }
 
 type DescribeSecurityGroupAttributeResponseBodyPermissionsPermission struct {
-	// The time when the security group rule was created. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2018-12-12T07:28:38Z
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The description of the security group.
-	//
-	// example:
-	//
-	// Description Sample 01
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The destination CIDR block for outbound access control.
-	//
-	// example:
-	//
-	// 0.0.0.0/0
-	DestCidrIp *string `json:"DestCidrIp,omitempty" xml:"DestCidrIp,omitempty"`
-	// The ID of the destination security group for outbound access control.
-	//
-	// example:
-	//
-	// sg-bp1czdx84jd88i7v****
-	DestGroupId *string `json:"DestGroupId,omitempty" xml:"DestGroupId,omitempty"`
-	// The name of the destination security group.
-	//
-	// example:
-	//
-	// testDestGroupName
-	DestGroupName *string `json:"DestGroupName,omitempty" xml:"DestGroupName,omitempty"`
-	// The ID of the Alibaba Cloud account to which the destination security group belongs.
-	//
-	// example:
-	//
-	// 1234567890
-	DestGroupOwnerAccount *string `json:"DestGroupOwnerAccount,omitempty" xml:"DestGroupOwnerAccount,omitempty"`
-	// The ID of the destination prefix list for outbound access control.
-	//
-	// example:
-	//
-	// pl-x1j1k5ykzqlixabc****
-	DestPrefixListId *string `json:"DestPrefixListId,omitempty" xml:"DestPrefixListId,omitempty"`
-	// The name of the destination prefix list.
-	//
-	// example:
-	//
-	// DestPrefixListName Sample
-	DestPrefixListName *string `json:"DestPrefixListName,omitempty" xml:"DestPrefixListName,omitempty"`
-	// The direction in which the security group rule is applied.
-	//
-	// example:
-	//
-	// ingress
-	Direction *string `json:"Direction,omitempty" xml:"Direction,omitempty"`
-	// The transport layer protocol.
-	//
-	// example:
-	//
-	// TCP
-	IpProtocol *string `json:"IpProtocol,omitempty" xml:"IpProtocol,omitempty"`
-	// The destination IPv6 CIDR block.
-	//
-	// example:
-	//
-	// 2001:db8:1233:1a00::***
-	Ipv6DestCidrIp *string `json:"Ipv6DestCidrIp,omitempty" xml:"Ipv6DestCidrIp,omitempty"`
-	// The source IPv6 CIDR block.
-	//
-	// example:
-	//
-	// 2001:db8:1234:1a00::***
-	Ipv6SourceCidrIp *string `json:"Ipv6SourceCidrIp,omitempty" xml:"Ipv6SourceCidrIp,omitempty"`
-	// The network type.
-	//
-	// example:
-	//
-	// intranet
-	NicType *string `json:"NicType,omitempty" xml:"NicType,omitempty"`
-	// The access control policy.
-	//
-	// example:
-	//
-	// Accept
-	Policy *string `json:"Policy,omitempty" xml:"Policy,omitempty"`
-	// The port range.
-	//
-	// example:
-	//
-	// 80/80
-	PortRange *string `json:"PortRange,omitempty" xml:"PortRange,omitempty"`
-	// The ID of the port list.
-	//
-	// example:
-	//
-	// prl-2ze9743****
-	PortRangeListId *string `json:"PortRangeListId,omitempty" xml:"PortRangeListId,omitempty"`
-	// The name of the port list.
-	//
-	// example:
-	//
-	// PortRangeListNameSample
-	PortRangeListName *string `json:"PortRangeListName,omitempty" xml:"PortRangeListName,omitempty"`
-	// The priority of the rule.
-	//
-	// example:
-	//
-	// 1
-	Priority *string `json:"Priority,omitempty" xml:"Priority,omitempty"`
-	// The ID of the security group rule.
-	//
-	// example:
-	//
-	// sgr-bp12kewq32dfwrdi****
-	SecurityGroupRuleId *string `json:"SecurityGroupRuleId,omitempty" xml:"SecurityGroupRuleId,omitempty"`
-	// The source CIDR block for inbound access control.
-	//
-	// example:
-	//
-	// 0.0.0.0/0
-	SourceCidrIp *string `json:"SourceCidrIp,omitempty" xml:"SourceCidrIp,omitempty"`
-	// The source security group for inbound access control.
-	//
-	// example:
-	//
-	// sg-bp12kc4rqohaf2js****
-	SourceGroupId *string `json:"SourceGroupId,omitempty" xml:"SourceGroupId,omitempty"`
-	// The name of the source security group.
-	//
-	// example:
-	//
-	// testSourceGroupName1
-	SourceGroupName *string `json:"SourceGroupName,omitempty" xml:"SourceGroupName,omitempty"`
-	// The ID of the Alibaba Cloud account to which the source security group belongs.
-	//
-	// example:
-	//
-	// 1234567890
+	CreateTime              *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	Description             *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	DestCidrIp              *string `json:"DestCidrIp,omitempty" xml:"DestCidrIp,omitempty"`
+	DestGroupId             *string `json:"DestGroupId,omitempty" xml:"DestGroupId,omitempty"`
+	DestGroupName           *string `json:"DestGroupName,omitempty" xml:"DestGroupName,omitempty"`
+	DestGroupOwnerAccount   *string `json:"DestGroupOwnerAccount,omitempty" xml:"DestGroupOwnerAccount,omitempty"`
+	DestPrefixListId        *string `json:"DestPrefixListId,omitempty" xml:"DestPrefixListId,omitempty"`
+	DestPrefixListName      *string `json:"DestPrefixListName,omitempty" xml:"DestPrefixListName,omitempty"`
+	Direction               *string `json:"Direction,omitempty" xml:"Direction,omitempty"`
+	IpProtocol              *string `json:"IpProtocol,omitempty" xml:"IpProtocol,omitempty"`
+	Ipv6DestCidrIp          *string `json:"Ipv6DestCidrIp,omitempty" xml:"Ipv6DestCidrIp,omitempty"`
+	Ipv6SourceCidrIp        *string `json:"Ipv6SourceCidrIp,omitempty" xml:"Ipv6SourceCidrIp,omitempty"`
+	NicType                 *string `json:"NicType,omitempty" xml:"NicType,omitempty"`
+	Policy                  *string `json:"Policy,omitempty" xml:"Policy,omitempty"`
+	PortRange               *string `json:"PortRange,omitempty" xml:"PortRange,omitempty"`
+	PortRangeListId         *string `json:"PortRangeListId,omitempty" xml:"PortRangeListId,omitempty"`
+	PortRangeListName       *string `json:"PortRangeListName,omitempty" xml:"PortRangeListName,omitempty"`
+	Priority                *string `json:"Priority,omitempty" xml:"Priority,omitempty"`
+	SecurityGroupRuleId     *string `json:"SecurityGroupRuleId,omitempty" xml:"SecurityGroupRuleId,omitempty"`
+	SourceCidrIp            *string `json:"SourceCidrIp,omitempty" xml:"SourceCidrIp,omitempty"`
+	SourceGroupId           *string `json:"SourceGroupId,omitempty" xml:"SourceGroupId,omitempty"`
+	SourceGroupName         *string `json:"SourceGroupName,omitempty" xml:"SourceGroupName,omitempty"`
 	SourceGroupOwnerAccount *string `json:"SourceGroupOwnerAccount,omitempty" xml:"SourceGroupOwnerAccount,omitempty"`
-	// The source port range.
-	//
-	// example:
-	//
-	// 80/80
-	SourcePortRange *string `json:"SourcePortRange,omitempty" xml:"SourcePortRange,omitempty"`
-	// The ID of the source prefix list for inbound access control.
-	//
-	// example:
-	//
-	// pl-x1j1k5ykzqlixdcy****
-	SourcePrefixListId *string `json:"SourcePrefixListId,omitempty" xml:"SourcePrefixListId,omitempty"`
-	// The name of the source prefix list.
-	//
-	// example:
-	//
-	// SourcePrefixListName Sample
-	SourcePrefixListName *string `json:"SourcePrefixListName,omitempty" xml:"SourcePrefixListName,omitempty"`
+	SourcePortRange         *string `json:"SourcePortRange,omitempty" xml:"SourcePortRange,omitempty"`
+	SourcePrefixListId      *string `json:"SourcePrefixListId,omitempty" xml:"SourcePrefixListId,omitempty"`
+	SourcePrefixListName    *string `json:"SourcePrefixListName,omitempty" xml:"SourcePrefixListName,omitempty"`
 }
 
 func (s DescribeSecurityGroupAttributeResponseBodyPermissionsPermission) String() string {

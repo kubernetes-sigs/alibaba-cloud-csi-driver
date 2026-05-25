@@ -39,8 +39,7 @@ type DescribeSnapshotPackageResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the OSS storage plans.
+	RequestId        *string                                              `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	SnapshotPackages *DescribeSnapshotPackageResponseBodySnapshotPackages `json:"SnapshotPackages,omitempty" xml:"SnapshotPackages,omitempty" type:"Struct"`
 	// The total number of OSS storage plans.
 	//
@@ -147,30 +146,10 @@ func (s *DescribeSnapshotPackageResponseBodySnapshotPackages) Validate() error {
 }
 
 type DescribeSnapshotPackageResponseBodySnapshotPackagesSnapshotPackage struct {
-	// The name of the OSS storage plan.
-	//
-	// example:
-	//
-	// testDisplayName
-	DisplayName *string `json:"DisplayName,omitempty" xml:"DisplayName,omitempty"`
-	// The time when the OSS storage plan expires. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2018-11-30T06:32:31Z
-	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	// The maximum storage capacity offered by the OSS storage plan.
-	//
-	// example:
-	//
-	// 500
-	InitCapacity *int64 `json:"InitCapacity,omitempty" xml:"InitCapacity,omitempty"`
-	// The time when the OSS storage plan was purchased. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2017-11-30T06:32:31Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	DisplayName  *string `json:"DisplayName,omitempty" xml:"DisplayName,omitempty"`
+	EndTime      *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
+	InitCapacity *int64  `json:"InitCapacity,omitempty" xml:"InitCapacity,omitempty"`
+	StartTime    *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
 }
 
 func (s DescribeSnapshotPackageResponseBodySnapshotPackagesSnapshotPackage) String() string {

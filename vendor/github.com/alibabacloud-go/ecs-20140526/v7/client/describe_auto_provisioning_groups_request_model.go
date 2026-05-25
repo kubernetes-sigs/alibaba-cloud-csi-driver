@@ -15,6 +15,8 @@ type iDescribeAutoProvisioningGroupsRequest interface {
 	GetAutoProvisioningGroupName() *string
 	SetAutoProvisioningGroupStatus(v []*string) *DescribeAutoProvisioningGroupsRequest
 	GetAutoProvisioningGroupStatus() []*string
+	SetAutoProvisioningGroupTypes(v []*string) *DescribeAutoProvisioningGroupsRequest
+	GetAutoProvisioningGroupTypes() []*string
 	SetOwnerAccount(v string) *DescribeAutoProvisioningGroupsRequest
 	GetOwnerAccount() *string
 	SetOwnerId(v int64) *DescribeAutoProvisioningGroupsRequest
@@ -54,6 +56,7 @@ type DescribeAutoProvisioningGroupsRequest struct {
 	//
 	// active
 	AutoProvisioningGroupStatus []*string `json:"AutoProvisioningGroupStatus,omitempty" xml:"AutoProvisioningGroupStatus,omitempty" type:"Repeated"`
+	AutoProvisioningGroupTypes  []*string `json:"AutoProvisioningGroupTypes,omitempty" xml:"AutoProvisioningGroupTypes,omitempty" type:"Repeated"`
 	OwnerAccount                *string   `json:"OwnerAccount,omitempty" xml:"OwnerAccount,omitempty"`
 	OwnerId                     *int64    `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
 	// The page number.
@@ -116,6 +119,10 @@ func (s *DescribeAutoProvisioningGroupsRequest) GetAutoProvisioningGroupStatus()
 	return s.AutoProvisioningGroupStatus
 }
 
+func (s *DescribeAutoProvisioningGroupsRequest) GetAutoProvisioningGroupTypes() []*string {
+	return s.AutoProvisioningGroupTypes
+}
+
 func (s *DescribeAutoProvisioningGroupsRequest) GetOwnerAccount() *string {
 	return s.OwnerAccount
 }
@@ -164,6 +171,11 @@ func (s *DescribeAutoProvisioningGroupsRequest) SetAutoProvisioningGroupName(v s
 
 func (s *DescribeAutoProvisioningGroupsRequest) SetAutoProvisioningGroupStatus(v []*string) *DescribeAutoProvisioningGroupsRequest {
 	s.AutoProvisioningGroupStatus = v
+	return s
+}
+
+func (s *DescribeAutoProvisioningGroupsRequest) SetAutoProvisioningGroupTypes(v []*string) *DescribeAutoProvisioningGroupsRequest {
+	s.AutoProvisioningGroupTypes = v
 	return s
 }
 

@@ -24,7 +24,6 @@ type iListPluginStatusResponseBody interface {
 }
 
 type ListPluginStatusResponseBody struct {
-	// The states of Cloud Assistant plug-ins on the instances.
 	InstancePluginStatusSet *ListPluginStatusResponseBodyInstancePluginStatusSet `json:"InstancePluginStatusSet,omitempty" xml:"InstancePluginStatusSet,omitempty" type:"Struct"`
 	// The returned value of NextToken is a pagination token, which can be used in the next request to retrieve a new page of results.
 	//
@@ -164,13 +163,7 @@ func (s *ListPluginStatusResponseBodyInstancePluginStatusSet) Validate() error {
 }
 
 type ListPluginStatusResponseBodyInstancePluginStatusSetInstancePluginStatus struct {
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-xxxxx
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The queried Cloud Assistant plug-ins.
+	InstanceId      *string                                                                                 `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 	PluginStatusSet *ListPluginStatusResponseBodyInstancePluginStatusSetInstancePluginStatusPluginStatusSet `json:"PluginStatusSet,omitempty" xml:"PluginStatusSet,omitempty" type:"Struct"`
 }
 
@@ -244,50 +237,11 @@ func (s *ListPluginStatusResponseBodyInstancePluginStatusSetInstancePluginStatus
 }
 
 type ListPluginStatusResponseBodyInstancePluginStatusSetInstancePluginStatusPluginStatusSetPluginStatus struct {
-	// The first time when Cloud Assistant reported the state of the plug-in.
-	//
-	// example:
-	//
-	// 2020-01-19T09:15:46Z
 	FirstHeartbeatTime *string `json:"FirstHeartbeatTime,omitempty" xml:"FirstHeartbeatTime,omitempty"`
-	// The last time when Cloud Assistant reported the state of the plug-in.
-	//
-	// example:
-	//
-	// 2020-01-19T09:15:46Z
-	LastHeartbeatTime *string `json:"LastHeartbeatTime,omitempty" xml:"LastHeartbeatTime,omitempty"`
-	// The name of the plug-in.
-	//
-	// example:
-	//
-	// testName
-	PluginName *string `json:"PluginName,omitempty" xml:"PluginName,omitempty"`
-	// The state of the Cloud Assistant plug-in. Valid values:
-	//
-	// 	- NotInstalled: The plug-in is not installed.
-	//
-	// 	- Installed: The one-time plug-in is installed.
-	//
-	// 	- Running: The long-running plug-in is running.
-	//
-	// 	- Stopped: The long-running plug-in is not running.
-	//
-	// 	- Crashed: The plug-in is abnormal.
-	//
-	// 	- Removed: The plug-in is uninstalled.
-	//
-	// 	- Unknown: The state of the plug-in is unknown.
-	//
-	// example:
-	//
-	// Running
-	PluginStatus *string `json:"PluginStatus,omitempty" xml:"PluginStatus,omitempty"`
-	// The version of the plug-in.
-	//
-	// example:
-	//
-	// 1.1
-	PluginVersion *string `json:"PluginVersion,omitempty" xml:"PluginVersion,omitempty"`
+	LastHeartbeatTime  *string `json:"LastHeartbeatTime,omitempty" xml:"LastHeartbeatTime,omitempty"`
+	PluginName         *string `json:"PluginName,omitempty" xml:"PluginName,omitempty"`
+	PluginStatus       *string `json:"PluginStatus,omitempty" xml:"PluginStatus,omitempty"`
+	PluginVersion      *string `json:"PluginVersion,omitempty" xml:"PluginVersion,omitempty"`
 }
 
 func (s ListPluginStatusResponseBodyInstancePluginStatusSetInstancePluginStatusPluginStatusSetPluginStatus) String() string {

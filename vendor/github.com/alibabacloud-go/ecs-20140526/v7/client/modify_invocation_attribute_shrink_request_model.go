@@ -9,6 +9,8 @@ type iModifyInvocationAttributeShrinkRequest interface {
 	dara.Model
 	String() string
 	GoString() string
+	SetClientToken(v string) *ModifyInvocationAttributeShrinkRequest
+	GetClientToken() *string
 	SetCommandContent(v string) *ModifyInvocationAttributeShrinkRequest
 	GetCommandContent() *string
 	SetContentEncoding(v string) *ModifyInvocationAttributeShrinkRequest
@@ -36,6 +38,7 @@ type iModifyInvocationAttributeShrinkRequest interface {
 }
 
 type ModifyInvocationAttributeShrinkRequest struct {
+	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// The content of the command after modification. The command content can be plaintext or Base64-encoded. Take note of the following items:
 	//
 	// 	- You can specify whether to retain the command after the command is run when you created the command. If you specified to retain the command, the Base64-encoded command content cannot exceed 18 KB in size. If you specified not to retain the command, the Base64-encoded command content cannot exceed 24 KB in size.
@@ -190,6 +193,10 @@ func (s ModifyInvocationAttributeShrinkRequest) GoString() string {
 	return s.String()
 }
 
+func (s *ModifyInvocationAttributeShrinkRequest) GetClientToken() *string {
+	return s.ClientToken
+}
+
 func (s *ModifyInvocationAttributeShrinkRequest) GetCommandContent() *string {
 	return s.CommandContent
 }
@@ -236,6 +243,11 @@ func (s *ModifyInvocationAttributeShrinkRequest) GetResourceOwnerAccount() *stri
 
 func (s *ModifyInvocationAttributeShrinkRequest) GetResourceOwnerId() *int64 {
 	return s.ResourceOwnerId
+}
+
+func (s *ModifyInvocationAttributeShrinkRequest) SetClientToken(v string) *ModifyInvocationAttributeShrinkRequest {
+	s.ClientToken = &v
+	return s
 }
 
 func (s *ModifyInvocationAttributeShrinkRequest) SetCommandContent(v string) *ModifyInvocationAttributeShrinkRequest {

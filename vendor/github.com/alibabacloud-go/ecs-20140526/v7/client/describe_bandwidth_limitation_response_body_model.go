@@ -16,7 +16,6 @@ type iDescribeBandwidthLimitationResponseBody interface {
 }
 
 type DescribeBandwidthLimitationResponseBody struct {
-	// Details about the maximum public bandwidth.
 	Bandwidths *DescribeBandwidthLimitationResponseBodyBandwidths `json:"Bandwidths,omitempty" xml:"Bandwidths,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,34 +95,10 @@ func (s *DescribeBandwidthLimitationResponseBodyBandwidths) Validate() error {
 }
 
 type DescribeBandwidthLimitationResponseBodyBandwidthsBandwidth struct {
-	// The billing method for network usage. Valid values:
-	//
-	// 	- PayByBandwidth
-	//
-	// 	- PayByTraffic
-	//
-	// example:
-	//
-	// PayByTraffic
 	InternetChargeType *string `json:"InternetChargeType,omitempty" xml:"InternetChargeType,omitempty"`
-	// The maximum public bandwidth.
-	//
-	// example:
-	//
-	// 100
-	Max *int32 `json:"Max,omitempty" xml:"Max,omitempty"`
-	// The minimum public bandwidth.
-	//
-	// example:
-	//
-	// 0
-	Min *int32 `json:"Min,omitempty" xml:"Min,omitempty"`
-	// The unit of the public bandwidth.
-	//
-	// example:
-	//
-	// Mbps
-	Unit *string `json:"Unit,omitempty" xml:"Unit,omitempty"`
+	Max                *int32  `json:"Max,omitempty" xml:"Max,omitempty"`
+	Min                *int32  `json:"Min,omitempty" xml:"Min,omitempty"`
+	Unit               *string `json:"Unit,omitempty" xml:"Unit,omitempty"`
 }
 
 func (s DescribeBandwidthLimitationResponseBodyBandwidthsBandwidth) String() string {

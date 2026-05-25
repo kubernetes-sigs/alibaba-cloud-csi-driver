@@ -24,7 +24,6 @@ type iDescribeInstancesResponseBody interface {
 }
 
 type DescribeInstancesResponseBody struct {
-	// Details about the queried instances.
 	Instances *DescribeInstancesResponseBodyInstances `json:"Instances,omitempty" xml:"Instances,omitempty" type:"Struct"`
 	// A pagination token. It can be used in the next request to retrieve a new page of results. If NextToken is empty, no next page exists.
 	//
@@ -166,401 +165,76 @@ func (s *DescribeInstancesResponseBodyInstances) Validate() error {
 }
 
 type DescribeInstancesResponseBodyInstancesInstance struct {
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
 	// if can be null:
 	// true
-	AdditionalInfo *DescribeInstancesResponseBodyInstancesInstanceAdditionalInfo `json:"AdditionalInfo,omitempty" xml:"AdditionalInfo,omitempty" type:"Struct"`
-	// The automatic release time of the pay-as-you-go instance.
-	//
-	// example:
-	//
-	// 2017-12-10T04:04Z
-	AutoReleaseTime *string                                                     `json:"AutoReleaseTime,omitempty" xml:"AutoReleaseTime,omitempty"`
-	ClockOptions    *DescribeInstancesResponseBodyInstancesInstanceClockOptions `json:"ClockOptions,omitempty" xml:"ClockOptions,omitempty" type:"Struct"`
-	// The ID of the cluster to which the instance belongs.
-	//
-	// >  This parameter will be removed in the future. We recommend that you use other parameters to ensure future compatibility.
-	//
-	// example:
-	//
-	// c-bp67acfmxazb4p****
-	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// The number of vCPUs.
-	//
-	// example:
-	//
-	// 8
-	Cpu *int32 `json:"Cpu,omitempty" xml:"Cpu,omitempty"`
-	// Details about the CPU options.
-	CpuOptions *DescribeInstancesResponseBodyInstancesInstanceCpuOptions `json:"CpuOptions,omitempty" xml:"CpuOptions,omitempty" type:"Struct"`
-	// The time when the instance was created. The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mmZ format. The time is displayed in UTC. For more information, see [ISO 8601](https://help.aliyun.com/document_detail/25696.html).
-	//
-	// example:
-	//
-	// 2017-12-10T04:04Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The performance mode of the burstable instance. Valid values:
-	//
-	// 	- Standard: the standard mode. For more information, see the "Standard mode" section in [Overview of burstable instances](https://help.aliyun.com/document_detail/59977.html).
-	//
-	// 	- Unlimited: the unlimited mode. For more information, see the "Unlimited mode" section in [Overview of burstable instances](https://help.aliyun.com/document_detail/59977.html).
-	//
-	// example:
-	//
-	// Standard
-	CreditSpecification *string `json:"CreditSpecification,omitempty" xml:"CreditSpecification,omitempty"`
-	// The information about the dedicated host. The value is an array that consists of DedicatedHostClusterId, DedicatedHostId, and DedicatedHostName.
-	DedicatedHostAttribute *DescribeInstancesResponseBodyInstancesInstanceDedicatedHostAttribute `json:"DedicatedHostAttribute,omitempty" xml:"DedicatedHostAttribute,omitempty" type:"Struct"`
-	// The attributes of the instance on the dedicated host.
+	AdditionalInfo             *DescribeInstancesResponseBodyInstancesInstanceAdditionalInfo             `json:"AdditionalInfo,omitempty" xml:"AdditionalInfo,omitempty" type:"Struct"`
+	AutoReleaseTime            *string                                                                   `json:"AutoReleaseTime,omitempty" xml:"AutoReleaseTime,omitempty"`
+	ClockOptions               *DescribeInstancesResponseBodyInstancesInstanceClockOptions               `json:"ClockOptions,omitempty" xml:"ClockOptions,omitempty" type:"Struct"`
+	ClusterId                  *string                                                                   `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
+	Cpu                        *int32                                                                    `json:"Cpu,omitempty" xml:"Cpu,omitempty"`
+	CpuOptions                 *DescribeInstancesResponseBodyInstancesInstanceCpuOptions                 `json:"CpuOptions,omitempty" xml:"CpuOptions,omitempty" type:"Struct"`
+	CreationTime               *string                                                                   `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	CreditSpecification        *string                                                                   `json:"CreditSpecification,omitempty" xml:"CreditSpecification,omitempty"`
+	DedicatedHostAttribute     *DescribeInstancesResponseBodyInstancesInstanceDedicatedHostAttribute     `json:"DedicatedHostAttribute,omitempty" xml:"DedicatedHostAttribute,omitempty" type:"Struct"`
 	DedicatedInstanceAttribute *DescribeInstancesResponseBodyInstancesInstanceDedicatedInstanceAttribute `json:"DedicatedInstanceAttribute,omitempty" xml:"DedicatedInstanceAttribute,omitempty" type:"Struct"`
-	// Indicates whether release protection is enabled for the instance. This parameter determines whether you can use the ECS console or call the DeleteInstance operation to release the instance. Valid values:
-	//
-	// 	- true: Release protection is enabled for the instance.
-	//
-	// 	- false: Release protection is disabled for the instance.
-	//
-	// >  This parameter is applicable only to pay-as-you-go instances. The release protection feature can protect instances against manual releases, but not against automatic releases.
-	//
-	// example:
-	//
-	// false
-	DeletionProtection *bool `json:"DeletionProtection,omitempty" xml:"DeletionProtection,omitempty"`
-	// The number of the deployment set group to which the instance belongs in a deployment set.
-	//
-	// example:
-	//
-	// 1
-	DeploymentSetGroupNo *int32 `json:"DeploymentSetGroupNo,omitempty" xml:"DeploymentSetGroupNo,omitempty"`
-	// The ID of the deployment set to which the instance belongs.
-	//
-	// example:
-	//
-	// ds-bp67acfmxazb4p****
-	DeploymentSetId *string `json:"DeploymentSetId,omitempty" xml:"DeploymentSetId,omitempty"`
-	// The description of the instance.
-	//
-	// example:
-	//
-	// testDescription
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Indicates whether data disks can be attached to the instance. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// example:
-	//
-	// true
-	DeviceAvailable *bool `json:"DeviceAvailable,omitempty" xml:"DeviceAvailable,omitempty"`
-	// Details about the capacity reservation associated with the instance.
+	DeletionProtection         *bool                                                                     `json:"DeletionProtection,omitempty" xml:"DeletionProtection,omitempty"`
+	DeploymentSetGroupNo       *int32                                                                    `json:"DeploymentSetGroupNo,omitempty" xml:"DeploymentSetGroupNo,omitempty"`
+	DeploymentSetId            *string                                                                   `json:"DeploymentSetId,omitempty" xml:"DeploymentSetId,omitempty"`
+	Description                *string                                                                   `json:"Description,omitempty" xml:"Description,omitempty"`
+	DeviceAvailable            *bool                                                                     `json:"DeviceAvailable,omitempty" xml:"DeviceAvailable,omitempty"`
 	EcsCapacityReservationAttr *DescribeInstancesResponseBodyInstancesInstanceEcsCapacityReservationAttr `json:"EcsCapacityReservationAttr,omitempty" xml:"EcsCapacityReservationAttr,omitempty" type:"Struct"`
-	// Details about the EIP associated with the instance.
-	EipAddress *DescribeInstancesResponseBodyInstancesInstanceEipAddress `json:"EipAddress,omitempty" xml:"EipAddress,omitempty" type:"Struct"`
-	EnableNVS  *bool                                                     `json:"EnableNVS,omitempty" xml:"EnableNVS,omitempty"`
-	// The expiration time of the instance. The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mmZ format. The time is displayed in UTC. For more information, see [ISO 8601](https://help.aliyun.com/document_detail/25696.html).
-	//
-	// example:
-	//
-	// 2017-12-10T04:04Z
-	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The number of GPUs for the instance type.
-	//
-	// example:
-	//
-	// 4
-	GPUAmount *int32 `json:"GPUAmount,omitempty" xml:"GPUAmount,omitempty"`
-	// The category of GPUs for the instance type.
-	//
-	// example:
-	//
-	// NVIDIA V100
-	GPUSpec *string `json:"GPUSpec,omitempty" xml:"GPUSpec,omitempty"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	HibernationOptions *DescribeInstancesResponseBodyInstancesInstanceHibernationOptions `json:"HibernationOptions,omitempty" xml:"HibernationOptions,omitempty" type:"Struct"`
-	// The hostname of the instance.
-	//
-	// example:
-	//
-	// testHostName
-	HostName *string `json:"HostName,omitempty" xml:"HostName,omitempty"`
-	// The ID of the HPC cluster to which the instance belongs.
-	//
-	// example:
-	//
-	// hpc-bp67acfmxazb4p****
-	HpcClusterId *string `json:"HpcClusterId,omitempty" xml:"HpcClusterId,omitempty"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
-	ISP *string `json:"ISP,omitempty" xml:"ISP,omitempty"`
-	// The image ID of the instance.
-	//
-	// example:
-	//
-	// m-bp67acfmxazb4p****
-	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
-	// The image options.
-	ImageOptions *DescribeInstancesResponseBodyInstancesInstanceImageOptions `json:"ImageOptions,omitempty" xml:"ImageOptions,omitempty" type:"Struct"`
-	// The internal IP addresses of the instance located in the classic network.
-	InnerIpAddress *DescribeInstancesResponseBodyInstancesInstanceInnerIpAddress `json:"InnerIpAddress,omitempty" xml:"InnerIpAddress,omitempty" type:"Struct"`
-	// The billing method of the instance. Valid values:
-	//
-	// 	- PrePaid: subscription
-	//
-	// 	- PostPaid: pay-as-you-go
-	//
-	// example:
-	//
-	// PostPaid
-	InstanceChargeType *string `json:"InstanceChargeType,omitempty" xml:"InstanceChargeType,omitempty"`
-	// The instance ID.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The instance name.
-	//
-	// example:
-	//
-	// InstanceNameTest
-	InstanceName *string `json:"InstanceName,omitempty" xml:"InstanceName,omitempty"`
-	// The network type of the instance. Valid values:
-	//
-	// 	- classic
-	//
-	// 	- vpc
-	//
-	// example:
-	//
-	// vpc
-	InstanceNetworkType *string `json:"InstanceNetworkType,omitempty" xml:"InstanceNetworkType,omitempty"`
-	// The instance type of the instance.
-	//
-	// example:
-	//
-	// ecs.g5.large
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The instance family of the instance.
-	//
-	// example:
-	//
-	// ecs.g5
-	InstanceTypeFamily *string `json:"InstanceTypeFamily,omitempty" xml:"InstanceTypeFamily,omitempty"`
-	// The billing method for network usage. Valid values:
-	//
-	// 	- PayByBandwidth: pay-by-bandwidth
-	//
-	// 	- PayByTraffic: pay-by-traffic
-	//
-	// example:
-	//
-	// PayByTraffic
-	InternetChargeType *string `json:"InternetChargeType,omitempty" xml:"InternetChargeType,omitempty"`
-	// The maximum inbound public bandwidth. Unit: Mbit/s.
-	//
-	// example:
-	//
-	// 50
-	InternetMaxBandwidthIn *int32 `json:"InternetMaxBandwidthIn,omitempty" xml:"InternetMaxBandwidthIn,omitempty"`
-	// The maximum outbound public bandwidth. Unit: Mbit/s.
-	//
-	// example:
-	//
-	// 5
-	InternetMaxBandwidthOut *int32 `json:"InternetMaxBandwidthOut,omitempty" xml:"InternetMaxBandwidthOut,omitempty"`
-	// Indicates whether the instance is an I/O optimized instance. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// example:
-	//
-	// true
-	IoOptimized *bool `json:"IoOptimized,omitempty" xml:"IoOptimized,omitempty"`
-	// The name of the key pair.
-	//
-	// example:
-	//
-	// testKeyPairName
-	KeyPairName *string `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
-	// The number of local disks attached to the instance.
-	//
-	// example:
-	//
-	// 2
-	LocalStorageAmount *int32 `json:"LocalStorageAmount,omitempty" xml:"LocalStorageAmount,omitempty"`
-	// The capacity of local disks attached to the instance. Unit: GiB.
-	//
-	// example:
-	//
-	// 1000
-	LocalStorageCapacity *int64 `json:"LocalStorageCapacity,omitempty" xml:"LocalStorageCapacity,omitempty"`
-	// The memory size. Unit: MiB.
-	//
-	// example:
-	//
-	// 16384
-	Memory *int32 `json:"Memory,omitempty" xml:"Memory,omitempty"`
-	// Details about the metadata options.
-	MetadataOptions *DescribeInstancesResponseBodyInstancesInstanceMetadataOptions `json:"MetadataOptions,omitempty" xml:"MetadataOptions,omitempty" type:"Struct"`
-	// The ENIs attached to the instance.
-	NetworkInterfaces *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfaces `json:"NetworkInterfaces,omitempty" xml:"NetworkInterfaces,omitempty" type:"Struct"`
-	// The name of the operating system of the instance.
-	//
-	// example:
-	//
-	// CentOS 7.4 64-bit
-	OSName *string `json:"OSName,omitempty" xml:"OSName,omitempty"`
-	// The English name of the operating system of the instance.
-	//
-	// example:
-	//
-	// CentOS  7.4 64 bit
-	OSNameEn *string `json:"OSNameEn,omitempty" xml:"OSNameEn,omitempty"`
-	// The type of the operating system of the instance. Valid values:
-	//
-	// 	- windows: Windows operating systems
-	//
-	// 	- linux: Linux operating systems
-	//
-	// example:
-	//
-	// linux
-	OSType *string `json:"OSType,omitempty" xml:"OSType,omitempty"`
-	// The reasons why the instance was locked.
-	OperationLocks *DescribeInstancesResponseBodyInstancesInstanceOperationLocks `json:"OperationLocks,omitempty" xml:"OperationLocks,omitempty" type:"Struct"`
-	// The private domain name options of the instance.
-	//
-	// For information about the resolution of ECS private domain names, see [ECS private DNS resolution](https://help.aliyun.com/document_detail/2844797.html).
-	//
-	// >  This parameter is returned only when the `AdditionalAttributes` parameter contains `PRIVATE_DNS_OPTIONS` in the request.
-	PrivateDnsNameOptions *DescribeInstancesResponseBodyInstancesInstancePrivateDnsNameOptions `json:"PrivateDnsNameOptions,omitempty" xml:"PrivateDnsNameOptions,omitempty" type:"Struct"`
-	// The public IP addresses of the instance.
-	PublicIpAddress *DescribeInstancesResponseBodyInstancesInstancePublicIpAddress `json:"PublicIpAddress,omitempty" xml:"PublicIpAddress,omitempty" type:"Struct"`
-	// The RDMA IP addresses of the instance in the HPC cluster.
-	RdmaIpAddress *DescribeInstancesResponseBodyInstancesInstanceRdmaIpAddress `json:"RdmaIpAddress,omitempty" xml:"RdmaIpAddress,omitempty" type:"Struct"`
-	// Indicates whether the instance can be recycled.
-	//
-	// example:
-	//
-	// false
-	Recyclable *bool `json:"Recyclable,omitempty" xml:"Recyclable,omitempty"`
-	// The region ID of the instance.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The ID of the resource group to which the instance belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// >  The parameter is removed.
-	//
-	// example:
-	//
-	// month
-	SaleCycle *string `json:"SaleCycle,omitempty" xml:"SaleCycle,omitempty"`
-	// The IDs of the security groups to which the instance belongs.
-	SecurityGroupIds *DescribeInstancesResponseBodyInstancesInstanceSecurityGroupIds `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
-	// The serial number of the instance.
-	//
-	// example:
-	//
-	// 51d1353b-22bf-4567-a176-8b3e12e4****
-	SerialNumber *string `json:"SerialNumber,omitempty" xml:"SerialNumber,omitempty"`
-	// The protection period of the spot instance. Unit: hours. Valid values:
-	//
-	// 	- 1: After a spot instance is created, Alibaba Cloud ensures that the instance is not automatically released within 1 hour. After the 1-hour protection period ends, the system compares the bid price with the market price and checks the resource inventory to determine whether to retain or release the instance.
-	//
-	// 	- 0: After a spot instance is created, Alibaba Cloud does not ensure that the instance runs for 1 hour. The system compares the bid price with the market price and checks the resource inventory to determine whether to retain or release the instance.
-	//
-	// Alibaba Cloud sends an ECS system event to notify you 5 minutes before the instance is released. Spot instances are billed by second. We recommend that you specify a protection period based on your business requirements.
-	//
-	// >  This parameter is returned when SpotStrategy is set to SpotWithPriceLimit or SpotAsPriceGo.
-	//
-	// example:
-	//
-	// 1
-	SpotDuration *int32 `json:"SpotDuration,omitempty" xml:"SpotDuration,omitempty"`
-	// The interruption mode of the spot instance when the system initiates a spot instance interruption operation. Valid values:
-	//
-	// 	- Terminate: releases the spot instance.
-	//
-	// 	- Stop: stops the instance in economical mode.
-	//
-	// example:
-	//
-	// Terminate
-	SpotInterruptionBehavior *string `json:"SpotInterruptionBehavior,omitempty" xml:"SpotInterruptionBehavior,omitempty"`
-	// The maximum hourly price of the instance. The value can be accurate to three decimal places. This parameter is valid when SpotStrategy is set to SpotWithPriceLimit.
-	//
-	// example:
-	//
-	// 0.98
-	SpotPriceLimit *float32 `json:"SpotPriceLimit,omitempty" xml:"SpotPriceLimit,omitempty"`
-	// The bidding policy for the pay-as-you-go instance. Valid values:
-	//
-	// 	- NoSpot: The instance is a regular pay-as-you-go instance.
-	//
-	// 	- SpotWithPriceLimit: The instance is a spot instance with a user-defined maximum hourly price.
-	//
-	// 	- SpotAsPriceGo: The instance is a spot instance for which the market price is automatically used as the bid price. The market price can be up to the pay-as-you-go price.
-	//
-	// example:
-	//
-	// NoSpot
-	SpotStrategy *string `json:"SpotStrategy,omitempty" xml:"SpotStrategy,omitempty"`
-	// The time when the instance was last started. The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mmZ format. The time is displayed in UTC. For more information, see [ISO 8601](https://help.aliyun.com/document_detail/25696.html).
-	//
-	// example:
-	//
-	// 2017-12-10T04:04Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The status of the instance.
-	//
-	// example:
-	//
-	// Running
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// Indicates whether the instance continues to be billed after it is stopped. Valid values:
-	//
-	// 	- KeepCharging: The instance is stopped in standard mode. Billing for the instance continues after the instance is stopped, and resources are retained for the instance.
-	//
-	// 	- StopCharging: The instance is stopped in economical mode. Billing for some resources of the instance stops after the instance is stopped. When the instance is stopped, its resources such as vCPUs, memory, and public IP addresses are released. The instance may be unable to restart if some required resources are out of stock in the current region.
-	//
-	// 	- Not-applicable: The instance does not support economical mode.
-	//
-	// example:
-	//
-	// KeepCharging
-	StoppedMode *string `json:"StoppedMode,omitempty" xml:"StoppedMode,omitempty"`
-	// The tags of the instance.
-	Tags *DescribeInstancesResponseBodyInstancesInstanceTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The virtual LAN (VLAN) ID of the instance.
-	//
-	// >  This parameter will be removed in the future. We recommend that you use other parameters to ensure future compatibility.
-	//
-	// example:
-	//
-	// 10
-	VlanId *string `json:"VlanId,omitempty" xml:"VlanId,omitempty"`
-	// The VPC attributes of the instance.
-	VpcAttributes *DescribeInstancesResponseBodyInstancesInstanceVpcAttributes `json:"VpcAttributes,omitempty" xml:"VpcAttributes,omitempty" type:"Struct"`
-	// The zone ID of the instance.
-	//
-	// example:
-	//
-	// cn-hangzhou-g
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	EipAddress                 *DescribeInstancesResponseBodyInstancesInstanceEipAddress                 `json:"EipAddress,omitempty" xml:"EipAddress,omitempty" type:"Struct"`
+	EnableNVS                  *bool                                                                     `json:"EnableNVS,omitempty" xml:"EnableNVS,omitempty"`
+	ExpiredTime                *string                                                                   `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
+	GPUAmount                  *int32                                                                    `json:"GPUAmount,omitempty" xml:"GPUAmount,omitempty"`
+	GPUSpec                    *string                                                                   `json:"GPUSpec,omitempty" xml:"GPUSpec,omitempty"`
+	HibernationOptions         *DescribeInstancesResponseBodyInstancesInstanceHibernationOptions         `json:"HibernationOptions,omitempty" xml:"HibernationOptions,omitempty" type:"Struct"`
+	HostName                   *string                                                                   `json:"HostName,omitempty" xml:"HostName,omitempty"`
+	HpcClusterId               *string                                                                   `json:"HpcClusterId,omitempty" xml:"HpcClusterId,omitempty"`
+	ISP                        *string                                                                   `json:"ISP,omitempty" xml:"ISP,omitempty"`
+	ImageId                    *string                                                                   `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
+	ImageOptions               *DescribeInstancesResponseBodyInstancesInstanceImageOptions               `json:"ImageOptions,omitempty" xml:"ImageOptions,omitempty" type:"Struct"`
+	InnerIpAddress             *DescribeInstancesResponseBodyInstancesInstanceInnerIpAddress             `json:"InnerIpAddress,omitempty" xml:"InnerIpAddress,omitempty" type:"Struct"`
+	InstanceChargeType         *string                                                                   `json:"InstanceChargeType,omitempty" xml:"InstanceChargeType,omitempty"`
+	InstanceId                 *string                                                                   `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	InstanceName               *string                                                                   `json:"InstanceName,omitempty" xml:"InstanceName,omitempty"`
+	InstanceNetworkType        *string                                                                   `json:"InstanceNetworkType,omitempty" xml:"InstanceNetworkType,omitempty"`
+	InstanceType               *string                                                                   `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
+	InstanceTypeFamily         *string                                                                   `json:"InstanceTypeFamily,omitempty" xml:"InstanceTypeFamily,omitempty"`
+	InternetChargeType         *string                                                                   `json:"InternetChargeType,omitempty" xml:"InternetChargeType,omitempty"`
+	InternetMaxBandwidthIn     *int32                                                                    `json:"InternetMaxBandwidthIn,omitempty" xml:"InternetMaxBandwidthIn,omitempty"`
+	InternetMaxBandwidthOut    *int32                                                                    `json:"InternetMaxBandwidthOut,omitempty" xml:"InternetMaxBandwidthOut,omitempty"`
+	IoOptimized                *bool                                                                     `json:"IoOptimized,omitempty" xml:"IoOptimized,omitempty"`
+	KeyPairName                *string                                                                   `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
+	LocalStorageAmount         *int32                                                                    `json:"LocalStorageAmount,omitempty" xml:"LocalStorageAmount,omitempty"`
+	LocalStorageCapacity       *int64                                                                    `json:"LocalStorageCapacity,omitempty" xml:"LocalStorageCapacity,omitempty"`
+	Memory                     *int32                                                                    `json:"Memory,omitempty" xml:"Memory,omitempty"`
+	MetadataOptions            *DescribeInstancesResponseBodyInstancesInstanceMetadataOptions            `json:"MetadataOptions,omitempty" xml:"MetadataOptions,omitempty" type:"Struct"`
+	NetworkInterfaces          *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfaces          `json:"NetworkInterfaces,omitempty" xml:"NetworkInterfaces,omitempty" type:"Struct"`
+	OSName                     *string                                                                   `json:"OSName,omitempty" xml:"OSName,omitempty"`
+	OSNameEn                   *string                                                                   `json:"OSNameEn,omitempty" xml:"OSNameEn,omitempty"`
+	OSType                     *string                                                                   `json:"OSType,omitempty" xml:"OSType,omitempty"`
+	OperationLocks             *DescribeInstancesResponseBodyInstancesInstanceOperationLocks             `json:"OperationLocks,omitempty" xml:"OperationLocks,omitempty" type:"Struct"`
+	PrivateDnsNameOptions      *DescribeInstancesResponseBodyInstancesInstancePrivateDnsNameOptions      `json:"PrivateDnsNameOptions,omitempty" xml:"PrivateDnsNameOptions,omitempty" type:"Struct"`
+	PublicIpAddress            *DescribeInstancesResponseBodyInstancesInstancePublicIpAddress            `json:"PublicIpAddress,omitempty" xml:"PublicIpAddress,omitempty" type:"Struct"`
+	RdmaIpAddress              *DescribeInstancesResponseBodyInstancesInstanceRdmaIpAddress              `json:"RdmaIpAddress,omitempty" xml:"RdmaIpAddress,omitempty" type:"Struct"`
+	Recyclable                 *bool                                                                     `json:"Recyclable,omitempty" xml:"Recyclable,omitempty"`
+	RegionId                   *string                                                                   `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceGroupId            *string                                                                   `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	SaleCycle                  *string                                                                   `json:"SaleCycle,omitempty" xml:"SaleCycle,omitempty"`
+	SecurityGroupIds           *DescribeInstancesResponseBodyInstancesInstanceSecurityGroupIds           `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
+	SerialNumber               *string                                                                   `json:"SerialNumber,omitempty" xml:"SerialNumber,omitempty"`
+	SpotDuration               *int32                                                                    `json:"SpotDuration,omitempty" xml:"SpotDuration,omitempty"`
+	SpotInterruptionBehavior   *string                                                                   `json:"SpotInterruptionBehavior,omitempty" xml:"SpotInterruptionBehavior,omitempty"`
+	SpotPriceLimit             *float32                                                                  `json:"SpotPriceLimit,omitempty" xml:"SpotPriceLimit,omitempty"`
+	SpotStrategy               *string                                                                   `json:"SpotStrategy,omitempty" xml:"SpotStrategy,omitempty"`
+	StartTime                  *string                                                                   `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	Status                     *string                                                                   `json:"Status,omitempty" xml:"Status,omitempty"`
+	StoppedMode                *string                                                                   `json:"StoppedMode,omitempty" xml:"StoppedMode,omitempty"`
+	Tags                       *DescribeInstancesResponseBodyInstancesInstanceTags                       `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	VlanId                     *string                                                                   `json:"VlanId,omitempty" xml:"VlanId,omitempty"`
+	VpcAttributes              *DescribeInstancesResponseBodyInstancesInstanceVpcAttributes              `json:"VpcAttributes,omitempty" xml:"VpcAttributes,omitempty" type:"Struct"`
+	ZoneId                     *string                                                                   `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstance) String() string {
@@ -1283,12 +957,8 @@ func (s *DescribeInstancesResponseBodyInstancesInstance) Validate() error {
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceAdditionalInfo struct {
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// true
-	EnableHighDensityMode *bool `json:"EnableHighDensityMode,omitempty" xml:"EnableHighDensityMode,omitempty"`
+	EnableHighDensityMode *bool   `json:"EnableHighDensityMode,omitempty" xml:"EnableHighDensityMode,omitempty"`
+	NodeSerialNumber      *string `json:"NodeSerialNumber,omitempty" xml:"NodeSerialNumber,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstanceAdditionalInfo) String() string {
@@ -1303,8 +973,17 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceAdditionalInfo) GetEnable
 	return s.EnableHighDensityMode
 }
 
+func (s *DescribeInstancesResponseBodyInstancesInstanceAdditionalInfo) GetNodeSerialNumber() *string {
+	return s.NodeSerialNumber
+}
+
 func (s *DescribeInstancesResponseBodyInstancesInstanceAdditionalInfo) SetEnableHighDensityMode(v bool) *DescribeInstancesResponseBodyInstancesInstanceAdditionalInfo {
 	s.EnableHighDensityMode = &v
+	return s
+}
+
+func (s *DescribeInstancesResponseBodyInstancesInstanceAdditionalInfo) SetNodeSerialNumber(v string) *DescribeInstancesResponseBodyInstancesInstanceAdditionalInfo {
+	s.NodeSerialNumber = &v
 	return s
 }
 
@@ -1338,37 +1017,17 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceClockOptions) Validate() 
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceCpuOptions struct {
-	// The number of physical CPU cores.
-	//
-	// example:
-	//
-	// 2
 	CoreCount   *int32 `json:"CoreCount,omitempty" xml:"CoreCount,omitempty"`
 	EnableVISST *bool  `json:"EnableVISST,omitempty" xml:"EnableVISST,omitempty"`
 	EnableVRDT  *bool  `json:"EnableVRDT,omitempty" xml:"EnableVRDT,omitempty"`
-	// >  This parameter is deprecated.
-	//
 	// example:
 	//
-	// 2
-	Numa *string `json:"Numa,omitempty" xml:"Numa,omitempty"`
-	// The number of threads per CPU core.
-	//
-	// example:
-	//
-	// 2
-	ThreadsPerCore *int32 `json:"ThreadsPerCore,omitempty" xml:"ThreadsPerCore,omitempty"`
-	// The CPU topology type of the instance. Valid values:
-	//
-	// 	- ContinuousCoreToHTMapping: Hyper-Threading (HT) continuous CPU topology
-	//
-	// 	- DiscreteCoreToHTMapping: HT discrete CPU topology
-	//
-	// example:
-	//
-	// ContinuousCoreToHTMapping
-	TopologyType *string `json:"TopologyType,omitempty" xml:"TopologyType,omitempty"`
-	TurboMode    *string `json:"TurboMode,omitempty" xml:"TurboMode,omitempty"`
+	// enabled
+	NestedVirtualization *string `json:"NestedVirtualization,omitempty" xml:"NestedVirtualization,omitempty"`
+	Numa                 *string `json:"Numa,omitempty" xml:"Numa,omitempty"`
+	ThreadsPerCore       *int32  `json:"ThreadsPerCore,omitempty" xml:"ThreadsPerCore,omitempty"`
+	TopologyType         *string `json:"TopologyType,omitempty" xml:"TopologyType,omitempty"`
+	TurboMode            *string `json:"TurboMode,omitempty" xml:"TurboMode,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstanceCpuOptions) String() string {
@@ -1389,6 +1048,10 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceCpuOptions) GetEnableVISS
 
 func (s *DescribeInstancesResponseBodyInstancesInstanceCpuOptions) GetEnableVRDT() *bool {
 	return s.EnableVRDT
+}
+
+func (s *DescribeInstancesResponseBodyInstancesInstanceCpuOptions) GetNestedVirtualization() *string {
+	return s.NestedVirtualization
 }
 
 func (s *DescribeInstancesResponseBodyInstancesInstanceCpuOptions) GetNuma() *string {
@@ -1422,6 +1085,11 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceCpuOptions) SetEnableVRDT
 	return s
 }
 
+func (s *DescribeInstancesResponseBodyInstancesInstanceCpuOptions) SetNestedVirtualization(v string) *DescribeInstancesResponseBodyInstancesInstanceCpuOptions {
+	s.NestedVirtualization = &v
+	return s
+}
+
 func (s *DescribeInstancesResponseBodyInstancesInstanceCpuOptions) SetNuma(v string) *DescribeInstancesResponseBodyInstancesInstanceCpuOptions {
 	s.Numa = &v
 	return s
@@ -1447,24 +1115,9 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceCpuOptions) Validate() er
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceDedicatedHostAttribute struct {
-	// The ID of the dedicated host cluster.
-	//
-	// example:
-	//
-	// dc-bp67acfmxazb4h****
 	DedicatedHostClusterId *string `json:"DedicatedHostClusterId,omitempty" xml:"DedicatedHostClusterId,omitempty"`
-	// The ID of the dedicated host.
-	//
-	// example:
-	//
-	// dh-bp67acfmxazb4p****
-	DedicatedHostId *string `json:"DedicatedHostId,omitempty" xml:"DedicatedHostId,omitempty"`
-	// The name of the dedicated host.
-	//
-	// example:
-	//
-	// testDedicatedHostName
-	DedicatedHostName *string `json:"DedicatedHostName,omitempty" xml:"DedicatedHostName,omitempty"`
+	DedicatedHostId        *string `json:"DedicatedHostId,omitempty" xml:"DedicatedHostId,omitempty"`
+	DedicatedHostName      *string `json:"DedicatedHostName,omitempty" xml:"DedicatedHostName,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstanceDedicatedHostAttribute) String() string {
@@ -1507,26 +1160,8 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceDedicatedHostAttribute) V
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceDedicatedInstanceAttribute struct {
-	// Indicates whether the instance on the dedicated host is associated with the dedicated host. Valid values:
-	//
-	// 	- default: The instance is not associated with the dedicated host. When the instance is restarted from economical mode, the instance may be automatically deployed on another dedicated host in the automatic deployment resource pool.
-	//
-	// 	- host: The instance is associated with the dedicated host. When the instance is restarted from economical mode, the instance is still deployed on the original dedicated host.
-	//
-	// example:
-	//
-	// default
 	Affinity *string `json:"Affinity,omitempty" xml:"Affinity,omitempty"`
-	// Indicates whether the instance is hosted on a dedicated host. Valid values:
-	//
-	// 	- default: The instance is not hosted on a dedicated host.
-	//
-	// 	- host: The instance is hosted on a dedicated host.
-	//
-	// example:
-	//
-	// default
-	Tenancy *string `json:"Tenancy,omitempty" xml:"Tenancy,omitempty"`
+	Tenancy  *string `json:"Tenancy,omitempty" xml:"Tenancy,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstanceDedicatedInstanceAttribute) String() string {
@@ -1560,17 +1195,7 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceDedicatedInstanceAttribut
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceEcsCapacityReservationAttr struct {
-	// The ID of the capacity reservation.
-	//
-	// example:
-	//
-	// cr-bp67acfmxazb4p****
-	CapacityReservationId *string `json:"CapacityReservationId,omitempty" xml:"CapacityReservationId,omitempty"`
-	// The preference of the capacity reservation.
-	//
-	// example:
-	//
-	// cr-bp67acfmxazb4p****
+	CapacityReservationId         *string `json:"CapacityReservationId,omitempty" xml:"CapacityReservationId,omitempty"`
 	CapacityReservationPreference *string `json:"CapacityReservationPreference,omitempty" xml:"CapacityReservationPreference,omitempty"`
 }
 
@@ -1605,40 +1230,11 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceEcsCapacityReservationAtt
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceEipAddress struct {
-	// The ID of the EIP.
-	//
-	// example:
-	//
-	// eip-2ze88m67qx5z****
-	AllocationId *string `json:"AllocationId,omitempty" xml:"AllocationId,omitempty"`
-	// The maximum public bandwidth of the EIP. Unit: Mbit/s.
-	//
-	// example:
-	//
-	// 5
-	Bandwidth *int32 `json:"Bandwidth,omitempty" xml:"Bandwidth,omitempty"`
-	// The metering method of the EIP. Valid values:
-	//
-	// 	- PayByBandwidth
-	//
-	// 	- PayByTraffic
-	//
-	// example:
-	//
-	// PayByTraffic
-	InternetChargeType *string `json:"InternetChargeType,omitempty" xml:"InternetChargeType,omitempty"`
-	// The EIP.
-	//
-	// example:
-	//
-	// ``42.112.**.**``
-	IpAddress *string `json:"IpAddress,omitempty" xml:"IpAddress,omitempty"`
-	// Indicates whether the EIP can be disassociated.
-	//
-	// example:
-	//
-	// true
-	IsSupportUnassociate *bool `json:"IsSupportUnassociate,omitempty" xml:"IsSupportUnassociate,omitempty"`
+	AllocationId         *string `json:"AllocationId,omitempty" xml:"AllocationId,omitempty"`
+	Bandwidth            *int32  `json:"Bandwidth,omitempty" xml:"Bandwidth,omitempty"`
+	InternetChargeType   *string `json:"InternetChargeType,omitempty" xml:"InternetChargeType,omitempty"`
+	IpAddress            *string `json:"IpAddress,omitempty" xml:"IpAddress,omitempty"`
+	IsSupportUnassociate *bool   `json:"IsSupportUnassociate,omitempty" xml:"IsSupportUnassociate,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstanceEipAddress) String() string {
@@ -1699,11 +1295,6 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceEipAddress) Validate() er
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceHibernationOptions struct {
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// false
 	Configured *bool `json:"Configured,omitempty" xml:"Configured,omitempty"`
 }
 
@@ -1729,28 +1320,8 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceHibernationOptions) Valid
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceImageOptions struct {
-	// Indicates whether the operating system supports access to disks over the NVMe protocol. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// >  This parameter is returned only if you specify CURRENT_OS_NVME_SUPPORTED in AdditionalAttributes in the request.
-	//
-	// example:
-	//
-	// true
 	CurrentOSNVMeSupported *bool `json:"CurrentOSNVMeSupported,omitempty" xml:"CurrentOSNVMeSupported,omitempty"`
-	// Indicates whether the instance that uses the image supports logons of the ecs-user user. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// example:
-	//
-	// false
-	LoginAsNonRoot *bool `json:"LoginAsNonRoot,omitempty" xml:"LoginAsNonRoot,omitempty"`
+	LoginAsNonRoot         *bool `json:"LoginAsNonRoot,omitempty" xml:"LoginAsNonRoot,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstanceImageOptions) String() string {
@@ -1809,32 +1380,9 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceInnerIpAddress) Validate(
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceMetadataOptions struct {
-	// Indicates whether the access channel is enabled for instance metadata. Valid values:
-	//
-	// 	- enabled
-	//
-	// 	- disabled
-	//
-	// example:
-	//
-	// enabled
-	HttpEndpoint *string `json:"HttpEndpoint,omitempty" xml:"HttpEndpoint,omitempty"`
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// 0
-	HttpPutResponseHopLimit *int32 `json:"HttpPutResponseHopLimit,omitempty" xml:"HttpPutResponseHopLimit,omitempty"`
-	// Indicates whether the security hardening mode (IMDSv2) is forcefully used to access instance metadata. Valid values:
-	//
-	// 	- optional: The security hardening mode (IMDSv2) is not forcefully used.
-	//
-	// 	- required: The security hardening mode (IMDSv2) is forcefully used.
-	//
-	// example:
-	//
-	// optional
-	HttpTokens *string `json:"HttpTokens,omitempty" xml:"HttpTokens,omitempty"`
+	HttpEndpoint            *string `json:"HttpEndpoint,omitempty" xml:"HttpEndpoint,omitempty"`
+	HttpPutResponseHopLimit *int32  `json:"HttpPutResponseHopLimit,omitempty" xml:"HttpPutResponseHopLimit,omitempty"`
+	HttpTokens              *string `json:"HttpTokens,omitempty" xml:"HttpTokens,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstanceMetadataOptions) String() string {
@@ -1911,42 +1459,14 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfaces) Valida
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterface struct {
-	// The IPv4 prefixes of the ENI. This parameter has a value only when `AdditionalAttributes.N` is set to `NETWORK_PRIMARY_ENI_IP`.
-	Ipv4PrefixSets *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfaceIpv4PrefixSets `json:"Ipv4PrefixSets,omitempty" xml:"Ipv4PrefixSets,omitempty" type:"Struct"`
-	// The IPv6 prefixes of the ENI. This parameter has a value only when `AdditionalAttributes.N` is set to `NETWORK_PRIMARY_ENI_IP`.
-	Ipv6PrefixSets *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfaceIpv6PrefixSets `json:"Ipv6PrefixSets,omitempty" xml:"Ipv6PrefixSets,omitempty" type:"Struct"`
-	// The IPv6 addresses of the ENI. This parameter has a value only when `AdditionalAttributes.N` is set to `NETWORK_PRIMARY_ENI_IP`.
-	Ipv6Sets *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfaceIpv6Sets `json:"Ipv6Sets,omitempty" xml:"Ipv6Sets,omitempty" type:"Struct"`
-	// The MAC address of the ENI.
-	//
-	// example:
-	//
-	// 00:16:3e:32:b4:**
-	MacAddress *string `json:"MacAddress,omitempty" xml:"MacAddress,omitempty"`
-	// The ID of the ENI.
-	//
-	// example:
-	//
-	// eni-2zeh9atclduxvf1z****
-	NetworkInterfaceId *string `json:"NetworkInterfaceId,omitempty" xml:"NetworkInterfaceId,omitempty"`
-	// The primary private IP address of the ENI.
-	//
-	// example:
-	//
-	// ``172.17.**.**``*
-	PrimaryIpAddress *string `json:"PrimaryIpAddress,omitempty" xml:"PrimaryIpAddress,omitempty"`
-	// The private IP addresses of the ENI.
-	PrivateIpSets *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfacePrivateIpSets `json:"PrivateIpSets,omitempty" xml:"PrivateIpSets,omitempty" type:"Struct"`
-	// The type of the ENI. Valid values:
-	//
-	// 	- Primary
-	//
-	// 	- Secondary
-	//
-	// example:
-	//
-	// Primary
-	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
+	Ipv4PrefixSets     *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfaceIpv4PrefixSets `json:"Ipv4PrefixSets,omitempty" xml:"Ipv4PrefixSets,omitempty" type:"Struct"`
+	Ipv6PrefixSets     *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfaceIpv6PrefixSets `json:"Ipv6PrefixSets,omitempty" xml:"Ipv6PrefixSets,omitempty" type:"Struct"`
+	Ipv6Sets           *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfaceIpv6Sets       `json:"Ipv6Sets,omitempty" xml:"Ipv6Sets,omitempty" type:"Struct"`
+	MacAddress         *string                                                                                        `json:"MacAddress,omitempty" xml:"MacAddress,omitempty"`
+	NetworkInterfaceId *string                                                                                        `json:"NetworkInterfaceId,omitempty" xml:"NetworkInterfaceId,omitempty"`
+	PrimaryIpAddress   *string                                                                                        `json:"PrimaryIpAddress,omitempty" xml:"PrimaryIpAddress,omitempty"`
+	PrivateIpSets      *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfacePrivateIpSets  `json:"PrivateIpSets,omitempty" xml:"PrivateIpSets,omitempty" type:"Struct"`
+	Type               *string                                                                                        `json:"Type,omitempty" xml:"Type,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterface) String() string {
@@ -2088,7 +1608,6 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkI
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfaceIpv4PrefixSetsIpv4PrefixSet struct {
-	// The IPv4 prefix of the ENI.
 	Ipv4Prefix *string `json:"Ipv4Prefix,omitempty" xml:"Ipv4Prefix,omitempty"`
 }
 
@@ -2148,11 +1667,6 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkI
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfaceIpv6PrefixSetsIpv6PrefixSet struct {
-	// The IPv6 prefix of the ENI.
-	//
-	// example:
-	//
-	// 2001:1111:*:*::/64
 	Ipv6Prefix *string `json:"Ipv6Prefix,omitempty" xml:"Ipv6Prefix,omitempty"`
 }
 
@@ -2212,11 +1726,6 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkI
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfaceIpv6SetsIpv6Set struct {
-	// The IPv6 address of the ENI.
-	//
-	// example:
-	//
-	// 2408:4321:180:1701:94c7:bc38:3bfa:***
 	Ipv6Address *string `json:"Ipv6Address,omitempty" xml:"Ipv6Address,omitempty"`
 }
 
@@ -2276,29 +1785,8 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkI
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceNetworkInterfacesNetworkInterfacePrivateIpSetsPrivateIpSet struct {
-	// Indicates whether the IP address is the primary private IP address. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// example:
-	//
-	// true
-	Primary *bool `json:"Primary,omitempty" xml:"Primary,omitempty"`
-	// The private domain name of the instance.
-	//
-	// >  This parameter has a value in a specific format only if `HostnameType` is set to `IpBased` or `InstanceIdBased`.
-	//
-	// example:
-	//
-	// dnsTestName
-	PrivateDnsName *string `json:"PrivateDnsName,omitempty" xml:"PrivateDnsName,omitempty"`
-	// The private IP address of the ENI.
-	//
-	// example:
-	//
-	// ``172.17.**.**``
+	Primary          *bool   `json:"Primary,omitempty" xml:"Primary,omitempty"`
+	PrivateDnsName   *string `json:"PrivateDnsName,omitempty" xml:"PrivateDnsName,omitempty"`
 	PrivateIpAddress *string `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
 }
 
@@ -2376,27 +1864,7 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceOperationLocks) Validate(
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceOperationLocksLockReason struct {
-	// The message returned when the instance was locked.
-	//
-	// example:
-	//
-	// The specified instance is locked due to financial reason.
-	LockMsg *string `json:"LockMsg,omitempty" xml:"LockMsg,omitempty"`
-	// The reason why the instance was locked. Valid values:
-	//
-	// 	- financial: The instance was locked due to overdue payments.
-	//
-	// 	- security: The instance was locked due to security reasons.
-	//
-	// 	- recycling: The spot instance was locked and pending release.
-	//
-	// 	- dedicatedhostfinancial: The instance was locked due to overdue payments for the dedicated host.
-	//
-	// 	- refunded: The instance was locked because a refund was made for the instance.
-	//
-	// example:
-	//
-	// Recycling
+	LockMsg    *string `json:"LockMsg,omitempty" xml:"LockMsg,omitempty"`
 	LockReason *string `json:"LockReason,omitempty" xml:"LockReason,omitempty"`
 }
 
@@ -2431,68 +1899,11 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceOperationLocksLockReason)
 }
 
 type DescribeInstancesResponseBodyInstancesInstancePrivateDnsNameOptions struct {
-	// Indicates whether DNS Resolution from the Instance ID-based Hostname to the Instance Primary Private IPv6 Address (AAAA Record) is enabled. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// Default value: false.
-	//
-	// example:
-	//
-	// false
-	EnableInstanceIdDnsAAAARecord *bool `json:"EnableInstanceIdDnsAAAARecord,omitempty" xml:"EnableInstanceIdDnsAAAARecord,omitempty"`
-	// Indicates whether DNS Resolution from the Instance ID-based Hostname to the Instance Primary Private IPv4 Address (A Record) is enabled. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// Default value: false.
-	//
-	// example:
-	//
-	// false
-	EnableInstanceIdDnsARecord *bool `json:"EnableInstanceIdDnsARecord,omitempty" xml:"EnableInstanceIdDnsARecord,omitempty"`
-	// Indicates whether DNS Resolution from the IP Address-based Hostname to the Instance Primary Private IPv4 Address (A Record) is enabled. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// Default value: false.
-	//
-	// example:
-	//
-	// true
-	EnableIpDnsARecord *bool `json:"EnableIpDnsARecord,omitempty" xml:"EnableIpDnsARecord,omitempty"`
-	// Indicates whether Reverse DNS Resolution from the Instance Primary Private IPv4 Address to the IP Address-based Hostname (PTR Record) is enabled. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// Default value: false.
-	//
-	// example:
-	//
-	// true
-	EnableIpDnsPtrRecord *bool `json:"EnableIpDnsPtrRecord,omitempty" xml:"EnableIpDnsPtrRecord,omitempty"`
-	// The type of hostname. Valid values:
-	//
-	// 	- Custom: custom hostname
-	//
-	// 	- IpBased: IP address-based hostname
-	//
-	// 	- InstanceIdBased: instance ID-based hostname
-	//
-	// Default value: Custom.
-	//
-	// example:
-	//
-	// Custom
-	HostnameType *string `json:"HostnameType,omitempty" xml:"HostnameType,omitempty"`
+	EnableInstanceIdDnsAAAARecord *bool   `json:"EnableInstanceIdDnsAAAARecord,omitempty" xml:"EnableInstanceIdDnsAAAARecord,omitempty"`
+	EnableInstanceIdDnsARecord    *bool   `json:"EnableInstanceIdDnsARecord,omitempty" xml:"EnableInstanceIdDnsARecord,omitempty"`
+	EnableIpDnsARecord            *bool   `json:"EnableIpDnsARecord,omitempty" xml:"EnableIpDnsARecord,omitempty"`
+	EnableIpDnsPtrRecord          *bool   `json:"EnableIpDnsPtrRecord,omitempty" xml:"EnableIpDnsPtrRecord,omitempty"`
+	HostnameType                  *string `json:"HostnameType,omitempty" xml:"HostnameType,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstancePrivateDnsNameOptions) String() string {
@@ -2662,17 +2073,7 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceTags) Validate() error {
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceTagsTag struct {
-	// The tag key of the instance.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the instance.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 
@@ -2707,26 +2108,10 @@ func (s *DescribeInstancesResponseBodyInstancesInstanceTagsTag) Validate() error
 }
 
 type DescribeInstancesResponseBodyInstancesInstanceVpcAttributes struct {
-	// The NAT IP address of the instance. The NAT IP address is used by ECS instances in different VPCs for communication.
-	//
-	// example:
-	//
-	// ``172.17.**.**``
-	NatIpAddress *string `json:"NatIpAddress,omitempty" xml:"NatIpAddress,omitempty"`
-	// The private IP addresses of the instance.
+	NatIpAddress     *string                                                                      `json:"NatIpAddress,omitempty" xml:"NatIpAddress,omitempty"`
 	PrivateIpAddress *DescribeInstancesResponseBodyInstancesInstanceVpcAttributesPrivateIpAddress `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty" type:"Struct"`
-	// The ID of the vSwitch to which the instance is connected.
-	//
-	// example:
-	//
-	// vsw-2zeh0r1pabwtg6wcs****
-	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// The ID of the VPC.
-	//
-	// example:
-	//
-	// vpc-2zeuphj08tt7q3brd****
-	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	VSwitchId        *string                                                                      `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	VpcId            *string                                                                      `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
 
 func (s DescribeInstancesResponseBodyInstancesInstanceVpcAttributes) String() string {

@@ -34,6 +34,7 @@ type EnableNetworkInterfaceQoSRequest struct {
   NetworkInterfaceId *string `json:"NetworkInterfaceId,omitempty" xml:"NetworkInterfaceId,omitempty"`
   OwnerAccount *string `json:"OwnerAccount,omitempty" xml:"OwnerAccount,omitempty"`
   OwnerId *int64 `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
+  // QoS Speed Limit Settings
   QoS *EnableNetworkInterfaceQoSRequestQoS `json:"QoS,omitempty" xml:"QoS,omitempty" type:"Struct"`
   // This parameter is required.
   // 
@@ -126,22 +127,42 @@ func (s *EnableNetworkInterfaceQoSRequest) Validate() error {
 }
 
 type EnableNetworkInterfaceQoSRequestQoS struct {
+  // The maximum inbound internal bandwidth.
+  // 
+  // Unit: kbit/s, step size: 1000 (1Mbps), value range: [50000, +♾️)
+  // 
   // example:
   // 
   // 50000
   BandwidthRx *int64 `json:"BandwidthRx,omitempty" xml:"BandwidthRx,omitempty"`
+  // The maximum outbound internal bandwidth.
+  // 
+  // Unit: kbit/s, step size: 1000 (1Mbps), value range: [50000, +♾️)
+  // 
   // example:
   // 
   // 50000
   BandwidthTx *int64 `json:"BandwidthTx,omitempty" xml:"BandwidthTx,omitempty"`
+  // Maximum Number of Sessions
+  // 
+  // Step size: 10000, value range: [10000, +♾️)
+  // 
   // example:
   // 
   // 50000
   ConcurrentConnections *int64 `json:"ConcurrentConnections,omitempty" xml:"ConcurrentConnections,omitempty"`
+  // The inbound packet forwarding rate over the internal network.
+  // 
+  // Unit: pps, step size: 10000, value range: [10000, +♾️)
+  // 
   // example:
   // 
   // 50000
   PpsRx *int64 `json:"PpsRx,omitempty" xml:"PpsRx,omitempty"`
+  // The outbound packet forwarding rate over the internal network.
+  // 
+  // Unit: pps, step size: 10000, value range: [10000, +♾️)
+  // 
   // example:
   // 
   // 50000

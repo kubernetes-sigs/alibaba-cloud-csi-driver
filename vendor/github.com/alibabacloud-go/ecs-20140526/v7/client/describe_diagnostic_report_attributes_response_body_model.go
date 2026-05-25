@@ -65,8 +65,7 @@ type DescribeDiagnosticReportAttributesResponseBody struct {
 	// example:
 	//
 	// 2022-07-11T14:00:00Z
-	FinishedTime *string `json:"FinishedTime,omitempty" xml:"FinishedTime,omitempty"`
-	// The results of all diagnostic metrics in the diagnostic metric set.
+	FinishedTime  *string                                                      `json:"FinishedTime,omitempty" xml:"FinishedTime,omitempty"`
 	MetricResults *DescribeDiagnosticReportAttributesResponseBodyMetricResults `json:"MetricResults,omitempty" xml:"MetricResults,omitempty" type:"Struct"`
 	// The ID of the diagnostic metric set.
 	//
@@ -303,50 +302,11 @@ func (s *DescribeDiagnosticReportAttributesResponseBodyMetricResults) Validate()
 }
 
 type DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResult struct {
-	// The diagnosed issues.
-	Issues *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssues `json:"Issues,omitempty" xml:"Issues,omitempty" type:"Struct"`
-	// The category of the diagnostic metric.
-	//
-	// example:
-	//
-	// CPU
-	MetricCategory *string `json:"MetricCategory,omitempty" xml:"MetricCategory,omitempty"`
-	// The ID of the diagnostic metric.
-	//
-	// example:
-	//
-	// GuestOS.WinFirewall
-	MetricId *string `json:"MetricId,omitempty" xml:"MetricId,omitempty"`
-	// The severity level of the diagnostic metric. Valid values:
-	//
-	// 	- Unknown: The diagnostic has not started, failed to run, or exited unexpectedly without a diagnosis.
-	//
-	// 	- Normal: No exceptions were detected.
-	//
-	// 	- Info: Diagnostic information was recorded and may be related to exceptions.
-	//
-	// 	- NotSupport: The version of the guest operating system does support diagnosing the metric.
-	//
-	// 	- Warn: Diagnostic information was recorded and may indicate potential exceptions.
-	//
-	// 	- Critical: Critical exceptions were detected.
-	//
-	// example:
-	//
-	// Normal
-	Severity *string `json:"Severity,omitempty" xml:"Severity,omitempty"`
-	// The state of the diagnostic metric. Valid values:
-	//
-	// 	- InProgress.
-	//
-	// 	- Finished.
-	//
-	// 	- Failed.
-	//
-	// example:
-	//
-	// Finished
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	Issues         *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssues `json:"Issues,omitempty" xml:"Issues,omitempty" type:"Struct"`
+	MetricCategory *string                                                                        `json:"MetricCategory,omitempty" xml:"MetricCategory,omitempty"`
+	MetricId       *string                                                                        `json:"MetricId,omitempty" xml:"MetricId,omitempty"`
+	Severity       *string                                                                        `json:"Severity,omitempty" xml:"Severity,omitempty"`
+	Status         *string                                                                        `json:"Status,omitempty" xml:"Status,omitempty"`
 }
 
 func (s DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResult) String() string {
@@ -446,54 +406,12 @@ func (s *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResult
 }
 
 type DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue struct {
-	// The additional data about the diagnosed issue. The value is a JSON string.
-	//
-	// example:
-	//
-	// {
-	//
-	//   "TotalPercent": 95,
-	//
-	//   "TopUtilizationProcesses": [
-	//
-	//     {
-	//
-	//       "Pid": "1223",
-	//
-	//       "CommandName": "/usr/bin/mem.py",
-	//
-	//       "PhysicalMemoryPercent": 50
-	//
-	//     }
-	//
-	//   ]
-	//
-	// }
-	Additional *string `json:"Additional,omitempty" xml:"Additional,omitempty"`
-	// The ID of the diagnosed issue, which is the unique identifier of the issue.
-	//
-	// example:
-	//
-	// GuestOS.CPU.HighUtiliz*****
-	IssueId *string `json:"IssueId,omitempty" xml:"IssueId,omitempty"`
-	// The time when the diagnosed issue occurred.
-	//
-	// example:
-	//
-	// 2022-07-11T14:00:00Z
+	Additional     *string `json:"Additional,omitempty" xml:"Additional,omitempty"`
+	IssueId        *string `json:"IssueId,omitempty" xml:"IssueId,omitempty"`
 	OccurrenceTime *string `json:"OccurrenceTime,omitempty" xml:"OccurrenceTime,omitempty"`
-	// The severity level of the diagnosed issue. Valid values:
-	//
-	// 	- Info: Diagnostic information was recorded and may be related to exceptions.
-	//
-	// 	- Warn: Diagnostic information was recorded and may indicate potential exceptions.
-	//
-	// 	- Critical: Critical exceptions were detected.
-	//
-	// example:
-	//
-	// Info
-	Severity *string `json:"Severity,omitempty" xml:"Severity,omitempty"`
+	RepairStatus   *string `json:"RepairStatus,omitempty" xml:"RepairStatus,omitempty"`
+	Repairable     *bool   `json:"Repairable,omitempty" xml:"Repairable,omitempty"`
+	Severity       *string `json:"Severity,omitempty" xml:"Severity,omitempty"`
 }
 
 func (s DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue) String() string {
@@ -516,6 +434,14 @@ func (s *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResult
 	return s.OccurrenceTime
 }
 
+func (s *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue) GetRepairStatus() *string {
+	return s.RepairStatus
+}
+
+func (s *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue) GetRepairable() *bool {
+	return s.Repairable
+}
+
 func (s *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue) GetSeverity() *string {
 	return s.Severity
 }
@@ -532,6 +458,16 @@ func (s *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResult
 
 func (s *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue) SetOccurrenceTime(v string) *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue {
 	s.OccurrenceTime = &v
+	return s
+}
+
+func (s *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue) SetRepairStatus(v string) *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue {
+	s.RepairStatus = &v
+	return s
+}
+
+func (s *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue) SetRepairable(v bool) *DescribeDiagnosticReportAttributesResponseBodyMetricResultsMetricResultIssuesIssue {
+	s.Repairable = &v
 	return s
 }
 

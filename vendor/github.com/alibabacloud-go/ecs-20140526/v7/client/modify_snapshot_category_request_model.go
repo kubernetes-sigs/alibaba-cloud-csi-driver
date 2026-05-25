@@ -26,7 +26,7 @@ type iModifySnapshotCategoryRequest interface {
 }
 
 type ModifySnapshotCategoryRequest struct {
-	// The type of the snapshot. Valid value:
+	// The type of the snapshot.
 	//
 	// 	- Archive: archive snapshot
 	//

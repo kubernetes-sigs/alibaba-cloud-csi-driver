@@ -9,6 +9,8 @@ type iCreateDiagnosticReportRequest interface {
 	dara.Model
 	String() string
 	GoString() string
+	SetAdditionalOptions(v map[string]*string) *CreateDiagnosticReportRequest
+	GetAdditionalOptions() map[string]*string
 	SetEndTime(v string) *CreateDiagnosticReportRequest
 	GetEndTime() *string
 	SetMetricSetId(v string) *CreateDiagnosticReportRequest
@@ -22,6 +24,7 @@ type iCreateDiagnosticReportRequest interface {
 }
 
 type CreateDiagnosticReportRequest struct {
+	AdditionalOptions map[string]*string `json:"AdditionalOptions,omitempty" xml:"AdditionalOptions,omitempty"`
 	// The end time. This parameter takes effect only for diagnostic metrics that do not need to be assessed by running Cloud Assistant commands in guest operating systems.
 	//
 	// example:
@@ -66,6 +69,10 @@ func (s CreateDiagnosticReportRequest) GoString() string {
 	return s.String()
 }
 
+func (s *CreateDiagnosticReportRequest) GetAdditionalOptions() map[string]*string {
+	return s.AdditionalOptions
+}
+
 func (s *CreateDiagnosticReportRequest) GetEndTime() *string {
 	return s.EndTime
 }
@@ -84,6 +91,11 @@ func (s *CreateDiagnosticReportRequest) GetResourceId() *string {
 
 func (s *CreateDiagnosticReportRequest) GetStartTime() *string {
 	return s.StartTime
+}
+
+func (s *CreateDiagnosticReportRequest) SetAdditionalOptions(v map[string]*string) *CreateDiagnosticReportRequest {
+	s.AdditionalOptions = v
+	return s
 }
 
 func (s *CreateDiagnosticReportRequest) SetEndTime(v string) *CreateDiagnosticReportRequest {

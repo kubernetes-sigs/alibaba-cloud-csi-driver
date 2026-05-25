@@ -9,7 +9,7 @@ import (
 
 // Summary:
 //
-// dubbo
+// Accepts the default operation for a system event in the Inquiring state and authorizes the system to perform the operation.
 //
 // @param request - AcceptInquiredSystemEventRequest
 //
@@ -141,7 +141,7 @@ func (client *Client) ActivateRouterInterfaceWithContext(ctx context.Context, re
 	return _result, _err
 }
 
-// Deprecated: OpenAPI AddBandwidthPackageIps is deprecated, please use Vpc::2016-04-28::AddBandwidthPackageIps instead.
+// Deprecated: OpenAPI AddBandwidthPackageIps is deprecated
 //
 // Summary:
 //
@@ -537,7 +537,7 @@ func (client *Client) AllocateEipAddressWithContext(ctx context.Context, request
 
 // Summary:
 //
-// Assigns a static public IP address (also called system-assigned public IP address or auto-assigned public IP address) to an Elastic Compute Service (ECS) instance.
+// Assigns a static public IP address to an Elastic Compute Service (ECS) instance. We recommend using ModifyInstanceNetworkSpec to assign public IP addresses.
 //
 // Description:
 //
@@ -625,7 +625,7 @@ func (client *Client) AllocatePublicIpAddressWithContext(ctx context.Context, re
 
 // Summary:
 //
-// Applies an automatic snapshot policy to one or more cloud disks. You can call this operation to replace the automatic snapshot policy of a cloud disk.
+// Applies an automatic snapshot policy to one or more disks.
 //
 // Description:
 //
@@ -2399,6 +2399,118 @@ func (client *Client) CancelTaskWithContext(ctx context.Context, request *Cancel
 	return _result, _err
 }
 
+// Summary:
+//
+// Disk cloning allows you to quickly create a new disk with the same data as the source disk in the same zone. The cloned disk supports custom capacity, type, and encryption properties. After being mounted to an instance, you can quickly copy business data or scale out services.
+//
+// @param request - CloneDisksRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return CloneDisksResponse
+func (client *Client) CloneDisksWithContext(ctx context.Context, request *CloneDisksRequest, runtime *dara.RuntimeOptions) (_result *CloneDisksResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.Arn) {
+		query["Arn"] = request.Arn
+	}
+
+	if !dara.IsNil(request.BurstingEnabled) {
+		query["BurstingEnabled"] = request.BurstingEnabled
+	}
+
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
+	if !dara.IsNil(request.DiskCategory) {
+		query["DiskCategory"] = request.DiskCategory
+	}
+
+	if !dara.IsNil(request.DiskName) {
+		query["DiskName"] = request.DiskName
+	}
+
+	if !dara.IsNil(request.DryRun) {
+		query["DryRun"] = request.DryRun
+	}
+
+	if !dara.IsNil(request.Encrypted) {
+		query["Encrypted"] = request.Encrypted
+	}
+
+	if !dara.IsNil(request.KmsKeyId) {
+		query["KmsKeyId"] = request.KmsKeyId
+	}
+
+	if !dara.IsNil(request.MultiAttach) {
+		query["MultiAttach"] = request.MultiAttach
+	}
+
+	if !dara.IsNil(request.OwnerId) {
+		query["OwnerId"] = request.OwnerId
+	}
+
+	if !dara.IsNil(request.PerformanceLevel) {
+		query["PerformanceLevel"] = request.PerformanceLevel
+	}
+
+	if !dara.IsNil(request.ProvisionedIops) {
+		query["ProvisionedIops"] = request.ProvisionedIops
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !dara.IsNil(request.ResourceGroupId) {
+		query["ResourceGroupId"] = request.ResourceGroupId
+	}
+
+	if !dara.IsNil(request.ResourceOwnerId) {
+		query["ResourceOwnerId"] = request.ResourceOwnerId
+	}
+
+	if !dara.IsNil(request.Size) {
+		query["Size"] = request.Size
+	}
+
+	if !dara.IsNil(request.SourceDiskId) {
+		query["SourceDiskId"] = request.SourceDiskId
+	}
+
+	if !dara.IsNil(request.Tag) {
+		query["Tag"] = request.Tag
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("CloneDisks"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &CloneDisksResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
 // Deprecated: OpenAPI ConnectRouterInterface is deprecated, please use Vpc::2016-04-28::ConnectRouterInterface instead.
 //
 // Summary:
@@ -2822,6 +2934,10 @@ func (client *Client) CreateActivationWithContext(ctx context.Context, request *
 		}
 	}
 	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
 	if !dara.IsNil(request.Description) {
 		query["Description"] = request.Description
 	}
@@ -2938,6 +3054,10 @@ func (client *Client) CreateAutoProvisioningGroupWithContext(ctx context.Context
 
 	if !dara.IsNil(request.AutoProvisioningGroupType) {
 		query["AutoProvisioningGroupType"] = request.AutoProvisioningGroupType
+	}
+
+	if !dara.IsNil(request.CandidateOptions) {
+		query["CandidateOptions"] = request.CandidateOptions
 	}
 
 	if !dara.IsNil(request.ClientToken) {
@@ -3382,6 +3502,10 @@ func (client *Client) CreateCommandWithContext(ctx context.Context, request *Cre
 		}
 	}
 	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
 	if !dara.IsNil(request.CommandContent) {
 		query["CommandContent"] = request.CommandContent
 	}
@@ -3626,6 +3750,10 @@ func (client *Client) CreateDeploymentSetWithContext(ctx context.Context, reques
 		query["Strategy"] = request.Strategy
 	}
 
+	if !dara.IsNil(request.Type) {
+		query["Type"] = request.Type
+	}
+
 	req := &openapiutil.OpenApiRequest{
 		Query: openapiutil.Query(query),
 	}
@@ -3713,19 +3841,29 @@ func (client *Client) CreateDiagnosticMetricSetWithContext(ctx context.Context, 
 //
 // Creates a diagnostic report for a resource. When you call this operation, you can configure the MetricSetId parameter to create a diagnostic report based on the specified diagnostic metric set. Then, you can call the DescribeDiagnosticReportAttributes operation based on the returned diagnostic report ID to view the details of the diagnostic report.
 //
-// @param request - CreateDiagnosticReportRequest
+// @param tmpReq - CreateDiagnosticReportRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return CreateDiagnosticReportResponse
-func (client *Client) CreateDiagnosticReportWithContext(ctx context.Context, request *CreateDiagnosticReportRequest, runtime *dara.RuntimeOptions) (_result *CreateDiagnosticReportResponse, _err error) {
+func (client *Client) CreateDiagnosticReportWithContext(ctx context.Context, tmpReq *CreateDiagnosticReportRequest, runtime *dara.RuntimeOptions) (_result *CreateDiagnosticReportResponse, _err error) {
 	if dara.BoolValue(client.EnableValidate) == true {
-		_err = request.Validate()
+		_err = tmpReq.Validate()
 		if _err != nil {
 			return _result, _err
 		}
 	}
+	request := &CreateDiagnosticReportShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.AdditionalOptions) {
+		request.AdditionalOptionsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.AdditionalOptions, dara.String("AdditionalOptions"), dara.String("json"))
+	}
+
 	query := map[string]interface{}{}
+	if !dara.IsNil(request.AdditionalOptionsShrink) {
+		query["AdditionalOptions"] = request.AdditionalOptionsShrink
+	}
+
 	if !dara.IsNil(request.EndTime) {
 		query["EndTime"] = request.EndTime
 	}
@@ -6191,6 +6329,80 @@ func (client *Client) CreatePhysicalConnectionWithContext(ctx context.Context, r
 
 // Summary:
 //
+// Create an O\\\\\\&M window. If you set the TargetResource parameter in the O\\\\\\&M window to the associated ECS instance and need to schedule O\\\\\\&M to avoid potential hardware problems, the execution time is set based on the interval set by the TimePeriod parameter in the O\\\\\\&M window. When the execution time of an O\\\\\\&M event is reached, the platform automatically executes the response O\\\\\\&M operation based on the type of the O\\\\\\&M event.
+//
+// @param tmpReq - CreatePlanMaintenanceWindowRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return CreatePlanMaintenanceWindowResponse
+func (client *Client) CreatePlanMaintenanceWindowWithContext(ctx context.Context, tmpReq *CreatePlanMaintenanceWindowRequest, runtime *dara.RuntimeOptions) (_result *CreatePlanMaintenanceWindowResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = tmpReq.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	request := &CreatePlanMaintenanceWindowShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.TargetResource) {
+		request.TargetResourceShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.TargetResource, dara.String("TargetResource"), dara.String("json"))
+	}
+
+	if !dara.IsNil(tmpReq.TimePeriod) {
+		request.TimePeriodShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.TimePeriod, dara.String("TimePeriod"), dara.String("json"))
+	}
+
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.Enable) {
+		query["Enable"] = request.Enable
+	}
+
+	if !dara.IsNil(request.PlanWindowName) {
+		query["PlanWindowName"] = request.PlanWindowName
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !dara.IsNil(request.SupportMaintenanceAction) {
+		query["SupportMaintenanceAction"] = request.SupportMaintenanceAction
+	}
+
+	if !dara.IsNil(request.TargetResourceShrink) {
+		query["TargetResource"] = request.TargetResourceShrink
+	}
+
+	if !dara.IsNil(request.TimePeriodShrink) {
+		query["TimePeriod"] = request.TimePeriodShrink
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("CreatePlanMaintenanceWindow"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &CreatePlanMaintenanceWindowResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
 // Creates a port list. You can associate a port list with resources, such as security groups.
 //
 // @param request - CreatePortRangeListRequest
@@ -7551,6 +7763,98 @@ func (client *Client) CreateVpcWithContext(ctx context.Context, request *CreateV
 	return _result, _err
 }
 
+// Summary:
+//
+// 创建Vsc
+//
+// @param request - CreateVscRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return CreateVscResponse
+func (client *Client) CreateVscWithContext(ctx context.Context, request *CreateVscRequest, runtime *dara.RuntimeOptions) (_result *CreateVscResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
+	if !dara.IsNil(request.Description) {
+		query["Description"] = request.Description
+	}
+
+	if !dara.IsNil(request.DryRun) {
+		query["DryRun"] = request.DryRun
+	}
+
+	if !dara.IsNil(request.InstanceId) {
+		query["InstanceId"] = request.InstanceId
+	}
+
+	if !dara.IsNil(request.OwnerAccount) {
+		query["OwnerAccount"] = request.OwnerAccount
+	}
+
+	if !dara.IsNil(request.OwnerId) {
+		query["OwnerId"] = request.OwnerId
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !dara.IsNil(request.ResourceGroupId) {
+		query["ResourceGroupId"] = request.ResourceGroupId
+	}
+
+	if !dara.IsNil(request.ResourceOwnerAccount) {
+		query["ResourceOwnerAccount"] = request.ResourceOwnerAccount
+	}
+
+	if !dara.IsNil(request.ResourceOwnerId) {
+		query["ResourceOwnerId"] = request.ResourceOwnerId
+	}
+
+	if !dara.IsNil(request.Tag) {
+		query["Tag"] = request.Tag
+	}
+
+	if !dara.IsNil(request.VscName) {
+		query["VscName"] = request.VscName
+	}
+
+	if !dara.IsNil(request.VscType) {
+		query["VscType"] = request.VscType
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("CreateVsc"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &CreateVscResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
 // Deprecated: OpenAPI DeactivateRouterInterface is deprecated, please use Vpc::2016-04-28::DeactivateRouterInterface instead.
 //
 // Summary:
@@ -7815,8 +8119,6 @@ func (client *Client) DeleteAutoSnapshotPolicyWithContext(ctx context.Context, r
 	return _result, _err
 }
 
-// Deprecated: OpenAPI DeleteBandwidthPackage is deprecated, please use Vpc::2016-04-28::DeleteBandwidthPackage instead.
-//
 // Summary:
 //
 // # DeleteBandwidthPackage
@@ -9177,7 +9479,7 @@ func (client *Client) DeleteNatGatewayWithContext(ctx context.Context, request *
 
 // Summary:
 //
-// Deletes an elastic network interface (ENI) in a region. DeleteNetworkInterface is an asynchronous operation.
+// Deletes an ENI.
 //
 // Description:
 //
@@ -9405,6 +9707,54 @@ func (client *Client) DeletePhysicalConnectionWithContext(ctx context.Context, r
 		BodyType:    dara.String("json"),
 	}
 	_result = &DeletePhysicalConnectionResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// Delete O\\\\\\&M window
+//
+// @param request - DeletePlanMaintenanceWindowRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return DeletePlanMaintenanceWindowResponse
+func (client *Client) DeletePlanMaintenanceWindowWithContext(ctx context.Context, request *DeletePlanMaintenanceWindowRequest, runtime *dara.RuntimeOptions) (_result *DeletePlanMaintenanceWindowResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.PlanWindowId) {
+		query["PlanWindowId"] = request.PlanWindowId
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("DeletePlanMaintenanceWindow"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &DeletePlanMaintenanceWindowResponse{}
 	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
 	if _err != nil {
 		return _result, _err
@@ -10197,6 +10547,78 @@ func (client *Client) DeleteVpcWithContext(ctx context.Context, request *DeleteV
 
 // Summary:
 //
+// 删除虚拟存储通道
+//
+// @param request - DeleteVscRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return DeleteVscResponse
+func (client *Client) DeleteVscWithContext(ctx context.Context, request *DeleteVscRequest, runtime *dara.RuntimeOptions) (_result *DeleteVscResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
+	if !dara.IsNil(request.DryRun) {
+		query["DryRun"] = request.DryRun
+	}
+
+	if !dara.IsNil(request.OwnerAccount) {
+		query["OwnerAccount"] = request.OwnerAccount
+	}
+
+	if !dara.IsNil(request.OwnerId) {
+		query["OwnerId"] = request.OwnerId
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !dara.IsNil(request.ResourceOwnerAccount) {
+		query["ResourceOwnerAccount"] = request.ResourceOwnerAccount
+	}
+
+	if !dara.IsNil(request.ResourceOwnerId) {
+		query["ResourceOwnerId"] = request.ResourceOwnerId
+	}
+
+	if !dara.IsNil(request.VscId) {
+		query["VscId"] = request.VscId
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("DeleteVsc"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &DeleteVscResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
 // Deregisters a managed instance. After you deregister the managed instance, you can no longer use Cloud Assistant to send commands or files to the instance.
 //
 // @param request - DeregisterManagedInstanceRequest
@@ -10212,6 +10634,10 @@ func (client *Client) DeregisterManagedInstanceWithContext(ctx context.Context, 
 		}
 	}
 	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
 	if !dara.IsNil(request.InstanceId) {
 		query["InstanceId"] = request.InstanceId
 	}
@@ -10515,7 +10941,7 @@ func (client *Client) DescribeActivationsWithContext(ctx context.Context, reques
 
 // Summary:
 //
-// Queries the scheduling tasks of an auto provisioning group.
+// Call DescribeAutoProvisioningGroupHistory to query the schedule job info of an auto provisioning group.
 //
 // @param request - DescribeAutoProvisioningGroupHistoryRequest
 //
@@ -10692,6 +11118,10 @@ func (client *Client) DescribeAutoProvisioningGroupsWithContext(ctx context.Cont
 
 	if !dara.IsNil(request.AutoProvisioningGroupStatus) {
 		query["AutoProvisioningGroupStatus"] = request.AutoProvisioningGroupStatus
+	}
+
+	if !dara.IsNil(request.AutoProvisioningGroupTypes) {
+		query["AutoProvisioningGroupTypes"] = request.AutoProvisioningGroupTypes
 	}
 
 	if !dara.IsNil(request.OwnerAccount) {
@@ -10915,7 +11345,7 @@ func (client *Client) DescribeAutoSnapshotPolicyExWithContext(ctx context.Contex
 
 // Summary:
 //
-// 查询可用资源
+// Query the inventory status of resources in a specified zone. This API is primarily used to confirm whether the target resources (such as instance types or system disk types) have sufficient inventory in a specific zone before creating an instance (RunInstances) or modifying an instance specification (ModifyInstanceSpec).
 //
 // @param request - DescribeAvailableResourceRequest
 //
@@ -11113,8 +11543,6 @@ func (client *Client) DescribeBandwidthLimitationWithContext(ctx context.Context
 	return _result, _err
 }
 
-// Deprecated: OpenAPI DescribeBandwidthPackages is deprecated, please use Vpc::2016-04-28::DescribeBandwidthPackages instead.
-//
 // Summary:
 //
 // # DescribeBandwidthPackages
@@ -12292,6 +12720,10 @@ func (client *Client) DescribeDeploymentSetsWithContext(ctx context.Context, req
 
 	if !dara.IsNil(request.Strategy) {
 		query["Strategy"] = request.Strategy
+	}
+
+	if !dara.IsNil(request.Type) {
+		query["Type"] = request.Type
 	}
 
 	req := &openapiutil.OpenApiRequest{
@@ -13731,7 +14163,7 @@ func (client *Client) DescribeHaVipsWithContext(ctx context.Context, request *De
 
 // Summary:
 //
-// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests. The \\*\\*token\\*\\	- can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How to ensure idempotence]\\(~~25693~~).
+// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests. The \\\\*\\\\*token\\\\*\\\\	- can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see \\[How to ensure idempotence]\\\\(~~25693~~).
 //
 // @param request - DescribeHpcClustersRequest
 //
@@ -14974,12 +15406,32 @@ func (client *Client) DescribeInstanceModificationPriceWithContext(ctx context.C
 		query["DataDisk"] = request.DataDisk
 	}
 
+	if !dara.IsNil(request.EndTime) {
+		query["EndTime"] = request.EndTime
+	}
+
+	if !dara.IsNil(request.ISP) {
+		query["ISP"] = request.ISP
+	}
+
+	if !dara.IsNil(request.ImageId) {
+		query["ImageId"] = request.ImageId
+	}
+
 	if !dara.IsNil(request.InstanceId) {
 		query["InstanceId"] = request.InstanceId
 	}
 
 	if !dara.IsNil(request.InstanceType) {
 		query["InstanceType"] = request.InstanceType
+	}
+
+	if !dara.IsNil(request.InternetChargeType) {
+		query["InternetChargeType"] = request.InternetChargeType
+	}
+
+	if !dara.IsNil(request.InternetMaxBandwidthOut) {
+		query["InternetMaxBandwidthOut"] = request.InternetMaxBandwidthOut
 	}
 
 	if !dara.IsNil(request.OwnerAccount) {
@@ -15000,6 +15452,10 @@ func (client *Client) DescribeInstanceModificationPriceWithContext(ctx context.C
 
 	if !dara.IsNil(request.ResourceOwnerId) {
 		query["ResourceOwnerId"] = request.ResourceOwnerId
+	}
+
+	if !dara.IsNil(request.StartTime) {
+		query["StartTime"] = request.StartTime
 	}
 
 	if !dara.IsNil(request.SystemDisk) {
@@ -16093,33 +16549,33 @@ func (client *Client) DescribeInstancesFullStatusWithContext(ctx context.Context
 //
 // The execution status of the command. Valid values:
 //
-//   - Running:
+// \\	- Running:
 //
-//   - Scheduled task: Before you stop the scheduled execution of the command, the execution state is always Running.
+//	\\	- Scheduled task: Before you stop the scheduled execution of the command, the execution state is always Running.
 //
-//   - One-time task: If the command is being run on instances, the execution state is Running.
+//	\\	- One-time task: If the command is being run on instances, the execution state is Running.
 //
-//   - Finished:
+// \\	- Finished:
 //
-//   - Scheduled task: The execution state can never be Finished.
+//	\\	- Scheduled task: The execution state can never be Finished.
 //
-//   - One-time task: The execution was complete on all instances, or the execution was stopped on some instances and was complete on the other instances.
+//	\\	- One-time task: The execution was complete on all instances, or the execution was stopped on some instances and was complete on the other instances.
 //
-//   - Failed:
+// \\	- Failed:
 //
-//   - Scheduled task: The execution state can never be Failed.
+//	\\	- Scheduled task: The execution state can never be Failed.
 //
-//   - One-time task: The execution failed on all instances.
+//	\\	- One-time task: The execution failed on all instances.
 //
-//   - PartialFailed:
+// \\	- PartialFailed:
 //
-//   - Scheduled task: The execution state can never be PartialFailed.
+//	\\	- Scheduled task: The execution state can never be PartialFailed.
 //
-//   - One-time task: The execution failed on some instances.
+//	\\	- One-time task: The execution failed on some instances.
 //
-//   - Stopped: The task was stopped.
+// \\	- Stopped: The task was stopped.
 //
-//   - Stopping: The task is being stopped.
+// \\	- Stopping: The task is being stopped.
 //
 // Description:
 //
@@ -16683,6 +17139,86 @@ func (client *Client) DescribeLimitationWithContext(ctx context.Context, request
 		BodyType:    dara.String("json"),
 	}
 	_result = &DescribeLimitationResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// Queries the lock information of a snapshot, such as snapshot lock status and lock configuration.
+//
+// @param request - DescribeLockedSnapshotsRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return DescribeLockedSnapshotsResponse
+func (client *Client) DescribeLockedSnapshotsWithContext(ctx context.Context, request *DescribeLockedSnapshotsRequest, runtime *dara.RuntimeOptions) (_result *DescribeLockedSnapshotsResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.DryRun) {
+		query["DryRun"] = request.DryRun
+	}
+
+	if !dara.IsNil(request.LockStatus) {
+		query["LockStatus"] = request.LockStatus
+	}
+
+	if !dara.IsNil(request.MaxResults) {
+		query["MaxResults"] = request.MaxResults
+	}
+
+	if !dara.IsNil(request.NextToken) {
+		query["NextToken"] = request.NextToken
+	}
+
+	if !dara.IsNil(request.OwnerAccount) {
+		query["OwnerAccount"] = request.OwnerAccount
+	}
+
+	if !dara.IsNil(request.OwnerId) {
+		query["OwnerId"] = request.OwnerId
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !dara.IsNil(request.ResourceOwnerAccount) {
+		query["ResourceOwnerAccount"] = request.ResourceOwnerAccount
+	}
+
+	if !dara.IsNil(request.ResourceOwnerId) {
+		query["ResourceOwnerId"] = request.ResourceOwnerId
+	}
+
+	if !dara.IsNil(request.SnapshotIds) {
+		query["SnapshotIds"] = request.SnapshotIds
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("DescribeLockedSnapshots"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &DescribeLockedSnapshotsResponse{}
 	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
 	if _err != nil {
 		return _result, _err
@@ -17353,6 +17889,84 @@ func (client *Client) DescribePhysicalConnectionsWithContext(ctx context.Context
 		BodyType:    dara.String("json"),
 	}
 	_result = &DescribePhysicalConnectionsResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// Query O\\\\\\&M window
+//
+// @param tmpReq - DescribePlanMaintenanceWindowsRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return DescribePlanMaintenanceWindowsResponse
+func (client *Client) DescribePlanMaintenanceWindowsWithContext(ctx context.Context, tmpReq *DescribePlanMaintenanceWindowsRequest, runtime *dara.RuntimeOptions) (_result *DescribePlanMaintenanceWindowsResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = tmpReq.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	request := &DescribePlanMaintenanceWindowsShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.TargetResourceTags) {
+		request.TargetResourceTagsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.TargetResourceTags, dara.String("TargetResourceTags"), dara.String("json"))
+	}
+
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.Enable) {
+		query["Enable"] = request.Enable
+	}
+
+	if !dara.IsNil(request.MaxResults) {
+		query["MaxResults"] = request.MaxResults
+	}
+
+	if !dara.IsNil(request.NextToken) {
+		query["NextToken"] = request.NextToken
+	}
+
+	if !dara.IsNil(request.PlanWindowId) {
+		query["PlanWindowId"] = request.PlanWindowId
+	}
+
+	if !dara.IsNil(request.PlanWindowName) {
+		query["PlanWindowName"] = request.PlanWindowName
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !dara.IsNil(request.TargetResourceGroupId) {
+		query["TargetResourceGroupId"] = request.TargetResourceGroupId
+	}
+
+	if !dara.IsNil(request.TargetResourceTagsShrink) {
+		query["TargetResourceTags"] = request.TargetResourceTagsShrink
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("DescribePlanMaintenanceWindows"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &DescribePlanMaintenanceWindowsResponse{}
 	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
 	if _err != nil {
 		return _result, _err
@@ -20728,6 +21342,10 @@ func (client *Client) DescribeTasksWithContext(ctx context.Context, request *Des
 		query["TaskAction"] = request.TaskAction
 	}
 
+	if !dara.IsNil(request.TaskGroupId) {
+		query["TaskGroupId"] = request.TaskGroupId
+	}
+
 	if !dara.IsNil(request.TaskIds) {
 		query["TaskIds"] = request.TaskIds
 	}
@@ -21353,6 +21971,94 @@ func (client *Client) DescribeVpcsWithContext(ctx context.Context, request *Desc
 
 // Summary:
 //
+// 查询虚拟存储通道
+//
+// @param request - DescribeVscsRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return DescribeVscsResponse
+func (client *Client) DescribeVscsWithContext(ctx context.Context, request *DescribeVscsRequest, runtime *dara.RuntimeOptions) (_result *DescribeVscsResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.InstanceId) {
+		query["InstanceId"] = request.InstanceId
+	}
+
+	if !dara.IsNil(request.MaxResults) {
+		query["MaxResults"] = request.MaxResults
+	}
+
+	if !dara.IsNil(request.NextToken) {
+		query["NextToken"] = request.NextToken
+	}
+
+	if !dara.IsNil(request.OwnerAccount) {
+		query["OwnerAccount"] = request.OwnerAccount
+	}
+
+	if !dara.IsNil(request.OwnerId) {
+		query["OwnerId"] = request.OwnerId
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !dara.IsNil(request.ResourceGroupId) {
+		query["ResourceGroupId"] = request.ResourceGroupId
+	}
+
+	if !dara.IsNil(request.ResourceOwnerAccount) {
+		query["ResourceOwnerAccount"] = request.ResourceOwnerAccount
+	}
+
+	if !dara.IsNil(request.ResourceOwnerId) {
+		query["ResourceOwnerId"] = request.ResourceOwnerId
+	}
+
+	if !dara.IsNil(request.Status) {
+		query["Status"] = request.Status
+	}
+
+	if !dara.IsNil(request.Tag) {
+		query["Tag"] = request.Tag
+	}
+
+	if !dara.IsNil(request.VscIds) {
+		query["VscIds"] = request.VscIds
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("DescribeVscs"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &DescribeVscsResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
 // Queries Alibaba Cloud regions. You can specify parameters, such as InstanceChargeType and ResourceType, in the request.
 //
 // Description:
@@ -21713,7 +22419,7 @@ func (client *Client) DetachKeyPairWithContext(ctx context.Context, request *Det
 
 // Summary:
 //
-// Detach an elastic network interface (ENI) from an Elastic Compute Service (ECS) instance.
+// Detaches an ENI from an ECS instance.
 //
 // Description:
 //
@@ -21947,7 +22653,7 @@ func (client *Client) DisableDiskEncryptionByDefaultWithContext(ctx context.Cont
 
 // Summary:
 //
-// 禁用弹性网卡QoS限速设置
+// Disables Elastic Network Interface (ENI) QoS speed setting.
 //
 // @param request - DisableNetworkInterfaceQoSRequest
 //
@@ -22101,7 +22807,7 @@ func (client *Client) EnableDiskEncryptionByDefaultWithContext(ctx context.Conte
 
 // Summary:
 //
-// 启用或修改弹性网卡QoS限速设置
+// # Enable or modify Elastic Network Interface (ENI) QoS rate limit settings
 //
 // @param request - EnableNetworkInterfaceQoSRequest
 //
@@ -23007,7 +23713,7 @@ func (client *Client) ImportImageWithContext(ctx context.Context, request *Impor
 
 // Summary:
 //
-// Imports the public key of a Rivest-Shamir-Adleman (RSA) key pair that is generated by a third-party tool. After the key pair is imported, Alibaba Cloud stores the public key. You must securely lock away the private key.
+// Imports the public key of a Rivest-Shamir-Adleman (RSA) key pair that is generated by a third-party tool. After the key pair is imported, Alibaba Cloud stores the public key. You must securely store the private key.
 //
 // Description:
 //
@@ -23111,7 +23817,7 @@ func (client *Client) ImportKeyPairWithContext(ctx context.Context, request *Imp
 
 // Summary:
 //
-// Installs Cloud Assistant Agent on Elastic Compute Service (ECS) instances. After you install Cloud Assistant Agent on ECS instances, restart the instances for the installation to take effect.
+// Installs Cloud Assistant Agent on Elastic Compute Service (ECS) instances. After installing Cloud Assistant Agent on ECS instances, restart the instances for the installation to take effect.
 //
 // Description:
 //
@@ -23813,6 +24519,100 @@ func (client *Client) ListTagResourcesWithContext(ctx context.Context, request *
 
 // Summary:
 //
+// Lock the snapshot in compliance mode to prevent it from being accidentally or maliciously deleted. During the snapshot lock period, no user can delete it.
+//
+// Description:
+//
+// You can also use this operation to reconfigure locked snapshots. The configurable items depend on the lock mode and lock status:
+//
+//   - If a snapshot is locked in compliance mode and is in a cooling-off period, you can extend or shorten the cooling-off period and extend or shorten the lock duration.
+//
+//   - If the snapshot is locked in compliance mode and the cooling-off period has expired, you can only extend the lock duration.
+//
+// >  If you reconfigure a locked snapshot during the cooling-off period, the system will be regarded as a relock operation, and all lock parameters will be reset instead of individual adjustments.
+//
+// @param request - LockSnapshotRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return LockSnapshotResponse
+func (client *Client) LockSnapshotWithContext(ctx context.Context, request *LockSnapshotRequest, runtime *dara.RuntimeOptions) (_result *LockSnapshotResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
+	if !dara.IsNil(request.CoolOffPeriod) {
+		query["CoolOffPeriod"] = request.CoolOffPeriod
+	}
+
+	if !dara.IsNil(request.DryRun) {
+		query["DryRun"] = request.DryRun
+	}
+
+	if !dara.IsNil(request.LockDuration) {
+		query["LockDuration"] = request.LockDuration
+	}
+
+	if !dara.IsNil(request.LockMode) {
+		query["LockMode"] = request.LockMode
+	}
+
+	if !dara.IsNil(request.OwnerAccount) {
+		query["OwnerAccount"] = request.OwnerAccount
+	}
+
+	if !dara.IsNil(request.OwnerId) {
+		query["OwnerId"] = request.OwnerId
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !dara.IsNil(request.ResourceOwnerAccount) {
+		query["ResourceOwnerAccount"] = request.ResourceOwnerAccount
+	}
+
+	if !dara.IsNil(request.ResourceOwnerId) {
+		query["ResourceOwnerId"] = request.ResourceOwnerId
+	}
+
+	if !dara.IsNil(request.SnapshotId) {
+		query["SnapshotId"] = request.SnapshotId
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("LockSnapshot"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &LockSnapshotResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
 // Modifies the configurations of an auto provisioning group.
 //
 // Description:
@@ -24021,7 +24821,7 @@ func (client *Client) ModifyAutoSnapshotPolicyExWithContext(ctx context.Context,
 	return _result, _err
 }
 
-// Deprecated: OpenAPI ModifyBandwidthPackageSpec is deprecated, please use Vpc::2016-04-28::ModifyBandwidthPackageSpec instead.
+// Deprecated: OpenAPI ModifyBandwidthPackageSpec is deprecated
 //
 // Summary:
 //
@@ -24093,7 +24893,7 @@ func (client *Client) ModifyBandwidthPackageSpecWithContext(ctx context.Context,
 
 // Summary:
 //
-// Modifies the information of a capacity reservation, including the name, description, release mode, and the total number of Elastic Compute Service (ECS) instances for which capacity is reserved.
+// Modifies the information about a capacity reservation, including the name, description, expiration method, and the total number of ECS instances that can be reserved.
 //
 // @param request - ModifyCapacityReservationRequest
 //
@@ -24205,6 +25005,10 @@ func (client *Client) ModifyCloudAssistantSettingsWithContext(ctx context.Contex
 		request.OssDeliveryConfigShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.OssDeliveryConfig, dara.String("OssDeliveryConfig"), dara.String("json"))
 	}
 
+	if !dara.IsNil(tmpReq.ResourceUsageConfig) {
+		request.ResourceUsageConfigShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.ResourceUsageConfig, dara.String("ResourceUsageConfig"), dara.String("json"))
+	}
+
 	if !dara.IsNil(tmpReq.SessionManagerConfig) {
 		request.SessionManagerConfigShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.SessionManagerConfig, dara.String("SessionManagerConfig"), dara.String("json"))
 	}
@@ -24240,6 +25044,10 @@ func (client *Client) ModifyCloudAssistantSettingsWithContext(ctx context.Contex
 
 	if !dara.IsNil(request.ResourceOwnerId) {
 		query["ResourceOwnerId"] = request.ResourceOwnerId
+	}
+
+	if !dara.IsNil(request.ResourceUsageConfigShrink) {
+		query["ResourceUsageConfig"] = request.ResourceUsageConfigShrink
 	}
 
 	if !dara.IsNil(request.SessionManagerConfigShrink) {
@@ -27572,6 +28380,10 @@ func (client *Client) ModifyInvocationAttributeWithContext(ctx context.Context, 
 	}
 
 	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
 	if !dara.IsNil(request.CommandContent) {
 		query["CommandContent"] = request.CommandContent
 	}
@@ -28017,6 +28829,84 @@ func (client *Client) ModifyPhysicalConnectionAttributeWithContext(ctx context.C
 		BodyType:    dara.String("json"),
 	}
 	_result = &ModifyPhysicalConnectionAttributeResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// 更新运维窗口
+//
+// @param tmpReq - ModifyPlanMaintenanceWindowRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return ModifyPlanMaintenanceWindowResponse
+func (client *Client) ModifyPlanMaintenanceWindowWithContext(ctx context.Context, tmpReq *ModifyPlanMaintenanceWindowRequest, runtime *dara.RuntimeOptions) (_result *ModifyPlanMaintenanceWindowResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = tmpReq.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	request := &ModifyPlanMaintenanceWindowShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.TargetResource) {
+		request.TargetResourceShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.TargetResource, dara.String("TargetResource"), dara.String("json"))
+	}
+
+	if !dara.IsNil(tmpReq.TimePeriod) {
+		request.TimePeriodShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.TimePeriod, dara.String("TimePeriod"), dara.String("json"))
+	}
+
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.Enable) {
+		query["Enable"] = request.Enable
+	}
+
+	if !dara.IsNil(request.PlanWindowId) {
+		query["PlanWindowId"] = request.PlanWindowId
+	}
+
+	if !dara.IsNil(request.PlanWindowName) {
+		query["PlanWindowName"] = request.PlanWindowName
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !dara.IsNil(request.SupportMaintenanceAction) {
+		query["SupportMaintenanceAction"] = request.SupportMaintenanceAction
+	}
+
+	if !dara.IsNil(request.TargetResourceShrink) {
+		query["TargetResource"] = request.TargetResourceShrink
+	}
+
+	if !dara.IsNil(request.TimePeriodShrink) {
+		query["TimePeriod"] = request.TimePeriodShrink
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("ModifyPlanMaintenanceWindow"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &ModifyPlanMaintenanceWindowResponse{}
 	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
 	if _err != nil {
 		return _result, _err
@@ -31313,8 +32203,6 @@ func (client *Client) ReleasePublicIpAddressWithContext(ctx context.Context, req
 	return _result, _err
 }
 
-// Deprecated: OpenAPI RemoveBandwidthPackageIps is deprecated, please use Vpc::2016-04-28::RemoveBandwidthPackageIps instead.
-//
 // Summary:
 //
 // # RemoveBandwidthPackageIps
@@ -33608,6 +34496,10 @@ func (client *Client) SendFileWithContext(ctx context.Context, request *SendFile
 		}
 	}
 	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
 	if !dara.IsNil(request.Content) {
 		query["Content"] = request.Content
 	}
@@ -34008,6 +34900,10 @@ func (client *Client) StartTerminalSessionWithContext(ctx context.Context, tmpRe
 	}
 
 	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
 	if !dara.IsNil(request.CommandLine) {
 		query["CommandLine"] = request.CommandLine
 	}
@@ -34269,9 +35165,9 @@ func (client *Client) StopInstancesWithContext(ctx context.Context, request *Sto
 
 // Summary:
 //
-// \\	- If you stop the process of a command that runs only once, the executions that have started are not interrupted. The executions that have not started are canceled.
+// \\\\	- If you stop the process of a command that runs only once, the executions that have started are not interrupted. The executions that have not started are canceled.
 //
-// \\	- If you stop the process of a scheduled invocation command, the executions that have started are not interrupted. However, the execution does not start in the next period.
+// \\\\	- If you stop the process of a scheduled invocation command, the executions that have started are not interrupted. However, the execution does not start in the next period.
 //
 // Description:
 //
@@ -34663,7 +35559,7 @@ func (client *Client) UnassignIpv6AddressesWithContext(ctx context.Context, requ
 
 // Summary:
 //
-// Unassigns secondary private IP addresses from an elastic network interface (ENI).
+// Unassigns one or more secondary private IP addresses from an ENI.
 //
 // Description:
 //
@@ -34889,6 +35785,78 @@ func (client *Client) UnassociateHaVipWithContext(ctx context.Context, request *
 		BodyType:    dara.String("json"),
 	}
 	_result = &UnassociateHaVipResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// Unlock snapshots that are locked in compliance mode but are still in a cooling-off period. If the snapshot is locked in compliance mode and the cooling-off period has ended, it cannot be unlocked.
+//
+// @param request - UnlockSnapshotRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return UnlockSnapshotResponse
+func (client *Client) UnlockSnapshotWithContext(ctx context.Context, request *UnlockSnapshotRequest, runtime *dara.RuntimeOptions) (_result *UnlockSnapshotResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = request.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	query := map[string]interface{}{}
+	if !dara.IsNil(request.ClientToken) {
+		query["ClientToken"] = request.ClientToken
+	}
+
+	if !dara.IsNil(request.DryRun) {
+		query["DryRun"] = request.DryRun
+	}
+
+	if !dara.IsNil(request.OwnerAccount) {
+		query["OwnerAccount"] = request.OwnerAccount
+	}
+
+	if !dara.IsNil(request.OwnerId) {
+		query["OwnerId"] = request.OwnerId
+	}
+
+	if !dara.IsNil(request.RegionId) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !dara.IsNil(request.ResourceOwnerAccount) {
+		query["ResourceOwnerAccount"] = request.ResourceOwnerAccount
+	}
+
+	if !dara.IsNil(request.ResourceOwnerId) {
+		query["ResourceOwnerId"] = request.ResourceOwnerId
+	}
+
+	if !dara.IsNil(request.SnapshotId) {
+		query["SnapshotId"] = request.SnapshotId
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("UnlockSnapshot"),
+		Version:     dara.String("2014-05-26"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &UnlockSnapshotResponse{}
 	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
 	if _err != nil {
 		return _result, _err

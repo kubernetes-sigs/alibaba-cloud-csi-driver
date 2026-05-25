@@ -24,7 +24,6 @@ type iDescribeNetworkInterfacesResponseBody interface {
 }
 
 type DescribeNetworkInterfacesResponseBody struct {
-	// Details of the ENIs.
 	NetworkInterfaceSets *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSets `json:"NetworkInterfaceSets,omitempty" xml:"NetworkInterfaceSets,omitempty" type:"Struct"`
 	// A pagination token. It can be used in the next request to retrieve a new page of results.
 	//
@@ -170,176 +169,35 @@ func (s *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSets) Validate() e
 }
 
 type DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSet struct {
-	// The EIPs that are associated with the secondary private IP addresses of the ENI.
-	AssociatedPublicIp *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetAssociatedPublicIp `json:"AssociatedPublicIp,omitempty" xml:"AssociatedPublicIp,omitempty" type:"Struct"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	Attachment *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetAttachment `json:"Attachment,omitempty" xml:"Attachment,omitempty" type:"Struct"`
-	// The time when the security group was created. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2019-12-25T12:31:31Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// Indicates whether to retain the ENI when the associated instance is released. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// example:
-	//
-	// true
-	DeleteOnRelease *bool `json:"DeleteOnRelease,omitempty" xml:"DeleteOnRelease,omitempty"`
-	// The description of the ENI.
-	//
-	// example:
-	//
-	// DescriptionTest
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the Elastic Compute Service (ECS) instance to which the ENI is attached.
-	//
-	// >  If the ENI is managed by other Alibaba Cloud services, no instance ID is returned.
-	//
-	// example:
-	//
-	// i-bp1e2l6djkndyuli****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The IPv4 prefixes of the ENI.
-	Ipv4PrefixSets *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetIpv4PrefixSets `json:"Ipv4PrefixSets,omitempty" xml:"Ipv4PrefixSets,omitempty" type:"Struct"`
-	// The IPv6 prefixes of the ENI.
-	Ipv6PrefixSets *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetIpv6PrefixSets `json:"Ipv6PrefixSets,omitempty" xml:"Ipv6PrefixSets,omitempty" type:"Struct"`
-	// The IPv6 addresses of the ENI.
-	Ipv6Sets *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetIpv6Sets `json:"Ipv6Sets,omitempty" xml:"Ipv6Sets,omitempty" type:"Struct"`
-	// The MAC address of the ENI.
-	//
-	// example:
-	//
-	// 00:16:3e:12:**:**
-	MacAddress *string `json:"MacAddress,omitempty" xml:"MacAddress,omitempty"`
-	// The ID of the ENI.
-	//
-	// example:
-	//
-	// eni-bp125p95hhdhn3ot****
-	NetworkInterfaceId *string `json:"NetworkInterfaceId,omitempty" xml:"NetworkInterfaceId,omitempty"`
-	// The name of the ENI.
-	//
-	// example:
-	//
-	// my-eni-name
-	NetworkInterfaceName *string `json:"NetworkInterfaceName,omitempty" xml:"NetworkInterfaceName,omitempty"`
-	// The communication mode of the ENI. Valid values:
-	//
-	// 	- Standard: The TCP communication mode is used.
-	//
-	// 	- HighPerformance: The Elastic RDMA Interface (ERI) is enabled and the remote direct memory access (RDMA) communication mode is used.
-	//
-	// >  This parameter can have a value of HighPerformance only when the ENI is attached to a c7re RDMA-enhanced instance that resides in Beijing Zone K.
-	//
-	// example:
-	//
-	// Standard
-	NetworkInterfaceTrafficMode *string `json:"NetworkInterfaceTrafficMode,omitempty" xml:"NetworkInterfaceTrafficMode,omitempty"`
-	// The ID of the account to which the ENI belongs.
-	//
-	// example:
-	//
-	// 123456****
-	OwnerId *string `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
-	// The primary private IP address of the ENI.
-	//
-	// example:
-	//
-	// ``172.17.**.**``
-	PrivateIpAddress *string `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
-	// Details about the private IP addresses of the ENI.
-	PrivateIpSets *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetPrivateIpSets `json:"PrivateIpSets,omitempty" xml:"PrivateIpSets,omitempty" type:"Struct"`
-	// The number of queues supported by the ENI.
-	//
-	// 	- If the ENI is a secondary ENI in the InUse state and the number of queues supported by the ENI has never been modified, the default number of queues per secondary ENI that the instance type supports is returned.
-	//
-	// 	- If the ENI is a secondary ENI and the number of queues supported by the ENI has been modified, the new number of queues is returned.
-	//
-	// 	- If the ENI is a secondary ENI in the Available state and the number of queues supported by the ENI has never been modified, an empty value is returned.
-	//
-	// 	- If the ENI is a primary ENI, the default number of queues per primary ENI that the instance type supports is returned.
-	//
-	// example:
-	//
-	// 8
-	QueueNumber *int32 `json:"QueueNumber,omitempty" xml:"QueueNumber,omitempty"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// 0
-	QueuePairNumber *int32 `json:"QueuePairNumber,omitempty" xml:"QueuePairNumber,omitempty"`
-	// The ID of the resource group to which the ENI belongs.
-	//
-	// example:
-	//
-	// rg-2ze88m67qx5z****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The security groups to which the ENI belongs.
-	SecurityGroupIds *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetSecurityGroupIds `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
-	// The ID of the distributor to which the ENI belongs.
-	//
-	// example:
-	//
-	// 12345678910
-	ServiceID *int64 `json:"ServiceID,omitempty" xml:"ServiceID,omitempty"`
-	// Indicates whether the user of the ENI is an Alibaba Cloud service or a distributor.
-	//
-	// example:
-	//
-	// true
-	ServiceManaged *bool `json:"ServiceManaged,omitempty" xml:"ServiceManaged,omitempty"`
-	// Indicates whether the source and destination IP address check feature is enabled. To improve network security, enable this feature. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// Default value: false.
-	//
-	// >  Before you use this parameter, read [Source and destination IP address check](https://help.aliyun.com/document_detail/2863210.html).
-	//
-	// example:
-	//
-	// false
-	SourceDestCheck *bool `json:"SourceDestCheck,omitempty" xml:"SourceDestCheck,omitempty"`
-	// The state of the ENI.
-	//
-	// example:
-	//
-	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags of the ENI.
-	Tags *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The type of the ENI.
-	//
-	// example:
-	//
-	// Secondary
-	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
-	// The ID of the vSwitch.
-	//
-	// example:
-	//
-	// vsw-bp16usj2p27htro3****
-	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// The ID of the VPC to which the ENI belongs.
-	//
-	// example:
-	//
-	// vpc-bp1j7w3gc1cexjqd****
-	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
-	// The zone ID of the ENI.
-	//
-	// example:
-	//
-	// cn-hangzhou-e
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	AssociatedPublicIp          *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetAssociatedPublicIp `json:"AssociatedPublicIp,omitempty" xml:"AssociatedPublicIp,omitempty" type:"Struct"`
+	Attachment                  *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetAttachment         `json:"Attachment,omitempty" xml:"Attachment,omitempty" type:"Struct"`
+	CreationTime                *string                                                                                         `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	DeleteOnRelease             *bool                                                                                           `json:"DeleteOnRelease,omitempty" xml:"DeleteOnRelease,omitempty"`
+	Description                 *string                                                                                         `json:"Description,omitempty" xml:"Description,omitempty"`
+	InstanceId                  *string                                                                                         `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	Ipv4PrefixSets              *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetIpv4PrefixSets     `json:"Ipv4PrefixSets,omitempty" xml:"Ipv4PrefixSets,omitempty" type:"Struct"`
+	Ipv6PrefixSets              *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetIpv6PrefixSets     `json:"Ipv6PrefixSets,omitempty" xml:"Ipv6PrefixSets,omitempty" type:"Struct"`
+	Ipv6Sets                    *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetIpv6Sets           `json:"Ipv6Sets,omitempty" xml:"Ipv6Sets,omitempty" type:"Struct"`
+	MacAddress                  *string                                                                                         `json:"MacAddress,omitempty" xml:"MacAddress,omitempty"`
+	NetworkInterfaceId          *string                                                                                         `json:"NetworkInterfaceId,omitempty" xml:"NetworkInterfaceId,omitempty"`
+	NetworkInterfaceName        *string                                                                                         `json:"NetworkInterfaceName,omitempty" xml:"NetworkInterfaceName,omitempty"`
+	NetworkInterfaceTrafficMode *string                                                                                         `json:"NetworkInterfaceTrafficMode,omitempty" xml:"NetworkInterfaceTrafficMode,omitempty"`
+	OwnerId                     *string                                                                                         `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
+	PrivateIpAddress            *string                                                                                         `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
+	PrivateIpSets               *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetPrivateIpSets      `json:"PrivateIpSets,omitempty" xml:"PrivateIpSets,omitempty" type:"Struct"`
+	QueueNumber                 *int32                                                                                          `json:"QueueNumber,omitempty" xml:"QueueNumber,omitempty"`
+	QueuePairNumber             *int32                                                                                          `json:"QueuePairNumber,omitempty" xml:"QueuePairNumber,omitempty"`
+	ResourceGroupId             *string                                                                                         `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	SecurityGroupIds            *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetSecurityGroupIds   `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
+	ServiceID                   *int64                                                                                          `json:"ServiceID,omitempty" xml:"ServiceID,omitempty"`
+	ServiceManaged              *bool                                                                                           `json:"ServiceManaged,omitempty" xml:"ServiceManaged,omitempty"`
+	SourceDestCheck             *bool                                                                                           `json:"SourceDestCheck,omitempty" xml:"SourceDestCheck,omitempty"`
+	Status                      *string                                                                                         `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags                        *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetTags               `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Type                        *string                                                                                         `json:"Type,omitempty" xml:"Type,omitempty"`
+	VSwitchId                   *string                                                                                         `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	VpcId                       *string                                                                                         `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	ZoneId                      *string                                                                                         `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSet) String() string {
@@ -656,17 +514,7 @@ func (s *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfa
 }
 
 type DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetAssociatedPublicIp struct {
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
-	AllocationId *string `json:"AllocationId,omitempty" xml:"AllocationId,omitempty"`
-	// The EIP.
-	//
-	// example:
-	//
-	// ``116.62.**.**``
+	AllocationId    *string `json:"AllocationId,omitempty" xml:"AllocationId,omitempty"`
 	PublicIpAddress *string `json:"PublicIpAddress,omitempty" xml:"PublicIpAddress,omitempty"`
 }
 
@@ -701,33 +549,9 @@ func (s *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfa
 }
 
 type DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetAttachment struct {
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// 0
-	DeviceIndex *int32 `json:"DeviceIndex,omitempty" xml:"DeviceIndex,omitempty"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The index of the network card.
-	//
-	// 	- If the ENI is in the Available state or if no network card index was specified when the ENI was attached, this parameter is empty.
-	//
-	// 	- If the ENI is in the InUse state and a network card index was specified when the ENI was attached, the specified network card index is returned as the value of this parameter.
-	//
-	// example:
-	//
-	// 0
-	NetworkCardIndex *int32 `json:"NetworkCardIndex,omitempty" xml:"NetworkCardIndex,omitempty"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
+	DeviceIndex             *int32  `json:"DeviceIndex,omitempty" xml:"DeviceIndex,omitempty"`
+	InstanceId              *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	NetworkCardIndex        *int32  `json:"NetworkCardIndex,omitempty" xml:"NetworkCardIndex,omitempty"`
 	TrunkNetworkInterfaceId *string `json:"TrunkNetworkInterfaceId,omitempty" xml:"TrunkNetworkInterfaceId,omitempty"`
 }
 
@@ -814,11 +638,6 @@ func (s *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfa
 }
 
 type DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetIpv4PrefixSetsIpv4PrefixSet struct {
-	// The IPv4 prefix of the ENI.
-	//
-	// example:
-	//
-	// hide
 	Ipv4Prefix *string `json:"Ipv4Prefix,omitempty" xml:"Ipv4Prefix,omitempty"`
 }
 
@@ -878,11 +697,6 @@ func (s *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfa
 }
 
 type DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetIpv6PrefixSetsIpv6PrefixSet struct {
-	// The IPv6 prefix of the ENI.
-	//
-	// example:
-	//
-	// hide
 	Ipv6Prefix *string `json:"Ipv6Prefix,omitempty" xml:"Ipv6Prefix,omitempty"`
 }
 
@@ -942,11 +756,6 @@ func (s *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfa
 }
 
 type DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetIpv6SetsIpv6Set struct {
-	// The IPv6 address of the ENI.
-	//
-	// example:
-	//
-	// 2408:4321:180:1701:94c7:bc38:3bfa:****
 	Ipv6Address *string `json:"Ipv6Address,omitempty" xml:"Ipv6Address,omitempty"`
 }
 
@@ -1006,32 +815,10 @@ func (s *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfa
 }
 
 type DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetPrivateIpSetsPrivateIpSet struct {
-	// The elastic IP address (EIP) that is associated with the private IP address.
 	AssociatedPublicIp *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetPrivateIpSetsPrivateIpSetAssociatedPublicIp `json:"AssociatedPublicIp,omitempty" xml:"AssociatedPublicIp,omitempty" type:"Struct"`
-	// Indicates whether the private IP address is the primary private IP address. Valid values:
-	//
-	// 	- true: The IP address is the primary private IP address.
-	//
-	// 	- false: The IP address is a secondary private IP address.
-	//
-	// example:
-	//
-	// true
-	Primary *bool `json:"Primary,omitempty" xml:"Primary,omitempty"`
-	// The private domain name of the ECS instance.
-	//
-	// >  A private domain name can be returned in a specific format only when `HostnameType` is set to `IP` or `InstanceId`.
-	//
-	// example:
-	//
-	// DnsTestName
-	PrivateDnsName *string `json:"PrivateDnsName,omitempty" xml:"PrivateDnsName,omitempty"`
-	// The private IP address of the ENI.
-	//
-	// example:
-	//
-	// ``172.17.**.**``
-	PrivateIpAddress *string `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
+	Primary            *bool                                                                                                                    `json:"Primary,omitempty" xml:"Primary,omitempty"`
+	PrivateDnsName     *string                                                                                                                  `json:"PrivateDnsName,omitempty" xml:"PrivateDnsName,omitempty"`
+	PrivateIpAddress   *string                                                                                                                  `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty"`
 }
 
 func (s DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetPrivateIpSetsPrivateIpSet) String() string {
@@ -1088,17 +875,7 @@ func (s *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfa
 }
 
 type DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetPrivateIpSetsPrivateIpSetAssociatedPublicIp struct {
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
-	AllocationId *string `json:"AllocationId,omitempty" xml:"AllocationId,omitempty"`
-	// The EIP.
-	//
-	// example:
-	//
-	// ``116.62.**.**``
+	AllocationId    *string `json:"AllocationId,omitempty" xml:"AllocationId,omitempty"`
 	PublicIpAddress *string `json:"PublicIpAddress,omitempty" xml:"PublicIpAddress,omitempty"`
 }
 
@@ -1192,17 +969,7 @@ func (s *DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfa
 }
 
 type DescribeNetworkInterfacesResponseBodyNetworkInterfaceSetsNetworkInterfaceSetTagsTag struct {
-	// The tag key.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

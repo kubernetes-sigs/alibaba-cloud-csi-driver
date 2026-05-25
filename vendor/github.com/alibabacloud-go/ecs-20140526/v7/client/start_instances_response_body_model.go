@@ -16,7 +16,6 @@ type iStartInstancesResponseBody interface {
 }
 
 type StartInstancesResponseBody struct {
-	// The information about the ECS instance, such as the status of each instance before and after the operation is called and the operation results.
 	InstanceResponses *StartInstancesResponseBodyInstanceResponses `json:"InstanceResponses,omitempty" xml:"InstanceResponses,omitempty" type:"Struct"`
 	// The ID of the request.
 	//
@@ -96,35 +95,10 @@ func (s *StartInstancesResponseBodyInstanceResponses) Validate() error {
 }
 
 type StartInstancesResponseBodyInstanceResponsesInstanceResponse struct {
-	// The error code that is returned for the operation on the ECS instance. The value 200 indicates that the operation is successful. For more information, see the "Error codes" section in this topic.
-	//
-	// example:
-	//
-	// 200
-	Code *string `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The status of the ECS instance after the operation is called.
-	//
-	// example:
-	//
-	// Starting
-	CurrentStatus *string `json:"CurrentStatus,omitempty" xml:"CurrentStatus,omitempty"`
-	// The ID of the ECS instance.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The error message that is returned for the operation on the ECS instance. The value success indicates that the operation is successful. For more information, see the "Error codes" section in this topic.
-	//
-	// example:
-	//
-	// success
-	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// The status of the ECS instance before the operation is called.
-	//
-	// example:
-	//
-	// Stopped
+	Code           *string `json:"Code,omitempty" xml:"Code,omitempty"`
+	CurrentStatus  *string `json:"CurrentStatus,omitempty" xml:"CurrentStatus,omitempty"`
+	InstanceId     *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	Message        *string `json:"Message,omitempty" xml:"Message,omitempty"`
 	PreviousStatus *string `json:"PreviousStatus,omitempty" xml:"PreviousStatus,omitempty"`
 }
 

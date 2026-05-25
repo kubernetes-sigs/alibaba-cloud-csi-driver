@@ -24,7 +24,6 @@ type iDescribeInstanceHistoryEventsResponseBody interface {
 }
 
 type DescribeInstanceHistoryEventsResponseBody struct {
-	// Details about the instance system events.
 	InstanceSystemEventSet *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSet `json:"InstanceSystemEventSet,omitempty" xml:"InstanceSystemEventSet,omitempty" type:"Struct"`
 	// A pagination token. It can be used in the next request to retrieve a new page of results.
 	//
@@ -180,72 +179,18 @@ func (s *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSet) Valida
 }
 
 type DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventType struct {
-	// The lifecycle status of the system event.
-	EventCycleStatus *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeEventCycleStatus `json:"EventCycleStatus,omitempty" xml:"EventCycleStatus,omitempty" type:"Struct"`
-	// The time when the system event ended. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2017-12-01T06:35:31Z
-	EventFinishTime *string `json:"EventFinishTime,omitempty" xml:"EventFinishTime,omitempty"`
-	// The ID of the system event.
-	//
-	// example:
-	//
-	// e-uf64yvznlao4jl2c****
-	EventId *string `json:"EventId,omitempty" xml:"EventId,omitempty"`
-	// The time when the system event was published. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2017-11-30T06:32:31Z
-	EventPublishTime *string `json:"EventPublishTime,omitempty" xml:"EventPublishTime,omitempty"`
-	// The type of the system event.
-	EventType *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeEventType `json:"EventType,omitempty" xml:"EventType,omitempty" type:"Struct"`
-	// The extended attribute of the system event.
+	EventCycleStatus  *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeEventCycleStatus  `json:"EventCycleStatus,omitempty" xml:"EventCycleStatus,omitempty" type:"Struct"`
+	EventFinishTime   *string                                                                                                  `json:"EventFinishTime,omitempty" xml:"EventFinishTime,omitempty"`
+	EventId           *string                                                                                                  `json:"EventId,omitempty" xml:"EventId,omitempty"`
+	EventPublishTime  *string                                                                                                  `json:"EventPublishTime,omitempty" xml:"EventPublishTime,omitempty"`
+	EventType         *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeEventType         `json:"EventType,omitempty" xml:"EventType,omitempty" type:"Struct"`
 	ExtendedAttribute *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeExtendedAttribute `json:"ExtendedAttribute,omitempty" xml:"ExtendedAttribute,omitempty" type:"Struct"`
-	// The impact level of the system event.
-	//
-	// example:
-	//
-	// 100
-	ImpactLevel *string `json:"ImpactLevel,omitempty" xml:"ImpactLevel,omitempty"`
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-uf678mass4zvr9n1****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The scheduled start time of the system event. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2017-12-06T00:00:00Z
-	NotBefore *string `json:"NotBefore,omitempty" xml:"NotBefore,omitempty"`
-	// The reason why the system event occurred.
-	//
-	// example:
-	//
-	// System maintenance is scheduled due to ***.
-	Reason *string `json:"Reason,omitempty" xml:"Reason,omitempty"`
-	// The reason code category for the system event.
-	//
-	// example:
-	//
-	// VPCMigrationEcs
-	ReasonCode *string `json:"ReasonCode,omitempty" xml:"ReasonCode,omitempty"`
-	// The type of the resource. Valid values:
-	//
-	// 	- instance: ECS instance
-	//
-	// 	- ddh: dedicated host
-	//
-	// 	- managehost: physical machine in a smart hosting pool
-	//
-	// example:
-	//
-	// instance
-	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
+	ImpactLevel       *string                                                                                                  `json:"ImpactLevel,omitempty" xml:"ImpactLevel,omitempty"`
+	InstanceId        *string                                                                                                  `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	NotBefore         *string                                                                                                  `json:"NotBefore,omitempty" xml:"NotBefore,omitempty"`
+	Reason            *string                                                                                                  `json:"Reason,omitempty" xml:"Reason,omitempty"`
+	ReasonCode        *string                                                                                                  `json:"ReasonCode,omitempty" xml:"ReasonCode,omitempty"`
+	ResourceType      *string                                                                                                  `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
 }
 
 func (s DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventType) String() string {
@@ -384,17 +329,7 @@ func (s *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstance
 }
 
 type DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeEventCycleStatus struct {
-	// The state code of the system event.
-	//
-	// example:
-	//
-	// 0
-	Code *int32 `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The state name of the system event.
-	//
-	// example:
-	//
-	// Executed
+	Code *int32  `json:"Code,omitempty" xml:"Code,omitempty"`
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
 }
 
@@ -429,17 +364,7 @@ func (s *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstance
 }
 
 type DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeEventType struct {
-	// The code of the system event type.
-	//
-	// example:
-	//
-	// 34
-	Code *int32 `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The name of the system event type.
-	//
-	// example:
-	//
-	// InstanceExpiration.Stop
+	Code *int32  `json:"Code,omitempty" xml:"Code,omitempty"`
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
 }
 
@@ -474,92 +399,22 @@ func (s *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstance
 }
 
 type DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeExtendedAttribute struct {
-	// Indicates whether the event can be handled.
-	//
-	// example:
-	//
-	// true
-	CanAccept *string `json:"CanAccept,omitempty" xml:"CanAccept,omitempty"`
-	// The code of the security violation.
-	//
-	// example:
-	//
-	// PR111
-	Code *string `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The device name of the local disk.
-	//
-	// example:
-	//
-	// /dev/vda
-	Device *string `json:"Device,omitempty" xml:"Device,omitempty"`
-	// The ID of the local disk.
-	//
-	// example:
-	//
-	// d-diskid1
-	DiskId *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
-	// The ID of the host.
-	//
-	// example:
-	//
-	// dh-bp1ewce1gk3iwv2****
-	HostId *string `json:"HostId,omitempty" xml:"HostId,omitempty"`
-	// The type of the host. Valid values:
-	//
-	// 	- ddh: dedicated host
-	//
-	// 	- managehost: physical machine in a smart hosting pool
-	//
-	// example:
-	//
-	// ddh
-	HostType *string `json:"HostType,omitempty" xml:"HostType,omitempty"`
-	// The inactive disks that were released and whose data must be cleared.
-	InactiveDisks *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeExtendedAttributeInactiveDisks `json:"InactiveDisks,omitempty" xml:"InactiveDisks,omitempty" type:"Struct"`
-	MetricName    *string                                                                                                               `json:"MetricName,omitempty" xml:"MetricName,omitempty"`
-	MetricValue   *string                                                                                                               `json:"MetricValue,omitempty" xml:"MetricValue,omitempty"`
-	// The migration solution of the instance. Valid value: MigrationPlan. Instances can be migrated only by using migration plans.
-	MigrationOptions *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeExtendedAttributeMigrationOptions `json:"MigrationOptions,omitempty" xml:"MigrationOptions,omitempty" type:"Struct"`
-	// The online repair policy for the damaged disk. Valid value: IsolateOnly, which indicates that damaged disks are isolated but not repaired.
-	//
-	// example:
-	//
-	// IsolateOnly
-	OnlineRepairPolicy *string `json:"OnlineRepairPolicy,omitempty" xml:"OnlineRepairPolicy,omitempty"`
-	// The illegal domain name.
-	//
-	// example:
-	//
-	// 1228.test.com
-	PunishDomain *string `json:"PunishDomain,omitempty" xml:"PunishDomain,omitempty"`
-	// The type of the penalty.
-	//
-	// example:
-	//
-	// ecs_message_alert
-	PunishType *string `json:"PunishType,omitempty" xml:"PunishType,omitempty"`
-	// The illegal URL.
-	//
-	// example:
-	//
-	// http://1228.test.com/1
-	PunishUrl *string `json:"PunishUrl,omitempty" xml:"PunishUrl,omitempty"`
-	// The rack number of the cloud box.
-	//
-	// example:
-	//
-	// A01
-	Rack *string `json:"Rack,omitempty" xml:"Rack,omitempty"`
-	// The response result of the event. Valid values:
-	//
-	// 	- true: The event was handled.
-	//
-	// 	- false: The event failed to be handled.
-	//
-	// example:
-	//
-	// true
-	ResponseResult *string `json:"ResponseResult,omitempty" xml:"ResponseResult,omitempty"`
+	CanAccept          *string                                                                                                                  `json:"CanAccept,omitempty" xml:"CanAccept,omitempty"`
+	Code               *string                                                                                                                  `json:"Code,omitempty" xml:"Code,omitempty"`
+	Device             *string                                                                                                                  `json:"Device,omitempty" xml:"Device,omitempty"`
+	DiskId             *string                                                                                                                  `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
+	HostId             *string                                                                                                                  `json:"HostId,omitempty" xml:"HostId,omitempty"`
+	HostType           *string                                                                                                                  `json:"HostType,omitempty" xml:"HostType,omitempty"`
+	InactiveDisks      *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeExtendedAttributeInactiveDisks    `json:"InactiveDisks,omitempty" xml:"InactiveDisks,omitempty" type:"Struct"`
+	MetricName         *string                                                                                                                  `json:"MetricName,omitempty" xml:"MetricName,omitempty"`
+	MetricValue        *string                                                                                                                  `json:"MetricValue,omitempty" xml:"MetricValue,omitempty"`
+	MigrationOptions   *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeExtendedAttributeMigrationOptions `json:"MigrationOptions,omitempty" xml:"MigrationOptions,omitempty" type:"Struct"`
+	OnlineRepairPolicy *string                                                                                                                  `json:"OnlineRepairPolicy,omitempty" xml:"OnlineRepairPolicy,omitempty"`
+	PunishDomain       *string                                                                                                                  `json:"PunishDomain,omitempty" xml:"PunishDomain,omitempty"`
+	PunishType         *string                                                                                                                  `json:"PunishType,omitempty" xml:"PunishType,omitempty"`
+	PunishUrl          *string                                                                                                                  `json:"PunishUrl,omitempty" xml:"PunishUrl,omitempty"`
+	Rack               *string                                                                                                                  `json:"Rack,omitempty" xml:"Rack,omitempty"`
+	ResponseResult     *string                                                                                                                  `json:"ResponseResult,omitempty" xml:"ResponseResult,omitempty"`
 }
 
 func (s DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeExtendedAttribute) String() string {
@@ -763,56 +618,11 @@ func (s *DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstance
 }
 
 type DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeExtendedAttributeInactiveDisksInactiveDisk struct {
-	// The time when the disk was created. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2018-11-30T06:32:31Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The category of the disk. Valid values:
-	//
-	// 	- cloud: basic disk
-	//
-	// 	- cloud_efficiency: ultra disk
-	//
-	// 	- cloud_ssd: standard SSD
-	//
-	// 	- cloud_essd: Enterprise SSD (ESSD)
-	//
-	// 	- local_ssd_pro: I/O-intensive local disk
-	//
-	// 	- local_hdd_pro: throughput-intensive local disk
-	//
-	// 	- ephemeral: retired local disk
-	//
-	// 	- ephemeral_ssd: retired local SSD
-	//
-	// example:
-	//
-	// cloud_efficiency
+	CreationTime   *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
 	DeviceCategory *string `json:"DeviceCategory,omitempty" xml:"DeviceCategory,omitempty"`
-	// The size of the disk. Unit: GiB.
-	//
-	// example:
-	//
-	// 80
-	DeviceSize *string `json:"DeviceSize,omitempty" xml:"DeviceSize,omitempty"`
-	// The type of the disk. Valid values:
-	//
-	// 	- system: system disk
-	//
-	// 	- data: data disk
-	//
-	// example:
-	//
-	// data
-	DeviceType *string `json:"DeviceType,omitempty" xml:"DeviceType,omitempty"`
-	// The time when the disk was released. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2019-11-30T06:32:31Z
-	ReleaseTime *string `json:"ReleaseTime,omitempty" xml:"ReleaseTime,omitempty"`
+	DeviceSize     *string `json:"DeviceSize,omitempty" xml:"DeviceSize,omitempty"`
+	DeviceType     *string `json:"DeviceType,omitempty" xml:"DeviceType,omitempty"`
+	ReleaseTime    *string `json:"ReleaseTime,omitempty" xml:"ReleaseTime,omitempty"`
 }
 
 func (s DescribeInstanceHistoryEventsResponseBodyInstanceSystemEventSetInstanceSystemEventTypeExtendedAttributeInactiveDisksInactiveDisk) String() string {

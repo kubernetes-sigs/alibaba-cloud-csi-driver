@@ -21,8 +21,7 @@ type DescribeSecurityGroupReferencesResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3****
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the references to the specified security groups.
+	RequestId               *string                                                             `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	SecurityGroupReferences *DescribeSecurityGroupReferencesResponseBodySecurityGroupReferences `json:"SecurityGroupReferences,omitempty" xml:"SecurityGroupReferences,omitempty" type:"Struct"`
 }
 
@@ -96,14 +95,8 @@ func (s *DescribeSecurityGroupReferencesResponseBodySecurityGroupReferences) Val
 }
 
 type DescribeSecurityGroupReferencesResponseBodySecurityGroupReferencesSecurityGroupReference struct {
-	// Details about the security groups whose rules reference the specified security group.
 	ReferencingSecurityGroups *DescribeSecurityGroupReferencesResponseBodySecurityGroupReferencesSecurityGroupReferenceReferencingSecurityGroups `json:"ReferencingSecurityGroups,omitempty" xml:"ReferencingSecurityGroups,omitempty" type:"Struct"`
-	// The ID of the specified security group.
-	//
-	// example:
-	//
-	// sg-bp67acfmxazb4p****
-	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
+	SecurityGroupId           *string                                                                                                            `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
 }
 
 func (s DescribeSecurityGroupReferencesResponseBodySecurityGroupReferencesSecurityGroupReference) String() string {
@@ -176,17 +169,7 @@ func (s *DescribeSecurityGroupReferencesResponseBodySecurityGroupReferencesSecur
 }
 
 type DescribeSecurityGroupReferencesResponseBodySecurityGroupReferencesSecurityGroupReferenceReferencingSecurityGroupsReferencingSecurityGroup struct {
-	// The ID of the Alibaba Cloud account to which the security group whose rules reference the specified security group belongs.
-	//
-	// example:
-	//
-	// 123456****
-	AliUid *string `json:"AliUid,omitempty" xml:"AliUid,omitempty"`
-	// The ID of the security group whose rules reference the specified security group.
-	//
-	// example:
-	//
-	// sg-bp67acfmxazb4j****
+	AliUid          *string `json:"AliUid,omitempty" xml:"AliUid,omitempty"`
 	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
 }
 

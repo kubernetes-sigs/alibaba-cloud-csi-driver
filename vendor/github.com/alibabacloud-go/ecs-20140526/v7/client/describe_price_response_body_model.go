@@ -66,8 +66,7 @@ type DescribePriceResponseBodyPriceInfo struct {
 	Price *DescribePriceResponseBodyPriceInfoPrice `json:"Price,omitempty" xml:"Price,omitempty" type:"Struct"`
 	// The related price.
 	RelatedPrice *DescribePriceResponseBodyPriceInfoRelatedPrice `json:"RelatedPrice,omitempty" xml:"RelatedPrice,omitempty" type:"Struct"`
-	// The information about the promotion rules.
-	Rules *DescribePriceResponseBodyPriceInfoRules `json:"Rules,omitempty" xml:"Rules,omitempty" type:"Struct"`
+	Rules        *DescribePriceResponseBodyPriceInfoRules        `json:"Rules,omitempty" xml:"Rules,omitempty" type:"Struct"`
 }
 
 func (s DescribePriceResponseBodyPriceInfo) String() string {
@@ -134,10 +133,7 @@ type DescribePriceResponseBodyPriceInfoPrice struct {
 	// example:
 	//
 	// CNY
-	Currency *string `json:"Currency,omitempty" xml:"Currency,omitempty"`
-	// The information about the price.
-	//
-	// >  This parameter is returned only when ResourceType is set to instance.
+	Currency    *string                                             `json:"Currency,omitempty" xml:"Currency,omitempty"`
 	DetailInfos *DescribePriceResponseBodyPriceInfoPriceDetailInfos `json:"DetailInfos,omitempty" xml:"DetailInfos,omitempty" type:"Struct"`
 	// The discount.
 	//
@@ -271,42 +267,11 @@ func (s *DescribePriceResponseBodyPriceInfoPriceDetailInfos) Validate() error {
 }
 
 type DescribePriceResponseBodyPriceInfoPriceDetailInfosDetailInfo struct {
-	// The discount.
-	//
-	// example:
-	//
-	// 655.2
-	DiscountPrice *float32 `json:"DiscountPrice,omitempty" xml:"DiscountPrice,omitempty"`
-	// The original price.
-	//
-	// example:
-	//
-	// 4368
-	OriginalPrice *float32 `json:"OriginalPrice,omitempty" xml:"OriginalPrice,omitempty"`
-	// The resource name. Valid values:
-	//
-	// 	- InstanceType
-	//
-	// 	- bandwidth
-	//
-	// 	- image
-	//
-	// 	- SystemDisk
-	//
-	// 	- DataDisk
-	//
-	// example:
-	//
-	// instance
-	Resource *string `json:"Resource,omitempty" xml:"Resource,omitempty"`
-	// Details about the pricing rules.
-	SubRules *DescribePriceResponseBodyPriceInfoPriceDetailInfosDetailInfoSubRules `json:"SubRules,omitempty" xml:"SubRules,omitempty" type:"Struct"`
-	// The transaction price.
-	//
-	// example:
-	//
-	// 3712.8
-	TradePrice *float32 `json:"TradePrice,omitempty" xml:"TradePrice,omitempty"`
+	DiscountPrice *float32                                                              `json:"DiscountPrice,omitempty" xml:"DiscountPrice,omitempty"`
+	OriginalPrice *float32                                                              `json:"OriginalPrice,omitempty" xml:"OriginalPrice,omitempty"`
+	Resource      *string                                                               `json:"Resource,omitempty" xml:"Resource,omitempty"`
+	SubRules      *DescribePriceResponseBodyPriceInfoPriceDetailInfosDetailInfoSubRules `json:"SubRules,omitempty" xml:"SubRules,omitempty" type:"Struct"`
+	TradePrice    *float32                                                              `json:"TradePrice,omitempty" xml:"TradePrice,omitempty"`
 }
 
 func (s DescribePriceResponseBodyPriceInfoPriceDetailInfosDetailInfo) String() string {
@@ -406,18 +371,8 @@ func (s *DescribePriceResponseBodyPriceInfoPriceDetailInfosDetailInfoSubRules) V
 }
 
 type DescribePriceResponseBodyPriceInfoPriceDetailInfosDetailInfoSubRulesRule struct {
-	// The description of the pricing rule.
-	//
-	// example:
-	//
-	// Receive a 15% discount on a 1-year subscription
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the pricing rule.
-	//
-	// example:
-	//
-	// 587
-	RuleId *int64 `json:"RuleId,omitempty" xml:"RuleId,omitempty"`
+	RuleId      *int64  `json:"RuleId,omitempty" xml:"RuleId,omitempty"`
 }
 
 func (s DescribePriceResponseBodyPriceInfoPriceDetailInfosDetailInfoSubRulesRule) String() string {
@@ -595,18 +550,8 @@ func (s *DescribePriceResponseBodyPriceInfoRules) Validate() error {
 }
 
 type DescribePriceResponseBodyPriceInfoRulesRule struct {
-	// The description of the promotion rule.
-	//
-	// example:
-	//
-	// Receive a 15% discount on a 1-year subscription
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the pricing rule.
-	//
-	// example:
-	//
-	// 587
-	RuleId *int64 `json:"RuleId,omitempty" xml:"RuleId,omitempty"`
+	RuleId      *int64  `json:"RuleId,omitempty" xml:"RuleId,omitempty"`
 }
 
 func (s DescribePriceResponseBodyPriceInfoRulesRule) String() string {

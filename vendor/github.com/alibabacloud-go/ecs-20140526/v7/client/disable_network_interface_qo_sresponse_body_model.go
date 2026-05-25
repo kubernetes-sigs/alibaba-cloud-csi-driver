@@ -14,6 +14,8 @@ type iDisableNetworkInterfaceQoSResponseBody interface {
 }
 
 type DisableNetworkInterfaceQoSResponseBody struct {
+	// The request ID.
+	//
 	// example:
 	//
 	// 745CEC9F-0DD7-4451-9FE7-8B752F39****

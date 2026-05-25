@@ -22,7 +22,6 @@ type iDescribeDedicatedHostClustersResponseBody interface {
 }
 
 type DescribeDedicatedHostClustersResponseBody struct {
-	// An array consisting of host group information.
 	DedicatedHostClusters *DescribeDedicatedHostClustersResponseBodyDedicatedHostClusters `json:"DedicatedHostClusters,omitempty" xml:"DedicatedHostClusters,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,48 +146,15 @@ func (s *DescribeDedicatedHostClustersResponseBodyDedicatedHostClusters) Validat
 }
 
 type DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostCluster struct {
-	// The capacity of the host group.
 	DedicatedHostClusterCapacity *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostClusterCapacity `json:"DedicatedHostClusterCapacity,omitempty" xml:"DedicatedHostClusterCapacity,omitempty" type:"Struct"`
-	// The ID of the host group.
-	//
-	// example:
-	//
-	// dc-bp12wlf6am0vz9v2****
-	DedicatedHostClusterId *string `json:"DedicatedHostClusterId,omitempty" xml:"DedicatedHostClusterId,omitempty"`
-	// The name of the host group.
-	//
-	// example:
-	//
-	// myDDHCluster
-	DedicatedHostClusterName *string `json:"DedicatedHostClusterName,omitempty" xml:"DedicatedHostClusterName,omitempty"`
-	// The IDs of dedicated hosts in the host group.
-	DedicatedHostIds *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostIds `json:"DedicatedHostIds,omitempty" xml:"DedicatedHostIds,omitempty" type:"Struct"`
-	// The description of the host group.
-	//
-	// example:
-	//
-	// This-is-my-DDHCluster
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The region ID of the host group.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The resource group ID of the host group.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags of the host group.
-	Tags *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The zone ID of the host group.
-	//
-	// example:
-	//
-	// cn-hangzhou-f
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	DedicatedHostClusterId       *string                                                                                                         `json:"DedicatedHostClusterId,omitempty" xml:"DedicatedHostClusterId,omitempty"`
+	DedicatedHostClusterName     *string                                                                                                         `json:"DedicatedHostClusterName,omitempty" xml:"DedicatedHostClusterName,omitempty"`
+	DedicatedHostIds             *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostIds             `json:"DedicatedHostIds,omitempty" xml:"DedicatedHostIds,omitempty" type:"Struct"`
+	Description                  *string                                                                                                         `json:"Description,omitempty" xml:"Description,omitempty"`
+	RegionId                     *string                                                                                                         `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceGroupId              *string                                                                                                         `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	Tags                         *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterTags                         `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	ZoneId                       *string                                                                                                         `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostCluster) String() string {
@@ -300,34 +266,12 @@ func (s *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicated
 }
 
 type DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostClusterCapacity struct {
-	// The available capacity of ECS instances in the host group.
 	AvailableInstanceTypes *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostClusterCapacityAvailableInstanceTypes `json:"AvailableInstanceTypes,omitempty" xml:"AvailableInstanceTypes,omitempty" type:"Struct"`
-	// The size of available memory. Unit: GiB
-	//
-	// example:
-	//
-	// 4
-	AvailableMemory *int32 `json:"AvailableMemory,omitempty" xml:"AvailableMemory,omitempty"`
-	// The number of available vCPUs.
-	//
-	// example:
-	//
-	// 2
-	AvailableVcpus *int32 `json:"AvailableVcpus,omitempty" xml:"AvailableVcpus,omitempty"`
-	// The local storage capacity.
+	AvailableMemory        *int32                                                                                                                                `json:"AvailableMemory,omitempty" xml:"AvailableMemory,omitempty"`
+	AvailableVcpus         *int32                                                                                                                                `json:"AvailableVcpus,omitempty" xml:"AvailableVcpus,omitempty"`
 	LocalStorageCapacities *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostClusterCapacityLocalStorageCapacities `json:"LocalStorageCapacities,omitempty" xml:"LocalStorageCapacities,omitempty" type:"Struct"`
-	// The total memory size. Unit: GiB
-	//
-	// example:
-	//
-	// 8
-	TotalMemory *int32 `json:"TotalMemory,omitempty" xml:"TotalMemory,omitempty"`
-	// The total number of vCPUs.
-	//
-	// example:
-	//
-	// 4
-	TotalVcpus *int32 `json:"TotalVcpus,omitempty" xml:"TotalVcpus,omitempty"`
+	TotalMemory            *int32                                                                                                                                `json:"TotalMemory,omitempty" xml:"TotalMemory,omitempty"`
+	TotalVcpus             *int32                                                                                                                                `json:"TotalVcpus,omitempty" xml:"TotalVcpus,omitempty"`
 }
 
 func (s DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostClusterCapacity) String() string {
@@ -441,18 +385,8 @@ func (s *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicated
 }
 
 type DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostClusterCapacityAvailableInstanceTypesAvailableInstanceType struct {
-	// The available capacity of the ECS instance type.
-	//
-	// example:
-	//
-	// 0
-	AvailableInstanceCapacity *int32 `json:"AvailableInstanceCapacity,omitempty" xml:"AvailableInstanceCapacity,omitempty"`
-	// The ECS instance type.
-	//
-	// example:
-	//
-	// ecs.c6.26xlarge
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
+	AvailableInstanceCapacity *int32  `json:"AvailableInstanceCapacity,omitempty" xml:"AvailableInstanceCapacity,omitempty"`
+	InstanceType              *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
 }
 
 func (s DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostClusterCapacityAvailableInstanceTypesAvailableInstanceType) String() string {
@@ -520,34 +454,9 @@ func (s *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicated
 }
 
 type DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostClusterCapacityLocalStorageCapacitiesLocalStorageCapacity struct {
-	// The available capacity of the local disk. Unit: GiB
-	//
-	// example:
-	//
-	// 20
-	AvailableDisk *int32 `json:"AvailableDisk,omitempty" xml:"AvailableDisk,omitempty"`
-	// The category of data disks. Valid values:
-	//
-	// 	- cloud: basic disk
-	//
-	// 	- cloud_efficiency: ultra disk
-	//
-	// 	- cloud_ssd: standard SSD
-	//
-	// 	- ephemeral_ssd: local SSD
-	//
-	// 	- cloud_essd: Enterprise SSD (ESSD)
-	//
-	// example:
-	//
-	// cloud
+	AvailableDisk    *int32  `json:"AvailableDisk,omitempty" xml:"AvailableDisk,omitempty"`
 	DataDiskCategory *string `json:"DataDiskCategory,omitempty" xml:"DataDiskCategory,omitempty"`
-	// The total capacity of the local disk. Unit: GiB
-	//
-	// example:
-	//
-	// 40
-	TotalDisk *int32 `json:"TotalDisk,omitempty" xml:"TotalDisk,omitempty"`
+	TotalDisk        *int32  `json:"TotalDisk,omitempty" xml:"TotalDisk,omitempty"`
 }
 
 func (s DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterDedicatedHostClusterCapacityLocalStorageCapacitiesLocalStorageCapacity) String() string {
@@ -649,17 +558,7 @@ func (s *DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicated
 }
 
 type DescribeDedicatedHostClustersResponseBodyDedicatedHostClustersDedicatedHostClusterTagsTag struct {
-	// The tag key.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

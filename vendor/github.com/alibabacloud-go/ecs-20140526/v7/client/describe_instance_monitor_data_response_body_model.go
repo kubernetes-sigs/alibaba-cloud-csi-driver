@@ -16,7 +16,6 @@ type iDescribeInstanceMonitorDataResponseBody interface {
 }
 
 type DescribeInstanceMonitorDataResponseBody struct {
-	// The monitoring data of the instance.
 	MonitorData *DescribeInstanceMonitorDataResponseBodyMonitorData `json:"MonitorData,omitempty" xml:"MonitorData,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,108 +95,23 @@ func (s *DescribeInstanceMonitorDataResponseBodyMonitorData) Validate() error {
 }
 
 type DescribeInstanceMonitorDataResponseBodyMonitorDataInstanceMonitorData struct {
-	// The read bandwidth of the cloud disks (system disk and data disks). Unit: Byte/s.
-	//
-	// example:
-	//
-	// 1000
-	BPSRead *int32 `json:"BPSRead,omitempty" xml:"BPSRead,omitempty"`
-	// The write bandwidth of the cloud disks (system disk and data disks). Unit: Byte/s.
-	//
-	// example:
-	//
-	// 13585
-	BPSWrite *int32 `json:"BPSWrite,omitempty" xml:"BPSWrite,omitempty"`
-	// The vCPU utilization of the instance. Unit: percent (%).
-	//
-	// example:
-	//
-	// 2
-	CPU *int32 `json:"CPU,omitempty" xml:"CPU,omitempty"`
-	// The overdrawn CPU credits of the burstable instance.
-	//
-	// example:
-	//
-	// 0.4
-	CPUAdvanceCreditBalance *float32 `json:"CPUAdvanceCreditBalance,omitempty" xml:"CPUAdvanceCreditBalance,omitempty"`
-	// The total number of CPU credits of the burstable instance.
-	//
-	// example:
-	//
-	// 120
-	CPUCreditBalance *float32 `json:"CPUCreditBalance,omitempty" xml:"CPUCreditBalance,omitempty"`
-	// The number of CPU credits consumed by the burstable instance.
-	//
-	// example:
-	//
-	// 30
-	CPUCreditUsage *float32 `json:"CPUCreditUsage,omitempty" xml:"CPUCreditUsage,omitempty"`
-	// The unpaid overdrawn CPU credits.
-	//
-	// example:
-	//
-	// 0.5
+	BPSRead                      *int32   `json:"BPSRead,omitempty" xml:"BPSRead,omitempty"`
+	BPSWrite                     *int32   `json:"BPSWrite,omitempty" xml:"BPSWrite,omitempty"`
+	CPU                          *int32   `json:"CPU,omitempty" xml:"CPU,omitempty"`
+	CPUAdvanceCreditBalance      *float32 `json:"CPUAdvanceCreditBalance,omitempty" xml:"CPUAdvanceCreditBalance,omitempty"`
+	CPUCreditBalance             *float32 `json:"CPUCreditBalance,omitempty" xml:"CPUCreditBalance,omitempty"`
+	CPUCreditUsage               *float32 `json:"CPUCreditUsage,omitempty" xml:"CPUCreditUsage,omitempty"`
 	CPUNotpaidSurplusCreditUsage *float32 `json:"CPUNotpaidSurplusCreditUsage,omitempty" xml:"CPUNotpaidSurplusCreditUsage,omitempty"`
-	// The number of read I/O operations per second on the cloud disks (system disk and data disks).
-	//
-	// example:
-	//
-	// 1000
-	IOPSRead *int32 `json:"IOPSRead,omitempty" xml:"IOPSRead,omitempty"`
-	// The number of write I/O operations per second on the cloud disks (system disk and data disks).
-	//
-	// example:
-	//
-	// 200
-	IOPSWrite *int32 `json:"IOPSWrite,omitempty" xml:"IOPSWrite,omitempty"`
-	// The instance ID.
-	//
-	// example:
-	//
-	// i-bp1a36962lrhj4****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The public bandwidth of the instance. Unit: Kbit/s.
-	//
-	// example:
-	//
-	// 10
-	InternetBandwidth *int32 `json:"InternetBandwidth,omitempty" xml:"InternetBandwidth,omitempty"`
-	// The Internet traffic received by the instance during the period that is specified by the `Period` parameter. The period starts from the point in time that is specified by the `TimeStamp` parameter. Unit: Kbit.
-	//
-	// example:
-	//
-	// 122
-	InternetRX *int32 `json:"InternetRX,omitempty" xml:"InternetRX,omitempty"`
-	// The Internet traffic sent by the instance during the period that is specified by the `Period` parameter. The period starts from the point in time that is specified by the `TimeStamp` parameter. Unit: Kbit.
-	//
-	// example:
-	//
-	// 343
-	InternetTX *int32 `json:"InternetTX,omitempty" xml:"InternetTX,omitempty"`
-	// The internal bandwidth of the instance. Unit: Kbit/s.
-	//
-	// example:
-	//
-	// 10
-	IntranetBandwidth *int32 `json:"IntranetBandwidth,omitempty" xml:"IntranetBandwidth,omitempty"`
-	// The internal data traffic received by the instance during the period that is specified by the `Period` parameter. The period starts from the point in time that is specified by the `TimeStamp` parameter. Unit: Kbit.
-	//
-	// example:
-	//
-	// 122
-	IntranetRX *int32 `json:"IntranetRX,omitempty" xml:"IntranetRX,omitempty"`
-	// The internal data traffic sent by the instance during the period that is specified by the `Period` parameter. The period starts from the point in time that is specified by the `TimeStamp` parameter. Unit: Kbit.
-	//
-	// example:
-	//
-	// 343
-	IntranetTX *int32 `json:"IntranetTX,omitempty" xml:"IntranetTX,omitempty"`
-	// The timestamp of the monitoring data.
-	//
-	// example:
-	//
-	// 2014-10-30T05:00:00Z
-	TimeStamp *string `json:"TimeStamp,omitempty" xml:"TimeStamp,omitempty"`
+	IOPSRead                     *int32   `json:"IOPSRead,omitempty" xml:"IOPSRead,omitempty"`
+	IOPSWrite                    *int32   `json:"IOPSWrite,omitempty" xml:"IOPSWrite,omitempty"`
+	InstanceId                   *string  `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	InternetBandwidth            *int32   `json:"InternetBandwidth,omitempty" xml:"InternetBandwidth,omitempty"`
+	InternetRX                   *int32   `json:"InternetRX,omitempty" xml:"InternetRX,omitempty"`
+	InternetTX                   *int32   `json:"InternetTX,omitempty" xml:"InternetTX,omitempty"`
+	IntranetBandwidth            *int32   `json:"IntranetBandwidth,omitempty" xml:"IntranetBandwidth,omitempty"`
+	IntranetRX                   *int32   `json:"IntranetRX,omitempty" xml:"IntranetRX,omitempty"`
+	IntranetTX                   *int32   `json:"IntranetTX,omitempty" xml:"IntranetTX,omitempty"`
+	TimeStamp                    *string  `json:"TimeStamp,omitempty" xml:"TimeStamp,omitempty"`
 }
 
 func (s DescribeInstanceMonitorDataResponseBodyMonitorDataInstanceMonitorData) String() string {

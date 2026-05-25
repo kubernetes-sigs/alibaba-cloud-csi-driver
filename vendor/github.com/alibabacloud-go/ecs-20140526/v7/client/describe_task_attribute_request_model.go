@@ -22,11 +22,6 @@ type iDescribeTaskAttributeRequest interface {
 }
 
 type DescribeTaskAttributeRequest struct {
-	// RAM用户的虚拟账号ID。
-	//
-	// example:
-	//
-	// 155780923770
 	OwnerId *int64 `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
 	// The region ID of the task. You can call the [DescribeRegions](https://help.aliyun.com/document_detail/25609.html) operation to query the most recent region list.
 	//
@@ -35,19 +30,9 @@ type DescribeTaskAttributeRequest struct {
 	// example:
 	//
 	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// 资源主账号的账号名称。
-	//
-	// example:
-	//
-	// ECSforCloud
+	RegionId             *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
 	ResourceOwnerAccount *string `json:"ResourceOwnerAccount,omitempty" xml:"ResourceOwnerAccount,omitempty"`
-	// 资源主账号的ID，亦即UID。
-	//
-	// example:
-	//
-	// 155780923770
-	ResourceOwnerId *int64 `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
+	ResourceOwnerId      *int64  `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
 	// The ID of the task. You can call the [DescribeTasks](https://help.aliyun.com/document_detail/25622.html) operation to query the list of task IDs.
 	//
 	// This parameter is required.

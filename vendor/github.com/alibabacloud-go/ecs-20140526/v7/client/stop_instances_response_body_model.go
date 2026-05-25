@@ -16,7 +16,6 @@ type iStopInstancesResponseBody interface {
 }
 
 type StopInstancesResponseBody struct {
-	// The instance-specific responses, which contain the status of each instance before and after the operation was called and the results of the operation.
 	InstanceResponses *StopInstancesResponseBodyInstanceResponses `json:"InstanceResponses,omitempty" xml:"InstanceResponses,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,35 +95,10 @@ func (s *StopInstancesResponseBodyInstanceResponses) Validate() error {
 }
 
 type StopInstancesResponseBodyInstanceResponsesInstanceResponse struct {
-	// The error code returned for the instance. A return value of 200 indicates that the operation was successful. For more information, see the "Error codes" section of this topic.
-	//
-	// example:
-	//
-	// 200
-	Code *string `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The current status of the instance.
-	//
-	// example:
-	//
-	// Stopping
-	CurrentStatus *string `json:"CurrentStatus,omitempty" xml:"CurrentStatus,omitempty"`
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The error message returned for the instance. The return value `success` indicates that the operation is successful. For more information, see the "Error codes" section of this topic.
-	//
-	// example:
-	//
-	// success
-	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// The status of the instance before the operation was called.
-	//
-	// example:
-	//
-	// Running
+	Code           *string `json:"Code,omitempty" xml:"Code,omitempty"`
+	CurrentStatus  *string `json:"CurrentStatus,omitempty" xml:"CurrentStatus,omitempty"`
+	InstanceId     *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	Message        *string `json:"Message,omitempty" xml:"Message,omitempty"`
 	PreviousStatus *string `json:"PreviousStatus,omitempty" xml:"PreviousStatus,omitempty"`
 }
 

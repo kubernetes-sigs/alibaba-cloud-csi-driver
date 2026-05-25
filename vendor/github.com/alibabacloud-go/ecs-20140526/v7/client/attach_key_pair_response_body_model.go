@@ -39,9 +39,8 @@ type AttachKeyPairResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// An array that contains the results of the operation.
-	Results *AttachKeyPairResponseBodyResults `json:"Results,omitempty" xml:"Results,omitempty" type:"Struct"`
+	RequestId *string                           `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	Results   *AttachKeyPairResponseBodyResults `json:"Results,omitempty" xml:"Results,omitempty" type:"Struct"`
 	// The total number of instances to which the SSH key pair is bound.
 	//
 	// example:
@@ -147,30 +146,10 @@ func (s *AttachKeyPairResponseBodyResults) Validate() error {
 }
 
 type AttachKeyPairResponseBodyResultsResult struct {
-	// The operation status code returned. 200 indicates that the operation was successful.
-	//
-	// example:
-	//
-	// 200
-	Code *string `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The instance ID.
-	//
-	// example:
-	//
-	// i-m5eg7be9ndloji64****
+	Code       *string `json:"Code,omitempty" xml:"Code,omitempty"`
 	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The operation information returned. When the value of Code is 200, the value of Message is successful.
-	//
-	// example:
-	//
-	// successful
-	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// Indicates whether the request was successful.
-	//
-	// example:
-	//
-	// true
-	Success *string `json:"Success,omitempty" xml:"Success,omitempty"`
+	Message    *string `json:"Message,omitempty" xml:"Message,omitempty"`
+	Success    *string `json:"Success,omitempty" xml:"Success,omitempty"`
 }
 
 func (s AttachKeyPairResponseBodyResultsResult) String() string {

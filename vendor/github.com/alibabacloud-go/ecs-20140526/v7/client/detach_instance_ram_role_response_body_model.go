@@ -22,7 +22,6 @@ type iDetachInstanceRamRoleResponseBody interface {
 }
 
 type DetachInstanceRamRoleResponseBody struct {
-	// The results of the instance RAM role detachment, which include the names of the instance RAM roles and the IDs of the ECS instances from which you attempted to detach the instance RAM roles.
 	DetachInstanceRamRoleResults *DetachInstanceRamRoleResponseBodyDetachInstanceRamRoleResults `json:"DetachInstanceRamRoleResults,omitempty" xml:"DetachInstanceRamRoleResults,omitempty" type:"Struct"`
 	// The number of ECS instances from which instance RAM roles failed to be detached.
 	//
@@ -147,32 +146,11 @@ func (s *DetachInstanceRamRoleResponseBodyDetachInstanceRamRoleResults) Validate
 }
 
 type DetachInstanceRamRoleResponseBodyDetachInstanceRamRoleResultsDetachInstanceRamRoleResult struct {
-	// Indicates whether the instance RAM role was detached. If 200 is returned, the instance RAM role was detached. If any other value is returned, the instance RAM role failed to be detached. For more information, see the "Error codes" section.
-	//
-	// example:
-	//
-	// 200
-	Code *string `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The ID of the ECS instance from which you attempted to detach the instance RAM role.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The name of the instance RAM role and the ID of the ECS instance.
+	Code                *string                                                                                                      `json:"Code,omitempty" xml:"Code,omitempty"`
+	InstanceId          *string                                                                                                      `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 	InstanceRamRoleSets *DetachInstanceRamRoleResponseBodyDetachInstanceRamRoleResultsDetachInstanceRamRoleResultInstanceRamRoleSets `json:"InstanceRamRoleSets,omitempty" xml:"InstanceRamRoleSets,omitempty" type:"Struct"`
-	// Indicates whether the instance RAM role was detached. If success is returned, the instance RAM role was detached. If any other value is returned, the instance RAM role failed to be detached. For more information, see the "Error codes" section.
-	//
-	// example:
-	//
-	// Success
-	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// Indicates whether the instance RAM role was detached.
-	//
-	// example:
-	//
-	// true
-	Success *bool `json:"Success,omitempty" xml:"Success,omitempty"`
+	Message             *string                                                                                                      `json:"Message,omitempty" xml:"Message,omitempty"`
+	Success             *bool                                                                                                        `json:"Success,omitempty" xml:"Success,omitempty"`
 }
 
 func (s DetachInstanceRamRoleResponseBodyDetachInstanceRamRoleResultsDetachInstanceRamRoleResult) String() string {
@@ -272,17 +250,7 @@ func (s *DetachInstanceRamRoleResponseBodyDetachInstanceRamRoleResultsDetachInst
 }
 
 type DetachInstanceRamRoleResponseBodyDetachInstanceRamRoleResultsDetachInstanceRamRoleResultInstanceRamRoleSetsInstanceRamRoleSet struct {
-	// The ID of the ECS instance.
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The name of the instance RAM role.
-	//
-	// example:
-	//
-	// RamRoleTest
+	InstanceId  *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 	RamRoleName *string `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
 }
 

@@ -155,8 +155,7 @@ type DescribeInstanceAttributeResponseBody struct {
 	// example:
 	//
 	// m-bp1h46wfpjsjastc****
-	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
-	// The internal IP address of the instance located in the classic network.
+	ImageId        *string                                              `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
 	InnerIpAddress *DescribeInstanceAttributeResponseBodyInnerIpAddress `json:"InnerIpAddress,omitempty" xml:"InnerIpAddress,omitempty" type:"Struct"`
 	// The billing method of the instance. Valid values:
 	//
@@ -239,20 +238,8 @@ type DescribeInstanceAttributeResponseBody struct {
 	// Details about network options.
 	//
 	// > This parameter is in invitational preview and is not publicly available.
-	NetworkOptions *DescribeInstanceAttributeResponseBodyNetworkOptions `json:"NetworkOptions,omitempty" xml:"NetworkOptions,omitempty" type:"Struct"`
-	// The reason why the instance was locked. Valid values:
-	//
-	// 	- financial: The dedicated host was locked due to overdue payments.
-	//
-	// 	- security: The instance was locked due to security reasons.
-	//
-	// 	- recycling: The spot instance was locked and pending release.
-	//
-	// 	- dedicatedhostfinancial: The instance was locked due to overdue payments for the dedicated host.
-	//
-	// 	- refunded: The instance was locked because a refund was made for the instance.
-	OperationLocks *DescribeInstanceAttributeResponseBodyOperationLocks `json:"OperationLocks,omitempty" xml:"OperationLocks,omitempty" type:"Struct"`
-	// The public IP address of the instance.
+	NetworkOptions  *DescribeInstanceAttributeResponseBodyNetworkOptions  `json:"NetworkOptions,omitempty" xml:"NetworkOptions,omitempty" type:"Struct"`
+	OperationLocks  *DescribeInstanceAttributeResponseBodyOperationLocks  `json:"OperationLocks,omitempty" xml:"OperationLocks,omitempty" type:"Struct"`
 	PublicIpAddress *DescribeInstanceAttributeResponseBodyPublicIpAddress `json:"PublicIpAddress,omitempty" xml:"PublicIpAddress,omitempty" type:"Struct"`
 	// The ID of the region in which the instance resides.
 	//
@@ -265,8 +252,7 @@ type DescribeInstanceAttributeResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3****
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The IDs of the security groups to which the instance belongs.
+	RequestId        *string                                                `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	SecurityGroupIds *DescribeInstanceAttributeResponseBodySecurityGroupIds `json:"SecurityGroupIds,omitempty" xml:"SecurityGroupIds,omitempty" type:"Struct"`
 	// The serial number of the instance.
 	//
@@ -943,21 +929,6 @@ func (s *DescribeInstanceAttributeResponseBodyOperationLocks) Validate() error {
 }
 
 type DescribeInstanceAttributeResponseBodyOperationLocksLockReason struct {
-	// The reason why the instance was locked. Valid values:
-	//
-	// 	- financial: The instance was locked due to overdue payments.
-	//
-	// 	- security: The instance was locked due to security reasons.
-	//
-	// 	- recycling: The spot instance was locked and pending release.
-	//
-	// 	- dedicatedhostfinancial: The instance was locked due to overdue payments for the dedicated host.
-	//
-	// 	- refunded: The instance was locked because a refund is made for the instance.
-	//
-	// example:
-	//
-	// financial
 	LockReason *string `json:"LockReason,omitempty" xml:"LockReason,omitempty"`
 }
 
@@ -1038,8 +1009,7 @@ type DescribeInstanceAttributeResponseBodyVpcAttributes struct {
 	// example:
 	//
 	// ``172.17.**.**``
-	NatIpAddress *string `json:"NatIpAddress,omitempty" xml:"NatIpAddress,omitempty"`
-	// The private IP address of the instance.
+	NatIpAddress     *string                                                             `json:"NatIpAddress,omitempty" xml:"NatIpAddress,omitempty"`
 	PrivateIpAddress *DescribeInstanceAttributeResponseBodyVpcAttributesPrivateIpAddress `json:"PrivateIpAddress,omitempty" xml:"PrivateIpAddress,omitempty" type:"Struct"`
 	// The ID of the vSwitch to which the instance is connected.
 	//

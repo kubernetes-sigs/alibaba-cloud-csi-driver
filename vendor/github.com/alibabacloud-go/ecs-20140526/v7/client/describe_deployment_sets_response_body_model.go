@@ -24,7 +24,6 @@ type iDescribeDeploymentSetsResponseBody interface {
 }
 
 type DescribeDeploymentSetsResponseBody struct {
-	// Details about the deployment sets.
 	DeploymentSets *DescribeDeploymentSetsResponseBodyDeploymentSets `json:"DeploymentSets,omitempty" xml:"DeploymentSets,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -164,73 +163,20 @@ func (s *DescribeDeploymentSetsResponseBodyDeploymentSets) Validate() error {
 }
 
 type DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet struct {
-	AccountId *int64 `json:"AccountId,omitempty" xml:"AccountId,omitempty"`
-	// Details of the capacities of the deployment set. This parameter is valid only when the deployment set contains ECS instances. The value contains information about the capacities of the deployment set in different zones.
-	Capacities *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSetCapacities `json:"Capacities,omitempty" xml:"Capacities,omitempty" type:"Struct"`
-	// The time when the deployment set was created.
-	//
-	// example:
-	//
-	// 2021-12-07T06:01:46Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the deployment set.
-	//
-	// example:
-	//
-	// testDeploymentSetDescription
-	DeploymentSetDescription *string `json:"DeploymentSetDescription,omitempty" xml:"DeploymentSetDescription,omitempty"`
-	// The ID of the deployment set.
-	//
-	// example:
-	//
-	// ds-bp67acfmxazb4ph****
-	DeploymentSetId *string `json:"DeploymentSetId,omitempty" xml:"DeploymentSetId,omitempty"`
-	// The name of the deployment set.
-	//
-	// example:
-	//
-	// testDeploymentSetName
-	DeploymentSetName *string `json:"DeploymentSetName,omitempty" xml:"DeploymentSetName,omitempty"`
-	// The deployment strategy. The return value of this parameter is the value of the `Strategy` request parameter.
-	//
-	// example:
-	//
-	// Availability
-	DeploymentStrategy *string `json:"DeploymentStrategy,omitempty" xml:"DeploymentStrategy,omitempty"`
-	// The deployment domain.
-	//
-	// example:
-	//
-	// default
-	Domain *string `json:"Domain,omitempty" xml:"Domain,omitempty"`
-	// The deployment granularity.
-	//
-	// example:
-	//
-	// host
-	Granularity *string `json:"Granularity,omitempty" xml:"Granularity,omitempty"`
-	// The number of deployment set groups in the deployment set.
-	//
-	// >  This parameter is valid only when the Strategy request parameter is set to AvailabilityGroup.
-	//
-	// example:
-	//
-	// 3
-	GroupCount *int32 `json:"GroupCount,omitempty" xml:"GroupCount,omitempty"`
-	// The number of instances in the deployment set.
-	//
-	// example:
-	//
-	// 3
-	InstanceAmount *int32 `json:"InstanceAmount,omitempty" xml:"InstanceAmount,omitempty"`
-	// The IDs of the Elastic Compute Service (ECS) instances in the deployment set.
-	InstanceIds *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSetInstanceIds `json:"InstanceIds,omitempty" xml:"InstanceIds,omitempty" type:"Struct"`
-	// The deployment strategy.
-	//
-	// example:
-	//
-	// LooseDispersion
-	Strategy *string `json:"Strategy,omitempty" xml:"Strategy,omitempty"`
+	AccountId                *int64                                                                    `json:"AccountId,omitempty" xml:"AccountId,omitempty"`
+	Capacities               *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSetCapacities  `json:"Capacities,omitempty" xml:"Capacities,omitempty" type:"Struct"`
+	CreationTime             *string                                                                   `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	DeploymentSetDescription *string                                                                   `json:"DeploymentSetDescription,omitempty" xml:"DeploymentSetDescription,omitempty"`
+	DeploymentSetId          *string                                                                   `json:"DeploymentSetId,omitempty" xml:"DeploymentSetId,omitempty"`
+	DeploymentSetName        *string                                                                   `json:"DeploymentSetName,omitempty" xml:"DeploymentSetName,omitempty"`
+	DeploymentStrategy       *string                                                                   `json:"DeploymentStrategy,omitempty" xml:"DeploymentStrategy,omitempty"`
+	Domain                   *string                                                                   `json:"Domain,omitempty" xml:"Domain,omitempty"`
+	Granularity              *string                                                                   `json:"Granularity,omitempty" xml:"Granularity,omitempty"`
+	GroupCount               *int32                                                                    `json:"GroupCount,omitempty" xml:"GroupCount,omitempty"`
+	InstanceAmount           *int32                                                                    `json:"InstanceAmount,omitempty" xml:"InstanceAmount,omitempty"`
+	InstanceIds              *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSetInstanceIds `json:"InstanceIds,omitempty" xml:"InstanceIds,omitempty" type:"Struct"`
+	Strategy                 *string                                                                   `json:"Strategy,omitempty" xml:"Strategy,omitempty"`
+	Type                     *string                                                                   `json:"Type,omitempty" xml:"Type,omitempty"`
 }
 
 func (s DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet) String() string {
@@ -291,6 +237,10 @@ func (s *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet) GetInsta
 
 func (s *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet) GetStrategy() *string {
 	return s.Strategy
+}
+
+func (s *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet) GetType() *string {
+	return s.Type
 }
 
 func (s *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet) SetAccountId(v int64) *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet {
@@ -358,6 +308,11 @@ func (s *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet) SetStrat
 	return s
 }
 
+func (s *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet) SetType(v string) *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet {
+	s.Type = &v
+	return s
+}
+
 func (s *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSet) Validate() error {
 	if s.Capacities != nil {
 		if err := s.Capacities.Validate(); err != nil {
@@ -407,24 +362,9 @@ func (s *DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSetCapacities
 }
 
 type DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSetCapacitiesCapacity struct {
-	// The number of ECS instances that can be added to the deployment set within the zone.
-	//
-	// example:
-	//
-	// 18
-	AvailableAmount *int32 `json:"AvailableAmount,omitempty" xml:"AvailableAmount,omitempty"`
-	// The number of ECS instances that reside in the zone in the deployment set.
-	//
-	// example:
-	//
-	// 2
-	UsedAmount *int32 `json:"UsedAmount,omitempty" xml:"UsedAmount,omitempty"`
-	// The ID of the zone. Only the zone IDs of existing ECS instances in the deployment set are returned.
-	//
-	// example:
-	//
-	// cn-hangzhou-i
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	AvailableAmount *int32  `json:"AvailableAmount,omitempty" xml:"AvailableAmount,omitempty"`
+	UsedAmount      *int32  `json:"UsedAmount,omitempty" xml:"UsedAmount,omitempty"`
+	ZoneId          *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeDeploymentSetsResponseBodyDeploymentSetsDeploymentSetCapacitiesCapacity) String() string {

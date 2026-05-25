@@ -27,6 +27,7 @@ const (
 	DataPlaneZoneID
 	RAMRoleName
 	RRSATokenFile
+	IsVscEnable
 )
 
 const LingjunConfigFile = "/host/etc/eflo_config/lingjun_config"
@@ -51,6 +52,8 @@ func (k MetadataKey) String() string {
 		return "DataPlaneZoneID"
 	case RAMRoleName:
 		return "RAMRoleName"
+	case IsVscEnable:
+		return "IsVscEnable"
 	case RRSATokenFile:
 		return "RRSATokenFile"
 	default:

@@ -154,6 +154,82 @@ func TestCreateVolumeResponse(t *testing.T) {
 	assert.Equal(t, "test-value", result.VolumeContext["test-key"])
 }
 
+func TestParseNodeID(t *testing.T) {
+	tests := []struct {
+		name            string
+		nodeID          string
+		wantInstanceID  string
+		wantKind        nodeKind
+		wantSupportsVSC bool
+	}{
+		{
+			name:            "lingjun node",
+			nodeID:          "lingjun:e01-cn-xyz",
+			wantInstanceID:  "e01-cn-xyz",
+			wantKind:        nodeKindLingjun,
+			wantSupportsVSC: true,
+		},
+		{
+			name:            "vsc-enabled ecs node",
+			nodeID:          "vsc:i-0jl17ucar0mf5kn0yzxg",
+			wantInstanceID:  "i-0jl17ucar0mf5kn0yzxg",
+			wantKind:        nodeKindVSC,
+			wantSupportsVSC: true,
+		},
+		{
+			name:            "common node",
+			nodeID:          "common:worker-1",
+			wantInstanceID:  "worker-1",
+			wantKind:        nodeKindCommon,
+			wantSupportsVSC: false,
+		},
+		{
+			name:            "missing prefix",
+			nodeID:          "i-0jl17ucar0mf5kn0yzxg",
+			wantInstanceID:  "",
+			wantKind:        nodeKindUnknown,
+			wantSupportsVSC: false,
+		},
+		{
+			name:            "empty body",
+			nodeID:          "lingjun:",
+			wantInstanceID:  "",
+			wantKind:        nodeKindUnknown,
+			wantSupportsVSC: false,
+		},
+		{
+			name:            "empty vsc body",
+			nodeID:          "vsc:",
+			wantInstanceID:  "",
+			wantKind:        nodeKindUnknown,
+			wantSupportsVSC: false,
+		},
+		{
+			name:            "empty common body",
+			nodeID:          "common:",
+			wantInstanceID:  "",
+			wantKind:        nodeKindUnknown,
+			wantSupportsVSC: false,
+		},
+		{
+			name:            "empty input",
+			nodeID:          "",
+			wantInstanceID:  "",
+			wantKind:        nodeKindUnknown,
+			wantSupportsVSC: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			instance, kind := parseNodeID(tt.nodeID)
+			assert.Equal(t, tt.wantInstanceID, instance)
+			assert.Equal(t, tt.wantKind, kind)
+			assert.Equal(t, tt.wantSupportsVSC, kind.supportsVSC())
+		})
+	}
+}
+
 func TestUpdateVolumeContext(t *testing.T) {
 	inputContext := map[string]string{
 		"test-key":                                 "test-value",  // should keep

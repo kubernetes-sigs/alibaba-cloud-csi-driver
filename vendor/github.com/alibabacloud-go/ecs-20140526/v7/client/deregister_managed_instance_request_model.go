@@ -9,6 +9,8 @@ type iDeregisterManagedInstanceRequest interface {
 	dara.Model
 	String() string
 	GoString() string
+	SetClientToken(v string) *DeregisterManagedInstanceRequest
+	GetClientToken() *string
 	SetInstanceId(v string) *DeregisterManagedInstanceRequest
 	GetInstanceId() *string
 	SetOwnerAccount(v string) *DeregisterManagedInstanceRequest
@@ -24,6 +26,7 @@ type iDeregisterManagedInstanceRequest interface {
 }
 
 type DeregisterManagedInstanceRequest struct {
+	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// The managed instance ID.
 	//
 	// This parameter is required.
@@ -56,6 +59,10 @@ func (s DeregisterManagedInstanceRequest) GoString() string {
 	return s.String()
 }
 
+func (s *DeregisterManagedInstanceRequest) GetClientToken() *string {
+	return s.ClientToken
+}
+
 func (s *DeregisterManagedInstanceRequest) GetInstanceId() *string {
 	return s.InstanceId
 }
@@ -78,6 +85,11 @@ func (s *DeregisterManagedInstanceRequest) GetResourceOwnerAccount() *string {
 
 func (s *DeregisterManagedInstanceRequest) GetResourceOwnerId() *int64 {
 	return s.ResourceOwnerId
+}
+
+func (s *DeregisterManagedInstanceRequest) SetClientToken(v string) *DeregisterManagedInstanceRequest {
+	s.ClientToken = &v
+	return s
 }
 
 func (s *DeregisterManagedInstanceRequest) SetInstanceId(v string) *DeregisterManagedInstanceRequest {

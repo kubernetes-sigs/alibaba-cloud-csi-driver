@@ -31,8 +31,7 @@ type DescribeSnapshotGroupsResponseBody struct {
 	// example:
 	//
 	// 3F9A4CC4-362F-469A-B9EF-B3204EF8AA3A
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The information about the snapshot-consistent groups.
+	RequestId      *string                                           `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 	SnapshotGroups *DescribeSnapshotGroupsResponseBodySnapshotGroups `json:"SnapshotGroups,omitempty" xml:"SnapshotGroups,omitempty" type:"Struct"`
 }
 
@@ -115,64 +114,16 @@ func (s *DescribeSnapshotGroupsResponseBodySnapshotGroups) Validate() error {
 }
 
 type DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroup struct {
-	// The creation time. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the yyyy-MM-ddTHH:mm:ssZ format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2021-03-23T10:58:48Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The description of the snapshot-consistent group.
-	//
-	// example:
-	//
-	// This is description.
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the instance to which the snapshot-consistent group belongs. This parameter has a value only when all disk snapshots in the snapshot-consistent group belong to the same instance. If disk snapshots in the snapshot-consistent group belong to different instances, you can check the response parameters that start with `Snapshots.Snapshot.Tags.` to determine the ID of the instance to which each snapshot in the snapshot-consistent group belongs.
-	//
-	// example:
-	//
-	// i-j6ca469urv8ei629****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The name of the snapshot-consistent group.
-	//
-	// example:
-	//
-	// testName
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// >  This parameter is not publicly available.
-	//
-	// example:
-	//
-	// null
-	ProgressStatus *string `json:"ProgressStatus,omitempty" xml:"ProgressStatus,omitempty"`
-	// The ID of the resource group to which the snapshot-consistent group belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The ID of the snapshot-consistent group.
-	//
-	// example:
-	//
-	// ssg-j6ciyh3k52qp7ovm****
-	SnapshotGroupId *string `json:"SnapshotGroupId,omitempty" xml:"SnapshotGroupId,omitempty"`
-	// The information about the snapshots in the snapshot-consistent group.
-	Snapshots *DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupSnapshots `json:"Snapshots,omitempty" xml:"Snapshots,omitempty" type:"Struct"`
-	// The state of the snapshot-consistent group. Valid values:
-	//
-	// 	- progressing: The snapshot-consistent group was being created.
-	//
-	// 	- accomplished: The snapshot-consistent group was created.
-	//
-	// 	- failed: The snapshot-consistent group failed to be created.
-	//
-	// example:
-	//
-	// accomplished
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags of the snapshot-consistent group.
-	Tags *DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	CreationTime    *string                                                                 `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	Description     *string                                                                 `json:"Description,omitempty" xml:"Description,omitempty"`
+	InstanceId      *string                                                                 `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	Name            *string                                                                 `json:"Name,omitempty" xml:"Name,omitempty"`
+	ProgressStatus  *string                                                                 `json:"ProgressStatus,omitempty" xml:"ProgressStatus,omitempty"`
+	ResourceGroupId *string                                                                 `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	SnapshotGroupId *string                                                                 `json:"SnapshotGroupId,omitempty" xml:"SnapshotGroupId,omitempty"`
+	Snapshots       *DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupSnapshots `json:"Snapshots,omitempty" xml:"Snapshots,omitempty" type:"Struct"`
+	Status          *string                                                                 `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags            *DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupTags      `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 }
 
 func (s DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroup) String() string {
@@ -322,66 +273,14 @@ func (s *DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupSnapshots)
 }
 
 type DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupSnapshotsSnapshot struct {
-	// Indicates whether the snapshot can be shared and be used to create or roll back a disk. Valid values:
-	//
-	// 	- true
-	//
-	// 	- false
-	//
-	// example:
-	//
-	// false
-	Available *bool `json:"Available,omitempty" xml:"Available,omitempty"`
-	// Indicates whether the instant access feature is enabled. Valid values:
-	//
-	// 	- true: The instant access feature is enabled. By default, the instant access feature is enabled for ESSDs.
-	//
-	// 	- false: The instant access feature is disabled. The snapshot is a standard snapshot for which the instant access feature is disabled.
-	//
-	// >  This parameter is no longer used. By default, standard snapshots of ESSDs are upgraded to instant access snapshots free of charge without the need for additional configurations. For more information, see [Use the instant access feature](https://help.aliyun.com/document_detail/193667.html).
-	//
-	// example:
-	//
-	// true
-	InstantAccess *bool `json:"InstantAccess,omitempty" xml:"InstantAccess,omitempty"`
-	// The validity period of the instant access feature. When the validity period ends, the instant access snapshot is automatically released.
-	//
-	// >  This parameter is no longer used. By default, standard snapshots of ESSDs are upgraded to instant access snapshots free of charge without the need for additional configurations. For more information, see [Use the instant access feature](https://help.aliyun.com/document_detail/193667.html).
-	//
-	// example:
-	//
-	// 3
-	InstantAccessRetentionDays *int32 `json:"InstantAccessRetentionDays,omitempty" xml:"InstantAccessRetentionDays,omitempty"`
-	// The progress of the snapshot creation task. Unit: percent (%).
-	//
-	// example:
-	//
-	// 100%
-	Progress *string `json:"Progress,omitempty" xml:"Progress,omitempty"`
-	// The ID of the snapshot.
-	//
-	// example:
-	//
-	// s-j6cbzmrlbf09w72q****
-	SnapshotId *string `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
-	// The ID of the source disk. This parameter is retained even after the source disk of the snapshot is released.
-	//
-	// example:
-	//
-	// d-j6c3ogynmvpi6wy7****
-	SourceDiskId *string `json:"SourceDiskId,omitempty" xml:"SourceDiskId,omitempty"`
-	// The type of the source disk. Valid values:
-	//
-	// 	- system: system disk
-	//
-	// 	- data: data disk
-	//
-	// example:
-	//
-	// system
-	SourceDiskType *string `json:"SourceDiskType,omitempty" xml:"SourceDiskType,omitempty"`
-	// The tags of the snapshot. The default values contain snapshot source information.
-	Tags *DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupSnapshotsSnapshotTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Available                  *bool                                                                               `json:"Available,omitempty" xml:"Available,omitempty"`
+	InstantAccess              *bool                                                                               `json:"InstantAccess,omitempty" xml:"InstantAccess,omitempty"`
+	InstantAccessRetentionDays *int32                                                                              `json:"InstantAccessRetentionDays,omitempty" xml:"InstantAccessRetentionDays,omitempty"`
+	Progress                   *string                                                                             `json:"Progress,omitempty" xml:"Progress,omitempty"`
+	SnapshotId                 *string                                                                             `json:"SnapshotId,omitempty" xml:"SnapshotId,omitempty"`
+	SourceDiskId               *string                                                                             `json:"SourceDiskId,omitempty" xml:"SourceDiskId,omitempty"`
+	SourceDiskType             *string                                                                             `json:"SourceDiskType,omitempty" xml:"SourceDiskType,omitempty"`
+	Tags                       *DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupSnapshotsSnapshotTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
 }
 
 func (s DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupSnapshotsSnapshot) String() string {
@@ -508,17 +407,7 @@ func (s *DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupSnapshotsS
 }
 
 type DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupSnapshotsSnapshotTagsTag struct {
-	// The tag key of the snapshot. The default values of Key and Value contain snapshot source information.
-	//
-	// example:
-	//
-	// acs:ecs:createFrom
-	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The tag value of the snapshot. The default values of Key and Value contain snapshot source information.
-	//
-	// example:
-	//
-	// i-bp11qm0o3dk4iuc****
+	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
@@ -587,17 +476,7 @@ func (s *DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupTags) Vali
 }
 
 type DescribeSnapshotGroupsResponseBodySnapshotGroupsSnapshotGroupTagsTag struct {
-	// The tag key of the snapshot-consistent group.
-	//
-	// example:
-	//
-	// TestKey
-	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The tag value of the snapshot-consistent group.
-	//
-	// example:
-	//
-	// TestValue
+	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

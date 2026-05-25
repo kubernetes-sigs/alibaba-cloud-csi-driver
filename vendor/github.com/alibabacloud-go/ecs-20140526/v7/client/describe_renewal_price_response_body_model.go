@@ -64,7 +64,6 @@ func (s *DescribeRenewalPriceResponseBody) Validate() error {
 type DescribeRenewalPriceResponseBodyPriceInfo struct {
 	// The price.
 	Price *DescribeRenewalPriceResponseBodyPriceInfoPrice `json:"Price,omitempty" xml:"Price,omitempty" type:"Struct"`
-	// The information about the promotion rules.
 	Rules *DescribeRenewalPriceResponseBodyPriceInfoRules `json:"Rules,omitempty" xml:"Rules,omitempty" type:"Struct"`
 }
 
@@ -118,8 +117,7 @@ type DescribeRenewalPriceResponseBodyPriceInfoPrice struct {
 	// example:
 	//
 	// CNY
-	Currency *string `json:"Currency,omitempty" xml:"Currency,omitempty"`
-	// Details about the resource prices.
+	Currency    *string                                                    `json:"Currency,omitempty" xml:"Currency,omitempty"`
 	DetailInfos *DescribeRenewalPriceResponseBodyPriceInfoPriceDetailInfos `json:"DetailInfos,omitempty" xml:"DetailInfos,omitempty" type:"Struct"`
 	// The discount.
 	//
@@ -238,32 +236,11 @@ func (s *DescribeRenewalPriceResponseBodyPriceInfoPriceDetailInfos) Validate() e
 }
 
 type DescribeRenewalPriceResponseBodyPriceInfoPriceDetailInfosDetailInfo struct {
-	// The discount.
-	//
-	// example:
-	//
-	// 655.2
-	DiscountPrice *float32 `json:"DiscountPrice,omitempty" xml:"DiscountPrice,omitempty"`
-	// The original price.
-	//
-	// example:
-	//
-	// 4368
-	OriginalPrice *float32 `json:"OriginalPrice,omitempty" xml:"OriginalPrice,omitempty"`
-	// The name of the resource that corresponds to the price.
-	//
-	// example:
-	//
-	// instance
-	Resource *string `json:"Resource,omitempty" xml:"Resource,omitempty"`
-	// The pricing rules.
-	SubRules *DescribeRenewalPriceResponseBodyPriceInfoPriceDetailInfosDetailInfoSubRules `json:"SubRules,omitempty" xml:"SubRules,omitempty" type:"Struct"`
-	// The transaction price.
-	//
-	// example:
-	//
-	// 3712.8
-	TradePrice *float32 `json:"TradePrice,omitempty" xml:"TradePrice,omitempty"`
+	DiscountPrice *float32                                                                     `json:"DiscountPrice,omitempty" xml:"DiscountPrice,omitempty"`
+	OriginalPrice *float32                                                                     `json:"OriginalPrice,omitempty" xml:"OriginalPrice,omitempty"`
+	Resource      *string                                                                      `json:"Resource,omitempty" xml:"Resource,omitempty"`
+	SubRules      *DescribeRenewalPriceResponseBodyPriceInfoPriceDetailInfosDetailInfoSubRules `json:"SubRules,omitempty" xml:"SubRules,omitempty" type:"Struct"`
+	TradePrice    *float32                                                                     `json:"TradePrice,omitempty" xml:"TradePrice,omitempty"`
 }
 
 func (s DescribeRenewalPriceResponseBodyPriceInfoPriceDetailInfosDetailInfo) String() string {
@@ -363,18 +340,8 @@ func (s *DescribeRenewalPriceResponseBodyPriceInfoPriceDetailInfosDetailInfoSubR
 }
 
 type DescribeRenewalPriceResponseBodyPriceInfoPriceDetailInfosDetailInfoSubRulesRule struct {
-	// The description of the pricing rule.
-	//
-	// example:
-	//
-	// Receive a 15% discount on a 1-year subscription.
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the pricing rule.
-	//
-	// example:
-	//
-	// 1234567890
-	RuleId *int64 `json:"RuleId,omitempty" xml:"RuleId,omitempty"`
+	RuleId      *int64  `json:"RuleId,omitempty" xml:"RuleId,omitempty"`
 }
 
 func (s DescribeRenewalPriceResponseBodyPriceInfoPriceDetailInfosDetailInfoSubRulesRule) String() string {
@@ -442,18 +409,8 @@ func (s *DescribeRenewalPriceResponseBodyPriceInfoRules) Validate() error {
 }
 
 type DescribeRenewalPriceResponseBodyPriceInfoRulesRule struct {
-	// The description of the promotion rule.
-	//
-	// example:
-	//
-	// Receive a 15% discount on a 1-year subscription
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the promotion rule.
-	//
-	// example:
-	//
-	// 1234567890
-	RuleId *int64 `json:"RuleId,omitempty" xml:"RuleId,omitempty"`
+	RuleId      *int64  `json:"RuleId,omitempty" xml:"RuleId,omitempty"`
 }
 
 func (s DescribeRenewalPriceResponseBodyPriceInfoRulesRule) String() string {

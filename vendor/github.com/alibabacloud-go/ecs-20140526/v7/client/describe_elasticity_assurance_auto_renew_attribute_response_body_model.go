@@ -16,7 +16,6 @@ type iDescribeElasticityAssuranceAutoRenewAttributeResponseBody interface {
 }
 
 type DescribeElasticityAssuranceAutoRenewAttributeResponseBody struct {
-	// The auto-renewal attribute of the elasticity assurances.
 	ElasticityAssuranceRenewAttributes *DescribeElasticityAssuranceAutoRenewAttributeResponseBodyElasticityAssuranceRenewAttributes `json:"ElasticityAssuranceRenewAttributes,omitempty" xml:"ElasticityAssuranceRenewAttributes,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,40 +95,10 @@ func (s *DescribeElasticityAssuranceAutoRenewAttributeResponseBodyElasticityAssu
 }
 
 type DescribeElasticityAssuranceAutoRenewAttributeResponseBodyElasticityAssuranceRenewAttributesElasticityAssuranceRenewAttribute struct {
-	// The auto-renewal period. Valid values: Valid values: 1, 2, 3, 6, 12, 24, and 36.
-	//
-	// example:
-	//
-	// 1
-	Period *int32 `json:"Period,omitempty" xml:"Period,omitempty"`
-	// The unit of the auto-renewal period. Valid values:
-	//
-	// 	- Month (default)
-	//
-	// 	- Year
-	//
-	// example:
-	//
-	// Month
-	PeriodUnit *string `json:"PeriodUnit,omitempty" xml:"PeriodUnit,omitempty"`
-	// The ID of the elasticity assurance.
-	//
-	// example:
-	//
-	// eap-bp67acfmxazb4****
+	Period               *int32  `json:"Period,omitempty" xml:"Period,omitempty"`
+	PeriodUnit           *string `json:"PeriodUnit,omitempty" xml:"PeriodUnit,omitempty"`
 	PrivatePoolOptionsId *string `json:"PrivatePoolOptionsId,omitempty" xml:"PrivatePoolOptionsId,omitempty"`
-	// Indicates whether auto-renewal is enabled for the elasticity assurance. Valid values:
-	//
-	// 	- AutoRenewal: Auto-renewal is enabled for the elasticity assurance.
-	//
-	// 	- Normal: Auto-renewal is disabled for the elasticity assurance.
-	//
-	// 	- NotRenewal: The elasticity assurance is not renewed.
-	//
-	// example:
-	//
-	// Normal
-	RenewalStatus *string `json:"RenewalStatus,omitempty" xml:"RenewalStatus,omitempty"`
+	RenewalStatus        *string `json:"RenewalStatus,omitempty" xml:"RenewalStatus,omitempty"`
 }
 
 func (s DescribeElasticityAssuranceAutoRenewAttributeResponseBodyElasticityAssuranceRenewAttributesElasticityAssuranceRenewAttribute) String() string {

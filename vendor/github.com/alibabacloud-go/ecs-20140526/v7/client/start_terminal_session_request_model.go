@@ -9,6 +9,8 @@ type iStartTerminalSessionRequest interface {
 	dara.Model
 	String() string
 	GoString() string
+	SetClientToken(v string) *StartTerminalSessionRequest
+	GetClientToken() *string
 	SetCommandLine(v string) *StartTerminalSessionRequest
 	GetCommandLine() *string
 	SetConnectionType(v string) *StartTerminalSessionRequest
@@ -38,6 +40,7 @@ type iStartTerminalSessionRequest interface {
 }
 
 type StartTerminalSessionRequest struct {
+	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// The command to run after the session is initiated. The command length cannot exceed 512 characters.
 	//
 	// >  If you specify the `CommandLine` parameter, you cannot specify the `PortNumber` or `TargetServer` parameter.
@@ -106,6 +109,10 @@ func (s StartTerminalSessionRequest) GoString() string {
 	return s.String()
 }
 
+func (s *StartTerminalSessionRequest) GetClientToken() *string {
+	return s.ClientToken
+}
+
 func (s *StartTerminalSessionRequest) GetCommandLine() *string {
 	return s.CommandLine
 }
@@ -156,6 +163,11 @@ func (s *StartTerminalSessionRequest) GetTargetServer() *string {
 
 func (s *StartTerminalSessionRequest) GetUsername() *string {
 	return s.Username
+}
+
+func (s *StartTerminalSessionRequest) SetClientToken(v string) *StartTerminalSessionRequest {
+	s.ClientToken = &v
+	return s
 }
 
 func (s *StartTerminalSessionRequest) SetCommandLine(v string) *StartTerminalSessionRequest {

@@ -21,9 +21,8 @@ type DescribeZonesResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Details about the zones and their supported resources.
-	Zones *DescribeZonesResponseBodyZones `json:"Zones,omitempty" xml:"Zones,omitempty" type:"Struct"`
+	RequestId *string                         `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	Zones     *DescribeZonesResponseBodyZones `json:"Zones,omitempty" xml:"Zones,omitempty" type:"Struct"`
 }
 
 func (s DescribeZonesResponseBody) String() string {
@@ -96,60 +95,16 @@ func (s *DescribeZonesResponseBodyZones) Validate() error {
 }
 
 type DescribeZonesResponseBodyZonesZone struct {
-	// The supported dedicated host types.
 	AvailableDedicatedHostTypes *DescribeZonesResponseBodyZonesZoneAvailableDedicatedHostTypes `json:"AvailableDedicatedHostTypes,omitempty" xml:"AvailableDedicatedHostTypes,omitempty" type:"Struct"`
-	// The categories of cloud disks that can be created. Valid values:
-	//
-	// 	- cloud: basic disk
-	//
-	// 	- cloud_ssd: standard SSD
-	//
-	// 	- cloud_efficiency: ultra disk
-	//
-	// 	- cloud_essd: ESSD
-	AvailableDiskCategories *DescribeZonesResponseBodyZonesZoneAvailableDiskCategories `json:"AvailableDiskCategories,omitempty" xml:"AvailableDiskCategories,omitempty" type:"Struct"`
-	// The supported instance types.
-	AvailableInstanceTypes *DescribeZonesResponseBodyZonesZoneAvailableInstanceTypes `json:"AvailableInstanceTypes,omitempty" xml:"AvailableInstanceTypes,omitempty" type:"Struct"`
-	// The types of resources that can be created. Valid values:
-	//
-	// 	- VSwitch: vSwitch
-	//
-	// 	- IoOptimized: I/O optimized instance
-	//
-	// 	- Instance: instance
-	//
-	// 	- DedicatedHost: dedicated host
-	//
-	// 	- disk: cloud disk
-	AvailableResourceCreation *DescribeZonesResponseBodyZonesZoneAvailableResourceCreation `json:"AvailableResourceCreation,omitempty" xml:"AvailableResourceCreation,omitempty" type:"Struct"`
-	// Details about the resources that can be created in the zone.
-	AvailableResources *DescribeZonesResponseBodyZonesZoneAvailableResources `json:"AvailableResources,omitempty" xml:"AvailableResources,omitempty" type:"Struct"`
-	// The supported Shared Block Storage device categories.
-	AvailableVolumeCategories *DescribeZonesResponseBodyZonesZoneAvailableVolumeCategories `json:"AvailableVolumeCategories,omitempty" xml:"AvailableVolumeCategories,omitempty" type:"Struct"`
-	// The supported generations of dedicated hosts.
-	DedicatedHostGenerations *DescribeZonesResponseBodyZonesZoneDedicatedHostGenerations `json:"DedicatedHostGenerations,omitempty" xml:"DedicatedHostGenerations,omitempty" type:"Struct"`
-	// The name of the zone in the local language.
-	//
-	// example:
-	//
-	// Hangzhou Zone G
-	LocalName *string `json:"LocalName,omitempty" xml:"LocalName,omitempty"`
-	// The ID of the zone.
-	//
-	// example:
-	//
-	// cn-hangzhou-g
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
-	// The type of the zone. Valid values:
-	//
-	// 	- AvailabilityZone: zone for the Alibaba Cloud public cloud
-	//
-	// 	- CloudBoxZone: zone for CloudBox
-	//
-	// example:
-	//
-	// AvailabilityZone
-	ZoneType *string `json:"ZoneType,omitempty" xml:"ZoneType,omitempty"`
+	AvailableDiskCategories     *DescribeZonesResponseBodyZonesZoneAvailableDiskCategories     `json:"AvailableDiskCategories,omitempty" xml:"AvailableDiskCategories,omitempty" type:"Struct"`
+	AvailableInstanceTypes      *DescribeZonesResponseBodyZonesZoneAvailableInstanceTypes      `json:"AvailableInstanceTypes,omitempty" xml:"AvailableInstanceTypes,omitempty" type:"Struct"`
+	AvailableResourceCreation   *DescribeZonesResponseBodyZonesZoneAvailableResourceCreation   `json:"AvailableResourceCreation,omitempty" xml:"AvailableResourceCreation,omitempty" type:"Struct"`
+	AvailableResources          *DescribeZonesResponseBodyZonesZoneAvailableResources          `json:"AvailableResources,omitempty" xml:"AvailableResources,omitempty" type:"Struct"`
+	AvailableVolumeCategories   *DescribeZonesResponseBodyZonesZoneAvailableVolumeCategories   `json:"AvailableVolumeCategories,omitempty" xml:"AvailableVolumeCategories,omitempty" type:"Struct"`
+	DedicatedHostGenerations    *DescribeZonesResponseBodyZonesZoneDedicatedHostGenerations    `json:"DedicatedHostGenerations,omitempty" xml:"DedicatedHostGenerations,omitempty" type:"Struct"`
+	LocalName                   *string                                                        `json:"LocalName,omitempty" xml:"LocalName,omitempty"`
+	ZoneId                      *string                                                        `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	ZoneType                    *string                                                        `json:"ZoneType,omitempty" xml:"ZoneType,omitempty"`
 }
 
 func (s DescribeZonesResponseBodyZonesZone) String() string {
@@ -424,23 +379,12 @@ func (s *DescribeZonesResponseBodyZonesZoneAvailableResources) Validate() error 
 }
 
 type DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfo struct {
-	// The categories of data disks that can be created.
-	DataDiskCategories *DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfoDataDiskCategories `json:"DataDiskCategories,omitempty" xml:"DataDiskCategories,omitempty" type:"Struct"`
-	// The supported generations of instance families.
-	InstanceGenerations *DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfoInstanceGenerations `json:"InstanceGenerations,omitempty" xml:"InstanceGenerations,omitempty" type:"Struct"`
-	// The supported instance families.
+	DataDiskCategories   *DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfoDataDiskCategories   `json:"DataDiskCategories,omitempty" xml:"DataDiskCategories,omitempty" type:"Struct"`
+	InstanceGenerations  *DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfoInstanceGenerations  `json:"InstanceGenerations,omitempty" xml:"InstanceGenerations,omitempty" type:"Struct"`
 	InstanceTypeFamilies *DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfoInstanceTypeFamilies `json:"InstanceTypeFamilies,omitempty" xml:"InstanceTypeFamilies,omitempty" type:"Struct"`
-	// The supported instance types.
-	InstanceTypes *DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfoInstanceTypes `json:"InstanceTypes,omitempty" xml:"InstanceTypes,omitempty" type:"Struct"`
-	// Indicates whether the instance is I/O optimized.
-	//
-	// example:
-	//
-	// true
-	IoOptimized *bool `json:"IoOptimized,omitempty" xml:"IoOptimized,omitempty"`
-	// The supported network types.
-	NetworkTypes *DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfoNetworkTypes `json:"NetworkTypes,omitempty" xml:"NetworkTypes,omitempty" type:"Struct"`
-	// The categories of system disks that can be created.
+	InstanceTypes        *DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfoInstanceTypes        `json:"InstanceTypes,omitempty" xml:"InstanceTypes,omitempty" type:"Struct"`
+	IoOptimized          *bool                                                                                  `json:"IoOptimized,omitempty" xml:"IoOptimized,omitempty"`
+	NetworkTypes         *DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfoNetworkTypes         `json:"NetworkTypes,omitempty" xml:"NetworkTypes,omitempty" type:"Struct"`
 	SystemDiskCategories *DescribeZonesResponseBodyZonesZoneAvailableResourcesResourcesInfoSystemDiskCategories `json:"SystemDiskCategories,omitempty" xml:"SystemDiskCategories,omitempty" type:"Struct"`
 }
 

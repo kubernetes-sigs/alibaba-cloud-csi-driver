@@ -16,7 +16,6 @@ type iDescribeInstanceTypeFamiliesResponseBody interface {
 }
 
 type DescribeInstanceTypeFamiliesResponseBody struct {
-	// The instance families.
 	InstanceTypeFamilies *DescribeInstanceTypeFamiliesResponseBodyInstanceTypeFamilies `json:"InstanceTypeFamilies,omitempty" xml:"InstanceTypeFamilies,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,17 +95,7 @@ func (s *DescribeInstanceTypeFamiliesResponseBodyInstanceTypeFamilies) Validate(
 }
 
 type DescribeInstanceTypeFamiliesResponseBodyInstanceTypeFamiliesInstanceTypeFamily struct {
-	// The series of the instance family.
-	//
-	// example:
-	//
-	// ecs-5
-	Generation *string `json:"Generation,omitempty" xml:"Generation,omitempty"`
-	// The ID of the instance family.
-	//
-	// example:
-	//
-	// ecs.g6
+	Generation           *string `json:"Generation,omitempty" xml:"Generation,omitempty"`
 	InstanceTypeFamilyId *string `json:"InstanceTypeFamilyId,omitempty" xml:"InstanceTypeFamilyId,omitempty"`
 }
 

@@ -55,8 +55,7 @@ type DescribeTaskAttributeResponseBody struct {
 	// example:
 	//
 	// 2015-11-23T02:19Z
-	FinishedTime *string `json:"FinishedTime,omitempty" xml:"FinishedTime,omitempty"`
-	// The return data of the task.
+	FinishedTime         *string                                                `json:"FinishedTime,omitempty" xml:"FinishedTime,omitempty"`
 	OperationProgressSet *DescribeTaskAttributeResponseBodyOperationProgressSet `json:"OperationProgressSet,omitempty" xml:"OperationProgressSet,omitempty" type:"Struct"`
 	// The region ID of the task.
 	//
@@ -287,26 +286,10 @@ func (s *DescribeTaskAttributeResponseBodyOperationProgressSet) Validate() error
 }
 
 type DescribeTaskAttributeResponseBodyOperationProgressSetOperationProgress struct {
-	// The error code.
-	//
-	// example:
-	//
-	// ParameterInvalid
-	ErrorCode *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
-	// The error message.
-	//
-	// example:
-	//
-	// The specified RegionId parameter is invalid.
-	ErrorMsg *string `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
-	// The status of the operation.
-	//
-	// example:
-	//
-	// Success
-	OperationStatus *string `json:"OperationStatus,omitempty" xml:"OperationStatus,omitempty"`
-	// The type of resource information.
-	RelatedItemSet *DescribeTaskAttributeResponseBodyOperationProgressSetOperationProgressRelatedItemSet `json:"RelatedItemSet,omitempty" xml:"RelatedItemSet,omitempty" type:"Struct"`
+	ErrorCode       *string                                                                               `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
+	ErrorMsg        *string                                                                               `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
+	OperationStatus *string                                                                               `json:"OperationStatus,omitempty" xml:"OperationStatus,omitempty"`
+	RelatedItemSet  *DescribeTaskAttributeResponseBodyOperationProgressSetOperationProgressRelatedItemSet `json:"RelatedItemSet,omitempty" xml:"RelatedItemSet,omitempty" type:"Struct"`
 }
 
 func (s DescribeTaskAttributeResponseBodyOperationProgressSetOperationProgress) String() string {
@@ -397,17 +380,7 @@ func (s *DescribeTaskAttributeResponseBodyOperationProgressSetOperationProgressR
 }
 
 type DescribeTaskAttributeResponseBodyOperationProgressSetOperationProgressRelatedItemSetRelatedItem struct {
-	// The name of the related item.
-	//
-	// example:
-	//
-	// OSSObject
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The value of the related item.
-	//
-	// example:
-	//
-	// MYOSSPRE_m-23f8tcp***_t-23ym6mv***.vhd
+	Name  *string `json:"Name,omitempty" xml:"Name,omitempty"`
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

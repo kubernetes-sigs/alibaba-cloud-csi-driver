@@ -15,6 +15,8 @@ type iCreateAutoProvisioningGroupShrinkRequest interface {
 	GetAutoProvisioningGroupName() *string
 	SetAutoProvisioningGroupType(v string) *CreateAutoProvisioningGroupShrinkRequest
 	GetAutoProvisioningGroupType() *string
+	SetCandidateOptions(v *CreateAutoProvisioningGroupShrinkRequestCandidateOptions) *CreateAutoProvisioningGroupShrinkRequest
+	GetCandidateOptions() *CreateAutoProvisioningGroupShrinkRequestCandidateOptions
 	SetClientToken(v string) *CreateAutoProvisioningGroupShrinkRequest
 	GetClientToken() *string
 	SetDataDiskConfig(v []*CreateAutoProvisioningGroupShrinkRequestDataDiskConfig) *CreateAutoProvisioningGroupShrinkRequest
@@ -104,7 +106,8 @@ type CreateAutoProvisioningGroupShrinkRequest struct {
 	// example:
 	//
 	// maintain
-	AutoProvisioningGroupType *string `json:"AutoProvisioningGroupType,omitempty" xml:"AutoProvisioningGroupType,omitempty"`
+	AutoProvisioningGroupType *string                                                   `json:"AutoProvisioningGroupType,omitempty" xml:"AutoProvisioningGroupType,omitempty"`
+	CandidateOptions          *CreateAutoProvisioningGroupShrinkRequestCandidateOptions `json:"CandidateOptions,omitempty" xml:"CandidateOptions,omitempty" type:"Struct"`
 	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests. The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How to ensure idempotence](https://help.aliyun.com/document_detail/25693.html).
 	//
 	// example:
@@ -350,6 +353,10 @@ func (s *CreateAutoProvisioningGroupShrinkRequest) GetAutoProvisioningGroupType(
 	return s.AutoProvisioningGroupType
 }
 
+func (s *CreateAutoProvisioningGroupShrinkRequest) GetCandidateOptions() *CreateAutoProvisioningGroupShrinkRequestCandidateOptions {
+	return s.CandidateOptions
+}
+
 func (s *CreateAutoProvisioningGroupShrinkRequest) GetClientToken() *string {
 	return s.ClientToken
 }
@@ -494,6 +501,11 @@ func (s *CreateAutoProvisioningGroupShrinkRequest) SetAutoProvisioningGroupName(
 
 func (s *CreateAutoProvisioningGroupShrinkRequest) SetAutoProvisioningGroupType(v string) *CreateAutoProvisioningGroupShrinkRequest {
 	s.AutoProvisioningGroupType = &v
+	return s
+}
+
+func (s *CreateAutoProvisioningGroupShrinkRequest) SetCandidateOptions(v *CreateAutoProvisioningGroupShrinkRequestCandidateOptions) *CreateAutoProvisioningGroupShrinkRequest {
+	s.CandidateOptions = v
 	return s
 }
 
@@ -665,6 +677,11 @@ func (s *CreateAutoProvisioningGroupShrinkRequest) SetValidUntil(v string) *Crea
 func (s *CreateAutoProvisioningGroupShrinkRequest) Validate() error {
 	if s.LaunchConfiguration != nil {
 		if err := s.LaunchConfiguration.Validate(); err != nil {
+			return err
+		}
+	}
+	if s.CandidateOptions != nil {
+		if err := s.CandidateOptions.Validate(); err != nil {
 			return err
 		}
 	}
@@ -2194,6 +2211,44 @@ func (s *CreateAutoProvisioningGroupShrinkRequestLaunchConfigurationSecurityOpti
 }
 
 func (s *CreateAutoProvisioningGroupShrinkRequestLaunchConfigurationSecurityOptions) Validate() error {
+	return dara.Validate(s)
+}
+
+type CreateAutoProvisioningGroupShrinkRequestCandidateOptions struct {
+	Evaluate *bool `json:"Evaluate,omitempty" xml:"Evaluate,omitempty"`
+	// example:
+	//
+	// 60
+	TimeoutMinutes *int32 `json:"TimeoutMinutes,omitempty" xml:"TimeoutMinutes,omitempty"`
+}
+
+func (s CreateAutoProvisioningGroupShrinkRequestCandidateOptions) String() string {
+	return dara.Prettify(s)
+}
+
+func (s CreateAutoProvisioningGroupShrinkRequestCandidateOptions) GoString() string {
+	return s.String()
+}
+
+func (s *CreateAutoProvisioningGroupShrinkRequestCandidateOptions) GetEvaluate() *bool {
+	return s.Evaluate
+}
+
+func (s *CreateAutoProvisioningGroupShrinkRequestCandidateOptions) GetTimeoutMinutes() *int32 {
+	return s.TimeoutMinutes
+}
+
+func (s *CreateAutoProvisioningGroupShrinkRequestCandidateOptions) SetEvaluate(v bool) *CreateAutoProvisioningGroupShrinkRequestCandidateOptions {
+	s.Evaluate = &v
+	return s
+}
+
+func (s *CreateAutoProvisioningGroupShrinkRequestCandidateOptions) SetTimeoutMinutes(v int32) *CreateAutoProvisioningGroupShrinkRequestCandidateOptions {
+	s.TimeoutMinutes = &v
+	return s
+}
+
+func (s *CreateAutoProvisioningGroupShrinkRequestCandidateOptions) Validate() error {
 	return dara.Validate(s)
 }
 

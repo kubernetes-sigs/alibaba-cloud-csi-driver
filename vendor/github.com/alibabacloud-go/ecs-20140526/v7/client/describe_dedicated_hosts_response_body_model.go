@@ -24,7 +24,6 @@ type iDescribeDedicatedHostsResponseBody interface {
 }
 
 type DescribeDedicatedHostsResponseBody struct {
-	// Details about the DDH.
 	DedicatedHosts *DescribeDedicatedHostsResponseBodyDedicatedHosts `json:"DedicatedHosts,omitempty" xml:"DedicatedHosts,omitempty" type:"Struct"`
 	// A pagination token. It can be used in the next request to retrieve a new page of results. If NextToken is empty, no next page exists. If the return value of this parameter is empty when you specify MaxResults and NextToken for a paged query, no more results are to be returned.
 	//
@@ -164,185 +163,39 @@ func (s *DescribeDedicatedHostsResponseBodyDedicatedHosts) Validate() error {
 }
 
 type DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHost struct {
-	SchedulerOptions *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostSchedulerOptions `json:"SchedulerOptions,omitempty" xml:"SchedulerOptions,omitempty" type:"Struct"`
-	// The policy used to migrate the ECS instances deployed on the dedicated host when the dedicated host fails. Valid values:
-	//
-	// 	- Migrate: The instances are migrated to another physical machine. Instances that are not in the Stopped state when the dedicated host fails are restarted.
-	//
-	// 	- Stop: The instances are stopped. If the dedicated host cannot be repaired, the instances are migrated to another physical machine and then restarted.
-	//
-	// If the dedicated host has cloud disks attached, the default value is Migrate. If the dedicated host has local disks attached, the default value is Stop.
-	//
-	// example:
-	//
-	// Migrate
-	ActionOnMaintenance *string `json:"ActionOnMaintenance,omitempty" xml:"ActionOnMaintenance,omitempty"`
-	// Indicates whether the dedicated host is added to the resource pool for automatic deployment. Valid values:
-	//
-	// 	- on: The dedicated host is added to the resource pool for automatic deployment.
-	//
-	// 	- off: The dedicated host is not added to the resource pool for automatic deployment.
-	//
-	// For information about automatic deployment, see the "Automatic deployment" section in [Functions and features](https://help.aliyun.com/document_detail/118938.html).
-	//
-	// example:
-	//
-	// on
-	AutoPlacement *string `json:"AutoPlacement,omitempty" xml:"AutoPlacement,omitempty"`
-	// The automatic release time of the dedicated host. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the `yyyy-MM-ddTHH:mmZ` format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2017-01-01T12:00Z
-	AutoReleaseTime *string `json:"AutoReleaseTime,omitempty" xml:"AutoReleaseTime,omitempty"`
-	// The performance specifications of the dedicated host.
-	Capacity *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacity `json:"Capacity,omitempty" xml:"Capacity,omitempty" type:"Struct"`
-	// The billing method of the dedicated host.
-	//
-	// example:
-	//
-	// Prepaid
-	ChargeType *string `json:"ChargeType,omitempty" xml:"ChargeType,omitempty"`
-	// The number of physical cores per CPU.
-	//
-	// example:
-	//
-	// 3
-	Cores *int32 `json:"Cores,omitempty" xml:"Cores,omitempty"`
-	// The CPU overcommit ratio. Valid values: 1 to 5.
-	//
-	// example:
-	//
-	// 1
-	CpuOverCommitRatio *float32 `json:"CpuOverCommitRatio,omitempty" xml:"CpuOverCommitRatio,omitempty"`
-	// The time when the dedicated host was created. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the `yyyy-MM-ddTHH:mmZ` format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2018-01-01T12:00Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The ID of the dedicated host cluster to which the dedicated host belongs.
-	//
-	// example:
-	//
-	// dc-bp12wlf6am0vz9v2****
-	DedicatedHostClusterId *string `json:"DedicatedHostClusterId,omitempty" xml:"DedicatedHostClusterId,omitempty"`
-	// The ID of the dedicated host.
-	//
-	// example:
-	//
-	// dh-bp165p6xk2tlw61e****
-	DedicatedHostId *string `json:"DedicatedHostId,omitempty" xml:"DedicatedHostId,omitempty"`
-	// The name of the dedicated host.
-	//
-	// example:
-	//
-	// MyDDHTestName
-	DedicatedHostName *string `json:"DedicatedHostName,omitempty" xml:"DedicatedHostName,omitempty"`
-	// The ID of the dedicated host owner.
-	//
-	// example:
-	//
-	// 100************7
-	DedicatedHostOwnerId *int64 `json:"DedicatedHostOwnerId,omitempty" xml:"DedicatedHostOwnerId,omitempty"`
-	// The type of the dedicated host.
-	//
-	// example:
-	//
-	// ddh.g5
-	DedicatedHostType *string `json:"DedicatedHostType,omitempty" xml:"DedicatedHostType,omitempty"`
-	// The description of the dedicated host.
-	//
-	// example:
-	//
-	// this-is-my-DDH
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The expiration time of the subscription dedicated host. The time follows the [ISO 8601](https://help.aliyun.com/document_detail/25696.html) standard in the `yyyy-MM-ddTHH:mmZ` format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2019-01-01T12:00Z
-	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The GPU model.
-	//
-	// example:
-	//
-	// gpu
-	GPUSpec *string `json:"GPUSpec,omitempty" xml:"GPUSpec,omitempty"`
-	// This parameter will be removed in the future. We recommend that you use other parameters to ensure future compatibility.
-	HostDetailInfo *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostHostDetailInfo `json:"HostDetailInfo,omitempty" xml:"HostDetailInfo,omitempty" type:"Struct"`
-	// The ECS instances that were created on the dedicated host.
-	Instances *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostInstances `json:"Instances,omitempty" xml:"Instances,omitempty" type:"Struct"`
-	// The machine code of the dedicated host.
-	//
-	// example:
-	//
-	// 12aaa123456ff19dec12345d3026e****
-	MachineId *string `json:"MachineId,omitempty" xml:"MachineId,omitempty"`
-	// The network attributes of the dedicated host.
-	NetworkAttributes *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostNetworkAttributes `json:"NetworkAttributes,omitempty" xml:"NetworkAttributes,omitempty" type:"Struct"`
-	// The reasons why the resources of the dedicated host were locked.
-	OperationLocks *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostOperationLocks `json:"OperationLocks,omitempty" xml:"OperationLocks,omitempty" type:"Struct"`
-	// The number of physical GPUs.
-	//
-	// example:
-	//
-	// 10
-	PhysicalGpus *int32 `json:"PhysicalGpus,omitempty" xml:"PhysicalGpus,omitempty"`
-	// The region ID of the dedicated host.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The ID of the resource group to which the dedicated host belongs.
-	//
-	// example:
-	//
-	// rg-aek3b6jzp66****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The unit of the subscription duration. Valid values:
-	//
-	// 	- Month
-	//
-	// 	- Year
-	//
-	// example:
-	//
-	// Month
-	SaleCycle *string `json:"SaleCycle,omitempty" xml:"SaleCycle,omitempty"`
-	// The number of physical CPUs.
-	//
-	// example:
-	//
-	// 5
-	Sockets *int32 `json:"Sockets,omitempty" xml:"Sockets,omitempty"`
-	// The status of the dedicated host. Valid values:
-	//
-	// 	- Available: The dedicated host is running as expected.
-	//
-	// 	- UnderAssessment: The dedicated host is available but has potential risks that may cause the ECS instances on the dedicated host to fail.
-	//
-	// 	- PermanentFailure: The dedicated host has permanent failures and is unavailable.
-	//
-	// example:
-	//
-	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The custom ECS instance families that are supported by the dedicated host.
+	SchedulerOptions                    *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostSchedulerOptions                    `json:"SchedulerOptions,omitempty" xml:"SchedulerOptions,omitempty" type:"Struct"`
+	ActionOnMaintenance                 *string                                                                                           `json:"ActionOnMaintenance,omitempty" xml:"ActionOnMaintenance,omitempty"`
+	AutoPlacement                       *string                                                                                           `json:"AutoPlacement,omitempty" xml:"AutoPlacement,omitempty"`
+	AutoReleaseTime                     *string                                                                                           `json:"AutoReleaseTime,omitempty" xml:"AutoReleaseTime,omitempty"`
+	Capacity                            *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacity                            `json:"Capacity,omitempty" xml:"Capacity,omitempty" type:"Struct"`
+	ChargeType                          *string                                                                                           `json:"ChargeType,omitempty" xml:"ChargeType,omitempty"`
+	Cores                               *int32                                                                                            `json:"Cores,omitempty" xml:"Cores,omitempty"`
+	CpuOverCommitRatio                  *float32                                                                                          `json:"CpuOverCommitRatio,omitempty" xml:"CpuOverCommitRatio,omitempty"`
+	CreationTime                        *string                                                                                           `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	DedicatedHostClusterId              *string                                                                                           `json:"DedicatedHostClusterId,omitempty" xml:"DedicatedHostClusterId,omitempty"`
+	DedicatedHostId                     *string                                                                                           `json:"DedicatedHostId,omitempty" xml:"DedicatedHostId,omitempty"`
+	DedicatedHostName                   *string                                                                                           `json:"DedicatedHostName,omitempty" xml:"DedicatedHostName,omitempty"`
+	DedicatedHostOwnerId                *int64                                                                                            `json:"DedicatedHostOwnerId,omitempty" xml:"DedicatedHostOwnerId,omitempty"`
+	DedicatedHostType                   *string                                                                                           `json:"DedicatedHostType,omitempty" xml:"DedicatedHostType,omitempty"`
+	Description                         *string                                                                                           `json:"Description,omitempty" xml:"Description,omitempty"`
+	ExpiredTime                         *string                                                                                           `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
+	GPUSpec                             *string                                                                                           `json:"GPUSpec,omitempty" xml:"GPUSpec,omitempty"`
+	HostDetailInfo                      *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostHostDetailInfo                      `json:"HostDetailInfo,omitempty" xml:"HostDetailInfo,omitempty" type:"Struct"`
+	Instances                           *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostInstances                           `json:"Instances,omitempty" xml:"Instances,omitempty" type:"Struct"`
+	MachineId                           *string                                                                                           `json:"MachineId,omitempty" xml:"MachineId,omitempty"`
+	NetworkAttributes                   *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostNetworkAttributes                   `json:"NetworkAttributes,omitempty" xml:"NetworkAttributes,omitempty" type:"Struct"`
+	OperationLocks                      *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostOperationLocks                      `json:"OperationLocks,omitempty" xml:"OperationLocks,omitempty" type:"Struct"`
+	PhysicalGpus                        *int32                                                                                            `json:"PhysicalGpus,omitempty" xml:"PhysicalGpus,omitempty"`
+	RegionId                            *string                                                                                           `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceGroupId                     *string                                                                                           `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	SaleCycle                           *string                                                                                           `json:"SaleCycle,omitempty" xml:"SaleCycle,omitempty"`
+	Sockets                             *int32                                                                                            `json:"Sockets,omitempty" xml:"Sockets,omitempty"`
+	Status                              *string                                                                                           `json:"Status,omitempty" xml:"Status,omitempty"`
 	SupportedCustomInstanceTypeFamilies *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostSupportedCustomInstanceTypeFamilies `json:"SupportedCustomInstanceTypeFamilies,omitempty" xml:"SupportedCustomInstanceTypeFamilies,omitempty" type:"Struct"`
-	// The ECS instance families that are supported by the dedicated host.
-	SupportedInstanceTypeFamilies *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostSupportedInstanceTypeFamilies `json:"SupportedInstanceTypeFamilies,omitempty" xml:"SupportedInstanceTypeFamilies,omitempty" type:"Struct"`
-	// The ECS instance types that are supported by the dedicated host.
-	SupportedInstanceTypesList *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostSupportedInstanceTypesList `json:"SupportedInstanceTypesList,omitempty" xml:"SupportedInstanceTypesList,omitempty" type:"Struct"`
-	// The tags of the dedicated host.
-	Tags *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The zone ID of the dedicated host.
-	//
-	// example:
-	//
-	// cn-hangzhou-g
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	SupportedInstanceTypeFamilies       *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostSupportedInstanceTypeFamilies       `json:"SupportedInstanceTypeFamilies,omitempty" xml:"SupportedInstanceTypeFamilies,omitempty" type:"Struct"`
+	SupportedInstanceTypesList          *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostSupportedInstanceTypesList          `json:"SupportedInstanceTypesList,omitempty" xml:"SupportedInstanceTypesList,omitempty" type:"Struct"`
+	Tags                                *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostTags                                `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	ZoneId                              *string                                                                                           `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHost) String() string {
@@ -731,62 +584,16 @@ func (s *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostSchedulerO
 
 type DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacity struct {
 	AvailableInstanceTypes *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacityAvailableInstanceTypes `json:"AvailableInstanceTypes,omitempty" xml:"AvailableInstanceTypes,omitempty" type:"Struct"`
-	// The amount of available space on the local disks. Unit: GiB
-	//
-	// example:
-	//
-	// 65
-	AvailableLocalStorage *int32 `json:"AvailableLocalStorage,omitempty" xml:"AvailableLocalStorage,omitempty"`
-	// The amount of available memory. Unit: GiB.
-	//
-	// example:
-	//
-	// 25
-	AvailableMemory *float32 `json:"AvailableMemory,omitempty" xml:"AvailableMemory,omitempty"`
-	// The number of available vCPUs.
-	//
-	// example:
-	//
-	// 5
-	AvailableVcpus *int32 `json:"AvailableVcpus,omitempty" xml:"AvailableVcpus,omitempty"`
-	// The number of available vGPUs.
-	//
-	// example:
-	//
-	// 2
-	AvailableVgpus *int32 `json:"AvailableVgpus,omitempty" xml:"AvailableVgpus,omitempty"`
-	// The category of local disks.
-	//
-	// example:
-	//
-	// i2
-	LocalStorageCategory *string `json:"LocalStorageCategory,omitempty" xml:"LocalStorageCategory,omitempty"`
-	// The socket capacities.
-	SocketCapacities *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacitySocketCapacities `json:"SocketCapacities,omitempty" xml:"SocketCapacities,omitempty" type:"Struct"`
-	// The total capacity of local disks. Unit: GiB.
-	//
-	// example:
-	//
-	// 512
-	TotalLocalStorage *int32 `json:"TotalLocalStorage,omitempty" xml:"TotalLocalStorage,omitempty"`
-	// The total amount of memory. Unit: GiB.
-	//
-	// example:
-	//
-	// 1024
-	TotalMemory *float32 `json:"TotalMemory,omitempty" xml:"TotalMemory,omitempty"`
-	// The total number of vCPUs.
-	//
-	// example:
-	//
-	// 56
-	TotalVcpus *int32 `json:"TotalVcpus,omitempty" xml:"TotalVcpus,omitempty"`
-	// The total number of vGPUs.
-	//
-	// example:
-	//
-	// 10
-	TotalVgpus *int32 `json:"TotalVgpus,omitempty" xml:"TotalVgpus,omitempty"`
+	AvailableLocalStorage  *int32                                                                                       `json:"AvailableLocalStorage,omitempty" xml:"AvailableLocalStorage,omitempty"`
+	AvailableMemory        *float32                                                                                     `json:"AvailableMemory,omitempty" xml:"AvailableMemory,omitempty"`
+	AvailableVcpus         *int32                                                                                       `json:"AvailableVcpus,omitempty" xml:"AvailableVcpus,omitempty"`
+	AvailableVgpus         *int32                                                                                       `json:"AvailableVgpus,omitempty" xml:"AvailableVgpus,omitempty"`
+	LocalStorageCategory   *string                                                                                      `json:"LocalStorageCategory,omitempty" xml:"LocalStorageCategory,omitempty"`
+	SocketCapacities       *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacitySocketCapacities       `json:"SocketCapacities,omitempty" xml:"SocketCapacities,omitempty" type:"Struct"`
+	TotalLocalStorage      *int32                                                                                       `json:"TotalLocalStorage,omitempty" xml:"TotalLocalStorage,omitempty"`
+	TotalMemory            *float32                                                                                     `json:"TotalMemory,omitempty" xml:"TotalMemory,omitempty"`
+	TotalVcpus             *int32                                                                                       `json:"TotalVcpus,omitempty" xml:"TotalVcpus,omitempty"`
+	TotalVgpus             *int32                                                                                       `json:"TotalVgpus,omitempty" xml:"TotalVgpus,omitempty"`
 }
 
 func (s DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacity) String() string {
@@ -1014,36 +821,11 @@ func (s *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacitySo
 }
 
 type DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacitySocketCapacitiesSocketCapacity struct {
-	// The amount of available memory. Unit: GiB.
-	//
-	// example:
-	//
-	// 65
 	AvailableMemory *float32 `json:"AvailableMemory,omitempty" xml:"AvailableMemory,omitempty"`
-	// The number of available vCPUs.
-	//
-	// example:
-	//
-	// 64
-	AvailableVcpu *int32 `json:"AvailableVcpu,omitempty" xml:"AvailableVcpu,omitempty"`
-	// The socket ID.
-	//
-	// example:
-	//
-	// 1
-	SocketId *int32 `json:"SocketId,omitempty" xml:"SocketId,omitempty"`
-	// The total amount of memory. Unit: GiB.
-	//
-	// example:
-	//
-	// 128
-	TotalMemory *float32 `json:"TotalMemory,omitempty" xml:"TotalMemory,omitempty"`
-	// The total number of vCPUs.
-	//
-	// example:
-	//
-	// 128
-	TotalVcpu *int32 `json:"TotalVcpu,omitempty" xml:"TotalVcpu,omitempty"`
+	AvailableVcpu   *int32   `json:"AvailableVcpu,omitempty" xml:"AvailableVcpu,omitempty"`
+	SocketId        *int32   `json:"SocketId,omitempty" xml:"SocketId,omitempty"`
+	TotalMemory     *float32 `json:"TotalMemory,omitempty" xml:"TotalMemory,omitempty"`
+	TotalVcpu       *int32   `json:"TotalVcpu,omitempty" xml:"TotalVcpu,omitempty"`
 }
 
 func (s DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacitySocketCapacitiesSocketCapacity) String() string {
@@ -1104,11 +886,6 @@ func (s *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostCapacitySo
 }
 
 type DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostHostDetailInfo struct {
-	// This parameter will be removed in the future. We recommend that you use other parameters to ensure future compatibility.
-	//
-	// example:
-	//
-	// null
 	SerialNumber *string `json:"SerialNumber,omitempty" xml:"SerialNumber,omitempty"`
 }
 
@@ -1168,30 +945,10 @@ func (s *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostInstances)
 }
 
 type DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostInstancesInstance struct {
-	// The ID of the ECS instance.
-	//
-	// example:
-	//
-	// i-bp14ot0ykf8w13a1****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The ID of the ECS instance owner.
-	//
-	// example:
-	//
-	// 128************0
-	InstanceOwnerId *int64 `json:"InstanceOwnerId,omitempty" xml:"InstanceOwnerId,omitempty"`
-	// The instance type of the ECS instance that was created on the dedicated host.
-	//
-	// example:
-	//
-	// ecs.g5.large
-	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The ID of the socket to which the ECS instance belongs.
-	//
-	// example:
-	//
-	// 0,1
-	SocketId *string `json:"SocketId,omitempty" xml:"SocketId,omitempty"`
+	InstanceId      *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	InstanceOwnerId *int64  `json:"InstanceOwnerId,omitempty" xml:"InstanceOwnerId,omitempty"`
+	InstanceType    *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
+	SocketId        *string `json:"SocketId,omitempty" xml:"SocketId,omitempty"`
 }
 
 func (s DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostInstancesInstance) String() string {
@@ -1243,18 +1000,8 @@ func (s *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostInstancesI
 }
 
 type DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostNetworkAttributes struct {
-	// The timeout period of the UDP session that is established between Server Load Balancer (SLB) and the dedicated host. Unit: seconds. Only 60 is returned.
-	//
-	// example:
-	//
-	// 60
 	SlbUdpTimeout *int32 `json:"SlbUdpTimeout,omitempty" xml:"SlbUdpTimeout,omitempty"`
-	// The timeout period of the UDP session that is established between a user and an Alibaba Cloud service on the dedicated host. Unit: seconds. Only 60 is returned.
-	//
-	// example:
-	//
-	// 60
-	UdpTimeout *int32 `json:"UdpTimeout,omitempty" xml:"UdpTimeout,omitempty"`
+	UdpTimeout    *int32 `json:"UdpTimeout,omitempty" xml:"UdpTimeout,omitempty"`
 }
 
 func (s DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostNetworkAttributes) String() string {
@@ -1322,15 +1069,6 @@ func (s *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostOperationL
 }
 
 type DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostOperationLocksOperationLock struct {
-	// The reason why the dedicated host was locked. Valid values:
-	//
-	// 	- financial: The dedicated host was locked due to overdue payments.
-	//
-	// 	- security: The dedicated host was locked due to security reasons.
-	//
-	// example:
-	//
-	// financial
 	LockReason *string `json:"LockReason,omitempty" xml:"LockReason,omitempty"`
 }
 
@@ -1465,17 +1203,7 @@ func (s *DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostTags) Vali
 }
 
 type DescribeDedicatedHostsResponseBodyDedicatedHostsDedicatedHostTagsTag struct {
-	// The tag key of the dedicated host.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value of the dedicated host.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

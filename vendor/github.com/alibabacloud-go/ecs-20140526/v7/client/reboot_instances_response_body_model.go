@@ -16,7 +16,6 @@ type iRebootInstancesResponseBody interface {
 }
 
 type RebootInstancesResponseBody struct {
-	// Details about instance-specific responses, which contain the status of each instance before and after the operation is called and the results of the operation.
 	InstanceResponses *RebootInstancesResponseBodyInstanceResponses `json:"InstanceResponses,omitempty" xml:"InstanceResponses,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -96,35 +95,10 @@ func (s *RebootInstancesResponseBodyInstanceResponses) Validate() error {
 }
 
 type RebootInstancesResponseBodyInstanceResponsesInstanceResponse struct {
-	// The error code returned for the instance. A return value of 200 indicates that the operation is successful. For more information, see the "Error codes" section of this topic.
-	//
-	// example:
-	//
-	// 200
-	Code *string `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The current state of the instance.
-	//
-	// example:
-	//
-	// Stopping
-	CurrentStatus *string `json:"CurrentStatus,omitempty" xml:"CurrentStatus,omitempty"`
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-bp1g6zv0ce8oghu7****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The error message that is returned for the operation on the instance. The return value Success indicates that the operation is successful. For more information, see the "Error codes" section of this topic.
-	//
-	// example:
-	//
-	// success
-	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// The state of the instance before the operation is called.
-	//
-	// example:
-	//
-	// Running
+	Code           *string `json:"Code,omitempty" xml:"Code,omitempty"`
+	CurrentStatus  *string `json:"CurrentStatus,omitempty" xml:"CurrentStatus,omitempty"`
+	InstanceId     *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	Message        *string `json:"Message,omitempty" xml:"Message,omitempty"`
 	PreviousStatus *string `json:"PreviousStatus,omitempty" xml:"PreviousStatus,omitempty"`
 }
 

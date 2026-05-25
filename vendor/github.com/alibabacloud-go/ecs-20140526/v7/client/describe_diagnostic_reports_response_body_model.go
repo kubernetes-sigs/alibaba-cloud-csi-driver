@@ -23,9 +23,8 @@ type DescribeDiagnosticReportsResponseBody struct {
 	// example:
 	//
 	// caeba0bbb2be03f84eb48b699f0a4883
-	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The diagnostic reports.
-	Reports *DescribeDiagnosticReportsResponseBodyReports `json:"Reports,omitempty" xml:"Reports,omitempty" type:"Struct"`
+	NextToken *string                                       `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	Reports   *DescribeDiagnosticReportsResponseBodyReports `json:"Reports,omitempty" xml:"Reports,omitempty" type:"Struct"`
 	// The request ID.
 	//
 	// example:
@@ -113,78 +112,17 @@ func (s *DescribeDiagnosticReportsResponseBodyReports) Validate() error {
 }
 
 type DescribeDiagnosticReportsResponseBodyReportsReport struct {
-	// The time when the diagnostic report was created.
-	//
-	// example:
-	//
-	// 2022-07-11T12:00:00Z
-	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The end of the time range during which data was queried. The value is the EndTime value that was passed in when you called the [CreateDiagnosticReport](https://help.aliyun.com/document_detail/442490.html) operation to create the diagnostic report.
-	//
-	// example:
-	//
-	// 2022-07-11T14:00:00Z
-	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	// The time when the diagnostic was complete.
-	//
-	// example:
-	//
-	// 2022-07-11T14:00:00Z
-	FinishedTime *string `json:"FinishedTime,omitempty" xml:"FinishedTime,omitempty"`
-	// The diagnosed issues.
-	Issues *DescribeDiagnosticReportsResponseBodyReportsReportIssues `json:"Issues,omitempty" xml:"Issues,omitempty" type:"Struct"`
-	// The ID of the diagnostic metric set.
-	//
-	// example:
-	//
-	// dms-bp17p0qwtr72zmu*****
-	MetricSetId *string `json:"MetricSetId,omitempty" xml:"MetricSetId,omitempty"`
-	// The ID of the diagnostic report.
-	//
-	// example:
-	//
-	// dr-uf6i0tv2refv8wz*****
-	ReportId *string `json:"ReportId,omitempty" xml:"ReportId,omitempty"`
-	// The ID of the resource.
-	//
-	// example:
-	//
-	// i-uf6i0tv2refv8wz*****
-	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The type of the resource.
-	//
-	// example:
-	//
-	// instance
-	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
-	// The severity level of the diagnostic report. Valid values:
-	//
-	// 	- Unknown: The diagnostic did not start, failed to run, or unexpectedly exited without a diagnosis.
-	//
-	// 	- Normal: No exceptions were detected.
-	//
-	// 	- Info: Diagnostic information was recorded and may be related to exceptions.
-	//
-	// 	- Warn: Diagnostic information was recorded and may indicate exceptions.
-	//
-	// 	- Critical: Critical exceptions were detected.
-	//
-	// example:
-	//
-	// Normal
-	Severity *string `json:"Severity,omitempty" xml:"Severity,omitempty"`
-	// The beginning of the time range during which data was queried. The value is the StartTime value that was passed in when you called the [CreateDiagnosticReport](https://help.aliyun.com/document_detail/442490.html) operation to create the diagnostic report.
-	//
-	// example:
-	//
-	// 2022-07-11T12:00:00Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The status of the diagnostic report.
-	//
-	// example:
-	//
-	// Finished
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	CreationTime *string                                                   `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
+	EndTime      *string                                                   `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
+	FinishedTime *string                                                   `json:"FinishedTime,omitempty" xml:"FinishedTime,omitempty"`
+	Issues       *DescribeDiagnosticReportsResponseBodyReportsReportIssues `json:"Issues,omitempty" xml:"Issues,omitempty" type:"Struct"`
+	MetricSetId  *string                                                   `json:"MetricSetId,omitempty" xml:"MetricSetId,omitempty"`
+	ReportId     *string                                                   `json:"ReportId,omitempty" xml:"ReportId,omitempty"`
+	ResourceId   *string                                                   `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
+	ResourceType *string                                                   `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
+	Severity     *string                                                   `json:"Severity,omitempty" xml:"Severity,omitempty"`
+	StartTime    *string                                                   `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	Status       *string                                                   `json:"Status,omitempty" xml:"Status,omitempty"`
 }
 
 func (s DescribeDiagnosticReportsResponseBodyReportsReport) String() string {
@@ -338,36 +276,10 @@ func (s *DescribeDiagnosticReportsResponseBodyReportsReportIssues) Validate() er
 }
 
 type DescribeDiagnosticReportsResponseBodyReportsReportIssuesIssue struct {
-	// The ID of the diagnosed issue, which is the unique identifier of the issue.
-	//
-	// example:
-	//
-	// GuestOS.CPU.HighUtiliz*****
-	IssueId *string `json:"IssueId,omitempty" xml:"IssueId,omitempty"`
-	// The category of the diagnostic metric.
-	//
-	// example:
-	//
-	// ECSService.GuestOS
+	IssueId        *string `json:"IssueId,omitempty" xml:"IssueId,omitempty"`
 	MetricCategory *string `json:"MetricCategory,omitempty" xml:"MetricCategory,omitempty"`
-	// The ID of the diagnostic metric.
-	//
-	// example:
-	//
-	// GuestOS.WinFirewall
-	MetricId *string `json:"MetricId,omitempty" xml:"MetricId,omitempty"`
-	// The severity level of the diagnostic metric. Valid values:
-	//
-	// 	- Info: Diagnostic information was recorded and may be related to exceptions.
-	//
-	// 	- Warn: Diagnostic information was recorded and may indicate exceptions.
-	//
-	// 	- Critical: Critical exceptions were detected.
-	//
-	// example:
-	//
-	// Info
-	Severity *string `json:"Severity,omitempty" xml:"Severity,omitempty"`
+	MetricId       *string `json:"MetricId,omitempty" xml:"MetricId,omitempty"`
+	Severity       *string `json:"Severity,omitempty" xml:"Severity,omitempty"`
 }
 
 func (s DescribeDiagnosticReportsResponseBodyReportsReportIssuesIssue) String() string {

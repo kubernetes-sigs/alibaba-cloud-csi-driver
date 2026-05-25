@@ -22,7 +22,6 @@ type iDescribeCapacityReservationsResponseBody interface {
 }
 
 type DescribeCapacityReservationsResponseBody struct {
-	// Details of the capacity reservations.
 	CapacityReservationSet *DescribeCapacityReservationsResponseBodyCapacityReservationSet `json:"CapacityReservationSet,omitempty" xml:"CapacityReservationSet,omitempty" type:"Struct"`
 	// The maximum number of entries returned per page.
 	//
@@ -147,142 +146,25 @@ func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSet) Validat
 }
 
 type DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItem struct {
-	// Details of the allocated resources.
-	AllocatedResources *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResources `json:"AllocatedResources,omitempty" xml:"AllocatedResources,omitempty" type:"Struct"`
-	// The ID of the capacity reservation owner.
-	//
-	// example:
-	//
-	// 100************7
-	CapacityReservationOwnerId *string `json:"CapacityReservationOwnerId,omitempty" xml:"CapacityReservationOwnerId,omitempty"`
-	// The description of the capacity reservation.
-	//
-	// example:
-	//
-	// This is description.
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The time when the capacity reservation expires.
-	//
-	// example:
-	//
-	// 2021-02-19T03:02Z
-	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	// The release mode of the capacity reservation. Valid values:
-	//
-	// 	- Limited: The capacity reservation is automatically released at a specified time.
-	//
-	// 	- Unlimited: The capacity reservation is manually released. You can release the capacity reservation anytime.
-	//
-	// example:
-	//
-	// Unlimited
-	EndTimeType *string `json:"EndTimeType,omitempty" xml:"EndTimeType,omitempty"`
-	// The billing method of the instances created by using the capacity reservation. Valid values:
-	//
-	// 	- PostPaid: pay-as-you-go.
-	//
-	// 	- PrePaid: subscription.
-	//
-	// example:
-	//
-	// PostPaid
-	InstanceChargeType *string `json:"InstanceChargeType,omitempty" xml:"InstanceChargeType,omitempty"`
-	// The operating system type of the instances created by using the capacity reservation. Valid values:
-	//
-	// 	- windows
-	//
-	// 	- linux
-	//
-	// example:
-	//
-	// linux
-	Platform *string `json:"Platform,omitempty" xml:"Platform,omitempty"`
-	// The ID of the capacity reservation.
-	//
-	// example:
-	//
-	// crp-bp1gubrkqutenqdd****
-	PrivatePoolOptionsId *string `json:"PrivatePoolOptionsId,omitempty" xml:"PrivatePoolOptionsId,omitempty"`
-	// The type of the private pool generated after the capacity reservation takes effect. Valid values:
-	//
-	// 	- Open: open private pool. If you use the capacity reservation to create Elastic Compute Service (ECS) instances, the open private pool that is associated with the capacity reservation is automatically matched. If no capacity is available in the open private pool, resources in the public pool are automatically used to create the instances.
-	//
-	// 	- Target: targeted private pool. If you use the capacity reservation to create ECS instances, the targeted private pool that is associated with the capacity reservation is automatically matched. If no capacity is available in the private pool, the instances fail to be created.
-	//
-	// example:
-	//
-	// Open
-	PrivatePoolOptionsMatchCriteria *string `json:"PrivatePoolOptionsMatchCriteria,omitempty" xml:"PrivatePoolOptionsMatchCriteria,omitempty"`
-	// The name of the capacity reservation.
-	//
-	// example:
-	//
-	// crpTestName
-	PrivatePoolOptionsName *string `json:"PrivatePoolOptionsName,omitempty" xml:"PrivatePoolOptionsName,omitempty"`
-	// The region ID of the capacity reservation.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The ID of the reserved instance used with the capacity reservation.
-	//
-	// example:
-	//
-	// ri-bpzhex2ulpzf53****
-	ReservedInstanceId *string `json:"ReservedInstanceId,omitempty" xml:"ReservedInstanceId,omitempty"`
-	// The ID of the resource group to which the capacity reservation belongs.
-	//
-	// example:
-	//
-	// rg-bp67acfmxazb4p****
-	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The ID of the savings plan used with the capacity reservation.
-	//
-	// example:
-	//
-	// spn-c29b5e18pJMT****
-	SavingPlanId *string `json:"SavingPlanId,omitempty" xml:"SavingPlanId,omitempty"`
-	// The time when the capacity reservation takes effect.
-	//
-	// example:
-	//
-	// 2021-02-19T02:01Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The mode in which the capacity reservation takes effect. Valid values:
-	//
-	// 	- Now: The capacity reservation takes effect immediately after it is created.
-	//
-	// 	- Later: The capacity reservation takes effect at a specified time.
-	//
-	// example:
-	//
-	// Now
-	StartTimeType *string `json:"StartTimeType,omitempty" xml:"StartTimeType,omitempty"`
-	// The status of the capacity reservation. Valid values:
-	//
-	// 	- Pending: The capacity reservation is being initialized.
-	//
-	// 	- Preparing: The capacity reservation is being prepared.
-	//
-	// 	- Prepared: The capacity reservation is to take effect.
-	//
-	// 	- Active: The capacity reservation is in effect.
-	//
-	// 	- Released: The capacity reservation has been released manually or automatically when it expired.
-	//
-	// example:
-	//
-	// Active
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The tags that are added to the capacity reservation.
-	Tags *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// >  This parameter is in invitational preview and is not publicly available.
-	//
-	// example:
-	//
-	// null
-	TimeSlot *string `json:"TimeSlot,omitempty" xml:"TimeSlot,omitempty"`
+	AllocatedResources              *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResources `json:"AllocatedResources,omitempty" xml:"AllocatedResources,omitempty" type:"Struct"`
+	CapacityReservationOwnerId      *string                                                                                                  `json:"CapacityReservationOwnerId,omitempty" xml:"CapacityReservationOwnerId,omitempty"`
+	Description                     *string                                                                                                  `json:"Description,omitempty" xml:"Description,omitempty"`
+	EndTime                         *string                                                                                                  `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
+	EndTimeType                     *string                                                                                                  `json:"EndTimeType,omitempty" xml:"EndTimeType,omitempty"`
+	InstanceChargeType              *string                                                                                                  `json:"InstanceChargeType,omitempty" xml:"InstanceChargeType,omitempty"`
+	Platform                        *string                                                                                                  `json:"Platform,omitempty" xml:"Platform,omitempty"`
+	PrivatePoolOptionsId            *string                                                                                                  `json:"PrivatePoolOptionsId,omitempty" xml:"PrivatePoolOptionsId,omitempty"`
+	PrivatePoolOptionsMatchCriteria *string                                                                                                  `json:"PrivatePoolOptionsMatchCriteria,omitempty" xml:"PrivatePoolOptionsMatchCriteria,omitempty"`
+	PrivatePoolOptionsName          *string                                                                                                  `json:"PrivatePoolOptionsName,omitempty" xml:"PrivatePoolOptionsName,omitempty"`
+	RegionId                        *string                                                                                                  `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ReservedInstanceId              *string                                                                                                  `json:"ReservedInstanceId,omitempty" xml:"ReservedInstanceId,omitempty"`
+	ResourceGroupId                 *string                                                                                                  `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	SavingPlanId                    *string                                                                                                  `json:"SavingPlanId,omitempty" xml:"SavingPlanId,omitempty"`
+	StartTime                       *string                                                                                                  `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	StartTimeType                   *string                                                                                                  `json:"StartTimeType,omitempty" xml:"StartTimeType,omitempty"`
+	Status                          *string                                                                                                  `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags                            *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemTags               `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	TimeSlot                        *string                                                                                                  `json:"TimeSlot,omitempty" xml:"TimeSlot,omitempty"`
 }
 
 func (s DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItem) String() string {
@@ -513,38 +395,20 @@ func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityR
 }
 
 type DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource struct {
-	// The number of available instances.
-	//
-	// example:
-	//
-	// 2
-	AvailableAmount *int32 `json:"AvailableAmount,omitempty" xml:"AvailableAmount,omitempty"`
-	// Details of instance usage.
+	AvailableAmount           *int32                                                                                                                                             `json:"AvailableAmount,omitempty" xml:"AvailableAmount,omitempty"`
 	CapacityReservationUsages *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResourceCapacityReservationUsages `json:"CapacityReservationUsages,omitempty" xml:"CapacityReservationUsages,omitempty" type:"Struct"`
-	// The instance type of the instances.
-	//
 	// example:
 	//
-	// ecs.c6.large
+	// 1
+	FailedAmount *int32  `json:"FailedAmount,omitempty" xml:"FailedAmount,omitempty"`
 	InstanceType *string `json:"InstanceType,omitempty" xml:"InstanceType,omitempty"`
-	// The total number of instances for which the capacity of an instance type is reserved.
-	//
 	// example:
 	//
-	// 2
-	TotalAmount *int32 `json:"TotalAmount,omitempty" xml:"TotalAmount,omitempty"`
-	// The number of instances that have used the capacity reservation.
-	//
-	// example:
-	//
-	// 2
-	UsedAmount *int32 `json:"UsedAmount,omitempty" xml:"UsedAmount,omitempty"`
-	// The zone ID.
-	//
-	// example:
-	//
-	// cn-hangzhou-h
-	ZoneId *string `json:"zoneId,omitempty" xml:"zoneId,omitempty"`
+	// 1
+	LockedAmount *int32  `json:"LockedAmount,omitempty" xml:"LockedAmount,omitempty"`
+	TotalAmount  *int32  `json:"TotalAmount,omitempty" xml:"TotalAmount,omitempty"`
+	UsedAmount   *int32  `json:"UsedAmount,omitempty" xml:"UsedAmount,omitempty"`
+	ZoneId       *string `json:"zoneId,omitempty" xml:"zoneId,omitempty"`
 }
 
 func (s DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource) String() string {
@@ -563,8 +427,16 @@ func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityR
 	return s.CapacityReservationUsages
 }
 
+func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource) GetFailedAmount() *int32 {
+	return s.FailedAmount
+}
+
 func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource) GetInstanceType() *string {
 	return s.InstanceType
+}
+
+func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource) GetLockedAmount() *int32 {
+	return s.LockedAmount
 }
 
 func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource) GetTotalAmount() *int32 {
@@ -589,8 +461,18 @@ func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityR
 	return s
 }
 
+func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource) SetFailedAmount(v int32) *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource {
+	s.FailedAmount = &v
+	return s
+}
+
 func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource) SetInstanceType(v string) *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource {
 	s.InstanceType = &v
+	return s
+}
+
+func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource) SetLockedAmount(v int32) *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResource {
+	s.LockedAmount = &v
 	return s
 }
 
@@ -653,24 +535,9 @@ func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityR
 }
 
 type DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResourceCapacityReservationUsagesCapacityReservationUsage struct {
-	// The ID of the Alibaba Cloud account.
-	//
-	// example:
-	//
-	// 105909559088****
-	AccountId *string `json:"AccountId,omitempty" xml:"AccountId,omitempty"`
-	// The name of the Alibaba Cloud service.
-	//
-	// example:
-	//
-	// maxcompute.aliyuncs.com
+	AccountId   *string `json:"AccountId,omitempty" xml:"AccountId,omitempty"`
 	ServiceName *string `json:"ServiceName,omitempty" xml:"ServiceName,omitempty"`
-	// The number of instances that are used by the Alibaba Cloud account or service.
-	//
-	// example:
-	//
-	// 20
-	UsedAmount *int32 `json:"UsedAmount,omitempty" xml:"UsedAmount,omitempty"`
+	UsedAmount  *int32  `json:"UsedAmount,omitempty" xml:"UsedAmount,omitempty"`
 }
 
 func (s DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemAllocatedResourcesAllocatedResourceCapacityReservationUsagesCapacityReservationUsage) String() string {
@@ -747,17 +614,7 @@ func (s *DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityR
 }
 
 type DescribeCapacityReservationsResponseBodyCapacityReservationSetCapacityReservationItemTagsTag struct {
-	// The tag key.
-	//
-	// example:
-	//
-	// TestKey
-	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
-	// The tag value.
-	//
-	// example:
-	//
-	// TestValue
+	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 

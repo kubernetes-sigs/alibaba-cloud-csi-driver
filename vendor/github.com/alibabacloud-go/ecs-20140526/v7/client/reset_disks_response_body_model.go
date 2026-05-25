@@ -16,7 +16,6 @@ type iResetDisksResponseBody interface {
 }
 
 type ResetDisksResponseBody struct {
-	// Details about the rollback operation.
 	OperationProgressSet *ResetDisksResponseBodyOperationProgressSet `json:"OperationProgressSet,omitempty" xml:"OperationProgressSet,omitempty" type:"Struct"`
 	// The ID of the request.
 	//
@@ -96,30 +95,10 @@ func (s *ResetDisksResponseBodyOperationProgressSet) Validate() error {
 }
 
 type ResetDisksResponseBodyOperationProgressSetOperationProgress struct {
-	// The error code that is returned if the request failed. This parameter is empty if the request is successful.
-	//
-	// For information about error codes and error messages, see [Service error codes](https://error-center.alibabacloud.com/status/product/Ecs).
-	//
-	// example:
-	//
-	// 400
-	ErrorCode *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
-	// The error message that is returned if the request failed. This parameter is empty if the request is successful.
-	//
-	// For information about error codes and error messages, see [Service error codes](https://error-center.alibabacloud.com/status/product/Ecs).
-	//
-	// example:
-	//
-	// testErrorMsg
-	ErrorMsg *string `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
-	// Indicates whether the request is successful. If the request is successful, Success is returned. If the request failed, an error code and an error message are returned.
-	//
-	// example:
-	//
-	// Success
-	OperationStatus *string `json:"OperationStatus,omitempty" xml:"OperationStatus,omitempty"`
-	// Details about the resources.
-	RelatedItemSet *ResetDisksResponseBodyOperationProgressSetOperationProgressRelatedItemSet `json:"RelatedItemSet,omitempty" xml:"RelatedItemSet,omitempty" type:"Struct"`
+	ErrorCode       *string                                                                    `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
+	ErrorMsg        *string                                                                    `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
+	OperationStatus *string                                                                    `json:"OperationStatus,omitempty" xml:"OperationStatus,omitempty"`
+	RelatedItemSet  *ResetDisksResponseBodyOperationProgressSetOperationProgressRelatedItemSet `json:"RelatedItemSet,omitempty" xml:"RelatedItemSet,omitempty" type:"Struct"`
 }
 
 func (s ResetDisksResponseBodyOperationProgressSetOperationProgress) String() string {
@@ -210,17 +189,7 @@ func (s *ResetDisksResponseBodyOperationProgressSetOperationProgressRelatedItemS
 }
 
 type ResetDisksResponseBodyOperationProgressSetOperationProgressRelatedItemSetRelatedItem struct {
-	// The resource name.
-	//
-	// example:
-	//
-	// SnapshotId
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The resource ID.
-	//
-	// example:
-	//
-	// s-j6cdofbycydvg7ey****
+	Name  *string `json:"Name,omitempty" xml:"Name,omitempty"`
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

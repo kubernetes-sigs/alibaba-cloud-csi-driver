@@ -20,10 +20,8 @@ type iAssignIpv6AddressesResponseBody interface {
 }
 
 type AssignIpv6AddressesResponseBody struct {
-	// The IPv6 prefixes of the ENI.
 	Ipv6PrefixSets *AssignIpv6AddressesResponseBodyIpv6PrefixSets `json:"Ipv6PrefixSets,omitempty" xml:"Ipv6PrefixSets,omitempty" type:"Struct"`
-	// The IPv6 addresses assigned to the ENI.
-	Ipv6Sets *AssignIpv6AddressesResponseBodyIpv6Sets `json:"Ipv6Sets,omitempty" xml:"Ipv6Sets,omitempty" type:"Struct"`
+	Ipv6Sets       *AssignIpv6AddressesResponseBodyIpv6Sets       `json:"Ipv6Sets,omitempty" xml:"Ipv6Sets,omitempty" type:"Struct"`
 	// The ENI ID.
 	//
 	// example:

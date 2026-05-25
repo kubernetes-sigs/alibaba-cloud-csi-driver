@@ -39,9 +39,8 @@ type DetachKeyPairResponseBody struct {
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The result set of the unbind operation.
-	Results *DetachKeyPairResponseBodyResults `json:"Results,omitempty" xml:"Results,omitempty" type:"Struct"`
+	RequestId *string                           `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	Results   *DetachKeyPairResponseBodyResults `json:"Results,omitempty" xml:"Results,omitempty" type:"Struct"`
 	// The total number of instances from which you want to unbind the SSH key pair.
 	//
 	// example:
@@ -147,30 +146,10 @@ func (s *DetachKeyPairResponseBodyResults) Validate() error {
 }
 
 type DetachKeyPairResponseBodyResultsResult struct {
-	// The operation status code that is returned. 200 indicates that the operation is successful.
-	//
-	// example:
-	//
-	// 200
-	Code *string `json:"Code,omitempty" xml:"Code,omitempty"`
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-bp1d6tsvznfghy7y****
+	Code       *string `json:"Code,omitempty" xml:"Code,omitempty"`
 	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The result of the operation. For example, if the value of `Code` is 200, the value of `Message` is `successful`.
-	//
-	// example:
-	//
-	// successful
-	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// Indicates whether the operation is successful.
-	//
-	// example:
-	//
-	// true
-	Success *string `json:"Success,omitempty" xml:"Success,omitempty"`
+	Message    *string `json:"Message,omitempty" xml:"Message,omitempty"`
+	Success    *string `json:"Success,omitempty" xml:"Success,omitempty"`
 }
 
 func (s DetachKeyPairResponseBodyResultsResult) String() string {

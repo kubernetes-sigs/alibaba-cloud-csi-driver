@@ -22,24 +22,9 @@ type iDeleteAutoSnapshotPolicyRequest interface {
 }
 
 type DeleteAutoSnapshotPolicyRequest struct {
-	// RAM用户的虚拟账号ID。
-	//
-	// example:
-	//
-	// 155780923770
-	OwnerId *int64 `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
-	// 资源主账号的账号名称。
-	//
-	// example:
-	//
-	// ECSforCloud
+	OwnerId              *int64  `json:"OwnerId,omitempty" xml:"OwnerId,omitempty"`
 	ResourceOwnerAccount *string `json:"ResourceOwnerAccount,omitempty" xml:"ResourceOwnerAccount,omitempty"`
-	// 资源主账号的ID，亦即UID。
-	//
-	// example:
-	//
-	// 155780923770
-	ResourceOwnerId *int64 `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
+	ResourceOwnerId      *int64  `json:"ResourceOwnerId,omitempty" xml:"ResourceOwnerId,omitempty"`
 	// The ID of the automatic snapshot policy. You can call the [DescribeAutoSnapshotPolicyEx](https://help.aliyun.com/document_detail/25530.html) operation to query the IDs of available automatic snapshot policies.
 	//
 	// This parameter is required.

@@ -9,6 +9,8 @@ type iCreateActivationRequest interface {
 	dara.Model
 	String() string
 	GoString() string
+	SetClientToken(v string) *CreateActivationRequest
+	GetClientToken() *string
 	SetDescription(v string) *CreateActivationRequest
 	GetDescription() *string
 	SetInstanceCount(v int32) *CreateActivationRequest
@@ -36,6 +38,7 @@ type iCreateActivationRequest interface {
 }
 
 type CreateActivationRequest struct {
+	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// The description of the activation code. The description must be 1 to 100 characters in length.
 	//
 	// example:
@@ -104,6 +107,10 @@ func (s CreateActivationRequest) GoString() string {
 	return s.String()
 }
 
+func (s *CreateActivationRequest) GetClientToken() *string {
+	return s.ClientToken
+}
+
 func (s *CreateActivationRequest) GetDescription() *string {
 	return s.Description
 }
@@ -150,6 +157,11 @@ func (s *CreateActivationRequest) GetTag() []*CreateActivationRequestTag {
 
 func (s *CreateActivationRequest) GetTimeToLiveInHours() *int64 {
 	return s.TimeToLiveInHours
+}
+
+func (s *CreateActivationRequest) SetClientToken(v string) *CreateActivationRequest {
+	s.ClientToken = &v
+	return s
 }
 
 func (s *CreateActivationRequest) SetDescription(v string) *CreateActivationRequest {

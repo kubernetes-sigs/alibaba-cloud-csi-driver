@@ -18,7 +18,6 @@ type iAllocateDedicatedHostsResponseBody interface {
 }
 
 type AllocateDedicatedHostsResponseBody struct {
-	// A list of dedicated host IDs.
 	DedicatedHostIdSets *AllocateDedicatedHostsResponseBodyDedicatedHostIdSets `json:"DedicatedHostIdSets,omitempty" xml:"DedicatedHostIdSets,omitempty" type:"Struct"`
 	// The ID of the order.
 	//

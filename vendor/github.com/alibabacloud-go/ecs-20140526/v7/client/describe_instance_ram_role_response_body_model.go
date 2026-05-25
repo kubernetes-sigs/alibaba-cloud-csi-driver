@@ -20,7 +20,6 @@ type iDescribeInstanceRamRoleResponseBody interface {
 }
 
 type DescribeInstanceRamRoleResponseBody struct {
-	// The IDs of the ECS instances and the names of the corresponding instance RAM roles.
 	InstanceRamRoleSets *DescribeInstanceRamRoleResponseBodyInstanceRamRoleSets `json:"InstanceRamRoleSets,omitempty" xml:"InstanceRamRoleSets,omitempty" type:"Struct"`
 	// The region ID of the ECS instances.
 	//
@@ -130,17 +129,7 @@ func (s *DescribeInstanceRamRoleResponseBodyInstanceRamRoleSets) Validate() erro
 }
 
 type DescribeInstanceRamRoleResponseBodyInstanceRamRoleSetsInstanceRamRoleSet struct {
-	// The ID of the instance
-	//
-	// example:
-	//
-	// i-bp67acfmxazb4p****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The name of the instance RAM role.
-	//
-	// example:
-	//
-	// EcsServiceRole-EcsDocGuideTest
+	InstanceId  *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
 	RamRoleName *string `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
 }
 

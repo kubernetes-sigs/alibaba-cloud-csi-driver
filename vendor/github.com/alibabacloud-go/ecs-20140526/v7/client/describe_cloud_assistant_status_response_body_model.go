@@ -24,7 +24,6 @@ type iDescribeCloudAssistantStatusResponseBody interface {
 }
 
 type DescribeCloudAssistantStatusResponseBody struct {
-	// Details about the installation status of Cloud Assistant on the instances.
 	InstanceCloudAssistantStatusSet *DescribeCloudAssistantStatusResponseBodyInstanceCloudAssistantStatusSet `json:"InstanceCloudAssistantStatusSet,omitempty" xml:"InstanceCloudAssistantStatusSet,omitempty" type:"Struct"`
 	// A pagination token. It can be used in the next request to retrieve a new page of results.
 	//
@@ -164,76 +163,15 @@ func (s *DescribeCloudAssistantStatusResponseBodyInstanceCloudAssistantStatusSet
 }
 
 type DescribeCloudAssistantStatusResponseBodyInstanceCloudAssistantStatusSetInstanceCloudAssistantStatus struct {
-	// The number of tasks that Cloud Assistant was running on the instance.
-	//
-	// example:
-	//
-	// 0
-	ActiveTaskCount *int64 `json:"ActiveTaskCount,omitempty" xml:"ActiveTaskCount,omitempty"`
-	// Indicates whether Cloud Assistant is running on the instance. Valid values:
-	//
-	// 	- true: Heartbeats are detected in the last 2 minutes.
-	//
-	// 	- false: No heartbeats are detected in the last 2 minutes.
-	//
-	// example:
-	//
-	// true
-	CloudAssistantStatus *string `json:"CloudAssistantStatus,omitempty" xml:"CloudAssistantStatus,omitempty"`
-	// The version number of Cloud Assistant Agent. This parameter is empty if Cloud Assistant Agent is not installed or is not running on the instance.
-	//
-	// example:
-	//
-	// 2.2.0.106
+	ActiveTaskCount       *int64  `json:"ActiveTaskCount,omitempty" xml:"ActiveTaskCount,omitempty"`
+	CloudAssistantStatus  *string `json:"CloudAssistantStatus,omitempty" xml:"CloudAssistantStatus,omitempty"`
 	CloudAssistantVersion *string `json:"CloudAssistantVersion,omitempty" xml:"CloudAssistantVersion,omitempty"`
-	// The ID of the instance.
-	//
-	// example:
-	//
-	// i-bp1iudwa5b1tqa****
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	// The number of tasks that Cloud Assistant completed on the instance.
-	//
-	// example:
-	//
-	// 2
-	InvocationCount *int64 `json:"InvocationCount,omitempty" xml:"InvocationCount,omitempty"`
-	// The last heartbeat time of Cloud Assistant. The value is updated every minute on average. The interval can be 55, 60, or 65 seconds.
-	//
-	// example:
-	//
-	// 2021-03-15T09:00:00Z
-	LastHeartbeatTime *string `json:"LastHeartbeatTime,omitempty" xml:"LastHeartbeatTime,omitempty"`
-	// The time when commands were last run.
-	//
-	// example:
-	//
-	// 2021-03-15T08:00:00Z
-	LastInvokedTime *string `json:"LastInvokedTime,omitempty" xml:"LastInvokedTime,omitempty"`
-	// The operating system type of the instance. Valid values:
-	//
-	// 	- Windows
-	//
-	// 	- Linux
-	//
-	// 	- FreeBSD
-	//
-	// example:
-	//
-	// Linux
-	OSType *string `json:"OSType,omitempty" xml:"OSType,omitempty"`
-	// Indicates whether Cloud Assistant supports Session Manager on the instance. If Session Manager is not supported, the version of Cloud Assistant Agent is outdated. Update Cloud Assistant Agent to the latest version.
-	//
-	// To support Session Manager, the version of Cloud Assistant Agent cannot be earlier than the following versions:
-	//
-	// 	- Linux: 2.2.3.189
-	//
-	// 	- Windows: 2.1.3.189
-	//
-	// example:
-	//
-	// true
-	SupportSessionManager *bool `json:"SupportSessionManager,omitempty" xml:"SupportSessionManager,omitempty"`
+	InstanceId            *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
+	InvocationCount       *int64  `json:"InvocationCount,omitempty" xml:"InvocationCount,omitempty"`
+	LastHeartbeatTime     *string `json:"LastHeartbeatTime,omitempty" xml:"LastHeartbeatTime,omitempty"`
+	LastInvokedTime       *string `json:"LastInvokedTime,omitempty" xml:"LastInvokedTime,omitempty"`
+	OSType                *string `json:"OSType,omitempty" xml:"OSType,omitempty"`
+	SupportSessionManager *bool   `json:"SupportSessionManager,omitempty" xml:"SupportSessionManager,omitempty"`
 }
 
 func (s DescribeCloudAssistantStatusResponseBodyInstanceCloudAssistantStatusSetInstanceCloudAssistantStatus) String() string {

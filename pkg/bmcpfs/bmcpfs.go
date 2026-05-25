@@ -19,6 +19,7 @@ limitations under the License.
 package bmcpfs
 
 import (
+	"strings"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -41,6 +42,8 @@ const (
 
 	// CommonNodeIDPrefix is the prefix for common node IDs
 	CommonNodeIDPrefix = "common:"
+	// VSCNodeIDPrefix is the prefix for ecs node IDs which enabled vsc
+	VSCNodeIDPrefix = "vsc:"
 	// LingjunNodeIDPrefix is the prefix for lingjun node IDs
 	LingjunNodeIDPrefix = "lingjun:"
 
@@ -53,6 +56,48 @@ const (
 	FILESET_DESCRIBE_TIMEOUT = 5 * time.Minute
 )
 
+// nodeKind identifies the source/topology of a CSI node ID.
+type nodeKind int
+
+const (
+	// nodeKindUnknown is returned when the node ID has no recognized prefix.
+	nodeKindUnknown nodeKind = iota
+	// nodeKindCommon represents an ECS node without VSC support; uses VPC mount.
+	nodeKindCommon
+	// nodeKindVSC represents an ECS node with VSC enabled.
+	nodeKindVSC
+	// nodeKindLingjun represents a Lingjun (eflo) node.
+	nodeKindLingjun
+)
+
+// supportsVSC reports whether VSC-based attach should be performed for this node kind.
+func (k nodeKind) supportsVSC() bool {
+	return k == nodeKindLingjun || k == nodeKindVSC
+}
+
+// parseNodeID extracts the underlying instance/node ID from a CSI node ID and
+// classifies the node kind based on its prefix. Returns empty instanceID and
+// nodeKindUnknown when the prefix is missing or the body is empty.
+func parseNodeID(nodeID string) (instanceID string, kind nodeKind) {
+	switch {
+	case strings.HasPrefix(nodeID, LingjunNodeIDPrefix):
+		instanceID = strings.TrimPrefix(nodeID, LingjunNodeIDPrefix)
+		kind = nodeKindLingjun
+	case strings.HasPrefix(nodeID, VSCNodeIDPrefix):
+		instanceID = strings.TrimPrefix(nodeID, VSCNodeIDPrefix)
+		kind = nodeKindVSC
+	case strings.HasPrefix(nodeID, CommonNodeIDPrefix):
+		instanceID = strings.TrimPrefix(nodeID, CommonNodeIDPrefix)
+		kind = nodeKindCommon
+	default:
+		return "", nodeKindUnknown
+	}
+	if instanceID == "" {
+		return "", nodeKindUnknown
+	}
+	return instanceID, kind
+}
+
 type Driver struct {
 	endpoint string
 	servers  common.Servers
@@ -64,14 +109,14 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 	driver.servers.IdentityServer = newIdentityServer()
 
 	if serviceType&utils.Controller != 0 {
-		cs, err := newControllerServer(metadata.MustGet(meta, metadata.RegionID))
+		cs, err := newControllerServer(meta)
 		if err != nil {
 			klog.Fatalf("Init controller server: %v", err)
 		}
 		driver.servers.ControllerServer = cs
 	}
 	if serviceType&utils.Node != 0 {
-		ns, err := newNodeServer()
+		ns, err := newNodeServer(meta)
 		if err != nil {
 			klog.Fatalf("Init node server: %v", err)
 		}
