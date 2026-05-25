@@ -8,18 +8,18 @@ skopeo() {
 
 DOCKERFILE=build/multi/Dockerfile.multi
 
-DISTROLESS=registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12
+DISTROLESS=registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian13
 DEBIAN=registry-cn-hangzhou.ack.aliyuncs.com/dev/debian
 
 if [ "$UPSTREAM" ]; then
-    DISTROLESS=gcr.io/distroless/base-debian12
+    DISTROLESS=gcr.io/distroless/base-debian13
     DEBIAN=docker.io/debian
 fi
 
 DISTROLESS_DIGEST=$(skopeo inspect docker://$DISTROLESS --format '{{.Digest}}')
 echo "The latest distroless digest is $DISTROLESS_DIGEST"
 
-DEBIAN_TAG=$(skopeo list-tags docker://$DEBIAN | jq -r '.Tags|map(select(test("^bookworm-.+-slim$"))) | sort | last')
+DEBIAN_TAG=$(skopeo list-tags docker://$DEBIAN | jq -r '.Tags|map(select(test("^trixie-.+-slim$"))) | sort | last')
 echo "The latest debian tag is $DEBIAN_TAG"
 
 sed -i "
