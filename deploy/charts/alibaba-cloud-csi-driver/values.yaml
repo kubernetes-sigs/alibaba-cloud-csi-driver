@@ -128,7 +128,7 @@ images:
     tag: "v4.9.0-aliyun"
   externalProvisioner:
     repo: acs/csi-provisioner
-    tag: "v6.1.0-5-apsara"
+    tag: "v6.2.1-aliyun"
   externalResizer:
     repo: acs/csi-resizer
     tag: "v1.14.0-aliyun"
