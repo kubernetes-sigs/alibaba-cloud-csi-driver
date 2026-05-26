@@ -125,22 +125,22 @@ images:
     tag: "v0.2.1"
   externalAttacher:
     repo: acs/csi-attacher
-    tag: "v4.9.0-aliyun"
+    tag: "v4.12.0-aliyun"
   externalProvisioner:
     repo: acs/csi-provisioner
-    tag: "v6.1.0-5-apsara"
+    tag: "v6.2.1-aliyun"
   externalResizer:
     repo: acs/csi-resizer
-    tag: "v1.14.0-aliyun"
+    tag: "v2.1.1-aliyun"
   externalSnapshotter:
     repo: acs/csi-snapshotter
-    tag: "v8.5.0-aliyun"
+    tag: "v8.5.1-aliyun"
   externalSnapshotController:
     repo: acs/snapshot-controller
-    tag: "v8.5.0-aliyun"
+    tag: "v8.5.1-aliyun"
   pluginRegistrar:
     repo: acs/csi-node-driver-registrar
-    tag: "v2.14.0-aliyun"
+    tag: "v2.17.0-aliyun"
   ossfs:
     repo: acs/csi-ossfs
     tag: "v1.91.10.ack.1-318a02a"
