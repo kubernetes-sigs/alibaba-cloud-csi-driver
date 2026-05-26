@@ -95,6 +95,16 @@ const (
 	// and restart ossfs2) on non-SIGTERM process exit. This feature implies
 	// fd-passing for ossfs2.
 	//
+	// Data integrity note: during recovery, in-flight FUSE requests are interrupted
+	// with -EINTR via resend+flush. This means:
+	//   - Reads: safe (idempotent). Applications retry and get correct data.
+	//   - Writes: buffered writes in the dead daemon's memory are LOST. Applications
+	//     receive -EINTR and know the write failed, but data already buffered by
+	//     previous successful write() calls (not yet flushed to OSS) is unrecoverable.
+	//   Applications requiring write durability MUST call fsync() and confirm success
+	//   before considering data committed. Only data acknowledged by fsync() survives
+	//   daemon crashes. This is consistent with POSIX semantics for any volatile cache.
+	//
 	// Deployment note: this feature gate must be configured on BOTH the csi-provisioner
 	// (controller) and the csi-plugin (node) components, same as EnableFUSEFdPassing.
 	//
