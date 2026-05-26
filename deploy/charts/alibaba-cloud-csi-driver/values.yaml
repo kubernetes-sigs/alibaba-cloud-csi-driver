@@ -125,7 +125,7 @@ images:
     tag: "v0.2.1"
   externalAttacher:
     repo: acs/csi-attacher
-    tag: "v4.9.0-aliyun"
+    tag: "v4.12.0-aliyun"
   externalProvisioner:
     repo: acs/csi-provisioner
     tag: "v6.2.1-aliyun"
