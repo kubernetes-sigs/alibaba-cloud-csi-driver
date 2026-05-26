@@ -4,15 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
-	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
@@ -159,9 +156,6 @@ func (m *extendedMounter) recoveryRestart(
 	return nil, recoveryMaxAttempts, fmt.Errorf("recovery failed after %d attempts: %w", recoveryMaxAttempts, lastErr)
 }
 
-// flushFuseConnection writes "1" to /sys/fs/fuse/connections/<chanId>/flush
-// to abort pending FUSE requests before recovery restart.
-func flushFuseConnection(chanId uint64) error {
-	path := filepath.Join(server.FuseConnectionsDir, strconv.FormatUint(chanId, 10), "flush")
-	return os.WriteFile(path, []byte("1"), 0o644)
+func flushFuseConnection(connID uint64) error {
+	return mounterutils.FlushFuseConnection(connID)
 }

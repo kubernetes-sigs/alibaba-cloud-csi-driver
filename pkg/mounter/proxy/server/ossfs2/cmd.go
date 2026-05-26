@@ -8,6 +8,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"k8s.io/klog/v2"
 )
 
 // startedProcess represents an ossfs2 process that has been started and confirmed ready.
@@ -52,12 +53,16 @@ func (m *extendedMounter) runCmd(op *mounter.MountOperation, recovery bool, sw s
 
 	if op.FuseFd > 0 {
 		// cmd.ExtraFiles places the fd at index 3 in the child (0=stdin, 1=stdout, 2=stderr).
-		cmd.ExtraFiles = []*os.File{os.NewFile(uintptr(op.FuseFd), "/dev/fuse")}
+		fuseFile := os.NewFile(uintptr(op.FuseFd), "/dev/fuse")
+		cmd.ExtraFiles = []*os.File{fuseFile}
+		klog.V(4).InfoS("Passing FUSE fd to ossfs2 child", "parentFd", op.FuseFd, "childFd", 3)
 	}
 
+	klog.V(4).InfoS("Starting ossfs2", "args", args)
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start ossfs2 failed: %w", err)
 	}
+	klog.V(4).InfoS("ossfs2 process started", "pid", cmd.Process.Pid)
 	return cmd, nil
 }
 

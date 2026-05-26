@@ -160,6 +160,11 @@ func (m *MountMonitor) HandleRecoveryFailed(exitErr error, recoveryErr error, at
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Stop periodic mount-point checks. The mount is confirmed dead and no
+	// further recovery will be attempted; continued polling could overwrite
+	// the unhealthy status due to stale kernel attr cache on the FUSE mount.
+	m.State = MonitorStateInitialized
+
 	reason := fmt.Errorf("%w; recovery exhausted after %d attempt(s), last error: %v",
 		exitErr, attempts, recoveryErr)
 	m.updateMountPointMetrics(nil, nil, reason)

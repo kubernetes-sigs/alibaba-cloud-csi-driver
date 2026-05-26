@@ -228,15 +228,15 @@ func TestCheckKernelForRecovery_ValidationError(t *testing.T) {
 	}
 }
 
-func TestIsAlinux(t *testing.T) {
+func TestIsSupportedOSForRecovery(t *testing.T) {
 	tests := []struct {
 		osDist string
 		want   bool
 	}{
 		{"al8", true},
-		{"alnx4", true},
-		{"alnx5", true},
-		{"alnx10", true},
+		{"alnx4", false}, // TODO: change to true when ossfs2 supports alinux4+
+		{"alnx5", false},
+		{"alnx10", false},
 		{"al7", false},
 		{"al9", false},
 		{"al10", false},
@@ -251,8 +251,8 @@ func TestIsAlinux(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.osDist, func(t *testing.T) {
-			if got := isAlinux(tt.osDist); got != tt.want {
-				t.Errorf("isAlinux(%q) = %v, want %v", tt.osDist, got, tt.want)
+			if got := isSupportedOSForRecovery(tt.osDist); got != tt.want {
+				t.Errorf("isSupportedOSForRecovery(%q) = %v, want %v", tt.osDist, got, tt.want)
 			}
 		})
 	}

@@ -279,10 +279,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			// new mounts
 			metricsPath = utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.Bucket)
 		}
-		// Mounter will be capable of handling fd passing and recovery.
-		// If not supported, it will fall back to normal mount.
-		// For token rotation (targetPath already mounted), disable fd-passing and recovery:
-		// no new kernel mount or daemon start is needed — only token files are updated.
+		// fd-passing and recovery are not enabled for RunD/MicroVM:
+		// 1. Both depend on ProxyMounter (only available for RunC/RunD with proxy)
+		// 2. Recovery requires extra volumes (/sys/fs/fuse/) mounted in fuse pod
+		// 3. In RunC the FUSE daemon is shared across pods, making recovery more
+		//    critical; RunD/MicroVM has per-pod daemons with lower blast radius
+		// TODO: enable for RunD after stabilization in RunC
 		err := ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
 			Source:      mountSource,
 			Target:      targetPath,
@@ -291,8 +293,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			Args:        mountFlags,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
-			FdPassing:   opts.FdPassing && notMntTarget,
-			Recovery:    opts.Recovery && notMntTarget,
 		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -322,8 +322,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			// new mounts
 			metricsPath = utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opts.FuseType, "oss", opts.Bucket, attachPath)
 		}
-		// For token rotation (attachPath already mounted), disable fd-passing and recovery:
-		// no new kernel mount or daemon start is needed — only token files are updated.
+		// Fd-passing and recovery are enabled only for RunC:
+		// the FUSE daemon is shared across pods via bind mounts, so a daemon crash
+		// affects all consumers — recovery provides automatic failover.
+		// For token rotation (attachPath already mounted), disable fd-passing and
+		// recovery: no new kernel mount or daemon start is needed.
 		err = ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
 			Source:      mountSource,
 			Target:      attachPath,
@@ -380,7 +383,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return ns.unPublishDirectVolume(ctx, req)
 	}
 
-	err = mountutils.CleanupMountPoint(targetPath, ns.rawMounter, true)
+	err = mounterutils.SafeCleanupFuseMount(targetPath, ns.rawMounter)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", targetPath, err)
 	}
@@ -406,8 +409,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 	defer ns.locks.Release(req.VolumeId)
 
 	attachPath := mounterutils.GetAttachPath(req.VolumeId)
-	err := mountutils.CleanupMountPoint(attachPath, ns.rawMounter, false)
-	if err != nil {
+	if err := mounterutils.SafeCleanupFuseMount(attachPath, ns.rawMounter); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", attachPath, err)
 	}
 
@@ -416,16 +418,16 @@ func (ns *nodeServer) NodeUnstageVolume(
 
 	// In the legacy mount process, NodePublishVolume creates ossfs pods in kube-system namespace to mount ossfpm.
 	// We still need to umount the mountpoint in case csi-plugin is upgraded from these versions.
-	err = mountutils.CleanupMountPoint(req.StagingTargetPath, ns.rawMounter, false)
-	if err != nil {
+	// CleanupMountPoint is safe here: legacy never used fd-passing, so there is no
+	// "daemon dead + fd held" scenario that would cause stat to hang.
+	if err := mountutils.CleanupMountPoint(req.StagingTargetPath, ns.rawMounter, false); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", req.StagingTargetPath, err)
 	}
 
 	// Note: credentialSecret has been deprecated, but we still need to clean up the credentialSecret
 	// in case csi-plugin is upgraded from these versions.
 	// credentialSecret only supports ossfs.
-	err = mounterutils.CleanupCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, unifiedFsType)
-	if err != nil {
+	if err := mounterutils.CleanupCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, unifiedFsType); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to cleanup ossfs credential secret: %v", err)
 	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
