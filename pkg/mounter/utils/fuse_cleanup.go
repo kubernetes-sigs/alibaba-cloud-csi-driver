@@ -5,40 +5,29 @@ package utils
 import (
 	"fmt"
 	"os"
-	"time"
 
 	mountinfo "github.com/moby/sys/mountinfo"
+	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
-// unmountTimeout is the timeout for the initial umount attempt in UnmountWithForce.
-// If umount doesn't complete within this time, it escalates to umount -f.
-// For FUSE mounts, umount -f triggers kernel fuse_abort_conn() which aborts
-// the connection and unmounts — equivalent to writing the fusectl abort file.
-const unmountTimeout = 5 * time.Second
 
-// SafeCleanupFuseMount unmounts a path that may be a FUSE mount (or a bind
-// mount of a FUSE filesystem) without risking an indefinite hang.
+// SafeCleanupFuseMount unmounts target and removes the directory.
 //
-// The core issue: k8s CleanupMountPoint/CleanupMountWithForce both call
-// os.Stat as their first operation. When the FUSE daemon is dead but the
-// mount-proxy server holds the /dev/fuse fd open, stat blocks forever
-// (kernel sends FUSE_GETATTR that nobody processes, connection stays alive).
+// When fuseUnsafe is true, the target may be a FUSE mount with dead daemon but
+// alive connection (fuse pod holds /dev/fuse fd). In this mode:
+//   - Uses mountinfo (procfs read) instead of stat to check mount state
+//   - Uses the umount2() syscall directly instead of exec-ing the umount binary
 //
-// This function:
-//  1. Checks /proc/self/mountinfo (text read, never touches FUSE) to determine
-//     if target is mounted. If not, just removes the directory.
-//  2. Calls UnmountWithForce directly — no Go-side stat needed. If the umount
-//     binary hangs (dead daemon), it's killed after timeout, then escalated to
-//     umount -f. For FUSE, umount -f calls fuse_abort_conn() in kernel, which
-//     aborts the connection and unmounts in one operation.
-func SafeCleanupFuseMount(target string, mounter mountutils.Interface) error {
-	// Why mountinfo instead of mount.List() or PathExists:
-	// Both call os.Stat, which sends FUSE_GETATTR to the kernel. When the FUSE
-	// daemon is dead but the /dev/fuse fd is still held open (connection alive),
-	// stat hangs indefinitely. Reading /proc/self/mountinfo is a procfs text
-	// read with zero FUSE interaction — always returns immediately.
+// This avoids the D-state hang: umount binary does fstatat() before umount2(),
+// which triggers FUSE getattr → TASK_UNINTERRUPTIBLE when the daemon is dead.
+//
+// When fuseUnsafe is false, delegates to the standard CleanupMountPoint.
+func SafeCleanupFuseMount(target string, mounter mountutils.Interface, fuseUnsafe bool) error {
+	if !fuseUnsafe {
+		return mountutils.CleanupMountPoint(target, mounter, false)
+	}
 	infos, err := mountinfo.GetMounts(mountinfo.SingleEntryFilter(target))
 	if err != nil {
 		klog.Warningf("SafeCleanupFuseMount: failed to read mountinfo for %s: %v, falling back", target, err)
@@ -51,23 +40,65 @@ func SafeCleanupFuseMount(target string, mounter mountutils.Interface) error {
 		return nil
 	}
 
-	forceUnmounter, ok := mounter.(mountutils.MounterForceUnmounter)
-	if !ok {
-		if err := mounter.Unmount(target); err != nil {
-			return fmt.Errorf("unmount %s: %w", target, err)
-		}
-		return removePath(target)
+	if err := unmountDirect(target); err != nil {
+		return err
 	}
 
-	if err := forceUnmounter.UnmountWithForce(target, unmountTimeout); err != nil {
-		return fmt.Errorf("unmount %s: %w", target, err)
-	}
-
-	// Why os.Remove instead of CleanupMountPoint:
-	// CleanupMountPoint calls os.Stat internally. If the unmount somehow didn't
-	// take effect, stat on a still-live FUSE mount hangs forever. os.Remove on
-	// a still-mounted path returns EBUSY immediately rather than blocking.
 	return removePath(target)
+}
+
+// unmountDirect performs umount via direct syscall, avoiding the umount binary.
+func unmountDirect(target string) error {
+	err := unix.Unmount(target, 0)
+	if err == nil {
+		return nil
+	}
+
+	if err == unix.EBUSY {
+		// MNT_DETACH (lazy unmount) removes the mount from the namespace immediately
+		// without aborting FUSE connections or waiting for open file references.
+		// Safe for both bind mounts (preserves other pods' access to the FUSE mount)
+		// and direct FUSE mounts (ControllerUnpublish will delete fuse pod later,
+		// closing the fd and fully tearing down the connection).
+		klog.V(2).Infof("unmountDirect: %s busy, using MNT_DETACH", target)
+		err = unix.Unmount(target, unix.MNT_DETACH)
+		if err == nil {
+			return nil
+		}
+	}
+
+	// EINVAL = not mounted; ENOENT = path already gone. Both mean success.
+	if err == unix.EINVAL || err == unix.ENOENT {
+		return nil
+	}
+
+	return fmt.Errorf("unmount %s: %w", target, err)
+}
+
+// SafeIsNotMountPoint checks whether target is a mount point and ensures the
+// directory exists (same contract as IsNotMountPoint).
+//
+// When fuseUnsafe is true, the target may be a FUSE mount with dead daemon but
+// alive connection (stat would enter D state). In this case, mountinfo (pure
+// procfs read) is used instead of stat to avoid hanging.
+//
+// When fuseUnsafe is false, delegates directly to the stat-based IsNotMountPoint.
+func SafeIsNotMountPoint(mounter mountutils.Interface, target string, fuseUnsafe bool) (bool, error) {
+	if !fuseUnsafe {
+		return IsNotMountPoint(mounter, target)
+	}
+	infos, err := mountinfo.GetMounts(mountinfo.SingleEntryFilter(target))
+	if err != nil {
+		klog.Warningf("SafeIsNotMountPoint: failed to read mountinfo for %s: %v, falling back", target, err)
+		return IsNotMountPoint(mounter, target)
+	}
+	if len(infos) > 0 {
+		return false, nil
+	}
+	if err := os.MkdirAll(target, os.ModePerm); err != nil {
+		return false, fmt.Errorf("mkdir %s: %w", target, err)
+	}
+	return true, nil
 }
 
 func removePath(target string) error {

@@ -63,7 +63,8 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 		return mounter.ErrSkipMount
 	}
 	if mountInterface != nil && op.FuseFd <= 0 {
-		notMnt, err := mounterutils.IsNotMountPoint(mountInterface, op.Target)
+		// fuseUnsafe=false: legacy mode (FuseFd <= 0), no fd-passing, daemon death closes connection
+		notMnt, err := mounterutils.SafeIsNotMountPoint(mountInterface, op.Target, false)
 		if err != nil {
 			return fmt.Errorf("failed to check if target %s is a mountpoint: %w", op.Target, err)
 		}

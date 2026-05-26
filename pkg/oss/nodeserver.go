@@ -180,7 +180,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Check if targetPath is already mounted (used to determine if token rotation is needed)
 	// Note: For RunC, targetPath may not be mounted even if attachPath is mounted (bind mount not done yet)
-	notMntTarget, err := mounterutils.IsNotMountPoint(ns.rawMounter, targetPath)
+	// fuseUnsafe=false: targetPath is either non-existent (new pod) or has an active daemon (token rotation)
+	notMntTarget, err := mounterutils.SafeIsNotMountPoint(ns.rawMounter, targetPath, false)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +310,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Note: For RunC, if attachPath is already mounted, ExtendedMount is skipped (only bind mount was done above)
 	attachPath := mounterutils.GetAttachPath(req.VolumeId)
-	notMntAttach, err := mounterutils.IsNotMountPoint(ns.rawMounter, attachPath)
+	// fuseUnsafe=true: in fd-passing mode, attachPath may be a FUSE mount with dead daemon
+	// but alive connection (fuse pod holds /dev/fuse fd), stat would D-state hang
+	notMntAttach, err := mounterutils.SafeIsNotMountPoint(ns.rawMounter, attachPath, opts.FdPassing)
 	if err != nil {
 		return nil, err
 	}
@@ -383,7 +386,9 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return ns.unPublishDirectVolume(ctx, req)
 	}
 
-	err = mounterutils.SafeCleanupFuseMount(targetPath, ns.rawMounter)
+	// fuseUnsafe=false: by the time NodeUnpublish runs, kubelet has already killed
+	// the pod's containers, closing all fds to the FUSE mount — connection is dead
+	err = mounterutils.SafeCleanupFuseMount(targetPath, ns.rawMounter, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", targetPath, err)
 	}
@@ -409,18 +414,17 @@ func (ns *nodeServer) NodeUnstageVolume(
 	defer ns.locks.Release(req.VolumeId)
 
 	attachPath := mounterutils.GetAttachPath(req.VolumeId)
-	if err := mounterutils.SafeCleanupFuseMount(attachPath, ns.rawMounter); err != nil {
+	// fuseUnsafe=true: in fd-passing mode, fuse pod still holds /dev/fuse fd at this point
+	// (ControllerUnpublish deletes fuse pod later), so FUSE connection is alive with dead daemon
+	if err := mounterutils.SafeCleanupFuseMount(attachPath, ns.rawMounter, true); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", attachPath, err)
 	}
 
 	// The metricsPath in fuse Pod will be cleaned and not allowed to update the metrics
 	utils.RemoveMetrics(metricsPathPrefix, req)
 
-	// In the legacy mount process, NodePublishVolume creates ossfs pods in kube-system namespace to mount ossfpm.
-	// We still need to umount the mountpoint in case csi-plugin is upgraded from these versions.
-	// CleanupMountPoint is safe here: legacy never used fd-passing, so there is no
-	// "daemon dead + fd held" scenario that would cause stat to hang.
-	if err := mountutils.CleanupMountPoint(req.StagingTargetPath, ns.rawMounter, false); err != nil {
+	// fuseUnsafe=false: legacy staging path never used fd-passing, no "daemon dead + fd held" scenario
+	if err := mounterutils.SafeCleanupFuseMount(req.StagingTargetPath, ns.rawMounter, false); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", req.StagingTargetPath, err)
 	}
 

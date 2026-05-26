@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
@@ -116,8 +117,11 @@ func (c *client) Mount(ctx context.Context, req *proxy.MountRequest) (*proxy.Res
 		defer func() {
 			// If Mount fails, clean up the kernel mount we created.
 			// This ensures no stale mount is left when the operation fails.
+			// Must use SafeCleanupFuseMount (direct syscall) instead of mounter.Unmount
+			// (exec umount binary): the FUSE daemon is dead but fuse pod holds /dev/fuse fd,
+			// so umount binary's fstatat would enter D state.
 			if cleanupMount {
-				_ = mounter.Unmount(req.Target)
+				_ = mounterutils.SafeCleanupFuseMount(req.Target, mounter, true)
 			}
 		}()
 		fuseFd = fd
