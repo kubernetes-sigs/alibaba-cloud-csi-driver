@@ -70,6 +70,11 @@ do
                 echo "Running oss plugin...."
                 mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/ossplugin.csi.alibabacloud.com"
                 rm -rf "$KUBELET_ROOT_DIR/plugins/ossplugin.csi.alibabacloud.com/csi.sock"
+                # Pre-load fuse module so /sys/fs/fuse/connections exists before
+                # fuse pods start; otherwise the HostPathDirectory check races
+                # with the first kernel FUSE mount and emits FailedMount warnings.
+                host_cmd modprobe fuse
+                echo "modprobe fuse returned: $?"
             elif [ "$driver_type" = "disk" ]; then
                 echo "Running disk plugin...."
                 mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/diskplugin.csi.alibabacloud.com"

@@ -15,7 +15,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
-	mountinfo "github.com/moby/sys/mountinfo"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/klog/v2"
 )
 
@@ -28,6 +28,8 @@ func (m *extendedMounter) mount(ctx context.Context, op *mounter.MountOperation)
 	fuseFd := op.FuseFd
 	recovery := op.Recovery && fuseFd > 0
 
+	logger.V(4).Info("mount started", "target", target, "fuseFd", fuseFd, "recovery", recovery, "hasActiveDaemon", op.HasActiveDaemon)
+
 	// Get FUSE channel ID for recovery flush (fd-passing only)
 	var chanId uint64
 	if recovery {
@@ -36,6 +38,8 @@ func (m *extendedMounter) mount(ctx context.Context, op *mounter.MountOperation)
 		if err != nil {
 			logger.Error(err, "Failed to get FUSE channel ID, recovery disabled")
 			recovery = false
+		} else {
+			logger.V(4).Info("Got FUSE channel ID", "chanId", chanId)
 		}
 	}
 
@@ -105,8 +109,10 @@ func (m *extendedMounter) startAndWaitReady(
 	}()
 
 	if op.FuseFd > 0 {
+		klog.InfoS("Waiting for fd-passing mount readiness", "target", op.Target, "fuseFd", op.FuseFd, "pid", cmd.Process.Pid)
 		err = m.waitForFdPassingMountReady(ctx, op.Target, op.FuseFd, exited)
 	} else {
+		klog.InfoS("Waiting for legacy mount readiness", "target", op.Target, "pid", cmd.Process.Pid)
 		err = m.waitForLegacyMountReady(ctx, op.Target, exited)
 	}
 
@@ -114,6 +120,7 @@ func (m *extendedMounter) startAndWaitReady(
 		if !cmdDone.Load() {
 			// Process still alive (timeout or stat error): terminate and wait for exit.
 			_ = cmd.Process.Signal(syscall.SIGTERM)
+			klog.InfoS("Terminated timed-out ossfs2 process", "pid", cmd.Process.Pid)
 			select {
 			case <-exited:
 			case <-time.After(2 * time.Second):
@@ -128,14 +135,6 @@ func (m *extendedMounter) startAndWaitReady(
 	return &startedProcess{cmd: cmd, exited: exited}, nil
 }
 
-// getFuseChannelID returns the FUSE minor device number (connection ID) for the given mountpoint.
 func getFuseChannelID(target string) (uint64, error) {
-	infos, err := mountinfo.GetMounts(mountinfo.SingleEntryFilter(target))
-	if err != nil {
-		return 0, fmt.Errorf("get mounts for %s: %w", target, err)
-	}
-	if len(infos) == 0 {
-		return 0, fmt.Errorf("no mount info found for %s", target)
-	}
-	return uint64(infos[0].Minor), nil
+	return mounterutils.GetFuseConnectionID(target)
 }

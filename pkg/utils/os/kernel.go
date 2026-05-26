@@ -9,7 +9,7 @@ import (
 )
 
 // ErrPrefixRecoveryKernel is the common prefix for recovery kernel validation errors.
-const ErrPrefixRecoveryKernel = "recovery requires kernel >= 5.10.134-18 on Alibaba Cloud Linux 3 or above, x86_64"
+const ErrPrefixRecoveryKernel = "recovery requires kernel >= 5.10.134-18 on Alibaba Cloud Linux 3, x86_64"
 
 // KernelVersion represents a parsed kernel version string from uname.
 // Example: "5.10.134-18.al8.x86_64" → {Major:5, Minor:10, Patch:134, Sublevel:18, OSDist:"al8", Arch:"x86_64"}
@@ -119,7 +119,7 @@ func (kv *KernelVersion) String() string {
 // CheckKernelForRecovery validates that the kernel meets the minimum requirements
 // for FUSE recovery support:
 //   - Kernel version >= 5.10.134-18
-//   - OS distribution is Alibaba Cloud Linux 3 or above (al8 or alnx4+)
+//   - OS distribution is Alibaba Cloud Linux 3 (al8)
 //   - Architecture is x86_64
 //
 // Returns an error describing which requirement is not met.
@@ -148,7 +148,7 @@ func checkKernelForRecoveryWithInputs(release, machine string) error {
 		return fmt.Errorf("%s, got %s", ErrPrefixRecoveryKernel, release)
 	}
 
-	if !isAlinux(kv.OSDist) {
+	if !isSupportedOSForRecovery(kv.OSDist) {
 		return fmt.Errorf("%s: unsupported OS distribution %q (kernel %s)", ErrPrefixRecoveryKernel, kv.OSDist, release)
 	}
 
@@ -160,18 +160,17 @@ func checkKernelForRecoveryWithInputs(release, machine string) error {
 	return nil
 }
 
-// isAlinux checks whether the OS distribution tag indicates Alibaba Cloud Linux 3 or above.
-// Two naming conventions:
-//   - Alibaba Cloud Linux 3: "al8" (the only format for this version)
-//   - Alibaba Cloud Linux 4+: "alnx" + version >= 4 (e.g. alnx4, alnx5)
-func isAlinux(osDist string) bool {
+// isSupportedOSForRecovery checks whether the OS distribution supports FUSE recovery.
+// Currently only Alibaba Cloud Linux 3 (osDist "al8") is supported.
+func isSupportedOSForRecovery(osDist string) bool {
 	if osDist == "al8" {
 		return true
 	}
-	if verStr, ok := strings.CutPrefix(osDist, "alnx"); ok {
-		ver, err := strconv.Atoi(verStr)
-		return err == nil && ver >= 4
-	}
+	// TODO: enable when ossfs2 supports Alibaba Cloud Linux 4+ (alnx4, alnx5, ...)
+	// if verStr, ok := strings.CutPrefix(osDist, "alnx"); ok {
+	// 	ver, err := strconv.Atoi(verStr)
+	// 	return err == nil && ver >= 4
+	// }
 	return false
 }
 
