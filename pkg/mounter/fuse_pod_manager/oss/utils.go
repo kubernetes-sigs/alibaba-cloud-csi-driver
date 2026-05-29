@@ -17,7 +17,7 @@ import (
 
 var (
 	defaultOssfsImageTag        = "v1.88.4-80d165c-aliyun"
-	defaultOssfsUpdatedImageTag = "v1.91.10.ack.1-318a02a"
+	defaultOssfsUpdatedImageTag = "v1.91.10.ack.2-fd3910d"
 	defaultOssfs2ImageTag       = "v2.0.7.ack.1-2d5bf24"
 )
 
