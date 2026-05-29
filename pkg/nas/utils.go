@@ -25,13 +25,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
-	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -87,9 +87,7 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	} else {
 		source = fmt.Sprintf("%s:%s", opt.Server, opt.Path)
 	}
-	if opt.Options != "" {
-		combinedOptions = append(combinedOptions, opt.Options)
-	}
+	combinedOptions = append(combinedOptions, opt.Options...)
 	if opt.AkID != "" && opt.AkSecret != "" {
 		secrets = map[string]string{
 			akIDKey:     opt.AkID,
@@ -120,7 +118,7 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	default:
 		//NFS Mount(Capacdity/Performance Extreme Nas、Cpfs2.0, AliNas)
 		versStr := fmt.Sprintf("vers=%s", opt.Vers)
-		if !strings.Contains(opt.Options, versStr) {
+		if !slices.Contains(opt.Options, versStr) {
 			combinedOptions = append(combinedOptions, versStr)
 		}
 		if opt.Accesspoint != "" {
@@ -132,7 +130,7 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		// Enable compatibility for BMCPFS VPC mount points using the NAS Driver, to support the same usage in ECI.
 		if isCPFS(opt.FSType, opt.Server) && opt.MountProtocol == "efc" {
 			mountFstype = "alinas"
-			combinedOptions = append(combinedOptions, "efc,protocol=efc,net=tcp,fstype=cpfs")
+			combinedOptions = append(combinedOptions, "efc", "protocol=efc", "net=tcp", "fstype=cpfs")
 			if agentMode {
 				isPathNotFound = isEFCPathNotFoundError
 			} else {
@@ -263,39 +261,33 @@ func checkSystemNasConfig() error {
 	return os.WriteFile(TcpSlotTableEntries, []byte(TcpSlotTableEntriesValue), os.ModePerm)
 }
 
-// ParseMountFlags parse mountOptions
-func ParseMountFlags(mntOptions []string) (string, string) {
+// ParseMountFlags parse mountOptions.
+// Input must be pre-split (each element is a single mount option).
+func ParseMountFlags(mntOptions []string) (string, []string) {
 	var vers string
 	var otherOptions []string
-	for _, options := range mntOptions {
-		for _, option := range mounterutils.SplitMountOptions(options) {
-			if option == "" {
-				continue
-			}
-			key, value, found := strings.Cut(option, "=")
-			if found && key == "vers" {
-				vers = value
-			} else {
-				otherOptions = append(otherOptions, option)
-			}
+	for _, option := range mntOptions {
+		if option == "" {
+			continue
+		}
+		key, value, found := strings.Cut(option, "=")
+		if found && key == "vers" {
+			vers = value
+		} else {
+			otherOptions = append(otherOptions, option)
 		}
 	}
 	if vers == "3.0" {
 		vers = "3"
 	}
-	return vers, strings.Join(otherOptions, ",")
+	return vers, otherOptions
 }
 
 func addTLSMountOptions(baseOptions []string) []string {
-	for _, options := range baseOptions {
-		for _, option := range mounterutils.SplitMountOptions(options) {
-			if option == "" {
-				continue
-			}
-			key, _, _ := strings.Cut(option, "=")
-			if key == "tls" {
-				return baseOptions
-			}
+	for _, option := range baseOptions {
+		key, _, _ := strings.Cut(option, "=")
+		if key == "tls" {
+			return baseOptions
 		}
 	}
 	return append(baseOptions, "tls")
@@ -358,7 +350,7 @@ func saveVolumeData(opt *Options, mountPath string) error {
 	volumeData := map[string]string{}
 	volumeData["csi.alibabacloud.com/version"] = opt.Vers
 	if len(opt.Options) != 0 {
-		volumeData["csi.alibabacloud.com/options"] = opt.Options
+		volumeData["csi.alibabacloud.com/options"] = strings.Join(opt.Options, ",")
 	}
 	if len(opt.Server) != 0 {
 		volumeData["csi.alibabacloud.com/server"] = opt.Server
