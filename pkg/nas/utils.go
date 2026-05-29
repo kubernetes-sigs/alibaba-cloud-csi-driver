@@ -171,11 +171,15 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		return err
 	}
 	defer os.Remove(tmpPath)
+	// mount without "ro" since we need to create the subpath directory
+	rwOptions := slices.DeleteFunc(slices.Clone(combinedOptions), func(s string) bool {
+		return s == "ro"
+	})
 	if err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
 		Source:   rootSource,
 		Target:   tmpPath,
 		FsType:   mountFstype,
-		Options:  combinedOptions,
+		Options:  rwOptions,
 		Secrets:  secrets,
 		VolumeID: volumeId,
 	}); err != nil {

@@ -20,6 +20,7 @@ package nas
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
@@ -153,8 +154,21 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 
 func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	for _, cap := range req.VolumeCapabilities {
-		if cap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
-			return &csi.ValidateVolumeCapabilitiesResponse{Message: ""}, nil
+		if cap.GetBlock() != nil {
+			return &csi.ValidateVolumeCapabilitiesResponse{
+				Message: "NAS does not support block volumes",
+			}, nil
+		}
+		switch cap.GetAccessMode().GetMode() {
+		case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+			csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
+			csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
+			csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER,
+			csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
+		default:
+			return &csi.ValidateVolumeCapabilitiesResponse{
+				Message: fmt.Sprintf("unsupported access mode: %v", cap.GetAccessMode().GetMode()),
+			}, nil
 		}
 	}
 	return &csi.ValidateVolumeCapabilitiesResponse{

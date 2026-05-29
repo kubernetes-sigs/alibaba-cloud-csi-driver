@@ -306,6 +306,15 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	readOnly := req.GetReadonly()
+	if !readOnly {
+		switch req.GetVolumeCapability().GetAccessMode().GetMode() {
+		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
+			csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
+			readOnly = true
+		}
+	}
+
 	var runtimeVal string
 	if ns.config.KubeClient != nil {
 		runtimeVal = utils.GetPodRunTime(ctx, req, ns.config.KubeClient)
@@ -314,8 +323,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// running in runc/runv mode
 	if runtimeVal == utils.RunvRunTimeTag {
 		fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
+		options := opt.Options
+		if readOnly {
+			options = append(options, "ro")
+		}
 		runvOptions := RunvNasOptions{
-			Options:    strings.Join(opt.Options, ","),
+			Options:    strings.Join(options, ","),
 			Server:     opt.Server,
 			ModeType:   opt.ModeType,
 			Mode:       opt.Mode,
@@ -370,6 +383,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	} else if len(opt.Options) == 1 && strings.EqualFold(opt.Options[0], "none") {
 		opt.Options = nil
+	}
+
+	if readOnly {
+		opt.Options = append(opt.Options, "ro")
 	}
 
 	notMounted, err := ns.mounter.IsLikelyNotMountPoint(mountPath)
@@ -433,6 +450,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// do losetup nas logical
 	if ns.config.EnableLosetup && opt.MountType == LosetupType {
+		if readOnly {
+			return nil, status.Error(codes.InvalidArgument, "losetup volumes do not support readonly mode")
+		}
 		if err := ns.mountLosetupPv(mountPath, opt, req.VolumeId); err != nil {
 			klog.Errorf("NodePublishVolume: mount losetup volume(%s) error %s", req.VolumeId, err.Error())
 			return nil, errors.New("NodePublishVolume, mount Losetup volume error with: " + err.Error())
@@ -477,7 +497,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	}
 	// change the mode
-	if opt.Mode != "" && opt.Path != "/" {
+	if opt.Mode != "" && opt.Path != "/" && !readOnly {
 		var args []string
 		if opt.ModeType == "recursive" {
 			args = append(args, "-R")
