@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	mountinfo "github.com/moby/sys/mountinfo"
+	"k8s.io/klog/v2"
 )
 
 var FuseConnectionsDir = "/sys/fs/fuse/connections"
@@ -28,13 +29,34 @@ func GetFuseConnectionID(mountpoint string) (uint64, error) {
 	return uint64(infos[0].Minor), nil
 }
 
-// FlushFuseConnection writes "1" to /sys/fs/fuse/connections/<id>/flush.
-// This interrupts pending FUSE requests (they get -EINTR) but keeps the
-// connection alive for recovery restart.
+// FlushFuseConnection interrupts all in-flight FUSE requests for a connection,
+// keeping the connection alive for recovery restart.
+//
+// The kernel FUSE layer has two request queues:
+//   - pending: requests waiting to be read by daemon from /dev/fuse
+//   - processing: requests already read by daemon, awaiting response
+//
+// Writing to "flush" only interrupts pending requests. Processing requests
+// (orphaned after daemon death) are unaffected and cause D-state hangs.
+// Writing to "resend" first moves processing requests back to the pending
+// queue, so the subsequent flush interrupts everything.
+//
+// Both "resend" and "flush" are alinux kernel extensions (available on
+// alinux3 5.10.134-17+ with FUSE recovery patches). Callers are already
+// gated by kernel version checks (see detectKernelRecoverySupport), so
+// these files are expected to exist when this function is reached.
+// Errors are logged but non-fatal for defensive robustness.
 func FlushFuseConnection(connID uint64) error {
-	p := filepath.Join(FuseConnectionsDir, strconv.FormatUint(connID, 10), "flush")
-	if err := os.WriteFile(p, []byte("1"), 0o644); err != nil {
-		return fmt.Errorf("write to %s: %w", p, err)
+	connDir := filepath.Join(FuseConnectionsDir, strconv.FormatUint(connID, 10))
+
+	resendPath := filepath.Join(connDir, "resend")
+	if err := os.WriteFile(resendPath, []byte("1"), 0o644); err != nil {
+		klog.Warningf("FlushFuseConnection: resend not available for connection %d: %v", connID, err)
+	}
+
+	flushPath := filepath.Join(connDir, "flush")
+	if err := os.WriteFile(flushPath, []byte("1"), 0o644); err != nil {
+		return fmt.Errorf("write to %s: %w", flushPath, err)
 	}
 	return nil
 }
