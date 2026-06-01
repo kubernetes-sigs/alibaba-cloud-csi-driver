@@ -942,8 +942,10 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 		logger.V(2).Info("Successful expand partition", "root", rootPath, "partition", index)
 	}
 
+	deviceCapacity := getBlockDeviceCapacity(rootPath)
+
 	logger.V(2).Info("Expand filesystem start", "volumePath", volumePath)
-	// use resizer to expand volume filesystem
+	// still try resize even if the deviceCapacity is not as large as requested, better than not.
 	r := k8smount.NewResizeFs(utilexec.New())
 	ok, err := r.Resize(devicePath, volumePath)
 	if err != nil {
@@ -953,7 +955,6 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 		return nil, status.Errorf(codes.Internal, "resize %s returned false", volumePath)
 	}
 
-	deviceCapacity := getBlockDeviceCapacity(rootPath)
 	if requestBytes > 0 && deviceCapacity < requestBytes {
 		// After calling OpenAPI to expand cloud disk, the size of the underlying block device may not change immediately.
 		// return error and CO will retry later.
