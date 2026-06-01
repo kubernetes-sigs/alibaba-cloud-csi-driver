@@ -85,6 +85,10 @@ type Options struct {
 	RoleArn            string `json:"roleArn"`
 	OidcProviderArn    string `json:"oidcProviderArn"`
 	ServiceAccountName string `json:"serviceAccountName"`
+	// RRSA oidc-proxy options (PV volumeAttributes)
+	RRSAEndpoint string `json:"rrsaEndpoint"` // oidc-proxy service endpoint (e.g., https://oidc-proxy.ns.svc)
+	RRSACaSecret string `json:"rrsaCaSecret"` // Secret name containing CA cert
+	RRSAAudience string `json:"rrsaAudience"` // Token audience (e.g., oidc-proxy.alibabacloud.com)
 	// assume role
 	AssumeRoleArn string `json:"assumeRoleArn"`
 	ExternalId    string `json:"externalId"`
