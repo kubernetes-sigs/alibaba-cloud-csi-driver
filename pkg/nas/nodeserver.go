@@ -37,6 +37,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
@@ -85,19 +86,19 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 
 // Options struct definition
 type Options struct {
-	Server        string `json:"server"`
-	Accesspoint   string `json:"accesspoint"`
-	Path          string `json:"path"`
-	Vers          string `json:"vers"`
-	Mode          string `json:"mode"`
-	ModeType      string `json:"modeType"`
-	Options       string `json:"options"`
-	MountType     string `json:"mountType"`
-	LoopImageSize int    `json:"loopImageSize"`
-	LoopLock      string `json:"loopLock"`
-	MountProtocol string `json:"mountProtocol"`
-	ClientType    string `json:"clientType"`
-	FSType        string `json:"fsType"`
+	Server        string   `json:"server"`
+	Accesspoint   string   `json:"accesspoint"`
+	Path          string   `json:"path"`
+	Vers          string   `json:"vers"`
+	Mode          string   `json:"mode"`
+	ModeType      string   `json:"modeType"`
+	Options       []string `json:"options"`
+	MountType     string   `json:"mountType"`
+	LoopImageSize int      `json:"loopImageSize"`
+	LoopLock      string   `json:"loopLock"`
+	MountProtocol string   `json:"mountProtocol"`
+	ClientType    string   `json:"clientType"`
+	FSType        string   `json:"fsType"`
 	SysConfigs    []utilsio.SysConfig
 	AkID          string
 	AkSecret      string
@@ -234,7 +235,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		case "mode":
 			opt.Mode = value
 		case "options":
-			opt.Options = value
+			opt.Options = mounterutils.SplitMountOptions(value)
 		case "modetype":
 			opt.ModeType = value
 		case "mounttype":
@@ -286,7 +287,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// version/options used first in mountOptions
 	if req.VolumeCapability != nil && req.VolumeCapability.GetMount() != nil {
-		mntOptions := req.VolumeCapability.GetMount().MountFlags
+		var mntOptions []string
+		for _, o := range req.VolumeCapability.GetMount().MountFlags {
+			mntOptions = append(mntOptions, mounterutils.SplitMountOptions(o)...)
+		}
 		parseVers, parseOptions := ParseMountFlags(mntOptions)
 		if parseVers != "" {
 			if opt.Vers != "" {
@@ -294,11 +298,20 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 			opt.Vers = parseVers
 		}
-		if parseOptions != "" {
-			if opt.Options != "" {
-				klog.Warningf("NodePublishVolume: Options(%s) (in volumeAttributes) is ignored as Options(%s) also configured in mountOptions", opt.Options, parseOptions)
+		if len(parseOptions) > 0 {
+			if len(opt.Options) > 0 {
+				klog.Warningf("NodePublishVolume: Options(%v) (in volumeAttributes) is ignored as Options(%v) also configured in mountOptions", opt.Options, parseOptions)
 			}
 			opt.Options = parseOptions
+		}
+	}
+
+	readOnly := req.GetReadonly()
+	if !readOnly {
+		switch req.GetVolumeCapability().GetAccessMode().GetMode() {
+		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
+			csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
+			readOnly = true
 		}
 	}
 
@@ -310,8 +323,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// running in runc/runv mode
 	if runtimeVal == utils.RunvRunTimeTag {
 		fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
+		options := opt.Options
+		if readOnly {
+			options = append(options, "ro")
+		}
 		runvOptions := RunvNasOptions{
-			Options:    opt.Options,
+			Options:    strings.Join(options, ","),
 			Server:     opt.Server,
 			ModeType:   opt.ModeType,
 			Mode:       opt.Mode,
@@ -358,14 +375,18 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 	// check options, config defaults for aliyun nas
-	if opt.Options == "" {
+	if len(opt.Options) == 0 {
 		if opt.Vers == "3" {
-			opt.Options = "nolock,proto=tcp,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport"
+			opt.Options = []string{"nolock", "proto=tcp", "rsize=1048576", "wsize=1048576", "hard", "timeo=600", "retrans=2", "noresvport"}
 		} else {
-			opt.Options = "noresvport"
+			opt.Options = []string{"noresvport"}
 		}
-	} else if strings.ToLower(opt.Options) == "none" {
-		opt.Options = ""
+	} else if len(opt.Options) == 1 && strings.EqualFold(opt.Options[0], "none") {
+		opt.Options = nil
+	}
+
+	if readOnly {
+		opt.Options = append(opt.Options, "ro")
 	}
 
 	notMounted, err := ns.mounter.IsLikelyNotMountPoint(mountPath)
@@ -395,7 +416,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				Source:     source,
 				DeviceType: directvolume.DeviceTypeNFS,
 				FSType:     "",
-				MountOpts:  []string{opt.Options},
+				MountOpts:  opt.Options,
 				Extra:      map[string]string{},
 			}
 			klog.Info("NodePublishVolume(rund3.0): Starting add mount info to DirectVolume")
@@ -429,6 +450,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// do losetup nas logical
 	if ns.config.EnableLosetup && opt.MountType == LosetupType {
+		if readOnly {
+			return nil, status.Error(codes.InvalidArgument, "losetup volumes do not support readonly mode")
+		}
 		if err := ns.mountLosetupPv(mountPath, opt, req.VolumeId); err != nil {
 			klog.Errorf("NodePublishVolume: mount losetup volume(%s) error %s", req.VolumeId, err.Error())
 			return nil, errors.New("NodePublishVolume, mount Losetup volume error with: " + err.Error())
@@ -473,7 +497,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	}
 	// change the mode
-	if opt.Mode != "" && opt.Path != "/" {
+	if opt.Mode != "" && opt.Path != "/" && !readOnly {
 		var args []string
 		if opt.ModeType == "recursive" {
 			args = append(args, "-R")

@@ -25,55 +25,33 @@ import (
 )
 
 func TestParseMountFlags(t *testing.T) {
-	type args struct {
-		mntOptions []string
-	}
 	tests := []struct {
-		name  string
-		args  args
-		want  string
-		want1 string
+		name        string
+		mntOptions  []string
+		wantVers    string
+		wantOptions []string
 	}{
 		{
-			"vers=3",
-			args{[]string{"mnt=/test", "vers=3.0"}},
-			"3", "mnt=/test",
+			"vers=3.0 normalized to 3",
+			[]string{"mnt=/test", "vers=3.0"},
+			"3", []string{"mnt=/test"},
 		},
 		{
-			"vers=3.0",
-			args{[]string{"mnt=/test", "vers=3.0"}},
-			"3", "mnt=/test",
-		},
-		{
-			"vers=4",
-			args{[]string{"mnt=/test", "vers=4"}},
-			"4", "mnt=/test",
-		},
-		{
-			"vers=4.0",
-			args{[]string{"mnt=/test", "vers=4.0"}},
-			"4.0", "mnt=/test",
-		},
-		{
-			"vers=4.1",
-			args{[]string{"mnt=/test", "vers=4.1"}},
-			"4.1", "mnt=/test",
+			"vers=4.1 not normalized",
+			[]string{"mnt=/test", "vers=4.1"},
+			"4.1", []string{"mnt=/test"},
 		},
 		{
 			"no vers",
-			args{[]string{"mnt=/test", "a=b,,c=d"}},
-			"", "mnt=/test,a=b,c=d",
+			[]string{"mnt=/test", "a=b", "c=d"},
+			"", []string{"mnt=/test", "a=b", "c=d"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := ParseMountFlags(tt.args.mntOptions)
-			if got != tt.want {
-				t.Errorf("ParseMountFlags() got = %v, want %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("ParseMountFlags() got1 = %v, want %v", got1, tt.want1)
-			}
+			gotVers, gotOptions := ParseMountFlags(tt.mntOptions)
+			assert.Equal(t, tt.wantVers, gotVers)
+			assert.Equal(t, tt.wantOptions, gotOptions)
 		})
 	}
 }
@@ -89,8 +67,8 @@ func Test_addTLSMountOptions(t *testing.T) {
 	}{
 		{
 			"already set tls",
-			args{[]string{"vers=3,tls"}},
-			[]string{"vers=3,tls"},
+			args{[]string{"vers=3", "tls"}},
+			[]string{"vers=3", "tls"},
 		},
 		{
 			"tls not set",

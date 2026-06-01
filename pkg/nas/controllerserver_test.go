@@ -9,7 +9,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
-	mytesting "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/testing"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -245,13 +244,16 @@ func TestControllerServer_ValidateVolumeCapabilitiesConfirmed(t *testing.T) {
 	assert.Equal(t, req.VolumeCapabilities, resp.Confirmed.VolumeCapabilities)
 }
 
-func TestControllerServer_ValidateVolumeCapabilitiesNotConfirmed(t *testing.T) {
+func TestControllerServer_ValidateVolumeCapabilitiesReadOnly(t *testing.T) {
 	cs := newMockControllerServer()
 	assert.NotNil(t, cs)
 
 	req := &csi.ValidateVolumeCapabilitiesRequest{
 		VolumeCapabilities: []*csi.VolumeCapability{
 			{
+				AccessType: &csi.VolumeCapability_Mount{
+					Mount: &csi.VolumeCapability_MountVolume{},
+				},
 				AccessMode: &csi.VolumeCapability_AccessMode{
 					Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
 				},
@@ -261,7 +263,50 @@ func TestControllerServer_ValidateVolumeCapabilitiesNotConfirmed(t *testing.T) {
 	resp, err := cs.ValidateVolumeCapabilities(context.Background(), req)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
-	mytesting.AssertProtoEqual(t, &csi.ValidateVolumeCapabilitiesResponse{}, resp)
+	assert.Equal(t, req.VolumeCapabilities, resp.Confirmed.VolumeCapabilities)
+}
+
+func TestControllerServer_ValidateVolumeCapabilitiesBlockVolume(t *testing.T) {
+	cs := newMockControllerServer()
+	assert.NotNil(t, cs)
+
+	req := &csi.ValidateVolumeCapabilitiesRequest{
+		VolumeCapabilities: []*csi.VolumeCapability{
+			{
+				AccessType: &csi.VolumeCapability_Block{
+					Block: &csi.VolumeCapability_BlockVolume{},
+				},
+				AccessMode: &csi.VolumeCapability_AccessMode{
+					Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+				},
+			},
+		},
+	}
+	resp, err := cs.ValidateVolumeCapabilities(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Nil(t, resp.Confirmed)
+	assert.Contains(t, resp.Message, "block")
+}
+
+func TestControllerServer_ValidateVolumeCapabilitiesUnsupportedMode(t *testing.T) {
+	cs := newMockControllerServer()
+	assert.NotNil(t, cs)
+
+	req := &csi.ValidateVolumeCapabilitiesRequest{
+		VolumeCapabilities: []*csi.VolumeCapability{
+			{
+				AccessMode: &csi.VolumeCapability_AccessMode{
+					Mode: csi.VolumeCapability_AccessMode_Mode(99),
+				},
+			},
+		},
+	}
+	resp, err := cs.ValidateVolumeCapabilities(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Nil(t, resp.Confirmed)
+	assert.Contains(t, resp.Message, "unsupported access mode")
 }
 
 func TestControllerServer_ControllerGetCapabilities(t *testing.T) {
