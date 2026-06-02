@@ -12,6 +12,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/customfuse"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
@@ -105,6 +106,8 @@ func main() {
 		agent = disk.NewCSIAgent()
 	case "nasplugin.csi.alibabacloud.com":
 		agent = nas.NewCSIAgent(mountProxySocket)
+	case "customfuseplugin.csi.alibabacloud.com":
+		agent = customfuse.NewCSIAgent(mountProxySocket)
 	default:
 		printError(fmt.Errorf("invalid CSI_DRIVER: %q", driver))
 		os.Exit(1)

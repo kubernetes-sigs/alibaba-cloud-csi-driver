@@ -19,19 +19,11 @@ import (
 )
 
 const (
-	driverType = "customfuse"
 	driverName = "customfuseplugin.csi.alibabacloud.com"
 )
 
-type Driver struct {
-	endpoint string
-	servers  common.Servers
-}
-
-func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version) *Driver {
+func NewServers(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version) *common.Servers {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
-
-	d := &Driver{endpoint: endpoint}
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if serviceType&utils.Node > 0 {
@@ -77,13 +69,8 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 			},
 		}
 	}
-	d.servers = servers
-	return d
-}
 
-func (d *Driver) Run() {
-	klog.InfoS("Starting driver", "driver", driverType, "endpoint", d.endpoint)
-	common.RunCSIServer(driverType, d.endpoint, d.servers)
+	return &servers
 }
 
 type identityServer struct {

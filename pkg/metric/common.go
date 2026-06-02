@@ -16,7 +16,9 @@ const (
 	ossDriverName string = "ossplugin.csi.alibabacloud.com"
 	//nasDriverName represents the csi storage type name of Nas
 	nasDriverName    string = "nasplugin.csi.alibabacloud.com"
-	bmcpfsDriverName string = "bmcpfsplugin.csi.alibabacloud.com"
+	bmcpfsDriverName     string = "bmcpfsplugin.csi.alibabacloud.com"
+	//customfuseDriverName represents the csi storage type name of CustomFuse
+	customfuseDriverName string = "customfuseplugin.csi.alibabacloud.com"
 	//diskDriverName represents the csi storage type name of Disk
 	diskDriverName string = "diskplugin.csi.alibabacloud.com"
 	// unknown metric value
