@@ -271,7 +271,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	} // else: runtimeType == RuntimeTypeRunC
 
 	// Note: For RunC, if attachPath is already mounted, ExtendedMount is skipped (only bind mount was done above)
-	attachPath := mounterutils.GetAttachPath(req.VolumeId)
+	attachPath := mounterutils.GetAttachPath(req.VolumeId, false)
 	notMntAttach, err := mounterutils.IsNotMountPoint(ns.rawMounter, attachPath)
 	if err != nil {
 		return nil, err
@@ -363,7 +363,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 	}
 	defer ns.locks.Release(req.VolumeId)
 
-	attachPath := mounterutils.GetAttachPath(req.VolumeId)
+	attachPath := mounterutils.GetAttachPath(req.VolumeId, false)
 	err := mountutils.CleanupMountPoint(attachPath, ns.rawMounter, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", attachPath, err)
