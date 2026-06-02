@@ -165,7 +165,7 @@ spec:
               # keep the trailing slash to be compatible with old ACK installations
               mountPath: {{ print (clean $nodePool.deploy.kubeletRootDir) "/" | quote }}
               mountPropagation: "Bidirectional"
-{{- range $key := tuple "disk" "nas" "oss" "bmcpfs" }}
+{{- range $key := tuple "disk" "nas" "oss" "bmcpfs" "customfuse" }}
   {{- with index $nodePool.csi $key -}}
     {{- if .enabled }}
             - name: {{ $key }}-plugin-dir
@@ -195,6 +195,13 @@ spec:
               name: ossfs-metrics-dir
             - mountPath: /run/fuse.ossfs
               name: ossfs-attach-dir
+              mountPropagation: "Bidirectional"
+{{- end -}}
+{{- if $nodePool.csi.customfuse.enabled }}
+            - mountPath: /host/var/run/customfuse
+              name: customfuse-metrics-dir
+            - mountPath: /run/fuse.customfuse
+              name: customfuse-attach-dir
               mountPropagation: "Bidirectional"
 {{- end -}}
 {{- if $nodePool.csi.nas.enabled }}
@@ -327,6 +334,16 @@ spec:
         - name: ossfs-attach-dir
           hostPath:
             path: /run/fuse.ossfs
+            type: DirectoryOrCreate
+{{- end -}}
+{{- if $nodePool.csi.customfuse.enabled }}
+        - name: customfuse-metrics-dir
+          hostPath:
+            path: /var/run/customfuse
+            type: DirectoryOrCreate
+        - name: customfuse-attach-dir
+          hostPath:
+            path: /run/fuse.customfuse
             type: DirectoryOrCreate
 {{- end -}}
 {{- if $nodePool.csi.nas.enabled }}

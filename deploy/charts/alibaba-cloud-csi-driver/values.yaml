@@ -44,6 +44,10 @@ csi:
     enabled: false
     controller:
       enabled: true
+  customfuse:
+    enabled: false
+    controller:
+      enabled: true
 
 nodePools:
   default:
