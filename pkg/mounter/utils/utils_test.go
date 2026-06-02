@@ -36,7 +36,7 @@ func Test_GetMountProxySocketPath(t *testing.T) {
 	for _, test := range tests {
 		// Reset to default before each test
 		SetFuseAttachBaseDir("/run")
-		actual := GetMountProxySocketPath(test.volumeId)
+		actual := GetMountProxySocketPath(test.volumeId, false)
 		assert.Equal(t, test.expected, actual)
 	}
 }
@@ -53,7 +53,7 @@ func Test_GetAttachPath(t *testing.T) {
 	for _, test := range tests {
 		// Reset to default before each test
 		SetFuseAttachBaseDir("/run")
-		actual := GetAttachPath(test.volumeId)
+		actual := GetAttachPath(test.volumeId, false)
 		assert.Equal(t, test.expected, actual)
 	}
 }
@@ -71,7 +71,7 @@ func Test_SetFuseAttachBaseDir(t *testing.T) {
 	// Verify GetAttachPath uses the custom base dir
 	// Use volume1 to match the hash in Test_GetAttachPath
 	volumeId := "volume1"
-	actualPath := GetAttachPath(volumeId)
+	actualPath := GetAttachPath(volumeId, false)
 	// Should use custom base dir instead of /run
 	assert.Contains(t, actualPath, testBaseDir)
 	assert.Contains(t, actualPath, "fuse.ossfs")
@@ -82,7 +82,7 @@ func Test_SetFuseAttachBaseDir(t *testing.T) {
 	assert.Equal(t, "/run", GetFuseAttachBaseDir())
 
 	// Verify it's back to default
-	actualPath = GetAttachPath(volumeId)
+	actualPath = GetAttachPath(volumeId, false)
 	assert.Contains(t, actualPath, "/run/fuse.ossfs")
 }
 

@@ -191,7 +191,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// make pod template config
 	ptCfg := makePodTemplateConfig(opts)
 	// make mount options
-	controllerPublishPath := mounterutils.GetAttachPath(req.VolumeId)
+	controllerPublishPath := mounterutils.GetAttachPath(req.VolumeId, false)
 
 	// launch ossfs pod
 	fusePod, err := cs.fusePodManagers[opts.FuseType].Create(&fpm.FusePodContext{
@@ -210,7 +210,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	klog.Infof("ControllerPublishVolume: successfully published volume %s on node %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: map[string]string{
-			mountProxySocket: mounterutils.GetMountProxySocketPath(req.VolumeId),
+			mountProxySocket: mounterutils.GetMountProxySocketPath(req.VolumeId, false),
 			// make the fuse pod name visible in the VolumeAttachment status
 			"fusePod": fmt.Sprintf("%s/%s", fusePod.Namespace, fusePod.Name),
 		},
