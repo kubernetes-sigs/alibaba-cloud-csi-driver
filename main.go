@@ -37,6 +37,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/customfuse"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -84,6 +85,8 @@ const (
 	TypePluginPOV = "povplugin.csi.alibabacloud.com"
 	// TypePluginBMCPFS BMCPFS type plugin
 	TypePluginBMCPFS = "bmcpfsplugin.csi.alibabacloud.com"
+	// TypePluginCustomFuse custom FUSE type plugin
+	TypePluginCustomFuse = "customfuseplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
@@ -271,6 +274,8 @@ func main() {
 				driver = pov.NewServers(meta, endpoint, serviceType)
 			case TypePluginBMCPFS:
 				driver = bmcpfs.NewServers(meta, endpoint, serviceType)
+			case TypePluginCustomFuse:
+				driver = customfuse.NewServers(meta, endpoint, serviceType, csiCfg, k8sVersion)
 			default:
 				klog.Fatalf("CSI start failed, not support driver: %s", driverName)
 			}
