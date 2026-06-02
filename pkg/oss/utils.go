@@ -486,7 +486,11 @@ func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
 	if fpm == nil {
 		return WrapOssError(ParamError, "Unsupported fuseType %s", opt.FuseType)
 	}
-	// common
+
+	if opt.FuseType == mounterutils.CustomFuseType {
+		return WrapOssError(ParamError, "customfuse type is not supported by OSS driver, use customfuseplugin.csi.alibabacloud.com")
+	}
+
 	if opt.URL == "" || opt.Bucket == "" {
 		return WrapOssError(ParamError, "Url/Bucket empty")
 	}

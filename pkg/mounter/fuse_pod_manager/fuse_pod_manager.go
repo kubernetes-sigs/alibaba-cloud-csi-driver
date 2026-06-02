@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	k8sver "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -84,6 +86,12 @@ type FusePodContext struct {
 	FuseType          string
 	AuthConfig        *AuthConfig
 	PodTemplateConfig *PodTemplateConfig
+	// EntrypointConfig is the name of a ConfigMap (in the fuse pod namespace)
+	// to mount at /etc/fuse-config/ inside the fuse container.
+	EntrypointConfig string
+	// EntrypointKey is the ConfigMap key containing the script.
+	// Defaults to "entrypoint.sh". Always mounted as /etc/fuse-config/entrypoint.sh.
+	EntrypointKey string
 }
 
 type FuseMounterType interface {
@@ -195,6 +203,38 @@ type FusePodManager struct {
 	client                   kubernetes.Interface
 	constrainResourceVersion bool
 	FuseMounterType
+}
+
+// ShouldConstrainResourceVersion determines whether to constrain ResourceVersion to "0" for fuse pod delete.
+// Priority: FeatureGate explicit override > K8s version detection
+// - FeatureGate ConstrainFusePodDeleteRV explicitly set: use that value
+// - K8s >= 1.31: false (Consistent Reads from Cache supported, no need to constrain)
+// - K8s < 1.31: true (Constrain RV="0" to use watch cache and avoid etcd pressure)
+// - K8s unknown: true (Conservative approach, constrain RV="0")
+func ShouldConstrainResourceVersion(k8sVersion *k8sver.Version) bool {
+	fg := features.FunctionalMutableFeatureGate
+	if fg.ExplicitlySet(features.ConstrainFusePodDeleteRV) {
+		constrained := fg.Enabled(features.ConstrainFusePodDeleteRV)
+		if constrained {
+			klog.Warningf("FeatureGate ConstrainFusePodDeleteRV=true, constraining ResourceVersion to '0' for fuse pod delete operations")
+		} else {
+			klog.Infof("FeatureGate ConstrainFusePodDeleteRV=false, using ResourceVersion='' for fuse pod delete operations")
+		}
+		return constrained
+	}
+
+	if k8sVersion == nil {
+		klog.Warningf("K8s version unknown, constraining ResourceVersion to '0' for fuse pod delete operations (conservative approach)")
+		return true
+	}
+
+	if k8sVersion.AtLeast(k8sver.MajorMinor(1, 31)) {
+		klog.Infof("K8s version %s >= 1.31, not constraining ResourceVersion (Consistent Reads from Cache supported)", k8sVersion.String())
+		return false
+	}
+
+	klog.Warningf("K8s version %s < 1.31, constraining ResourceVersion to '0' for fuse pod delete operations (avoid etcd pressure)", k8sVersion.String())
+	return true
 }
 
 func NewFusePodManager(fuseType FuseMounterType, client kubernetes.Interface, constrainResourceVersion bool) *FusePodManager {
