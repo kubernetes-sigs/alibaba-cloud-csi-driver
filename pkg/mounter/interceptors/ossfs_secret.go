@@ -100,7 +100,7 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 	if (passwdFile == "" && tokenDir == "") || op.MountResult == nil {
 		return nil
 	}
-	result, ok := op.MountResult.(server.OssfsMountResult)
+	result, ok := op.MountResult.(server.FuseMountResult)
 	if !ok {
 		klog.ErrorS(
 			errors.New("failed to assert ossfs mount result"),
