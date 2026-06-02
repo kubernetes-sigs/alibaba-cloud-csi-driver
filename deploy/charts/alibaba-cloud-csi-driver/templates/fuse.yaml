@@ -1,4 +1,4 @@
-{{- if and .Values.csi.oss.enabled .Values.deploy.fuseNamespace }}
+{{- if and (or .Values.csi.oss.enabled .Values.csi.customfuse.enabled) .Values.deploy.fuseNamespace }}
 
 ---
 apiVersion: v1
