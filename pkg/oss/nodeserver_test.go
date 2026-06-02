@@ -253,7 +253,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			// Get attachPath after setting fuse attach base dir
 			var attachPath string
 			if tt.runtimeType == RuntimeTypeRunC {
-				attachPath = mounterutils.GetAttachPath("test-volume-id")
+				attachPath = mounterutils.GetAttachPath("test-volume-id", false)
 				// Create parent directories for attachPath
 				require.NoError(t, os.MkdirAll(filepath.Dir(attachPath), 0o755))
 				// If attachPath should be mounted, create the attachPath directory itself
