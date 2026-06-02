@@ -4,12 +4,11 @@ import (
 	"maps"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	k8sver "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -68,37 +67,11 @@ func GetAllRegisteredFuseTypes() []string {
 	return types
 }
 
-// ShouldConstrainResourceVersion determines whether to constrain ResourceVersion to "0" for fuse pod delete.
-// Priority: FeatureGate explicit override > K8s version detection
-// - FeatureGate ConstrainFusePodDeleteRV explicitly set: use that value
-// - K8s >= 1.31: false (Consistent Reads from Cache supported, no need to constrain)
-// - K8s < 1.31: true (Constrain RV="0" to use watch cache and avoid etcd pressure)
-// - K8s unknown: true (Conservative approach, constrain RV="0")
+// ShouldConstrainResourceVersion is a convenience wrapper around the
+// parent package's implementation. Kept here for backward compatibility
+// with existing callers in the oss package.
 func ShouldConstrainResourceVersion(k8sVersion *k8sver.Version) bool {
-	fg := features.FunctionalMutableFeatureGate
-	if fg.ExplicitlySet(features.ConstrainFusePodDeleteRV) {
-		constrained := fg.Enabled(features.ConstrainFusePodDeleteRV)
-		if constrained {
-			klog.Warningf("FeatureGate ConstrainFusePodDeleteRV=true, constraining ResourceVersion to '0' for fuse pod delete operations")
-		} else {
-			klog.Infof("FeatureGate ConstrainFusePodDeleteRV=false, using ResourceVersion='' for fuse pod delete operations")
-		}
-		return constrained
-	}
-
-	// Fall back to K8s version detection
-	if k8sVersion == nil {
-		klog.Warningf("K8s version unknown, constraining ResourceVersion to '0' for fuse pod delete operations (conservative approach)")
-		return true
-	}
-
-	if k8sVersion.AtLeast(k8sver.MajorMinor(1, 31)) {
-		klog.Infof("K8s version %s >= 1.31, not constraining ResourceVersion (Consistent Reads from Cache supported)", k8sVersion.String())
-		return false
-	}
-
-	klog.Warningf("K8s version %s < 1.31, constraining ResourceVersion to '0' for fuse pod delete operations (avoid etcd pressure)", k8sVersion.String())
-	return true
+	return fpm.ShouldConstrainResourceVersion(k8sVersion)
 }
 
 // GetAllOSSFusePodManagers creates a map of all registered OSS fuse pod managers
