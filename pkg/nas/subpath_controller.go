@@ -258,6 +258,10 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 		}
 		finalizer = subpathDeletionFinalizer
 	}
+	if pv.DeletionTimestamp != nil {
+		klog.Warningf("PV %s is already being deleted, cannot add finalizer %s", pv.Name, finalizer)
+		return nil, status.Errorf(codes.FailedPrecondition, "PV %s is already being deleted, cannot add finalizer %s for subpath content deletion; please delete subpath content manually and remove the finalizer from the PV to unblock deletion", pv.Name, finalizer)
+	}
 	if err := cs.patchFinalizerOnPV(ctx, pv, finalizer); err != nil {
 		return nil, err
 	}
