@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -35,6 +37,11 @@ func (m *extendedMounter) superviseProcess(
 	defer m.driver.wg.Done()
 	defer close(trulyExited)
 	defer m.driver.activeTargets.Delete(op.Target)
+	defer func() {
+		if op.FuseFd > 0 {
+			unix.Close(op.FuseFd)
+		}
+	}()
 
 	logger := klog.FromContext(context.Background())
 	target := op.Target
