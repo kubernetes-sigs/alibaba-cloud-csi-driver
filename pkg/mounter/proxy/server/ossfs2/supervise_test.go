@@ -5,11 +5,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/stretchr/testify/assert"
@@ -341,9 +344,13 @@ func TestSuperviseProcess_RecoverySuccess(t *testing.T) {
 	target := filepath.Join(tmpDir, "mount")
 	require.NoError(t, os.Mkdir(target, 0o755))
 
+	var pipeFds [2]int
+	require.NoError(t, syscall.Pipe(pipeFds[:]))
+	syscall.Close(pipeFds[1])
+
 	op := &mounter.MountOperation{
 		Target: target,
-		FuseFd: 5,
+		FuseFd: pipeFds[0],
 		OnProcessExit: func(exitErr error) {
 			processExitCalled.Store(true)
 		},
@@ -471,9 +478,13 @@ func TestSuperviseProcess_TerminatingDuringRecovery(t *testing.T) {
 	target := filepath.Join(tmpDir, "mount")
 	require.NoError(t, os.Mkdir(target, 0o755))
 
+	var pipeFds2 [2]int
+	require.NoError(t, syscall.Pipe(pipeFds2[:]))
+	syscall.Close(pipeFds2[1])
+
 	op := &mounter.MountOperation{
 		Target: target,
-		FuseFd: 5,
+		FuseFd: pipeFds2[0],
 		OnProcessExit: func(exitErr error) {
 			// Set terminating DURING recovery (after OnProcessExit, before recoveryRestart finishes)
 			driver.terminating.Store(true)
@@ -530,4 +541,100 @@ func TestRecoveryRestart_UsesRecoveryFlag(t *testing.T) {
 	defer proc.cmd.Process.Kill()
 
 	assert.True(t, gotRecovery.Load(), "recoveryRestart should pass recovery=true to startAndWaitReady")
+}
+
+// TestSuperviseProcess_FdValidDuringRecoveryAndClosedAfter verifies the full fd lifecycle:
+// - op.FuseFd remains valid across multiple crash-recovery cycles
+// - op.FuseFd is closed by the defer when supervision exits
+func TestSuperviseProcess_FdValidDuringRecoveryAndClosedAfter(t *testing.T) {
+	driver := &Driver{pids: new(sync.Map)}
+
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "mount")
+	require.NoError(t, os.Mkdir(target, 0o755))
+
+	var pipeFds [2]int
+	require.NoError(t, syscall.Pipe(pipeFds[:]))
+	syscall.Close(pipeFds[1])
+	fuseFd := pipeFds[0]
+
+	var runCmdCount atomic.Int32
+	var fdValidOnEachCall atomic.Bool
+	fdValidOnEachCall.Store(true)
+
+	m := &extendedMounter{
+		driver: driver,
+		Interface: &mockMounter{
+			isLikelyNotMountPointFunc: func(path string) (bool, error) {
+				return false, nil
+			},
+		},
+		recoveryBackoff: wait.Backoff{Duration: time.Millisecond, Factor: 1, Steps: 5},
+		flushFunc:       func(chanId uint64) error { return nil },
+		statFunc:        func(name string) (os.FileInfo, error) { return os.Stat(name) },
+		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
+			var stat unix.Stat_t
+			if err := unix.Fstat(op.FuseFd, &stat); err != nil {
+				fdValidOnEachCall.Store(false)
+			}
+			runtime.GC()
+			if err := unix.Fstat(op.FuseFd, &stat); err != nil {
+				fdValidOnEachCall.Store(false)
+			}
+
+			n := runCmdCount.Add(1)
+			if n <= 2 {
+				cmd := exec.Command("/bin/sh", "-c", "exit 1")
+				if err := cmd.Start(); err != nil {
+					return nil, err
+				}
+				return cmd, nil
+			}
+			cmd := exec.Command("/bin/sh", "-c", "sleep 300")
+			if err := cmd.Start(); err != nil {
+				return nil, err
+			}
+			return cmd, nil
+		},
+	}
+
+	proc, cmd := startTestProcess(t, "exit 1")
+	trulyExited := make(chan error, 1)
+
+	op := &mounter.MountOperation{
+		Target:            target,
+		FuseFd:            fuseFd,
+		OnProcessExit:     func(exitErr error) {},
+		OnRecoverySuccess: func(pid int, exitErr error, attempts int) {},
+	}
+	driver.pids.Store(cmd.Process.Pid, cmd)
+	driver.activeTargets.Store(target, struct{}{})
+
+	driver.wg.Add(1)
+	go m.superviseProcess(proc, op, 42, true, trulyExited)
+
+	// Wait for crashes + recoveries to settle (2 crashes, succeed on 3rd)
+	require.Eventually(t, func() bool {
+		return runCmdCount.Load() >= 3
+	}, 5*time.Second, 50*time.Millisecond, "expected 3 runCmd calls")
+
+	assert.True(t, fdValidOnEachCall.Load(), "FuseFd must be valid on every runCmd call (including after GC)")
+
+	// Terminate the surviving process
+	driver.terminating.Store(true)
+	driver.pids.Range(func(key, value any) bool {
+		_ = value.(*exec.Cmd).Process.Kill()
+		return true
+	})
+
+	select {
+	case <-trulyExited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for supervision to finish")
+	}
+
+	// After supervision exits, the defer should have closed fuseFd
+	var stat unix.Stat_t
+	err := unix.Fstat(fuseFd, &stat)
+	assert.Error(t, err, "FuseFd should be closed after supervision exits")
 }

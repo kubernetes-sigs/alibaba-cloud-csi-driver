@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -230,7 +231,11 @@ func TestMount_ActiveTargetsStored(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	op := &mounter.MountOperation{Target: target, FuseFd: 5}
+	var pipeFds [2]int
+	require.NoError(t, syscall.Pipe(pipeFds[:]))
+	syscall.Close(pipeFds[1])
+
+	op := &mounter.MountOperation{Target: target, FuseFd: pipeFds[0]}
 	err := m.mount(ctx, op)
 	require.NoError(t, err)
 

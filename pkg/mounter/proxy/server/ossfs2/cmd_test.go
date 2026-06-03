@@ -2,12 +2,19 @@ package ossfs2
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildOssfs2Args(t *testing.T) {
@@ -105,4 +112,40 @@ func TestBuildOssfs2Args(t *testing.T) {
 			os.RemoveAll(filepath.Dir(failoverDir))
 		})
 	}
+}
+
+// TestFuseFdSurvivesDupAndGC verifies that the unix.Dup pattern used in runCmd
+// keeps the original fd alive across multiple child process lifecycles and GC cycles.
+// This is the core test for the fix: without Dup, os.NewFile's GC finalizer would
+// close the original fd after the first recovery transition.
+func TestFuseFdSurvivesDupAndGC(t *testing.T) {
+	var pipeFds [2]int
+	require.NoError(t, syscall.Pipe(pipeFds[:]))
+	syscall.Close(pipeFds[1])
+	originalFd := pipeFds[0]
+
+	for i := 0; i < 3; i++ {
+		dupFd, err := unix.Dup(originalFd)
+		require.NoError(t, err, "Dup should succeed on iteration %d", i)
+
+		fuseFile := os.NewFile(uintptr(dupFd), "/dev/fuse")
+		cmd := exec.Command("/bin/sh", "-c", "exit 0")
+		cmd.ExtraFiles = []*os.File{fuseFile}
+		require.NoError(t, cmd.Start())
+		fuseFile.Close()
+		_ = cmd.Wait()
+
+		runtime.GC()
+		runtime.GC()
+
+		var stat unix.Stat_t
+		err = unix.Fstat(originalFd, &stat)
+		require.NoError(t, err, "original fd must survive iteration %d", i)
+	}
+
+	unix.Close(originalFd)
+
+	var stat unix.Stat_t
+	err := unix.Fstat(originalFd, &stat)
+	assert.Error(t, err, "fd should be invalid after explicit Close")
 }

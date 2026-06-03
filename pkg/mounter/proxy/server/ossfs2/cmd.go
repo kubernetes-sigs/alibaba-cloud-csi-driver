@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/klog/v2"
@@ -52,10 +54,19 @@ func (m *extendedMounter) runCmd(op *mounter.MountOperation, recovery bool, sw s
 	}
 
 	if op.FuseFd > 0 {
-		// cmd.ExtraFiles places the fd at index 3 in the child (0=stdin, 1=stdout, 2=stderr).
-		fuseFile := os.NewFile(uintptr(op.FuseFd), "/dev/fuse")
+		// Dup the fd so that os.NewFile's GC finalizer only closes the dup, not the
+		// original. The original op.FuseFd must stay open across the entire supervision
+		// loop so that recovery restarts can dup it again for new child processes.
+		// Without this dup, the GC finalizer on the os.File would close op.FuseFd after
+		// a recovery transition (old proc dropped), making subsequent recoveries impossible.
+		dupFd, err := unix.Dup(op.FuseFd)
+		if err != nil {
+			return nil, fmt.Errorf("dup FUSE fd %d: %w", op.FuseFd, err)
+		}
+		fuseFile := os.NewFile(uintptr(dupFd), "/dev/fuse")
+		defer fuseFile.Close()
 		cmd.ExtraFiles = []*os.File{fuseFile}
-		klog.V(4).InfoS("Passing FUSE fd to ossfs2 child", "parentFd", op.FuseFd, "childFd", 3)
+		klog.V(4).InfoS("Passing FUSE fd to ossfs2 child", "originalFd", op.FuseFd, "dupFd", dupFd, "childFd", 3)
 	}
 
 	klog.V(4).InfoS("Starting ossfs2", "args", args)
