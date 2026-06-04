@@ -808,31 +808,49 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		return node, err
 	}
 
-	lingjunID := getLingjunNodeID()
+	m := ns.metadata.WithSession(ctx)
+	machineKind, err := m.MachineKind()
+	if err != nil && !errors.Is(err, metadata.ErrUnknownMetadataKey) {
+		return nil, status.Errorf(codes.Internal, "cannot determine current machine kind: %v", err)
+	}
 
 	c := GlobalConfigVar.EcsClient
-	efloc := GlobalConfigVar.EfloClient
 	if maxVolumesNum == 0 {
-		maxVolumesNum, err = getVolumeCountFromOpenAPI(getNode, c, efloc, ns.metadata, utilsio.RealDevTmpFS{}, lingjunID)
-	} else {
-		node, err = getNode()
+		quantity, err := m.DiskQuantity()
+		if err != nil {
+			if errors.Is(err, metadata.ErrUnknownMetadataKey) {
+				// Some LingJun node don't have this data
+				logger.Error(err, "cannot determine disk quantity. This node is unsupported!")
+			} else {
+				return nil, status.Errorf(codes.Internal, "cannot determine disk quantity: %v", err)
+			}
+		} else {
+			unmanaged, err := getUnmanagedDiskCount(getNode, c, m, utilsio.RealDevTmpFS{})
+			if err != nil {
+				return nil, err
+			}
+			maxVolumesNum = int(quantity) - unmanaged
+		}
 	}
-	if err != nil {
-		return nil, err
+	if node == nil {
+		node, err = getNode()
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get current node: %v", err)
+		}
 	}
 
 	var diskTypes []string
 	if !GlobalConfigVar.DiskAllowAllType {
 		// If it's a Lingjun node, reuse Lingjun detection and report configured supported types
-		if lingjunID != "" {
-			logger.V(2).Info("lingjun node detected", "lingjunID", lingjunID)
+		if machineKind == metadata.MachineKindLingjun {
+			logger.V(2).Info("lingjun node detected")
 			ebsCategory := os.Getenv("EBS_CATEGORY_LINGJUN_SUPPORTED")
-			// Prefer values parsed from kube-system/csi-plugin configmap
+			// Prefer values parsed from env
 			diskTypes = parseLingjunNodeDiskTypes(ebsCategory)
 			logger.V(2).Info("Lingjun supported disk types", "diskTypes", diskTypes)
 		} else {
 			// Non-Lingjun: query ECS API for supported types
-			diskTypes, err = GetAvailableDiskTypes(ctx, c, ns.metadata)
+			diskTypes, err = GetAvailableDiskTypes(ctx, c, m)
 			if err != nil {
 				if hasDiskTypeLabel(node) {
 					logger.Error(err, "failed to get available disk types, will use existing config")
@@ -861,13 +879,13 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}
 
 	segments := map[string]string{
-		common.ECSInstanceIDTopologyKey: metadata.MustGet(ns.metadata, metadata.InstanceID),
+		common.ECSInstanceIDTopologyKey: metadata.MustGet(m, metadata.InstanceID),
 		// TopologyZoneKey key is always defined for existing persistent volumes
-		TopologyZoneKey:         metadata.MustGet(ns.metadata, metadata.ZoneID),
-		RegionalDiskTopologyKey: metadata.MustGet(ns.metadata, metadata.RegionID),
+		TopologyZoneKey:         metadata.MustGet(m, metadata.ZoneID),
+		RegionalDiskTopologyKey: metadata.MustGet(m, metadata.RegionID),
 	}
 	if !GlobalConfigVar.PrivateTopologyKey {
-		segments[v1.LabelTopologyZone] = metadata.MustGet(ns.metadata, metadata.ZoneID)
+		segments[v1.LabelTopologyZone] = metadata.MustGet(m, metadata.ZoneID)
 	}
 
 	// disable disk allocation when maxVolumesNum is 0

@@ -36,7 +36,7 @@ func TestFailure(t *testing.T) {
 			trans.RegisterResponder("PUT", imds.ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token"))
 			trans.RegisterResponder("GET", imds.ECSMetadataEndpoint+ECSIdentityPath, badCase.Responder)
 
-			_, err := NewECSMetadata(trans)
+			_, err := NewECSMetadata(testMContext(t), trans)
 			assert.Error(t, err)
 		})
 	}
@@ -49,7 +49,7 @@ func TestGetEcs(t *testing.T) {
 	trans.RegisterMatcherResponder("GET", imds.ECSMetadataEndpoint+ECSIdentityPath,
 		httpmock.HeaderIs("X-aliyun-ecs-metadata-token", "fake_metadata_token"),
 		httpmock.NewStringResponder(200, testIdDoc))
-	m, err := NewECSMetadata(trans)
+	m, err := NewECSMetadata(testMContext(t), trans)
 	assert.NoError(t, err)
 
 	expected := map[MetadataKey]string{

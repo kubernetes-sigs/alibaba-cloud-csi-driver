@@ -48,7 +48,7 @@ func (f *fakeCNFSGetter) GetCNFS(ctx context.Context, name string) (*cnfsv1beta1
 	return f.cnfs, f.err
 }
 
-var m = metadata.FakeProvider{
+var m = &metadata.FakeProvider{
 	Values: map[metadata.MetadataKey]string{
 		metadata.RegionID:    "cn-beijing",
 		metadata.RAMRoleName: "worker-role",

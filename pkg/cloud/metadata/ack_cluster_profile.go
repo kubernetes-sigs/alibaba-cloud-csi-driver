@@ -18,8 +18,8 @@ var MetadataProfileDataKeys = map[MetadataKey]string{
 	AccountID: "uid",
 }
 
-func NewProfileMetadata(client kubernetes.Interface) (*ProfileMetadata, error) {
-	profile, err := client.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "ack-cluster-profile", metav1.GetOptions{})
+func NewProfileMetadata(ctx context.Context, client kubernetes.Interface) (*ProfileMetadata, error) {
+	profile, err := client.CoreV1().ConfigMaps("kube-system").Get(ctx, "ack-cluster-profile", metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,9 @@ type ProfileFetcher struct {
 	client kubernetes.Interface
 }
 
-func (f *ProfileFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
+func (f *ProfileFetcher) ID() fetcherID { return profileFetcherID }
+
+func (f *ProfileFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
 	case DataPlaneZoneID: // supported
 	default:
@@ -56,9 +58,9 @@ func (f *ProfileFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 			return nil, ErrUnknownMetadataKey
 		}
 	}
-	p, err := NewProfileMetadata(f.client)
+	p, err := NewProfileMetadata(ctx, f.client)
 	if err != nil {
 		return nil, err
 	}
-	return newImmutableProvider(p, "ClusterProfile"), nil
+	return newImmutable(strProvider{p}, "ClusterProfile"), nil
 }

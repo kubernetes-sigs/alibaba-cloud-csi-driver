@@ -25,7 +25,7 @@ func TestGetClusterProfile(t *testing.T) {
 	t.Parallel()
 
 	client := fake.NewSimpleClientset(&testProfile)
-	m, err := NewProfileMetadata(client)
+	m, err := NewProfileMetadata(testMContext(t), client)
 	assert.NoError(t, err)
 
 	expectedValues := map[MetadataKey]string{
