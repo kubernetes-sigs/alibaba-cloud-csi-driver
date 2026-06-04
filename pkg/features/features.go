@@ -96,7 +96,7 @@ const (
 	// fd-passing for ossfs2.
 	//
 	// Data integrity note: during recovery, in-flight FUSE requests are interrupted
-	// with -EINTR via resend+flush. This means:
+	// with -EINTR via flush. This means:
 	//   - Reads: safe (idempotent). Applications retry and get correct data.
 	//   - Writes: buffered writes in the dead daemon's memory are LOST. Applications
 	//     receive -EINTR and know the write failed, but data already buffered by
