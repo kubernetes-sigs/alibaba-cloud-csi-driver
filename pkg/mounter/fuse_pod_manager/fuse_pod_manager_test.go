@@ -63,6 +63,61 @@ func Test_ExtractFuseContainerConfig(t *testing.T) {
 	assert.Equal(t, expected, config)
 }
 
+func TestShouldEnableMetrics(t *testing.T) {
+	tests := []struct {
+		name              string
+		configMetricsMode string
+		envValue          string
+		want              bool
+	}{
+		{
+			name:              "config enabled",
+			configMetricsMode: MetricsModeEnabled,
+			want:              true,
+		},
+		{
+			name:              "config disabled",
+			configMetricsMode: MetricsModeDisabled,
+			want:              false,
+		},
+		{
+			name: "no config, no env, default enabled",
+			want: true,
+		},
+		{
+			name:     "no config, env disabled",
+			envValue: MetricsModeDisabled,
+			want:     false,
+		},
+		{
+			name:     "no config, env enabled",
+			envValue: MetricsModeEnabled,
+			want:     true,
+		},
+		{
+			name:              "config enabled overrides env disabled",
+			configMetricsMode: MetricsModeEnabled,
+			envValue:          MetricsModeDisabled,
+			want:              true,
+		},
+		{
+			name:              "config disabled overrides env enabled",
+			configMetricsMode: MetricsModeDisabled,
+			envValue:          MetricsModeEnabled,
+			want:              false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envValue != "" {
+				t.Setenv("METRICS_MODE", tt.envValue)
+			}
+			got := ShouldEnableMetrics(tt.configMetricsMode)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 type testFuse struct{}
 
 func (t testFuse) Name() string {

@@ -720,6 +720,8 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 		name        string
 		options     []string
 		cfglevel    string
+		metricsMode string
+		metricsEnv  string
 		enabledMime bool
 		want        []string
 	}{
@@ -767,10 +769,33 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 			options: []string{"others", "allow_other"},
 			want:    []string{"others", "allow_other", "dbglevel=warn", "use_metrics", "listobjectsv2"},
 		},
+		{
+			name:        "metrics-mode disabled via configmap",
+			metricsMode: fpm.MetricsModeDisabled,
+			options:     []string{"others"},
+			want:        []string{"others", "dbglevel=warn", "allow_other", "listobjectsv2"},
+		},
+		{
+			name:       "metrics-mode disabled via env",
+			metricsEnv: fpm.MetricsModeDisabled,
+			options:    []string{"others"},
+			want:       []string{"others", "dbglevel=warn", "allow_other", "listobjectsv2"},
+		},
+		{
+			name:        "configmap enabled overrides env disabled",
+			metricsMode: fpm.MetricsModeEnabled,
+			metricsEnv:  fpm.MetricsModeDisabled,
+			options:     []string{"others"},
+			want:        []string{"others", "dbglevel=warn", "allow_other", "use_metrics", "listobjectsv2"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.metricsEnv != "" {
+				t.Setenv("METRICS_MODE", tt.metricsEnv)
+			}
 			fakeOssfs.config.Dbglevel = tt.cfglevel
+			fakeOssfs.config.MetricsMode = tt.metricsMode
 			fakeOssfs.config.Extra = map[string]string{
 				"mime-support": fmt.Sprintf("%t", tt.enabledMime),
 			}

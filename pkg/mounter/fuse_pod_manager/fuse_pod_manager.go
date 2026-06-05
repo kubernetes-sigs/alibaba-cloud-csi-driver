@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"os"
 	"strings"
 	"time"
 
@@ -75,6 +76,13 @@ const (
 	MetricsModeDisabled = "disabled"
 	MetricsModeEnabled  = "enabled"
 )
+
+func ShouldEnableMetrics(configMetricsMode string) bool {
+	if configMetricsMode != "" {
+		return configMetricsMode != MetricsModeDisabled
+	}
+	return os.Getenv("METRICS_MODE") != MetricsModeDisabled
+}
 
 type FusePodContext struct {
 	context.Context

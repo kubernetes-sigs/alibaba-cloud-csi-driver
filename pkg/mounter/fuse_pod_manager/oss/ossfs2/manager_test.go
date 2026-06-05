@@ -392,6 +392,7 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 		options     []string
 		config      *fpm.FuseContainerConfig
 		defaultOpts string
+		metricsEnv  string
 		want        []string
 	}{
 		{
@@ -435,17 +436,33 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 			want:        []string{"others", "log_dir=/tmp/ossfs2", "log_level=info", "use_metrics=true"},
 		},
 		{
-			name: "set metrics mode to disabled",
+			name: "set metrics mode to disabled via configmap",
 			config: &fpm.FuseContainerConfig{
 				MetricsMode: fpm.MetricsModeDisabled,
 			},
 			want: []string{"log_level=info", "log_dir=/dev/stdout"},
+		},
+		{
+			name:       "metrics mode disabled via env",
+			metricsEnv: fpm.MetricsModeDisabled,
+			want:       []string{"log_level=info", "log_dir=/dev/stdout"},
+		},
+		{
+			name: "configmap enabled overrides env disabled",
+			config: &fpm.FuseContainerConfig{
+				MetricsMode: fpm.MetricsModeEnabled,
+			},
+			metricsEnv: fpm.MetricsModeDisabled,
+			want:       []string{"log_level=info", "log_dir=/dev/stdout", "use_metrics=true"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.defaultOpts != "" {
 				t.Setenv("DEFAULT_OSSFS2_OPTIONS", tt.defaultOpts)
+			}
+			if tt.metricsEnv != "" {
+				t.Setenv("METRICS_MODE", tt.metricsEnv)
 			}
 			if tt.config != nil {
 				fakeOssfs.config = *tt.config
