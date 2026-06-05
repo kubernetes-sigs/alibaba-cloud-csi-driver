@@ -100,6 +100,7 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 			nodeName:        nodeName,
 			clientset:       clientset,
 			cnfsGetter:      cnfsGetter,
+			skipGlobalMount: getSkipGlobalMount(false),
 			rawMounter:      mountutils.NewWithoutSystemd(""),
 			fusePodManagers: fusePodManagers,
 			GenericNodeServer: common.GenericNodeServer{
