@@ -106,7 +106,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 FROM alinux-install AS alinas
 
 ARG TARGETPLATFORM
-ARG ALINAS_UTILS_VERSION=1.9-0.20260407144027.3d3855.al8
+ARG ALINAS_UTILS_VERSION=1.9-0.20260605142542.e1dd14.al7
 ARG EFC_VERSION=1.9-20250822095129.f34347.release
 # v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch.
 # It's temporarily unavailable for all ACK clusters,
@@ -152,7 +152,7 @@ FROM alinux-install AS aio
 ARG TARGETPLATFORM
 ARG OSSFS_VERSION=v1.91.10.ack.1
 ARG OSSFS2_VERSION=v2.0.7.ack.1
-ARG ALINAS_UTILS_VERSION=1.9-0.20260407144027.3d3855.al8
+ARG ALINAS_UTILS_VERSION=1.9-0.20260605142542.e1dd14.al7
 ARG EFC_VERSION=1.9-20250822095129.f34347.release
 # v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch.
 # It's temporarily unavailable for all ACK clusters,
