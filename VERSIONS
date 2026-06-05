@@ -26,7 +26,7 @@ OSSFS2_IMAGE_TAG=v2.0.7.ack.1-2d5bf24
 # - build/mount-proxy/Dockerfile (ALINAS_UTILS_VERSION, EFC_VERSION, EFC_ARM_VERSION, ALINAS_UTILS_ARM_VERSION ARG defaults)
 
 # ALINAS Utils version for x86_64 (used in Dockerfile for yum install)
-ALINAS_UTILS_VERSION=1.9-0.20260407144027.3d3855.al8
+ALINAS_UTILS_VERSION=1.9-0.20260605142542.e1dd14.al7
 
 # EFC version for x86_64 (used in Dockerfile for yum install)
 EFC_VERSION=1.9-20250822095129.f34347.release
