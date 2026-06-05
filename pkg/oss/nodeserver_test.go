@@ -21,7 +21,7 @@ import (
 )
 
 // setupTestNodeServer creates a test nodeServer with minimal required fields
-func setupTestNodeServer(t *testing.T, mounter mountutils.Interface, skipAttach bool) *nodeServer {
+func setupTestNodeServer(t *testing.T, mounter mountutils.Interface, skipGlobalMount bool) *nodeServer {
 	fakeMeta := &metadata.FakeProvider{
 		Values: map[metadata.MetadataKey]string{
 			metadata.RegionID:    "cn-beijing",
@@ -41,7 +41,7 @@ func setupTestNodeServer(t *testing.T, mounter mountutils.Interface, skipAttach 
 		rawMounter:      mounter,
 		fusePodManagers: fusePodManagers,
 		ossfsPaths:      ossfsPaths,
-		skipAttach:      skipAttach,
+		skipGlobalMount: skipGlobalMount,
 	}
 }
 
@@ -68,7 +68,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 		runtimeType         RuntimeType
 		directAssigned      bool
 		socketPath          string
-		skipAttach          bool
+		skipGlobalMount     bool
 		targetMounted       bool
 		attachMounted       bool // For RunC only
 		hasToken            bool
@@ -84,7 +84,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeCOCO,
 			directAssigned:      true,
 			socketPath:          "",
-			skipAttach:          false,
+			skipGlobalMount:     false,
 			targetMounted:       true,
 			hasToken:            false,
 			expectExtendedMount: false, // Early return
@@ -94,7 +94,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeCOCO,
 			directAssigned:      true,
 			socketPath:          "",
-			skipAttach:          false,
+			skipGlobalMount:     false,
 			targetMounted:       false,
 			hasToken:            false,
 			expectExtendedMount: true, // COCO uses publishDirectVolume
@@ -106,7 +106,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeRunC,
 			directAssigned:      false,
 			socketPath:          "/tmp/socket",
-			skipAttach:          false,
+			skipGlobalMount:     false,
 			targetMounted:       true,
 			attachMounted:       true,
 			hasToken:            true,
@@ -120,7 +120,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeRunC,
 			directAssigned:      false,
 			socketPath:          "/tmp/socket",
-			skipAttach:          false,
+			skipGlobalMount:     false,
 			targetMounted:       true,
 			attachMounted:       true,
 			hasToken:            false,
@@ -131,7 +131,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeRunC,
 			directAssigned:      false,
 			socketPath:          "/tmp/socket",
-			skipAttach:          false,
+			skipGlobalMount:     false,
 			targetMounted:       false,
 			attachMounted:       true,
 			hasToken:            true,
@@ -144,7 +144,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeRunC,
 			directAssigned:      false,
 			socketPath:          "/tmp/socket",
-			skipAttach:          false,
+			skipGlobalMount:     false,
 			targetMounted:       false,
 			attachMounted:       false,
 			hasToken:            false,
@@ -159,7 +159,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeRunD,
 			directAssigned:      true,
 			socketPath:          "/tmp/socket",
-			skipAttach:          true,
+			skipGlobalMount:     true,
 			targetMounted:       true,
 			hasToken:            true,
 			expectTokenRotate:   true,
@@ -171,7 +171,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeRunD,
 			directAssigned:      true,
 			socketPath:          "/tmp/socket",
-			skipAttach:          true,
+			skipGlobalMount:     true,
 			targetMounted:       true,
 			hasToken:            false,
 			expectExtendedMount: false, // Early return
@@ -181,7 +181,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeRunD,
 			directAssigned:      true,
 			socketPath:          "/tmp/socket",
-			skipAttach:          true,
+			skipGlobalMount:     true,
 			targetMounted:       false,
 			hasToken:            false,
 			expectValidation:    true,
@@ -194,7 +194,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeMicroVM,
 			directAssigned:      false,
 			socketPath:          "",
-			skipAttach:          true,
+			skipGlobalMount:     true,
 			targetMounted:       true,
 			hasToken:            true,
 			expectTokenRotate:   true,
@@ -206,7 +206,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeMicroVM,
 			directAssigned:      false,
 			socketPath:          "",
-			skipAttach:          true,
+			skipGlobalMount:     true,
 			targetMounted:       true,
 			hasToken:            false,
 			expectExtendedMount: false, // Early return
@@ -216,7 +216,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			runtimeType:         RuntimeTypeMicroVM,
 			directAssigned:      false,
 			socketPath:          "",
-			skipAttach:          true,
+			skipGlobalMount:     true,
 			targetMounted:       false,
 			hasToken:            false,
 			expectValidation:    true,
@@ -227,7 +227,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// determine the atucal runtime type
-			runtimeType, err := DetermineRuntimeType(tt.directAssigned, tt.socketPath, tt.skipAttach)
+			runtimeType, err := DetermineRuntimeType(tt.directAssigned, tt.socketPath, tt.skipGlobalMount)
 			require.NoError(t, err)
 			require.Equal(t, tt.runtimeType, runtimeType)
 
@@ -273,7 +273,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			}
 
 			fakeMounter := mountutils.NewFakeMounter(mountPoints)
-			ns := setupTestNodeServer(t, fakeMounter, tt.skipAttach)
+			ns := setupTestNodeServer(t, fakeMounter, tt.skipGlobalMount)
 
 			// Prepare request
 			req := &csi.NodePublishVolumeRequest{
