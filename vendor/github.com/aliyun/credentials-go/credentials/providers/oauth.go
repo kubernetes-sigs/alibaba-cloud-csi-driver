@@ -102,18 +102,15 @@ func (b *OAuthCredentialsProviderBuilder) Build() (provider *OAuthCredentialsPro
 		return
 	}
 
-	if b.provider.refreshToken == "" {
-		err = errors.New("OAuth access token is empty or expired, please re-login with cli")
-		return
-	}
-
 	provider = b.provider
 	return
 }
 
 func (provider *OAuthCredentialsProvider) getCredentials() (session *sessionCredentials, err error) {
 
-	if provider.accessToken == "" || provider.accessTokenExpire == 0 || provider.accessTokenExpire-time.Now().Unix() <= 180 {
+	// 仅在 refreshToken 存在时尝试刷新 accessToken
+	// 若 refreshToken 不存在，则直接使用当前 accessToken 去交换 accessKeyId，由服务端判断是否有效
+	if provider.refreshToken != "" && (provider.accessToken == "" || provider.accessTokenExpire == 0 || provider.accessTokenExpire-time.Now().Unix() <= 1200) {
 		err = provider.tryRefreshOauthToken()
 		if err != nil {
 			return nil, err
