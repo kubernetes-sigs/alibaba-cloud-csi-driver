@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.26.3 AS builder
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.26.4 AS builder
 WORKDIR /src
 ARG TARGETARCH
 ARG TARGETOS
