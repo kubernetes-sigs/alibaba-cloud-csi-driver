@@ -39,7 +39,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	perrors "github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -161,13 +160,13 @@ func forceDetachAllowed(ecsClient cloud.ECSInterface, disk *ecs.Disk) (allowed b
 	diskResponse, err := ecsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
 		klog.Warningf("forceDetachAllowed: error with DescribeDisks: %s, %s", disk.DiskId, err.Error())
-		return false, perrors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
+		return false, fmt.Errorf("DescribeDisks %s: %w", disk.DiskId, err)
 	}
 	disks := diskResponse.Disks.Disk
 	klog.Infof("forceDetachAllowed: diskResponse: %+v", diskResponse)
 	if len(disks) == 0 {
 		klog.Warningf("forceDetachAllowed: no disk found: %s", disk.DiskId)
-		return false, perrors.Wrapf(err, "forceDetachAllowed: Get disk empty, ID=%s", disk.DiskId)
+		return false, fmt.Errorf("forceDetachAllowed: disk not found, ID=%s", disk.DiskId)
 	}
 	bdfTagExist := false
 	for _, tag := range disks[0].Tags.Tag {
@@ -185,10 +184,10 @@ func forceDetachAllowed(ecsClient cloud.ECSInterface, disk *ecs.Disk) (allowed b
 	instanceResponse, err := ecsClient.DescribeInstances(request)
 	klog.Infof("forceDetachAllowed: instanceResponse: %+v", instanceResponse)
 	if err != nil {
-		return false, perrors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
+		return false, fmt.Errorf("DescribeInstances %s: %w", disk.InstanceId, err)
 	}
 	if len(instanceResponse.Instances.Instance) == 0 {
-		return false, perrors.Errorf("Describe Instance with empty response: %s", disk.InstanceId)
+		return false, fmt.Errorf("DescribeInstances returned empty response for instance %s", disk.InstanceId)
 	}
 	inst := instanceResponse.Instances.Instance[0]
 	klog.Infof("forceDetachAllowed: Instance status is %s", inst.Status)
