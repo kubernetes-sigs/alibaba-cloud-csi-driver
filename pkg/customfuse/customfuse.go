@@ -22,7 +22,7 @@ const (
 	driverName = "customfuseplugin.csi.alibabacloud.com"
 )
 
-func NewServers(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version) *common.Servers {
+func NewServers(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version, mountProxySock string) *common.Servers {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
@@ -62,8 +62,10 @@ func NewServers(m metadata.MetadataProvider, endpoint string, serviceType utils.
 	}
 	if serviceType&utils.Node != 0 {
 		servers.NodeServer = &nodeServer{
-			locks:      utils.NewVolumeLocks(),
-			rawMounter: mountutils.NewWithoutSystemd(""),
+			locks:           utils.NewVolumeLocks(),
+			rawMounter:      mountutils.NewWithoutSystemd(""),
+			skipGlobalMount: utils.GetSkipGlobalMount(false),
+			mountProxySock:  mountProxySock,
 			GenericNodeServer: common.GenericNodeServer{
 				NodeID: nodeName,
 			},
