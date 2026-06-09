@@ -41,8 +41,8 @@ import (
 )
 
 const (
-	fusePodNamespace = "ack-csi-fuse"
-	mountProxySocket = "mountPorxySocket"
+	fusePodNamespace  = "ack-csi-fuse"
+	mountProxySocket  = mounterutils.MountProxySocketKey
 )
 
 type podLoc struct {

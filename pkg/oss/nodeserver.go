@@ -50,6 +50,13 @@ type nodeServer struct {
 	ossfsPaths      map[string]string
 	common.GenericNodeServer
 	skipGlobalMount bool
+	// mountProxySock is the --mount-proxy-sock flag value.
+	// Set from main.go (csi-plugin) or from csi_agent.go (csi-agent).
+	// In sandbox agent scenario there is no ControllerPublish, so PublishContext
+	// is empty — this field provides the socket path by injecting into
+	// req.PublishContext in NodePublishVolume.
+	// When empty, existing PublishContext values (if any) are used unchanged.
+	mountProxySock string
 }
 
 const (
@@ -132,7 +139,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	socketPath := req.PublishContext[mountProxySocket]
+	// Resolve mount-proxy socket path. ns.mountProxySock is set by csi-plugin
+	// (--mount-proxy-sock flag) or csi-agent (NewCSIAgent), overriding PublishContext.
+	socketPath := mounterutils.ResolveMountProxySocket(req.PublishContext, ns.mountProxySock)
 
 	// Determine runtime type based on directAssigned, socketPath, and skipGlobalMount
 	// See DetermineRuntimeType for the support matrix.

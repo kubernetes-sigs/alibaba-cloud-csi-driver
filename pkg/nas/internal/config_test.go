@@ -93,9 +93,25 @@ func TestGetNodeConfigSuccess(t *testing.T) {
 	prepareFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	config, err := GetNodeConfig(utils.Config{})
+	config, err := GetNodeConfig(utils.Config{}, "")
 	assert.NoError(t, err)
 	assert.NotNil(t, config)
+	assert.Empty(t, config.MountProxySocket, "MountProxySocket should be empty when no socket path provided")
+}
+
+func TestGetNodeConfigMountProxySock(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	registerConfigMapResponder()
+	registerNodeWithAddressResponder()
+	prepareFakeK8sContext()
+	prepareNodeConfigEnvVars(t)
+
+	const testSocket = "/run/cnfs/alinas-mounter.sock"
+	config, err := GetNodeConfig(utils.Config{}, testSocket)
+	assert.NoError(t, err)
+	assert.NotNil(t, config)
+	assert.Equal(t, testSocket, config.MountProxySocket, "MountProxySocket should be set from mountProxySock parameter")
 }
 
 func registerNodeWithAddressResponder() {
@@ -121,7 +137,7 @@ func TestGetNodeConfigNodeGetError(t *testing.T) {
 	prepareFakeK8sContext()
 	t.Setenv("NAS_LOSETUP_ENABLE", "true")
 
-	config, err := GetNodeConfig(utils.Config{})
+	config, err := GetNodeConfig(utils.Config{}, "")
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }
@@ -134,7 +150,7 @@ func TestGetNodeConfigLosetupError(t *testing.T) {
 	prepareFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	config, err := GetNodeConfig(utils.Config{})
+	config, err := GetNodeConfig(utils.Config{}, "")
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }
