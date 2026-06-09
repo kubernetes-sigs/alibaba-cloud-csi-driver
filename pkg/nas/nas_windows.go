@@ -9,7 +9,7 @@ import (
 
 const driverName = "nasplugin.csi.alibabacloud.com"
 
-func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *common.Servers {
+func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, mountProxySock string) *common.Servers {
 	panic("NAS driver is not supported on Windows")
 }
 

@@ -21,6 +21,12 @@ import (
 )
 
 // setupTestNodeServer creates a test nodeServer with minimal required fields
+func setupTestNodeServerWithProxySock(t *testing.T, mounter mountutils.Interface, skipGlobalMount bool, mountProxySock string) *nodeServer {
+	ns := setupTestNodeServer(t, mounter, skipGlobalMount)
+	ns.mountProxySock = mountProxySock
+	return ns
+}
+
 func setupTestNodeServer(t *testing.T, mounter mountutils.Interface, skipGlobalMount bool) *nodeServer {
 	fakeMeta := &metadata.FakeProvider{
 		Values: map[metadata.MetadataKey]string{
@@ -540,6 +546,94 @@ func TestNodePublishVolume_RunC_BindMount(t *testing.T) {
 			if tt.expectBindMount {
 				// Bind mount should be needed
 				assert.False(t, tt.targetMounted, "targetPath should not be mounted for bind mount")
+			}
+		})
+	}
+}
+
+func TestNodePublishVolume_SocketPathPriority(t *testing.T) {
+	tests := []struct {
+		name               string
+		publishContextSock string
+		flagSock           string
+		expectError        bool
+		expectContains     string
+	}{
+		{
+			name:               "Flag overrides PublishContext",
+			publishContextSock: "/run/fuse.ossfs/abc/mounter.sock",
+			flagSock:           "/run/cnfs/alinas-mounter.sock",
+			// flag socket injected into PublishContext, overriding controller-provided value
+			expectError:    true,
+			expectContains: "call mounter daemon",
+		},
+		{
+			name:               "Flag injects socket when PublishContext is empty",
+			publishContextSock: "",
+			flagSock:           "/run/cnfs/alinas-mounter.sock",
+			expectError:        true,
+			expectContains:     "call mounter daemon",
+		},
+		{
+			name:               "PublishContext used when flag is empty",
+			publishContextSock: "/run/fuse.ossfs/abc/mounter.sock",
+			flagSock:           "",
+			expectError:        true,
+			expectContains:     "call mounter daemon",
+		},
+		{
+			name:               "Compatibility: no flag, PublishContext has alinas sock (normal non-sandbox flow)",
+			publishContextSock: "/run/cnfs/alinas-mounter.sock",
+			flagSock:           "",
+			expectError:        true,
+			expectContains:     "call mounter daemon",
+		},
+		{
+			name:               "Both empty causes DetermineRuntimeType error",
+			publishContextSock: "",
+			flagSock:           "",
+			expectError:        true,
+			expectContains:     "socket path is empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeMounter := mountutils.NewFakeMounter(nil)
+			ns := setupTestNodeServerWithProxySock(t, fakeMounter, false, tt.flagSock)
+
+			targetPath := t.TempDir()
+			req := &csi.NodePublishVolumeRequest{
+				VolumeId:   "test-volume-id",
+				TargetPath: targetPath,
+				VolumeContext: map[string]string{
+					"bucket":   "test-bucket",
+					"url":      "https://oss-cn-beijing.aliyuncs.com",
+					"path":     "/",
+					"fuseType": "ossfs",
+				},
+				VolumeCapability: &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{},
+					},
+				},
+				Secrets: map[string]string{
+					"akId":     "test-akid",
+					"akSecret": "test-aksecret",
+				},
+			}
+			if tt.publishContextSock != "" {
+				req.PublishContext = map[string]string{
+					mountProxySocket: tt.publishContextSock,
+				}
+			}
+
+			_, err := ns.NodePublishVolume(context.Background(), req)
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectContains)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

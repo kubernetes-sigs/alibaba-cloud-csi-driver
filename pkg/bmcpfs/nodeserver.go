@@ -43,11 +43,12 @@ type nodeServer struct {
 }
 
 const (
-	defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
-	metricsPathPrefix             = "/run/cnfs/efc/"
+	metricsPathPrefix = "/run/cnfs/efc/"
 )
 
-func newNodeServer(meta *metadata.Metadata) (*nodeServer, error) {
+// newNodeServer creates a BMCPFS node server.
+// mountProxySock is guaranteed non-empty by main.go (flag > defaultMountProxySocket).
+func newNodeServer(meta *metadata.Metadata, mountProxySock string) (*nodeServer, error) {
 	var nodeID string
 	data, err := os.ReadFile(metadata.LingjunConfigFile)
 	if err != nil {
@@ -80,7 +81,7 @@ func newNodeServer(meta *metadata.Metadata) (*nodeServer, error) {
 		nodeID = LingjunNodeIDPrefix + lingjunConfig.NodeId
 	}
 	klog.Infof("bmcpfsplugin nodeId: %s", nodeID)
-	mounter := mounter.NewProxyMounter(defaultAlinasMountProxySocket, mount.NewWithoutSystemd(""))
+	mounter := mounter.NewProxyMounter(mountProxySock, mount.NewWithoutSystemd(""))
 	return &nodeServer{
 		GenericNodeServer: common.GenericNodeServer{NodeID: nodeID},
 		locks:             utils.NewVolumeLocks(),

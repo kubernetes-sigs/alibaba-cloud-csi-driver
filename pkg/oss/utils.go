@@ -699,21 +699,6 @@ func getDirectAssignedValue(runtimeClass string) bool {
 	}
 }
 
-func getSkipGlobalMount(defaultVal bool) bool {
-	value := os.Getenv("OSS_SKIP_GLOBAL_MOUNT")
-	if value == "" {
-		return defaultVal
-	}
-	parsed, err := strconv.ParseBool(value)
-	if err != nil {
-		klog.Warningf("Invalid value for OSS_SKIP_GLOBAL_MOUNT: %q, using default %v", value, defaultVal)
-		return defaultVal
-	}
-	if parsed != defaultVal {
-		klog.Infof("OSS_SKIP_GLOBAL_MOUNT=%v overrides default %v", parsed, defaultVal)
-	}
-	return parsed
-}
 
 func needRotateToken(fuseType string, secrets map[string]string) (needRotate bool) {
 	if len(secrets) == 0 {

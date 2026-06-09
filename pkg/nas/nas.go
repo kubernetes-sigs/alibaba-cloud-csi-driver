@@ -31,7 +31,7 @@ const (
 	driverName = "nasplugin.csi.alibabacloud.com"
 )
 
-func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *common.Servers {
+func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, mountProxySock string) *common.Servers {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	var servers common.Servers
@@ -49,12 +49,11 @@ func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.Serv
 		servers.ControllerServer = cs
 	}
 	if serviceType&utils.Node != 0 {
-		config, err := internal.GetNodeConfig(csiCfg)
+		config, err := internal.GetNodeConfig(csiCfg, mountProxySock)
 		if err != nil {
 			klog.Fatalf("Get nas node config: %v", err)
 		}
 		servers.NodeServer = newNodeServer(config)
 	}
-
 	return &servers
 }

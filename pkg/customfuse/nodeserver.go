@@ -21,8 +21,12 @@ const metricsPathPrefix = "/host/var/run/customfuse/"
 type nodeServer struct {
 	locks      *utils.VolumeLocks
 	rawMounter mountutils.Interface
-	// socketPath is set only in csi-agent mode (sandbox scenario)
-	socketPath string
+	// mountProxySock is for socket injection into req.PublishContext.
+	// Set from --customfuse-mount-proxy-sock flag (csi-plugin) or NewCSIAgent (csi-agent).
+	mountProxySock string
+	// skipGlobalMount skips global mount (attach+bind) and mounts directly
+	// on targetPath. Set by csi-agent (NewCSIAgent).
+	skipGlobalMount bool
 	common.GenericNodeServer
 }
 
@@ -58,9 +62,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	authCfg := makeAuthConfig(opts)
 
-	socketPath := req.PublishContext[mountProxySocket]
+	// Resolve mount-proxy socket path. ns.mountProxySock is set by csi-plugin
+	// (--customfuse-mount-proxy-sock flag) or csi-agent (NewCSIAgent), overriding PublishContext.
+	socketPath := mounterutils.ResolveMountProxySocket(req.PublishContext, ns.mountProxySock)
 	if socketPath == "" {
-		return nil, status.Error(codes.InvalidArgument, "mount proxy socket path is empty in publish context")
+		return nil, status.Error(codes.InvalidArgument, "mount proxy socket path is empty")
 	}
 
 	mountOptions := opts.makeMountOptions()
@@ -70,8 +76,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, err
 	}
 
-	// In csi-agent mode (sandbox), mount directly on targetPath
-	if ns.socketPath != "" {
+	if ns.skipGlobalMount {
 		if !notMntTarget {
 			klog.Infof("NodePublishVolume: %s already mounted", targetPath)
 			return &csi.NodePublishVolumeResponse{}, nil
@@ -93,7 +98,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	// Normal CSI plugin path (RunC): mount on attachPath, then bind mount to targetPath
 	attachPath := mounterutils.GetAttachPath(req.VolumeId, true)
 	notMntAttach, err := mounterutils.IsNotMountPoint(ns.rawMounter, attachPath)
 	if err != nil {

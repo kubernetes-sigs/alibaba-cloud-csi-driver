@@ -15,19 +15,20 @@ import (
 // since both resolve to the same runtime type.
 type CSIAgent struct {
 	csi.UnimplementedNodeServer
-	socketPath string
-	ns         *nodeServer
+	ns *nodeServer
 }
 
 func NewCSIAgent(socketPath string) *CSIAgent {
 	ns := &nodeServer{
 		locks:      utils.NewVolumeLocks(),
 		rawMounter: mountutils.NewWithoutSystemd(""),
-		socketPath: socketPath,
+		skipGlobalMount: utils.GetSkipGlobalMount(true),
+		// Socket injection is handled inside nodeServer.NodePublishVolume,
+		// which injects mountProxySock into req.PublishContext when non-empty.
+		mountProxySock: socketPath,
 	}
 	return &CSIAgent{
-		ns:         ns,
-		socketPath: socketPath,
+		ns: ns,
 	}
 }
 
@@ -43,11 +44,10 @@ func (a *CSIAgent) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVo
 	return a.ns.NodeUnstageVolume(ctx, req)
 }
 
+// NodePublishVolume delegates to nodeServer, which handles socket injection
+// via ns.mountProxySock. The injection was originally done here; it was moved
+// into nodeServer.NodePublishVolume to unify the logic for csi-agent and csi-plugin.
 func (a *CSIAgent) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	if req.PublishContext == nil {
-		req.PublishContext = map[string]string{}
-	}
-	req.PublishContext[mountProxySocket] = a.socketPath
 	return a.ns.NodePublishVolume(ctx, req)
 }
 

@@ -6,6 +6,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
-func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType) *common.Servers {
+func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, mountProxySock string) *common.Servers {
 	panic("BMCPFS driver is not supported on Windows")
 }

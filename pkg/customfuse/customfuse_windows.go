@@ -1,4 +1,4 @@
-package oss
+package customfuse
 
 import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -8,14 +8,14 @@ import (
 	k8sver "k8s.io/apimachinery/pkg/util/version"
 )
 
-func NewServers(endpoint string, meta *metadata.Metadata, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version, mountProxySock string) *common.Servers {
-	panic("OSS driver is not supported on Windows")
+func NewServers(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version, mountProxySock string) *common.Servers {
+	panic("CustomFuse driver is not supported on Windows")
 }
 
 type CSIAgent struct {
 	csi.UnimplementedNodeServer
 }
 
-func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
-	panic("OSS CSI agent is not supported on Windows")
+func NewCSIAgent(socketPath string) *CSIAgent {
+	panic("CustomFuse CSI agent is not supported on Windows")
 }

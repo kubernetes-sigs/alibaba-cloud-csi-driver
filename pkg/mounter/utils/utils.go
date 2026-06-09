@@ -40,7 +40,26 @@ const (
 	KeySecurityToken   = "SecurityToken"
 )
 
+// MountProxySocketKey is the PublishContext key for the mount-proxy socket path.
+// Note: the typo "Porxy" is intentional — it matches the existing wire format.
+const MountProxySocketKey = "mountPorxySocket"
+
 const LegacyFusePodNamespace = "kube-system" // deprecated
+
+// ResolveMountProxySocket returns the mount-proxy socket path.
+// overrideSock is the nodeServer.mountProxySock field, set by:
+//   - csi-plugin: --mount-proxy-sock / --customfuse-mount-proxy-sock flag
+//   - csi-agent: NewCSIAgent constructor
+//
+// Priority: overrideSock (if non-empty) > publishContext[MountProxySocketKey].
+// In sandbox agent scenarios there is no ControllerPublish, so publishContext
+// is empty and overrideSock provides the socket path directly.
+func ResolveMountProxySocket(publishContext map[string]string, overrideSock string) string {
+	if overrideSock != "" {
+		return overrideSock
+	}
+	return publishContext[MountProxySocketKey]
+}
 
 // fuseAttachBaseDir is the base directory for fuse attach paths.
 // Default is "/run", but can be overridden for testing.
