@@ -6,15 +6,17 @@ import (
 	"maps"
 	"path/filepath"
 	"strings"
-	"time"
+	"sync"
 
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
 )
 
@@ -26,6 +28,9 @@ const (
 type CustomFuse struct {
 	defaultConfig fpm.FuseContainerConfig
 	client        kubernetes.Interface
+
+	mu            sync.RWMutex
+	configMapData map[string]string
 }
 
 func NewCustomFuse(csiCfg utils.Config, client kubernetes.Interface) *CustomFuse {
@@ -38,33 +43,70 @@ func NewCustomFuse(csiCfg utils.Config, client kubernetes.Interface) *CustomFuse
 	}
 }
 
-// resolveConfig reads the csi-plugin ConfigMap and extracts the FuseContainerConfig
-// for the given fuseType. The ConfigMap key is "fuse-{fuseType}".
-// This is called per-mount to pick up image changes without restarting.
-// Falls back to defaultConfig if the ConfigMap read fails or the fuseType key is missing.
-//
-// Unlike ossfs, customfuse requires a full image path (e.g. "registry.cn-hangzhou.cr.aliyuncs.com/acs/csi-fuse-juicefs:v1.0")
-// because different fuseTypes may use completely different registries and image names.
-// The "image" key is parsed here directly; ExtractFuseContainerConfig ignores it for ossfs backward compat.
-func (f *CustomFuse) resolveConfig(fuseType string) fpm.FuseContainerConfig {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (f *CustomFuse) Start(ctx context.Context) error {
+	if f.client == nil {
+		return nil
+	}
+	cmClient := f.client.CoreV1().ConfigMaps(configMapNamespace)
+	lw := &cache.ListWatch{
+		ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
+			opts.FieldSelector = "metadata.name=" + configMapName
+			return cmClient.List(ctx, opts)
+		},
+		WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
+			opts.FieldSelector = "metadata.name=" + configMapName
+			return cmClient.Watch(ctx, opts)
+		},
+	}
+	// Reflector initial list uses RV="0" (watch cache) by default, safe for all K8s versions.
+	_, informer := cache.NewInformerWithOptions(cache.InformerOptions{
+		ListerWatcher: lw,
+		ObjectType:    &corev1.ConfigMap{},
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc:    func(obj any) { f.updateFromConfigMap(obj) },
+			UpdateFunc: func(_, obj any) { f.updateFromConfigMap(obj) },
+			DeleteFunc: func(_ any) { f.clearConfigMap() },
+		},
+	})
+	go informer.Run(ctx.Done())
+	if !cache.WaitForCacheSync(ctx.Done(), informer.HasSynced) {
+		return fmt.Errorf("failed to sync configmap %s/%s informer", configMapNamespace, configMapName)
+	}
+	return nil
+}
 
-	cm, err := f.client.CoreV1().ConfigMaps(configMapNamespace).Get(ctx, configMapName, metav1.GetOptions{})
-	if err != nil {
-		klog.Warningf("Failed to read configmap %s/%s: %v, using default config", configMapNamespace, configMapName, err)
+func (f *CustomFuse) updateFromConfigMap(obj any) {
+	cm, ok := obj.(*corev1.ConfigMap)
+	if !ok {
+		return
+	}
+	f.mu.Lock()
+	f.configMapData = cm.Data
+	f.mu.Unlock()
+}
+
+func (f *CustomFuse) clearConfigMap() {
+	f.mu.Lock()
+	f.configMapData = nil
+	f.mu.Unlock()
+}
+
+func (f *CustomFuse) resolveConfig(fuseType string) fpm.FuseContainerConfig {
+	f.mu.RLock()
+	data := f.configMapData
+	f.mu.RUnlock()
+
+	if data == nil {
 		return f.defaultConfig
 	}
 
-	cfg := utils.Config{ConfigMap: cm.Data}
+	cfg := utils.Config{ConfigMap: data}
 	config := fpm.ExtractFuseContainerConfig(cfg, fuseType)
-	config.Image = extractImage(cm.Data, fuseType)
+	config.Image = extractImage(data, fuseType)
 
 	if config.Image == "" {
-		klog.V(2).Infof("No image configured for fuseType %q in configmap, using default config", fuseType)
 		return f.defaultConfig
 	}
-
 	return config
 }
 
