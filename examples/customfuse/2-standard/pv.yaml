@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-standard-pv
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: customfuseplugin.csi.alibabacloud.com
+    volumeHandle: juicefs-standard-pv
+    volumeAttributes:
+      # fuseType: identifies the FUSE client for metrics and image resolution.
+      # Strongly recommended. The ConfigMap key "fuse-{fuseType}" in csi-plugin
+      # determines which image to use. Without it, defaults to "customfuse"
+      # (one FUSE client type per cluster).
+      fuseType: "juicefs"
+
+      # source: opaque mount source passed to entrypoint as $source.
+      # For JuiceFS: the META-URL (Redis/MySQL connection string).
+      # For other FUSE clients: any string the entrypoint understands.
+      source: "redis://:mypassword@redis-host.default.svc:6379/1"
+
+      # bucket: OSS bucket name, passed to entrypoint as $bucket.
+      bucket: "my-jfs-data"
+
+      # url: OSS endpoint, passed to entrypoint as $url.
+      # Use internal endpoint (-internal) for better performance within Alibaba Cloud.
+      url: "oss-cn-hangzhou-internal.aliyuncs.com"
+
+      # otherOpts: extra options, passed to entrypoint as $otherOpts.
+      otherOpts: "--cache-size=1024 --buffer-size=300"
+
+    nodePublishSecretRef:
+      name: juicefs-standard-creds
+      namespace: default
