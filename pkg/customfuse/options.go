@@ -13,11 +13,14 @@ import (
 )
 
 type fuseOptions struct {
-	// Source is the mount source passed to the FUSE entrypoint as FUSE_SOURCE.
-	// Its format is opaque to the CSI driver — it can be a JuiceFS volume name
-	// (e.g. "my-jfs-vol"), an OSS-style bucket:path (e.g. "mybucket:/data"),
-	// or any string the entrypoint understands.
-	Source    string
+	// Source is the mount source passed to the FUSE entrypoint as $source.
+	// Its format is opaque to the CSI driver — it can be a JuiceFS META-URL
+	// (e.g. "redis://host:6379/1"), an OSS-style bucket:path, or any string
+	// the entrypoint understands.
+	Source string
+	// Bucket is the object storage bucket name, passed as $bucket.
+	// Independent of Source and URL — all three are separate env vars.
+	Bucket    string
 	URL       string
 	OtherOpts string
 	ReadOnly  bool
@@ -63,7 +66,7 @@ func parseOptions(volContext, secrets map[string]string, volCaps []*csi.VolumeCa
 		Secrets:  secrets,
 	}
 
-	var bucket, path string
+	var path string
 	for k, v := range volContext {
 		key := strings.TrimSpace(strings.ToLower(k))
 		value := strings.TrimSpace(v)
@@ -74,7 +77,7 @@ func parseOptions(volContext, secrets map[string]string, volCaps []*csi.VolumeCa
 		case "source":
 			opts.Source = value
 		case "bucket":
-			bucket = value
+			opts.Bucket = value
 		case "path":
 			path = value
 		case "url":
@@ -100,11 +103,11 @@ func parseOptions(volContext, secrets map[string]string, volCaps []*csi.VolumeCa
 	}
 
 	// If "source" is not set, fall back to bucket/path for backward compatibility.
-	if opts.Source == "" && bucket != "" {
+	if opts.Source == "" && opts.Bucket != "" {
 		if path != "" {
-			opts.Source = bucket + ":" + path
+			opts.Source = opts.Bucket + ":" + path
 		} else {
-			opts.Source = bucket
+			opts.Source = opts.Bucket
 		}
 	}
 
@@ -154,9 +157,12 @@ func makeAuthConfig(opts *fuseOptions) *fpm.AuthConfig {
 // for the entrypoint.
 //
 // Note: Source is not included here — it is passed via MountOperation.Source
-// and mapped to source by mount-proxy directly.
+// and mapped to $source by mount-proxy directly.
 func (o *fuseOptions) makeMountOptions() []string {
 	var opts []string
+	if o.Bucket != "" {
+		opts = append(opts, "bucket="+o.Bucket)
+	}
 	if o.URL != "" {
 		opts = append(opts, "url="+o.URL)
 	}
