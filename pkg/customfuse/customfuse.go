@@ -3,6 +3,7 @@
 package customfuse
 
 import (
+	"context"
 	"os"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -44,16 +45,18 @@ func NewServers(m metadata.MetadataProvider, endpoint string, serviceType utils.
 		clientset = kubernetes.NewForConfigOrDie(cfg)
 	}
 
-	fuseManager := customfusefpm.NewCustomFuse(csiCfg, clientset)
-	constrainRV := fpm.ShouldConstrainResourceVersion(k8sVersion)
-	fusePodManager := fpm.NewFusePodManager(fuseManager, clientset, constrainRV)
-
 	var servers common.Servers
 	servers.IdentityServer = &identityServer{
 		common.GenericIdentityServer{Name: driverName},
 	}
 
 	if serviceType&utils.Controller != 0 {
+		fuseManager := customfusefpm.NewCustomFuse(csiCfg, clientset)
+		if err := fuseManager.Start(context.Background()); err != nil {
+			klog.Fatalf("Failed to start configmap informer: %v", err)
+		}
+		constrainRV := fpm.ShouldConstrainResourceVersion(k8sVersion)
+		fusePodManager := fpm.NewFusePodManager(fuseManager, clientset, constrainRV)
 		servers.ControllerServer = &controllerServer{
 			client:         clientset,
 			metadata:       m,
