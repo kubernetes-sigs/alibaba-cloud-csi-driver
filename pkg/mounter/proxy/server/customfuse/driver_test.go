@@ -17,24 +17,25 @@ func TestBuildEnvVars(t *testing.T) {
 		want map[string]string
 	}{
 		{
-			name: "full request",
+			name: "full request with bucket",
 			req: &proxy.MountRequest{
-				Source:  "my-jfs-vol",
+				Source:  "redis://host:6379/1",
 				Target:  "/mnt/data",
-				Options: []string{"url=endpoint.com", "otherOpts=--cache-size=1024 --buffer-size=300"},
+				Options: []string{"bucket=my-jfs-data", "url=oss-cn-hangzhou-internal.aliyuncs.com", "otherOpts=--cache-size=1024 --buffer-size=300"},
 				Secrets: map[string]string{"accessKeyId": "ak123", "accessKeySecret": "sk456"},
 			},
 			want: map[string]string{
-				"source":          "my-jfs-vol",
+				"source":          "redis://host:6379/1",
 				"mountpoint":      "/mnt/data",
-				"url":             "endpoint.com",
+				"bucket":          "my-jfs-data",
+				"url":             "oss-cn-hangzhou-internal.aliyuncs.com",
 				"otherOpts":       "--cache-size=1024 --buffer-size=300",
 				"accessKeyId":     "ak123",
 				"accessKeySecret": "sk456",
 			},
 		},
 		{
-			name: "oss-style source",
+			name: "url and otherOpts without bucket",
 			req: &proxy.MountRequest{
 				Source:  "mybucket:/data",
 				Target:  "/mnt/oss",

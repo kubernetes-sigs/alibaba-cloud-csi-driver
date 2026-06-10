@@ -18,8 +18,8 @@ func TestParseOptions_Source(t *testing.T) {
 		wantSource string
 	}{
 		{
-			name:       "source takes priority over bucket/path",
-			volContext: map[string]string{"source": "my-jfs-vol", "bucket": "ignored", "path": "/ignored"},
+			name:       "source takes priority over bucket/path for source field",
+			volContext: map[string]string{"source": "my-jfs-vol", "bucket": "mybucket", "path": "/data"},
 			wantSource: "my-jfs-vol",
 		},
 		{
@@ -143,6 +143,18 @@ func TestParseOptions_CaseInsensitive(t *testing.T) {
 	assert.Equal(t, "jindo", opts.FuseType)
 }
 
+func TestParseOptions_BucketIndependent(t *testing.T) {
+	volContext := map[string]string{
+		"source": "redis://host:6379/1",
+		"bucket": "my-jfs-data",
+		"url":    "oss-cn-hangzhou-internal.aliyuncs.com",
+	}
+	opts := parseOptions(volContext, nil, nil, false)
+	assert.Equal(t, "redis://host:6379/1", opts.Source)
+	assert.Equal(t, "my-jfs-data", opts.Bucket)
+	assert.Equal(t, "oss-cn-hangzhou-internal.aliyuncs.com", opts.URL)
+}
+
 func TestParseOptions_EmptyValuesIgnored(t *testing.T) {
 	volContext := map[string]string{
 		"source": "",
@@ -151,6 +163,7 @@ func TestParseOptions_EmptyValuesIgnored(t *testing.T) {
 	}
 	opts := parseOptions(volContext, nil, nil, false)
 	assert.Equal(t, "mybucket", opts.Source)
+	assert.Equal(t, "mybucket", opts.Bucket)
 	assert.Equal(t, "", opts.URL)
 }
 
@@ -213,8 +226,13 @@ func TestMakeMountOptions(t *testing.T) {
 	}{
 		{
 			name: "all fields",
-			opts: fuseOptions{URL: "endpoint.com", OtherOpts: "--cache-size=1024"},
-			want: []string{"url=endpoint.com", "otherOpts=--cache-size=1024"},
+			opts: fuseOptions{Bucket: "mybucket", URL: "endpoint.com", OtherOpts: "--cache-size=1024"},
+			want: []string{"bucket=mybucket", "url=endpoint.com", "otherOpts=--cache-size=1024"},
+		},
+		{
+			name: "bucket and url",
+			opts: fuseOptions{Bucket: "mybucket", URL: "endpoint.com"},
+			want: []string{"bucket=mybucket", "url=endpoint.com"},
 		},
 		{
 			name: "url only",
@@ -233,8 +251,8 @@ func TestMakeMountOptions(t *testing.T) {
 		},
 		{
 			name: "source not included in options",
-			opts: fuseOptions{Source: "mybucket:/data", URL: "ep.com"},
-			want: []string{"url=ep.com"},
+			opts: fuseOptions{Source: "redis://host:6379/1", Bucket: "mybucket", URL: "ep.com"},
+			want: []string{"bucket=mybucket", "url=ep.com"},
 		},
 	}
 	for _, tt := range tests {
