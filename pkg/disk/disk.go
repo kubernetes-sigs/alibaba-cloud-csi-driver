@@ -26,6 +26,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/throttle"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
@@ -36,7 +37,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -48,8 +48,8 @@ import (
 // PluginFolder defines the location of diskplugin
 const (
 	driverType        = "disk"
-	driverName        = "diskplugin.csi.alibabacloud.com"
-	TopologyKey       = "topology." + driverName
+	DriverName        = "diskplugin.csi.alibabacloud.com"
+	TopologyKey       = "topology." + DriverName
 	TopologyRegionKey = TopologyKey + "/region"
 	TopologyZoneKey   = TopologyKey + "/zone"
 )
@@ -60,12 +60,6 @@ var (
 	// TODO: currently always set to private topology key to be compactable with old csi-plugin and vk
 	ZonalDiskTopologyKey = TopologyZoneKey
 )
-
-// DISK the DISK object
-type DISK struct {
-	endpoint string
-	servers  common.Servers
-}
 
 // GlobalConfig save global values for plugin
 type GlobalConfig struct {
@@ -100,16 +94,8 @@ var (
 	GlobalConfigVar GlobalConfig
 )
 
-// Init checks for the persistent volume file and loads all found volumes
-// into a memory structure
-func initDriver() {
-}
-
-// NewDriver create the identity/node/controller server and disk driver
-func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *DISK {
-	initDriver()
-	tmpdisk := &DISK{}
-	tmpdisk.endpoint = endpoint
+// NewServers create the identity/node/controller server and disk driver
+func NewServers(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, useLabeler bool) *common.Servers {
 
 	GlobalConfigSet(m, csiCfg)
 
@@ -125,7 +111,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	if err != nil {
 		klog.Fatalf("Error building credential: %s", err.Error())
 	}
-	client := newEcsClient(metadata.MustGet(m, metadata.RegionID), credentials.V1ProviderAdaptor(cred))
+	client := NewEcsClient(metadata.MustGet(m, metadata.RegionID), credentials.V1ProviderAdaptor(cred))
 	GlobalConfigVar.EcsClient = client
 
 	// Create GRPC servers
@@ -135,20 +121,13 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 		servers.ControllerServer = NewControllerServer(csiCfg, client, m)
 	}
 	if serviceType&utils.Node != 0 {
-		servers.NodeServer = NewNodeServer(client, m)
+		servers.NodeServer = NewNodeServer(client, ecsV2, m, useLabeler)
 	}
 	if features.FunctionalMutableFeatureGate.Enabled(features.EnableVolumeGroupSnapshots) {
 		servers.GroupControllerServer = NewGroupControllerServer()
 	}
-	tmpdisk.servers = servers
 
-	return tmpdisk
-}
-
-// Run start a new NodeServer
-func (disk *DISK) Run() {
-	klog.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
-	common.RunCSIServer(driverType, disk.endpoint, disk.servers)
+	return &servers
 }
 
 // GlobalConfigSet set Global Config
@@ -267,7 +246,7 @@ func defaultThrottler() *throttle.Throttler {
 // parseLingjunNodeDiskTypes parses allowed disk types for Lingjun nodes from a comma-separated string.
 // If value is nil or empty, default to essd_auto & cloud_essd.
 // Example: "cloud_essd,cloud_auto". Unknown entries are ignored.
-func parseLingjunNodeDiskTypes(value string) []string {
+func ParseLingjunNodeDiskTypes(value string) []string {
 	// Defaults per requirement
 	defaultTypes := []string{string(DiskESSDAuto), string(DiskESSD)}
 	s := strings.TrimSpace(value)

@@ -3,18 +3,13 @@ package nas
 import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 const driverName = "nasplugin.csi.alibabacloud.com"
 
-type NAS struct{}
-
-func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *NAS {
-	panic("NAS driver is not supported on Windows")
-}
-
-func (d *NAS) Run() {
+func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *common.Servers {
 	panic("NAS driver is not supported on Windows")
 }
 

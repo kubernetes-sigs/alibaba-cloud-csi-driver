@@ -42,8 +42,6 @@ func (m *OpenAPIMetadata) get(key MetadataKey) *string {
 	switch key {
 	case ZoneID:
 		return m.instance.ZoneId
-	case InstanceID:
-		return m.instance.InstanceId
 	case InstanceType:
 		return m.instance.InstanceType
 	}
@@ -67,7 +65,7 @@ func (f *OpenAPIFetcher) ID() fetcherID { return openAPIFetcherID }
 
 func (f *OpenAPIFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
-	case InstanceID, ZoneID, InstanceType:
+	case ZoneID, InstanceType:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}

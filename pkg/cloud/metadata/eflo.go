@@ -1,86 +1,38 @@
 package metadata
 
 import (
-	"context"
 	"fmt"
 
 	eflo_controller20221215 "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
-type EfloMetadata struct {
-	nodeType *eflo_controller20221215.DescribeNodeTypeResponseBody
+type efloNodeMetadata struct {
+	nodeType string // empty string means "no nodeType" (some LingJun instances)
 }
 
-func getEfloNodeType(logger klog.Logger, c cloud.EFLOInterface, nodeID string) (string, error) {
-	req := &eflo_controller20221215.DescribeNodeRequest{
-		NodeId: &nodeID,
-	}
-	resp, err := c.DescribeNode(req)
-	if err != nil {
-		return "", fmt.Errorf("DescribeNode failed: %w", err)
-	}
-	if resp == nil || resp.Body == nil {
-		return "", fmt.Errorf("DescribeNode returned nil response, resp: %v", resp)
-	}
-	if resp.Body.NodeType == nil {
-		logger.Info("DescribeNode response has nil NodeType", "resp", resp)
-		return "", nil
-	}
-	nodeType := *resp.Body.NodeType
-	logger.V(1).Info("EFLO DescribeNode", "nodeType", nodeType, "requestID", ptr.Deref(resp.Body.RequestId, ""))
-	return nodeType, nil
-}
-
-func NewEfloMetadata(ctx context.Context, c cloud.EFLOInterface, nodeID string) (*EfloMetadata, error) {
-	logger := klog.FromContext(ctx)
-	nodeType, err := getEfloNodeType(logger, c, nodeID)
-	if err != nil {
-		return nil, err
-	}
-	if nodeType == "" {
-		return &EfloMetadata{}, nil // Some LingJun instances don't have nodeType
-	}
-
-	req := &eflo_controller20221215.DescribeNodeTypeRequest{
-		NodeType: &nodeType,
-	}
-	resp, err := c.DescribeNodeType(req)
-	if err != nil {
-		return nil, fmt.Errorf("DescribeNodeType failed: %w", err)
-	}
-	if resp == nil || resp.Body == nil {
-		return nil, fmt.Errorf("DescribeNodeType returned invalid response: %+v", resp)
-	}
-	logger.V(1).Info("EFLO DescribeNodeType", "requestID", ptr.Deref(resp.Body.RequestId, ""))
-	return &EfloMetadata{nodeType: resp.Body}, nil
-
-}
-
-func (m *EfloMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
+func (m *efloNodeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
 	switch key {
+	case LingjunNodeType:
+		return m.nodeType, nil
 	case machineKind:
 		return MachineKindLingjun, nil
-	case diskQuantity:
-		if m.nodeType != nil && m.nodeType.DiskQuantity != nil {
-			return *m.nodeType.DiskQuantity, nil
-		}
 	}
 	return nil, ErrUnknownMetadataKey
 }
 
-type EfloFetcher struct {
+// EfloNodeFetcher calls DescribeNode to get nodeType
+type EfloNodeFetcher struct {
 	efloClient cloud.EFLOInterface
 	mPre       middleware
 }
 
-func (f *EfloFetcher) ID() fetcherID { return efloFetcherID }
+func (f *EfloNodeFetcher) ID() fetcherID { return efloNodeFetcherID }
 
-func (f *EfloFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
+func (f *EfloNodeFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
-	case diskQuantity, machineKind:
+	case LingjunNodeType, machineKind:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
@@ -94,9 +46,71 @@ func (f *EfloFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, erro
 		return nil, fmt.Errorf("instance ID is not available: %w", err)
 	}
 
-	p, err := NewEfloMetadata(ctx, f.efloClient, instanceId.(string))
-	if err != nil {
-		return nil, err
+	req := &eflo_controller20221215.DescribeNodeRequest{
+		NodeId: new(instanceId.(string)),
 	}
-	return newImmutable(p, "EFLO"), nil
+	resp, err := f.efloClient.DescribeNode(req)
+	if err != nil {
+		return nil, fmt.Errorf("DescribeNode failed: %w", err)
+	}
+	if resp == nil || resp.Body == nil {
+		return nil, fmt.Errorf("DescribeNode returned nil response, resp: %v", resp)
+	}
+	nodeType := ptr.Deref(resp.Body.NodeType, "")
+	ctx.logger.V(1).Info("EFLO DescribeNode", "nodeType", nodeType, "requestID", ptr.Deref(resp.Body.RequestId, ""))
+
+	return newImmutable(&efloNodeMetadata{nodeType: nodeType}, "EFLO-Node"), nil
+}
+
+type efloNodeTypeMetadata struct {
+	nodeType *eflo_controller20221215.DescribeNodeTypeResponseBody
+}
+
+func (m *efloNodeTypeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
+	switch key {
+	case diskQuantity:
+		if m.nodeType != nil && m.nodeType.DiskQuantity != nil {
+			return *m.nodeType.DiskQuantity, nil
+		}
+	}
+	return nil, ErrUnknownMetadataKey
+}
+
+// EfloNodeTypeFetcher: calls DescribeNodeType to get diskQuantity
+type EfloNodeTypeFetcher struct {
+	efloClient cloud.EFLOInterface
+	mPre       middleware
+}
+
+func (f *EfloNodeTypeFetcher) ID() fetcherID { return efloNodeTypeFetcherID }
+
+func (f *EfloNodeTypeFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
+	switch key {
+	case diskQuantity:
+	default:
+		return nil, ErrUnknownMetadataKey
+	}
+
+	nodeType, err := f.mPre.GetAny(ctx, LingjunNodeType)
+	if err != nil {
+		return nil, fmt.Errorf("nodeType is not available: %w", err)
+	}
+	nodeTypeStr := nodeType.(string)
+	if nodeTypeStr == "" {
+		ctx.logger.V(1).Info("skip EFLO nodeType fetcher for LingJun node without nodeType")
+		return empty{}, nil
+	}
+
+	req := &eflo_controller20221215.DescribeNodeTypeRequest{
+		NodeType: &nodeTypeStr,
+	}
+	resp, err := f.efloClient.DescribeNodeType(req)
+	if err != nil {
+		return nil, fmt.Errorf("DescribeNodeType failed: %w", err)
+	}
+	if resp == nil || resp.Body == nil {
+		return nil, fmt.Errorf("DescribeNodeType returned invalid response: %+v", resp)
+	}
+	ctx.logger.V(1).Info("EFLO DescribeNodeType", "nodeType", nodeTypeStr, "requestID", ptr.Deref(resp.Body.RequestId, ""))
+	return newImmutable(&efloNodeTypeMetadata{nodeType: resp.Body}, "EFLO-NodeType"), nil
 }

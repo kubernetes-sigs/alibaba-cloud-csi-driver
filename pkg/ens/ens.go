@@ -11,7 +11,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -49,19 +48,7 @@ var (
 	ENSDiskTypeMap  = map[string]string{CLOUD_EFFICIENCY: "4", CLOUD_SSD: "3", LOCAL_HDD: "2", LOCAL_SSD: "1"}
 )
 
-type ENS struct {
-	endpoint string
-	servers  common.Servers
-}
-
-func initDriver() {}
-
-func NewDriver(nodeID, endpoint string, serviceType utils.ServiceType) *ENS {
-
-	initDriver()
-	tmpENS := &ENS{}
-	tmpENS.endpoint = endpoint
-
+func NewServers(nodeID, endpoint string, serviceType utils.ServiceType) *common.Servers {
 	NewGlobalConfig()
 
 	var servers common.Servers
@@ -72,13 +59,7 @@ func NewDriver(nodeID, endpoint string, serviceType utils.ServiceType) *ENS {
 	if serviceType&utils.Node != 0 {
 		servers.NodeServer = NewNodeServer()
 	}
-	tmpENS.servers = servers
-	return tmpENS
-}
-
-func (ens *ENS) Run() {
-	klog.Infof("Run: start csi-plugin driver: %s, version %s", driverName, version.VERSION)
-	common.RunCSIServer(driverType, ens.endpoint, ens.servers)
+	return &servers
 }
 
 func NewGlobalConfig() {
