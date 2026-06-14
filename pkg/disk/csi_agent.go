@@ -37,8 +37,10 @@ func NewCSIAgent() *CSIAgent {
 			podCGroup:   podCgroup,
 			locks:       utils.NewVolumeLocks(),
 			ad: DiskAttachDetach{
-				dev:    DefaultDeviceManager,
-				devMap: &devMap{}, // Nobody will add to this map.
+				repo: &diskRepo{
+					dev:    DefaultDeviceManager,
+					devMap: &devMap{}, // Nobody will add to this map.
+				},
 			},
 		},
 	}

@@ -1,5 +1,3 @@
-//go:build !windows
-
 /*
 Copyright 2019 The Kubernetes Authors.
 
@@ -115,7 +113,6 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 
 	if serviceType&utils.Node != 0 {
 		GlobalConfigVar.NodeID = metadata.MustGet(m, metadata.InstanceID)
-		DefaultDeviceManager.DisableSerial = IsVFNode()
 	} else {
 		GlobalConfigVar.NodeID = "not-retrieved" // make csi-common happy
 	}
@@ -135,7 +132,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 		servers.ControllerServer = NewControllerServer(csiCfg, client, m)
 	}
 	if serviceType&utils.Node != 0 {
-		servers.NodeServer = NewNodeServer(client, m)
+		servers.NodeServer = NewNodeServer(csiCfg, client, m)
 	}
 	if features.FunctionalMutableFeatureGate.Enabled(features.EnableVolumeGroupSnapshots) {
 		servers.GroupControllerServer = NewGroupControllerServer()
@@ -230,7 +227,6 @@ func GlobalConfigSet(m metadata.MetadataProvider, csiCfg utils.Config) {
 	} else {
 		RegionalDiskTopologyKey = v1.LabelTopologyRegion
 	}
-	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
 	klog.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.ADControllerEnable,
 		GlobalConfigVar.DiskTagEnable,

@@ -1,5 +1,3 @@
-//go:build !windows
-
 /*
 Copyright 2019 The Kubernetes Authors.
 
@@ -61,10 +59,28 @@ const (
 	DISK_RESIZE_PROCESSING_TIMEOUT = 30 * time.Second
 )
 
+// Disk status returned in ecs.DescribeDisks
+const (
+	DiskStatusInuse     = "In_use"
+	DiskStatusAttaching = "Attaching"
+	DiskStatusDetaching = "Detaching"
+	DiskStatusAvailable = "Available"
+)
+
 const (
 	SnapshotStatusAccomplished = "accomplished"
 	DiskMultiAttachDisabled    = "Disabled"
 	DiskMultiAttachEnabled     = "Enabled"
+
+	// InstanceStatusStopped ecs stopped status
+	InstanceStatusStopped = "Stopped"
+)
+
+const (
+	// DiskAttachedKey attached key
+	DiskAttachedKey = "k8s.aliyun.com"
+	// DiskAttachedValue attached value
+	DiskAttachedValue = "true"
 )
 
 type DiskAttachDetach struct {
@@ -77,8 +93,7 @@ type DiskAttachDetach struct {
 	detachThrottler *throttle.Throttler
 	detaching       sync.Map
 
-	dev    *DeviceManager
-	devMap *devMap
+	repo *diskRepo
 }
 
 type DiskCreateDelete struct {
@@ -86,109 +101,6 @@ type DiskCreateDelete struct {
 	batcher         batcher.Batcher[ecs.Disk]
 	createThrottler *throttle.Throttler
 	deleteThrottler *throttle.Throttler
-}
-
-// GetRootBlockDevice get device name
-func (ad *DiskAttachDetach) GetRootBlockDevice(logger klog.Logger, diskID string) (string, error) {
-	device, err := ad.dev.GetRootBlockBySerial(strings.TrimPrefix(diskID, "d-"))
-	if err == nil {
-		return device, nil
-	}
-	device, err2 := ad.devMap.Get(logger, diskID)
-	if device == "" {
-		return "", errors.Join(err, err2) // err2 may be nil, which is OK
-	}
-	klog.Infof("GetRootBlockDevice: got disk %s device name %s from devMap", diskID, device)
-	return device, nil
-}
-
-func (ad *DiskAttachDetach) GetVolumeDeviceName(logger klog.Logger, diskID string) (string, error) {
-	root, err := ad.GetRootBlockDevice(logger, diskID)
-	if err != nil {
-		return "", err
-	}
-	return ad.dev.adaptDevicePartition(root)
-}
-
-func (ad *DiskAttachDetach) possibleDisks(before sets.Set[string]) ([]string, error) {
-	after, err := ad.dev.ListBlocks()
-	if err != nil {
-		return nil, fmt.Errorf("cannot list devices after attach: %w", err)
-	}
-
-	var disks []string
-	for d := range after.Difference(before) {
-		serial, err := ad.dev.GetDeviceSerial(d)
-		if err != nil {
-			return nil, fmt.Errorf("get device serial for disk %s failed: %w", d, err)
-		}
-		if serial == "" {
-			disks = append(disks, "/dev/"+d)
-		}
-	}
-	return disks, nil
-}
-
-func (ad *DiskAttachDetach) findDevice(ctx context.Context, diskID, serial string, before sets.Set[string]) (string, error) {
-	logger := klog.FromContext(ctx)
-	var bdf, device string
-	var err error
-	for {
-		if serial != "" {
-			device, err = ad.dev.WaitRootBlock(ctx, serial)
-			if err == nil {
-				logger.V(2).Info("found disk by serial", "serial", serial, "device", device)
-				break
-			}
-			err = fmt.Errorf("disk attached but not found by serial %s: %w", serial, err)
-		} else if before != nil {
-			var disks []string
-			disks, err = ad.possibleDisks(before)
-			if err != nil {
-				return "", fmt.Errorf("failed to find disk without serial: %v", err)
-			}
-			if len(disks) == 1 {
-				device = disks[0]
-				err := ad.devMap.Add(diskID, device)
-				if err != nil {
-					return "", fmt.Errorf("failed to populate devMap: %v", err)
-				}
-				logger.V(2).Info("found device by diff", "device", device)
-				break
-			} else {
-				// device count is not expected, should retry (later by detaching and attaching again)
-				err = fmt.Errorf("disk attached, but got %d devices, will retry later", len(disks))
-			}
-		}
-
-		if !IsVFNode() {
-			return "", err
-		}
-		if bdf != "" {
-			// second attempt after bindBdfDisk
-			var errBDF error
-			device, errBDF = GetDeviceByBdf(bdf, true)
-			if errBDF != nil {
-				return "", fmt.Errorf("%v. failed to find by BDF: %v", err, errBDF)
-			}
-			logger.V(2).Info("found device by BDF", "BDF", bdf, "device", device)
-			break
-		}
-		// On VF node, try bind driver
-		bdf, err = bindBdfDisk(diskID)
-		if err != nil {
-			if err := unbindBdfDisk(diskID); err != nil {
-				return "", fmt.Errorf("NodeStageVolume: failed to detach bdf: %v", err)
-			}
-			return "", fmt.Errorf("NodeStageVolume: failed to attach bdf: %v", err)
-		}
-		if bdf == "" {
-			// avoid infinite loop
-			return "", fmt.Errorf("BDF not found")
-		}
-		// continue and retry finding device
-	}
-	return device, nil
 }
 
 type attachAction int
@@ -236,9 +148,56 @@ func chooseAttachAction(disk *ecs.Disk, instanceID string) (attachAction, error)
 	return attachNormally, nil
 }
 
+func forceDetachAllowed(ecsClient cloud.ECSInterface, disk *ecs.Disk) (allowed bool, err error) {
+	// The following case allow detach:
+	// 1. no depend bdf
+	// 2. instance status is stopped
+
+	// case 1
+	describeDisksRequest := ecs.CreateDescribeDisksRequest()
+	describeDisksRequest.RegionId = GlobalConfigVar.Region
+	describeDisksRequest.DiskIds = "[\"" + disk.DiskId + "\"]"
+	diskResponse, err := ecsClient.DescribeDisks(describeDisksRequest)
+	if err != nil {
+		klog.Warningf("forceDetachAllowed: error with DescribeDisks: %s, %s", disk.DiskId, err.Error())
+		return false, fmt.Errorf("DescribeDisks %s: %w", disk.DiskId, err)
+	}
+	disks := diskResponse.Disks.Disk
+	klog.Infof("forceDetachAllowed: diskResponse: %+v", diskResponse)
+	if len(disks) == 0 {
+		klog.Warningf("forceDetachAllowed: no disk found: %s", disk.DiskId)
+		return false, fmt.Errorf("forceDetachAllowed: disk not found, ID=%s", disk.DiskId)
+	}
+	bdfTagExist := false
+	for _, tag := range disks[0].Tags.Tag {
+		if tag.TagKey == DiskBdfTagKey {
+			bdfTagExist = true
+		}
+	}
+	if !bdfTagExist {
+		return true, nil
+	}
+
+	request := ecs.CreateDescribeInstancesRequest()
+	request.RegionId = disk.RegionId
+	request.InstanceIds = "[\"" + disk.InstanceId + "\"]"
+	instanceResponse, err := ecsClient.DescribeInstances(request)
+	klog.Infof("forceDetachAllowed: instanceResponse: %+v", instanceResponse)
+	if err != nil {
+		return false, fmt.Errorf("DescribeInstances %s: %w", disk.InstanceId, err)
+	}
+	if len(instanceResponse.Instances.Instance) == 0 {
+		return false, fmt.Errorf("DescribeInstances returned empty response for instance %s", disk.InstanceId)
+	}
+	inst := instanceResponse.Instances.Instance[0]
+	klog.Infof("forceDetachAllowed: Instance status is %s", inst.Status)
+	// case 2
+	return inst.Status == InstanceStatusStopped, nil
+}
+
 // Attach Alibaba Cloud disk.
-// Returns device path if fromNode, disk serial number otherwise.
-func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID string, fromNode bool) (string, error) {
+// Returns device path if called from node (ad.repo != nil), disk serial number otherwise.
+func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID string) (string, error) {
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Starting Do AttachDisk")
 
@@ -251,7 +210,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		return "", status.Errorf(codes.NotFound, "AttachDisk: csi can't find disk: %s in region: %s, Please check if the cloud disk exists, if the region is correct, or if the csi permissions are correct", diskID, GlobalConfigVar.Region)
 	}
 
-	if !fromNode && disk.SerialNumber == "" {
+	if ad.repo == nil && disk.SerialNumber == "" {
 		if GlobalConfigVar.ADControllerEnable {
 			return "", status.Errorf(codes.InvalidArgument,
 				"Disk %s does not have serial number but AD controller is enabled, we cannot attach this disk. "+
@@ -310,14 +269,14 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 	switch action {
 	case alreadyAttached:
-		if !fromNode {
+		if ad.repo == nil {
 			logger.V(2).Info("already attached, skipping")
 			return disk.SerialNumber, nil
 		}
 		if disk.SerialNumber != "" {
-			return ad.dev.WaitRootBlock(ctx, disk.SerialNumber)
+			return ad.repo.WaitRootBlock(ctx, disk.SerialNumber)
 		}
-		device, err := ad.devMap.Get(logger, diskID)
+		device, err := ad.repo.GetAttached(logger, diskID)
 		if err != nil {
 			return "", err
 		}
@@ -346,8 +305,8 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 	// Step 3: Attach Disk, list device before attach disk
 	var before sets.Set[string]
-	if fromNode && disk.SerialNumber == "" {
-		before, err = DefaultDeviceManager.ListBlocks()
+	if ad.repo != nil && disk.SerialNumber == "" {
+		before, err = ad.repo.ListBlocks()
 		if err != nil {
 			return "", status.Errorf(codes.Aborted, "AttachDisk: Can't list devices before attach: %v", err)
 		}
@@ -391,8 +350,8 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	}
 
 	// step 5: diff device with previous files under /dev
-	if fromNode {
-		device, err := ad.findDevice(ctx, diskID, disk.SerialNumber, before)
+	if ad.repo != nil {
+		device, err := ad.repo.findDevice(ctx, diskID, disk.SerialNumber, before)
 		if err != nil {
 			return "", status.Error(codes.Aborted, err.Error())
 		}
