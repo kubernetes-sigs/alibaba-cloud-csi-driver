@@ -381,7 +381,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 				return "", status.Errorf(codes.Internal, "%v, Disk(%s) is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html", err, diskID)
 			}
 		}
-		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
+		return "", status.Errorf(codes.Aborted, "error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
 	}
 
 	// Step 4: wait for disk attached
@@ -474,7 +474,7 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient cloud.ECSI
 		klog.Infof("DetachDisk: Skip Detach, disk %s is not attached on instance %s", diskID, nodeID)
 		return nil
 	}
-	// NodeStageVolume/NodeUnstageVolume should be called by sequence
+	// attach/detach should be called by sequence
 	slot := ad.slots.GetSlotFor(nodeID).Detach()
 	if err := slot.Acquire(ctx); err != nil {
 		return fmt.Errorf("failed to reserve node %s for detach: %w", nodeID, err)
