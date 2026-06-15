@@ -162,8 +162,7 @@ func (m *ModifyServer) verifyModifyDiskSpec(ctx context.Context, logger logr.Log
 				if taskErr != nil {
 					return true, fmt.Errorf("retrieve task failed: %w", taskErr)
 				}
-				taskStatus := ptr.Deref(task.TaskStatus, "")
-				if task == nil || taskStatus != desc.TaskProcessing {
+				if task == nil || ptr.Deref(task.TaskStatus, "") != desc.TaskProcessing {
 					logger.V(2).Info("no processing task found")
 					return true, status.Errorf(codes.FailedPrecondition, "disk %s has incorrect status: %v", diskID, err)
 				}
