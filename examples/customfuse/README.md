@@ -177,7 +177,7 @@ as a concrete example. See individual demo directories for full YAML and Dockerf
 |------|-------------|----------------|
 | [1-baked-in](1-baked-in/) | All config hardcoded in image ENV | Yes |
 | [2-standard](2-standard/) | Config from PV volumeAttributes + Secret (recommended) | No |
-| [3-advanced-entrypoint](3-advanced-entrypoint/) | Custom safety logic: OOM prevention, credential cleanup | Yes (if logic changes) |
+| [3-advanced-entrypoint](3-advanced-entrypoint/) | Custom resource controls: cache quota, credential cleanup | Yes (if logic changes) |
 | [4-configmap](4-configmap/) | Entrypoint via ConfigMap — iterate without image rebuild | No |
 
 References:
@@ -267,3 +267,27 @@ Ref: [JindoFS FUSE](https://github.com/aliyun/alibabacloud-jindodata)
    **Recommendation**: Always prefer `-f` (foreground) when available. Configure
    the log destination to stdout/stderr so that `kubectl logs` works for
    debugging.
+
+5. **Validate `otherOpts` to prevent command injection**. `otherOpts` comes from
+   PV `volumeAttributes` — a user-configurable field that is passed directly into
+   the mount command in entrypoint.sh. Without validation, a malicious value like
+   `--cache-size=100; rm -rf /` could be injected.
+
+   The driver cannot perform a generic check because valid option formats vary
+   across FUSE clients (JuiceFS: `--key=value`, s3fs: `-o key=value`, etc.).
+   **You must implement input validation in your entrypoint.sh** that matches your
+   target client's flag format.
+
+   The demos use a simple whitelist check — every token must start with `--`:
+   ```bash
+   for arg in $otherOpts; do
+       if [[ "$arg" != --* ]]; then
+           echo "ERROR: rejected invalid option in otherOpts: $arg" >&2
+           exit 1
+       fi
+   done
+   ```
+
+   For production use, consider stricter validation: maintain an explicit allowlist
+   of permitted flags, validate value ranges (e.g., `--cache-size` must be numeric),
+   and reject flags that could alter security-sensitive behavior.

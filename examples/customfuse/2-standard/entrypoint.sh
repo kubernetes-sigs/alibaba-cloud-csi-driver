@@ -25,6 +25,19 @@ juicefs format \
     "$source" \
     myjfs 2>/dev/null || true
 
+# SECURITY: validate otherOpts to prevent command injection.
+# JuiceFS mount flags are all --key or --key=value.
+# Reject anything else (bare values, shell metacharacters, etc.).
+validate_opts() {
+    for arg in $otherOpts; do
+        if [[ "$arg" != --* ]]; then
+            echo "ERROR: rejected invalid option in otherOpts: $arg" >&2
+            exit 1
+        fi
+    done
+}
+validate_opts
+
 echo "Mounting JuiceFS at $mountpoint"
 exec juicefs mount \
     -f \
