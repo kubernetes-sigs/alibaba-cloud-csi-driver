@@ -1,15 +1,15 @@
 #!/bin/bash
 set -e
 
-# Demo 3: Advanced entrypoint — business-specific safety controls
+# Demo 3: Advanced entrypoint — business-specific resource controls
 #
 # User story:
 #   The platform team wants to give users control over JuiceFS cache parameters
-#   via PV otherOpts, but needs two safety guarantees:
+#   via PV otherOpts, but needs two guarantees:
 #
-#   1. OOM PREVENTION: Users may set --cache-size too large (JuiceFS default is
-#      102400 MiB = 100GB). On nodes with limited disk, this fills up /var and
-#      causes kubelet eviction. The entrypoint caps cache-size to a safe maximum.
+#   1. CACHE QUOTA: Multiple workloads share the same node disk. Without a cap,
+#      one pod's --cache-size can consume the entire /var partition. The entrypoint
+#      enforces a per-pod cache limit to ensure fair resource sharing (QoS).
 #
 #   2. CREDENTIAL CLEANUP: In Demo 2, $accessKeyId and $accessKeySecret remain
 #      as env vars for the entire lifetime of the mount process. Anyone with
@@ -20,7 +20,7 @@ set -e
 #      long-running mount process has no secrets in its environment.
 #
 # This demonstrates that entrypoint.sh is the right place to implement
-# business-specific safety logic that the CSI driver itself should not enforce.
+# business-specific policies that the CSI driver itself should not enforce.
 #
 # Environment variables (set by mount-proxy):
 #   source          - JuiceFS META-URL (e.g. redis://host:6379/1)
@@ -61,7 +61,8 @@ parse_opts() {
                 fi
                 ;;
             *)
-                EXTRA_ARGS+=("$arg")
+                echo "ERROR: rejected invalid option in otherOpts: $arg" >&2
+                exit 1
                 ;;
         esac
         i=$((i+1))
@@ -70,13 +71,12 @@ parse_opts() {
 
 parse_opts
 
-# ── 2. OOM prevention: cap cache-size ──
-# JuiceFS --cache-size default is 102400 MiB (100GB). On nodes with small disks
-# (e.g. 40GB system disk), an uncapped cache fills /var and triggers kubelet
-# eviction of all pods on the node.
-#
-# The platform team sets a safe maximum here (e.g. 20GB). Users can request
-# any value via otherOpts, but it will be silently capped.
+# ── 2. Cache quota: cap cache-size ──
+# On shared nodes, multiple pods may each request large --cache-size values,
+# which can collectively exhaust /var and impact other workloads. The platform
+# team enforces a per-pod cache limit here (e.g. 20GB) to ensure fair resource
+# sharing. Users can request any value via otherOpts, but it will be silently
+# capped to the quota.
 MAX_CACHE_SIZE_MB=20480
 : "${OPTS[--cache-size]:=1024}"
 : "${OPTS[--cache-dir]:=/var/jfsCache}"

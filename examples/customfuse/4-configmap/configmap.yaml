@@ -22,6 +22,14 @@ data:
         "$source" \
         myjfs 2>/dev/null || true
 
+    # SECURITY: validate otherOpts to prevent command injection.
+    for arg in $otherOpts; do
+        if [[ "$arg" != --* ]]; then
+            echo "ERROR: rejected invalid option in otherOpts: $arg" >&2
+            exit 1
+        fi
+    done
+
     echo "Mounting JuiceFS at $mountpoint"
     exec juicefs mount \
         -f \
