@@ -118,7 +118,7 @@ func NewServers(m metadata.MetadataProvider, ecsV2 cloud.ECSv2Interface, endpoin
 	var servers common.Servers
 	servers.IdentityServer = NewIdentityServer()
 	if serviceType&utils.Controller != 0 {
-		servers.ControllerServer = NewControllerServer(csiCfg, client, m)
+		servers.ControllerServer = NewControllerServer(csiCfg, client, ecsV2, m)
 	}
 	if serviceType&utils.Node != 0 {
 		servers.NodeServer = NewNodeServer(client, ecsV2, m, useLabeler)

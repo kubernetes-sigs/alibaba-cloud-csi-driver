@@ -3,31 +3,42 @@ package desc
 import (
 	"strings"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	"k8s.io/utils/ptr"
 )
 
 type Task struct {
-	*ecs.Client
+	Client cloud.ECSv2Interface
 }
 
-func (c Task) Describe(ids []string) (Response[ecs.Task], error) {
-	req := ecs.CreateDescribeTasksRequest()
-	req.TaskIds = strings.Join(ids, ",")
-	req.PageSize = requests.NewInteger(batchSize)
+func (c Task) Describe(ids []string) (Response[*ecs20140526.DescribeTasksResponseBodyTaskSetTask], error) {
+	req := &ecs20140526.DescribeTasksRequest{
+		TaskIds:  new(strings.Join(ids, ",")),
+		PageSize: new(int32(batchSize)),
+	}
 
-	ret := Response[ecs.Task]{}
+	ret := Response[*ecs20140526.DescribeTasksResponseBodyTaskSetTask]{}
 	resp, err := c.Client.DescribeTasks(req)
 	if err != nil {
 		return ret, err
 	}
-	ret.RequestID = resp.RequestId
-	ret.Resources = resp.TaskSet.Task
+	if resp.Body == nil {
+		return ret, nil
+	}
+	ret.RequestID = ptr.Deref(resp.Body.RequestId, "")
+	if resp.Body.TaskSet != nil {
+		ret.Resources = resp.Body.TaskSet.Task
+	}
 	return ret, nil
 }
 
-func (c Task) GetID(resource *ecs.Task) string {
-	return resource.TaskId
+func (c Task) GetID(resource **ecs20140526.DescribeTasksResponseBodyTaskSetTask) string {
+	r := *resource
+	if r == nil {
+		return ""
+	}
+	return ptr.Deref(r.TaskId, "")
 }
 
 func (c Task) Type() string {
@@ -44,6 +55,11 @@ const (
 	TaskProcessing = "Processing"
 )
 
-func TaskSattled(t *ecs.Task) bool {
-	return t.TaskStatus == TaskFinished || t.TaskStatus == TaskFailed
+func TaskSattled(pt **ecs20140526.DescribeTasksResponseBodyTaskSetTask) bool {
+	t := *pt
+	if t == nil {
+		return false
+	}
+	status := ptr.Deref(t.TaskStatus, "")
+	return status == TaskFinished || status == TaskFailed
 }

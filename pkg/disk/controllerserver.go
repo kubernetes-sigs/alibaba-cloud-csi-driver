@@ -28,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -85,8 +86,8 @@ type diskVolumeArgs struct {
 
 var delVolumeSnap sync.Map
 
-func newTaskStatusWaiter() waitstatus.StatusWaiter[ecs.Task] {
-	client := desc.Task{Client: GlobalConfigVar.EcsClient}
+func newTaskStatusWaiter(ecsV2 cloud.ECSv2Interface) waitstatus.StatusWaiter[*ecs20140526.DescribeTasksResponseBodyTaskSetTask] {
+	client := desc.Task{Client: ecsV2}
 	waiter := waitstatus.NewBatched(client, clock.RealClock{}, 3*time.Second, 10*time.Second)
 	go waiter.Run(context.Background())
 	return waiter
@@ -102,7 +103,7 @@ func newSnapshotStatusWaiter() waitstatus.StatusWaiter[ecs.Snapshot] {
 }
 
 // NewControllerServer is to create controller server
-func NewControllerServer(csiCfg utils.Config, ecs cloud.ECSInterface, m metadata.MetadataProvider) csi.ControllerServer {
+func NewControllerServer(csiCfg utils.Config, ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadata.MetadataProvider) csi.ControllerServer {
 	waiter, batcher := newBatcher(false)
 	c := &controllerServer{
 		recorder: utils.NewEventRecorder(),
@@ -124,8 +125,8 @@ func NewControllerServer(csiCfg utils.Config, ecs cloud.ECSInterface, m metadata
 		},
 		snapshotWaiter: newSnapshotStatusWaiter(),
 		modify: ModifyServer{
-			ecsClient:  GlobalConfigVar.EcsClient,
-			taskWaiter: newTaskStatusWaiter(),
+			ecsClient:  ecsV2,
+			taskWaiter: newTaskStatusWaiter(ecsV2),
 		},
 	}
 	detachConcurrency := 1

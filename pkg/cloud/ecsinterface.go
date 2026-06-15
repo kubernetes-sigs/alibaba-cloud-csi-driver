@@ -17,12 +17,6 @@ type ECSInterface interface {
 	ResizeDisk(request *ecs.ResizeDiskRequest) (response *ecs.ResizeDiskResponse, err error)
 	CreateSnapshot(request *ecs.CreateSnapshotRequest) (response *ecs.CreateSnapshotResponse, err error)
 	DescribeSnapshots(request *ecs.DescribeSnapshotsRequest) (response *ecs.DescribeSnapshotsResponse, err error)
-
-	TagResources(request *ecs.TagResourcesRequest) (response *ecs.TagResourcesResponse, err error)
-	UntagResources(request *ecs.UntagResourcesRequest) (response *ecs.UntagResourcesResponse, err error)
-	ModifyDiskSpec(request *ecs.ModifyDiskSpecRequest) (response *ecs.ModifyDiskSpecResponse, err error)
-	ModifyDiskAttribute(request *ecs.ModifyDiskAttributeRequest) (response *ecs.ModifyDiskAttributeResponse, err error)
-	DescribeTasks(request *ecs.DescribeTasksRequest) (response *ecs.DescribeTasksResponse, err error)
 }
 
 type ECSv2Interface interface {
@@ -30,4 +24,9 @@ type ECSv2Interface interface {
 	DescribeInstanceTypes(request *ecs20140526.DescribeInstanceTypesRequest) (response *ecs20140526.DescribeInstanceTypesResponse, err error)
 	DescribeAvailableResource(request *ecs20140526.DescribeAvailableResourceRequest) (response *ecs20140526.DescribeAvailableResourceResponse, err error)
 	DescribeDisks(request *ecs20140526.DescribeDisksRequest) (response *ecs20140526.DescribeDisksResponse, err error)
+	TagResources(request *ecs20140526.TagResourcesRequest) (response *ecs20140526.TagResourcesResponse, err error)
+	UntagResources(request *ecs20140526.UntagResourcesRequest) (response *ecs20140526.UntagResourcesResponse, err error)
+	ModifyDiskSpec(request *ecs20140526.ModifyDiskSpecRequest) (response *ecs20140526.ModifyDiskSpecResponse, err error)
+	ModifyDiskAttribute(request *ecs20140526.ModifyDiskAttributeRequest) (response *ecs20140526.ModifyDiskAttributeResponse, err error)
+	DescribeTasks(request *ecs20140526.DescribeTasksRequest) (response *ecs20140526.DescribeTasksResponse, err error)
 }
