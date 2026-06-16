@@ -28,4 +28,6 @@ type ECSInterface interface {
 type ECSv2Interface interface {
 	DescribeInstances(request *ecs20140526.DescribeInstancesRequest) (response *ecs20140526.DescribeInstancesResponse, err error)
 	DescribeInstanceTypes(request *ecs20140526.DescribeInstanceTypesRequest) (response *ecs20140526.DescribeInstanceTypesResponse, err error)
+	DescribeAvailableResource(request *ecs20140526.DescribeAvailableResourceRequest) (response *ecs20140526.DescribeAvailableResourceResponse, err error)
+	DescribeDisks(request *ecs20140526.DescribeDisksRequest) (response *ecs20140526.DescribeDisksResponse, err error)
 }

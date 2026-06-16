@@ -29,7 +29,6 @@ import (
 )
 
 const (
-	driverType = "bmcpfs"
 	driverName = "bmcpfsplugin.csi.alibabacloud.com"
 
 	// keys in volume context or publish context
@@ -98,35 +97,24 @@ func parseNodeID(nodeID string) (instanceID string, kind nodeKind) {
 	return instanceID, kind
 }
 
-type Driver struct {
-	endpoint string
-	servers  common.Servers
-}
-
-func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType) *Driver {
-	var driver Driver
-	driver.endpoint = endpoint
-	driver.servers.IdentityServer = newIdentityServer()
+func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType) *common.Servers {
+	var servers common.Servers
+	servers.IdentityServer = newIdentityServer()
 
 	if serviceType&utils.Controller != 0 {
 		cs, err := newControllerServer(meta)
 		if err != nil {
 			klog.Fatalf("Init controller server: %v", err)
 		}
-		driver.servers.ControllerServer = cs
+		servers.ControllerServer = cs
 	}
 	if serviceType&utils.Node != 0 {
 		ns, err := newNodeServer(meta)
 		if err != nil {
 			klog.Fatalf("Init node server: %v", err)
 		}
-		driver.servers.NodeServer = ns
+		servers.NodeServer = ns
 	}
 
-	return &driver
-}
-
-func (d *Driver) Run() {
-	klog.InfoS("Starting driver", "driver", driverType, "endpoint", d.endpoint)
-	common.RunCSIServer(driverType, d.endpoint, d.servers)
+	return &servers
 }

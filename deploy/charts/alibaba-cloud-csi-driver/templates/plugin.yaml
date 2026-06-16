@@ -98,6 +98,9 @@ spec:
             - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
             - --run-controller-service=false
             - --run-node-service=true
+{{- if $nodePool.deploy.labeler.enabled }}
+            - --use-labeler=true
+{{- end }}
 {{- if $nodePool.deploy.featureGates }}
             - "--feature-gates={{ $nodePool.deploy.featureGates }}"
 {{- end -}}
@@ -129,7 +132,9 @@ spec:
             - name: PRIVATE_CLOUD_TAG
               value: "true"
 {{- end -}}
+{{- if not $nodePool.deploy.labeler.enabled }}
 {{- include "akEnv" $nodePool.deploy.accessKey | nindent 12 }}
+{{- end }}
 {{- include "kubeletDirEnv" $nodePool.deploy.kubeletRootDir | nindent 12 }}
           resources:
             requests:
@@ -180,7 +185,7 @@ spec:
               mountPropagation: "HostToContainer"
             - mountPath: /run/kata-containers/shared/direct-volumes
               name: kata-direct-volumes
-{{- if $nodePool.deploy.ack }}
+{{- if and $nodePool.deploy.ack (not $nodePool.deploy.labeler.enabled) }}
             - mountPath: /var/addon
               name: addon-token
               readOnly: true

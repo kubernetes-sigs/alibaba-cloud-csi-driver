@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
@@ -30,6 +31,7 @@ const (
 	RAMRoleName
 	RRSATokenFile
 	IsVscEnable
+	LingjunNodeType
 
 	// non-string metadata, not public, can only access with corresponding methods
 	machineKind
@@ -62,6 +64,8 @@ func (k MetadataKey) String() string {
 		return "IsVscEnable"
 	case RRSATokenFile:
 		return "RRSATokenFile"
+	case LingjunNodeType:
+		return "LingjunNodeType"
 	case machineKind:
 		return "MachineKind"
 	case diskQuantity:
@@ -77,6 +81,7 @@ const (
 	MachineKindUnknown MachineKind = iota
 	MachineKindECS
 	MachineKindLingjun
+	MachineKindVirtualKubelet
 )
 
 // returns MachineKindECS if instance type starts with "ecs."
@@ -120,7 +125,8 @@ type fetcherID uint
 
 const (
 	imdsFetcherID fetcherID = iota
-	efloFetcherID
+	efloNodeFetcherID
+	efloNodeTypeFetcherID
 	kubernetesNodeMetadataFetcherID
 	profileFetcherID
 	openAPIFetcherID
@@ -314,6 +320,10 @@ func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
 	})
 }
 
+func (m *Metadata) AddKubernetesNode(node *v1.Node) {
+	m.providers = append(m.providers, inferMachineKind{NewKubernetesNodeMetadata(node)})
+}
+
 func (m *Metadata) enableKubernetesNode(client kubernetes.Interface, nodeName string) {
 	m.providers = append(m.providers, inferMachineKind{&lazyInit{
 		fetcher: &KubernetesNodeMetadataFetcher{
@@ -351,13 +361,20 @@ func (m *Metadata) EnableSts(stsClient cloud.STSInterface) {
 }
 
 func (m *Metadata) EnableEFLO(efloClient cloud.EFLOInterface) {
-	// use the previous providers to get instance id,
-	// do not recurse into ourselves
+	// Step 1: EfloNodeFetcher calls DescribeNode to get nodeType (per-node)
 	mPre := m.providers
 	m.providers = append(m.providers, &lazyInit{
-		fetcher: &EfloFetcher{
+		fetcher: &EfloNodeFetcher{
 			efloClient: efloClient,
 			mPre:       mPre,
+		},
+	})
+	// Step 2: EfloNodeTypeFetcher calls DescribeNodeType to get diskQuantity (per-nodeType)
+	mPre2 := m.providers // include EfloNodeFetcher for nodeType lookup
+	m.providers = append(m.providers, &lazyInit{
+		fetcher: &EfloNodeTypeFetcher{
+			efloClient: efloClient,
+			mPre:       mPre2,
 		},
 	})
 }

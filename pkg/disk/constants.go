@@ -91,9 +91,16 @@ const (
 	// ZoneID ...
 	ZoneID = "zoneId"
 
-	nodeDiskTypeLabelPrefix = "node.csi.alibabacloud.com/disktype."
+	// NodeDiskTypeLabelPrefix is the prefix for node disk type labels.
+	NodeDiskTypeLabelPrefix = "node.csi.alibabacloud.com/disktype."
 
-	nodeDiskCountAnnotation = "node.csi.alibabacloud.com/allocatable-disk"
+	// NodeDiskCountAnnotation is the annotation key for allocatable disk count,
+	// written by NodeGetInfo when the labeler annotation is absent.
+	NodeDiskCountAnnotation = "node.csi.alibabacloud.com/allocatable-disk"
+	// MaxDiskAnnotation is written by the centralized labeler.
+	// When present on a Node, NodeGetInfo uses the value directly and skips
+	// all ECS OpenAPI calls, removing the need for nodes to hold credentials.
+	MaxDiskAnnotation = "node.csi.alibabacloud.com/max-disk"
 	// kubeNodeName ...
 	kubeNodeName = "KUBE_NODE_NAME"
 	// describeResourceType ...

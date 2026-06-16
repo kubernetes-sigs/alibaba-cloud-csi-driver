@@ -105,6 +105,13 @@ deploy:
     idKey: id # the key of AccessKey id in the k8s Secret
     secretkey: secret # the key of AccessKey secret in the k8s Secret
 
+  labeler:
+    # Run centralized node metadata labeler sidecar in csi-provisioner Deployment.
+    # The labeler watches Nodes and patches `node.csi.alibabacloud.com/max-disk`
+    # annotation and `node.csi.alibabacloud.com/disktype.*=available` labels,
+    # so that CSI node plugin does not need OpenAPI credentials on every node.
+    enabled: false
+
 images:
   registry: null
   registryVPC: null

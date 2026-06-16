@@ -687,6 +687,70 @@ spec:
             - name: local-provisioner-dir
               mountPath: /csi
 {{- end }}
+{{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled .Values.deploy.labeler.enabled }}
+        - name: csi-metadata-labeler
+          image: {{ include "imageSpec" (list .Values "controller") }}
+          args:
+            - --run-labeler=true
+            - --run-controller-service=false
+            - --run-node-service=false
+            - --driver=disk
+            - --kube-api-qps=50
+            - --kube-api-burst=100
+            - --v=2
+            - --logging-format={{ .Values.logging.format }}
+{{- if .Values.deploy.featureGates }}
+            - "--feature-gates={{ .Values.deploy.featureGates }}"
+{{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          env:
+            {{- include "networkEnv" .Values.deploy | nindent 12 }}
+            - name: SERVICE_PORT
+              value: "11272"
+{{- if .Values.deploy.regionID }}
+            - name: REGION_ID
+              value: {{ .Values.deploy.regionID | quote }}
+{{- end }}
+{{- if .Values.deploy.ecsEndpoint }}
+            - name: ECS_ENDPOINT
+              value: {{ .Values.deploy.ecsEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.privateCloud }}
+            - name: ALICLOUD_CLIENT_SCHEME
+              value: HTTP
+            - name: PRIVATE_CLOUD_TAG
+              value: "true"
+            - name: ALIBABA_CLOUD_HTTP_HEADERS
+              value: |
+                X-Acsproxy-Ascm-Context: {{ .Values.deploy.acsProxyASCMContext }}
+{{- end }}
+{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: labeler-http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          ports:
+            - name: labeler-http
+              containerPort: 11272
+          volumeMounts:
+{{- if .Values.deploy.ack }}
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
+{{- end }}
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+{{- end }}
       volumes:
 {{- range $key, $val := .Values.csi }}
 {{- if and $val.enabled $val.controller.enabled }}

@@ -28,21 +28,12 @@ import (
 )
 
 const (
-	driverType = "nas"
 	driverName = "nasplugin.csi.alibabacloud.com"
 )
 
-// NAS the NAS object
-type NAS struct {
-	endpoint string
-	servers  common.Servers
-}
-
-func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *NAS {
+func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config) *common.Servers {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
-	var d NAS
-	d.endpoint = endpoint
 	var servers common.Servers
 	servers.IdentityServer = newIdentityServer()
 
@@ -64,11 +55,6 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 		}
 		servers.NodeServer = newNodeServer(config)
 	}
-	d.servers = servers
 
-	return &d
-}
-
-func (d *NAS) Run() {
-	common.RunCSIServer(driverType, d.endpoint, d.servers)
+	return &servers
 }

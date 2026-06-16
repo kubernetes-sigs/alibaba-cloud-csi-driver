@@ -2,10 +2,12 @@ package cloud
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 
+	"github.com/alibabacloud-go/tea/dara"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/responses"
 )
@@ -27,6 +29,32 @@ func UnmarshalAcsResponse(jsonBytes []byte, res responses.AcsResponse) {
 		Body: io.NopCloser(bytes.NewReader(jsonBytes)),
 	}, "JSON")
 	if err != nil {
+		panic(err)
+	}
+}
+
+// UnmarshalV2Response populates an ECS v2 SDK response struct from the
+// raw API JSON body. It simulates the SDK's internal deserialization
+// pipeline: parse JSON → wrap in {"body":...} → dara.Convert to struct.
+//
+// Example:
+//
+//	var resp ecs20140526.DescribeDisksResponse
+//	cloud.UnmarshalV2Response([]byte(`{...}`), &resp)
+func UnmarshalV2Response(jsonBytes []byte, res any) {
+	var body any
+	dec := json.NewDecoder(bytes.NewReader(jsonBytes))
+	dec.UseNumber()
+	if err := dec.Decode(&body); err != nil {
+		panic(err)
+	}
+	wrapped := map[string]any{
+		"body": dara.ToMap(body),
+		"headers": map[string]*string{
+			"X-Acs-Request-Id": new("testing-openapi-request-id"),
+		},
+	}
+	if err := dara.Convert(wrapped, res); err != nil {
 		panic(err)
 	}
 }

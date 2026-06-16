@@ -32,7 +32,7 @@ func ParseEndpoint(ep string) (string, string, error) {
 	return "", "", fmt.Errorf("Invalid endpoint: %v", ep)
 }
 
-func RunCSIServer(driverType, endpoint string, servers Servers) {
+func NewCSIServer(driverType string, servers *Servers) *grpc.Server {
 	config, err := options.GetRestConfig()
 	if err != nil {
 		klog.ErrorS(err, "failed to get rest config")
@@ -41,23 +41,6 @@ func RunCSIServer(driverType, endpoint string, servers Servers) {
 	var clientset kubernetes.Interface
 	if config != nil {
 		clientset = kubernetes.NewForConfigOrDie(config)
-	}
-
-	proto, addr, err := ParseEndpoint(endpoint)
-	if err != nil {
-		klog.Fatal(err.Error())
-	}
-
-	if proto == "unix" {
-		addr = "/" + addr
-		if err := os.Remove(addr); err != nil && !os.IsNotExist(err) {
-			klog.Fatalf("Failed to remove %s, error: %s", addr, err.Error())
-		}
-	}
-
-	listener, err := net.Listen(proto, addr)
-	if err != nil {
-		klog.Fatalf("Failed to listen: %v", err)
 	}
 
 	opts := []grpc.ServerOption{
@@ -80,6 +63,26 @@ func RunCSIServer(driverType, endpoint string, servers Servers) {
 	if servers.GroupControllerServer != nil {
 		metric.CsiGrpcExecTimeCollector.InitGRPC(csi.GroupController_ServiceDesc, driverType)
 		csi.RegisterGroupControllerServer(server, WrapGroupControllerServer(servers.GroupControllerServer))
+	}
+	return server
+}
+
+func Serve(server *grpc.Server, endpoint string) {
+	proto, addr, err := ParseEndpoint(endpoint)
+	if err != nil {
+		klog.Fatal(err.Error())
+	}
+
+	if proto == "unix" {
+		addr = "/" + addr
+		if err := os.Remove(addr); err != nil && !os.IsNotExist(err) {
+			klog.Fatalf("Failed to remove %s, error: %s", addr, err.Error())
+		}
+	}
+
+	listener, err := net.Listen(proto, addr)
+	if err != nil {
+		klog.Fatalf("Failed to listen: %v", err)
 	}
 
 	klog.Infof("Listening for connections on address: %#v", listener.Addr())

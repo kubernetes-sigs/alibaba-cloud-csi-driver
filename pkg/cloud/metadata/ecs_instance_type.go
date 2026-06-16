@@ -40,6 +40,14 @@ func (m *ECSInstanceTypeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, err
 	return nil, ErrUnknownMetadataKey
 }
 
+// DiskQuantity returns the advertised max data disk count, or 0 if unknown.
+func (m *ECSInstanceTypeMetadata) DiskQuantity() int32 {
+	if m.t.DiskQuantity == nil {
+		return 0
+	}
+	return *m.t.DiskQuantity
+}
+
 type ECSInstanceTypeFetcher struct {
 	ecsClient cloud.ECSv2Interface
 	mPre      middleware

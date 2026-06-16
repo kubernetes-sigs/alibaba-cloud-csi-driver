@@ -58,6 +58,8 @@ import (
 
 type nodeServer struct {
 	metadata     metadata.MetadataProvider
+	useLabeler   bool
+	ecsV2        cloud.ECSv2Interface
 	mounter      utils.Mounter
 	kataBMIOType MachineType
 	k8smounter   k8smount.Interface
@@ -162,7 +164,7 @@ func parseVolumeCountEnv() (int, error) {
 }
 
 // NewNodeServer creates node server
-func NewNodeServer(ecs cloud.ECSInterface, m metadata.MetadataProvider) csi.NodeServer {
+func NewNodeServer(ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadata.MetadataProvider, useLabeler bool) csi.NodeServer {
 	// Create Directory
 	err := os.MkdirAll(RundSocketDir, os.FileMode(0755))
 	if err != nil {
@@ -206,6 +208,8 @@ func NewNodeServer(ecs cloud.ECSInterface, m metadata.MetadataProvider) csi.Node
 	waiter, batcher := newBatcher(true)
 	return &nodeServer{
 		metadata:     m,
+		useLabeler:   useLabeler,
+		ecsV2:        ecsV2,
 		mounter:      utils.NewMounter(),
 		kataBMIOType: kataBMIOType,
 		unixMounter:  mounter.UnixMounter{},
@@ -789,6 +793,55 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
+func (ns *nodeServer) patchNodeInfo(ctx context.Context, m metadata.MetadataProvider, node *v1.Node, maxVolumesNum int) error {
+	var diskTypes []string
+	if !GlobalConfigVar.DiskAllowAllType {
+		machineKind, err := m.MachineKind()
+		if err != nil && !errors.Is(err, metadata.ErrUnknownMetadataKey) {
+			return status.Errorf(codes.Internal, "cannot determine current machine kind: %v", err)
+		}
+		// If it's a Lingjun node, report configured supported types
+		if machineKind == metadata.MachineKindLingjun {
+			klog.InfoS("lingjun node detected")
+			ebsCategory := os.Getenv("EBS_CATEGORY_LINGJUN_SUPPORTED")
+			// Prefer values parsed from env
+			diskTypes = ParseLingjunNodeDiskTypes(ebsCategory)
+			klog.Infof("NodeGetInfo: Lingjun node detected, supported disk types: %v", diskTypes)
+		} else {
+			// Non-Lingjun: query ECS API for supported types
+			instanceType := metadata.MustGet(m, metadata.InstanceType)
+			zoneID := metadata.MustGet(m, metadata.ZoneID)
+			regionID := metadata.MustGet(m, metadata.RegionID)
+			diskTypes, err = GetAvailableDiskTypes(ctx, ns.ecsV2, instanceType, zoneID, regionID)
+			if err != nil {
+				if hasDiskTypeLabel(node) {
+					klog.ErrorS(err, "NodeGetInfo: failed to get available disk types, will use existing config.")
+				} else {
+					return fmt.Errorf(
+						"failed to get available disk types: %w. "+
+							"You may add labels like node.csi.alibabacloud.com/disktype.cloud_essd=available to node manually", err)
+				}
+			} else {
+				klog.Infof("NodeGetInfo: Supported disk types: %v", diskTypes)
+			}
+		}
+	} else if GlobalConfigVar.DiskAllowAllType {
+		klog.Warning("NodeGetInfo: DISK_ALLOW_ALL_TYPE is set, you need to ensure the EBS disk type is compatible with the ECS instance type yourself!")
+	}
+
+	patch := patchForNode(node, maxVolumesNum, diskTypes)
+	if patch != nil {
+		_, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Patch(ctx, node.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to update node: %w", err)
+		}
+		klog.Infof("NodeGetInfo: node updated")
+	} else {
+		klog.Info("NodeGetInfo: no need to update node")
+	}
+	return nil
+}
+
 func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	logger := klog.FromContext(ctx)
 
@@ -809,13 +862,23 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}
 
 	m := ns.metadata.WithSession(ctx)
-	machineKind, err := m.MachineKind()
-	if err != nil && !errors.Is(err, metadata.ErrUnknownMetadataKey) {
-		return nil, status.Errorf(codes.Internal, "cannot determine current machine kind: %v", err)
-	}
+	regionID := metadata.MustGet(m, metadata.RegionID)
+	zoneID := metadata.MustGet(m, metadata.ZoneID)
+	instanceID := metadata.MustGet(m, metadata.InstanceID)
 
-	c := GlobalConfigVar.EcsClient
-	if maxVolumesNum == 0 {
+	if ns.useLabeler {
+		// The labeler has already provisioned max-disk annotation on the node.
+		// Skip all OpenAPI calls below (DescribeInstance/Disks/AvailableResource).
+		// This is the credential-less path for nodes.
+		if _, err = getNode(); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get current node for labeler: %v", err)
+		}
+		maxVolumesNum, err = getVolumeCountFromLabelerAnnotation(node)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		logger.V(2).Info("using labeler annotation for maxVolumes, skipping all OpenAPI calls", "maxVolumes", maxVolumesNum)
+	} else if maxVolumesNum == 0 {
 		quantity, err := m.DiskQuantity()
 		if err != nil {
 			if errors.Is(err, metadata.ErrUnknownMetadataKey) {
@@ -825,67 +888,34 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 				return nil, status.Errorf(codes.Internal, "cannot determine disk quantity: %v", err)
 			}
 		} else {
-			unmanaged, err := getUnmanagedDiskCount(getNode, c, m, utilsio.RealDevTmpFS{})
+			unmanaged, err := getUnmanagedDiskCount(getNode, ns.ecsV2, instanceID, regionID, utilsio.RealDevTmpFS{})
 			if err != nil {
 				return nil, err
 			}
 			maxVolumesNum = int(quantity) - unmanaged
 		}
 	}
-	if node == nil {
-		node, err = getNode()
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to get current node: %v", err)
-		}
-	}
 
-	var diskTypes []string
-	if !GlobalConfigVar.DiskAllowAllType {
-		// If it's a Lingjun node, reuse Lingjun detection and report configured supported types
-		if machineKind == metadata.MachineKindLingjun {
-			logger.V(2).Info("lingjun node detected")
-			ebsCategory := os.Getenv("EBS_CATEGORY_LINGJUN_SUPPORTED")
-			// Prefer values parsed from env
-			diskTypes = parseLingjunNodeDiskTypes(ebsCategory)
-			logger.V(2).Info("Lingjun supported disk types", "diskTypes", diskTypes)
-		} else {
-			// Non-Lingjun: query ECS API for supported types
-			diskTypes, err = GetAvailableDiskTypes(ctx, c, m)
+	if !ns.useLabeler {
+		if node == nil {
+			node, err = getNode()
 			if err != nil {
-				if hasDiskTypeLabel(node) {
-					logger.Error(err, "failed to get available disk types, will use existing config")
-				} else {
-					return nil, fmt.Errorf(
-						"failed to get available disk types: %w. "+
-							"You may add labels like node.csi.alibabacloud.com/disktype.cloud_essd=available to node manually", err)
-				}
-			} else {
-				logger.V(2).Info("Supported disk types", "diskTypes", diskTypes)
+				return nil, status.Errorf(codes.Internal, "failed to get current node: %v", err)
 			}
 		}
-	} else {
-		logger.Info("DISK_ALLOW_ALL_TYPE is set, you need to ensure the EBS disk type is compatible with the ECS instance type yourself!")
-	}
-
-	patch := patchForNode(node, maxVolumesNum, diskTypes)
-	if patch != nil {
-		_, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("failed to update node: %w", err)
+		if err := ns.patchNodeInfo(ctx, m, node, maxVolumesNum); err != nil {
+			return nil, err
 		}
-		logger.V(2).Info("node updated")
-	} else {
-		logger.V(2).Info("no need to update node")
 	}
 
 	segments := map[string]string{
-		common.ECSInstanceIDTopologyKey: metadata.MustGet(m, metadata.InstanceID),
+		common.ECSInstanceIDTopologyKey: instanceID,
 		// TopologyZoneKey key is always defined for existing persistent volumes
-		TopologyZoneKey:         metadata.MustGet(m, metadata.ZoneID),
-		RegionalDiskTopologyKey: metadata.MustGet(m, metadata.RegionID),
+		TopologyZoneKey:         zoneID,
+		RegionalDiskTopologyKey: regionID,
 	}
 	if !GlobalConfigVar.PrivateTopologyKey {
-		segments[v1.LabelTopologyZone] = metadata.MustGet(m, metadata.ZoneID)
+		segments[v1.LabelTopologyZone] = zoneID
 	}
 
 	// disable disk allocation when maxVolumesNum is 0
@@ -1042,7 +1072,7 @@ func (ns *nodeServer) unmountDuplicateMountPoint(logger klog.Logger, targetPath,
 		// V2 used in Kubernetes 1.24 and later, see https://github.com/kubernetes/kubernetes/pull/107065
 		// If a volume is mounted at globalPathV1 then kubelet is upgraded, kubelet will also mount the same volume at globalPathV2.
 		volSha := fmt.Sprintf("%x", sha256.Sum256([]byte(volumeId)))
-		globalPathV2 := filepath.Join(utils.KubeletRootDir, "plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
+		globalPathV2 := filepath.Join(utils.KubeletRootDir, "plugins/kubernetes.io/csi/", DriverName, volSha, "/globalmount")
 
 		v1Exists := utils.IsFileExisting(globalPathV1)
 		v2Exists := utils.IsFileExisting(globalPathV2)
@@ -1056,7 +1086,7 @@ func (ns *nodeServer) unmountDuplicateMountPoint(logger klog.Logger, targetPath,
 		// Unmount it if it is propagated to data disk, or kubelet with version < 1.26 will refuse to unstage the volume.
 		// Unmounting may also be propagated back to KubeletRootDir, we will fix that in NodePublishVolume.
 		globalPath2 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
-		globalPath3 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
+		globalPath3 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/", DriverName, volSha, "/globalmount")
 		if utils.IsFileExisting(globalPath2) {
 			err = ns.unmountDuplicationPath(logger, globalPath2)
 		}
