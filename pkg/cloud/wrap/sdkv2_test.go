@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2/ktesting"
-	"k8s.io/utils/ptr"
 )
 
 func TestV2_OK(t *testing.T) {
@@ -24,10 +23,10 @@ func TestV2_OK(t *testing.T) {
 	req := &nas20170626.CreateDirRequest{}
 	resp := &nas20170626.CreateDirResponse{
 		Headers: map[string]*string{
-			"x-acs-request-id": ptr.To("test-request-id"),
+			"x-acs-request-id": new("test-request-id"),
 		},
 		Body: &nas20170626.CreateDirResponseBody{
-			RequestId: ptr.To("test-request-id"),
+			RequestId: new("test-request-id"),
 		},
 	}
 	nasClient.EXPECT().CreateDir(gomock.Any()).Return(resp, nil)
@@ -44,9 +43,9 @@ func TestV2_Error(t *testing.T) {
 	nasClient := cloud.NewMockNasInterface(ctrl)
 
 	expectedErr := &tea.SDKError{
-		Code:    ptr.To("TestErrorCode"),
-		Message: ptr.To("we don't use this"),
-		Data:    ptr.To(`{"Message":"Message in Unit Test.","RequestId":"test-request-id"}`),
+		Code:    new("TestErrorCode"),
+		Message: new("we don't use this"),
+		Data:    new(`{"Message":"Message in Unit Test.","RequestId":"test-request-id"}`),
 	}
 	nasClient.EXPECT().CreateDir(gomock.Any()).Return(&nas20170626.CreateDirResponse{}, expectedErr)
 
@@ -85,9 +84,9 @@ func TestV2_Manual(t *testing.T) {
 	t.Skip("Only for manual test")
 	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 	client, err := nas20170626.NewClient(&openapiutil.Config{
-		RegionId:        ptr.To("cn-hangzhou"),
-		AccessKeyId:     ptr.To("not an access key"),
-		AccessKeySecret: ptr.To("not an access key"),
+		RegionId:        new("cn-hangzhou"),
+		AccessKeyId:     new("not an access key"),
+		AccessKeySecret: new("not an access key"),
 	})
 	require.NoError(t, err)
 	_, err = V2(logger, client.CreateDir)(&nas20170626.CreateDirRequest{})

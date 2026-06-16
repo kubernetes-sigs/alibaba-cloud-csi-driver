@@ -7,8 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	"github.com/go-logr/logr"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
@@ -29,27 +28,28 @@ type ModifyParameters struct {
 	PerformanceLevel PerformanceLevel
 	ProvisionedIops  *int
 	BurstingEnabled  *bool
-	Tags             []ecs.TagResourcesTag
-	RemoveTags       []string
+	Tags             []*ecs20140526.TagResourcesRequestTag
+	RemoveTags       []*string
 }
 
-func (p *ModifyParameters) buildModifySpecRequest(diskID string) *ecs.ModifyDiskSpecRequest {
+func (p *ModifyParameters) buildModifySpecRequest(diskID string) *ecs20140526.ModifyDiskSpecRequest {
 	if p.Category == "" && p.PerformanceLevel == "" && p.ProvisionedIops == nil {
 		return nil
 	}
-	req := ecs.CreateModifyDiskSpecRequest()
-	req.DiskId = diskID
-	req.DiskCategory = string(p.Category)
-	req.PerformanceLevel = string(p.PerformanceLevel)
+	req := &ecs20140526.ModifyDiskSpecRequest{
+		DiskId:           new(diskID),
+		DiskCategory:     new(string(p.Category)),
+		PerformanceLevel: new(string(p.PerformanceLevel)),
+	}
 	if p.ProvisionedIops != nil {
-		req.ProvisionedIops = requests.NewInteger(*p.ProvisionedIops)
+		req.ProvisionedIops = new(int64(*p.ProvisionedIops))
 	}
 	return req
 }
 
 type ModifyServer struct {
-	ecsClient      cloud.ECSInterface
-	taskWaiter     waitstatus.StatusWaiter[ecs.Task]
+	ecsClient      cloud.ECSv2Interface
+	taskWaiter     waitstatus.StatusWaiter[*ecs20140526.DescribeTasksResponseBodyTaskSetTask]
 	runningTaskIDs sync.Map
 }
 
@@ -65,35 +65,37 @@ func (errTaskProcessing) Is(target error) bool {
 	return target == context.DeadlineExceeded
 }
 
-func (m *ModifyServer) waitForTask(ctx context.Context, logger logr.Logger, taskID string) (*ecs.Task, error) {
-	task, err := m.taskWaiter.WaitFor(ctx, taskID, desc.TaskSattled)
+func (m *ModifyServer) waitForTask(ctx context.Context, logger logr.Logger, taskID string) (*ecs20140526.DescribeTasksResponseBodyTaskSetTask, error) {
+	ptask, err := m.taskWaiter.WaitFor(ctx, taskID, desc.TaskSattled)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return task, errTaskProcessing{taskID}
+			return nil, errTaskProcessing{taskID}
 		}
-		return task, fmt.Errorf("error while waiting for task %s to finish: %w", taskID, err)
+		return nil, fmt.Errorf("error while waiting for task %s to finish: %w", taskID, err)
 	}
-	if task != nil {
-		logger.V(2).Info("task finished", "task", task.TaskId, "status", task.TaskStatus, "finishedTime", task.FinishedTime)
-	} else {
+	if ptask == nil {
 		logger.V(2).Info("task disappeared", "task", taskID)
+		return nil, nil
 	}
+	task := *ptask
+	logger.V(2).Info("task finished", "task", ptr.Deref(task.TaskId, ""), "status", ptr.Deref(task.TaskStatus, ""), "finishedTime", ptr.Deref(task.FinishedTime, ""))
 	return task, nil
 }
 
-func (m *ModifyServer) retrieveTask(logger logr.Logger, diskID string) (*ecs.Task, error) {
-	req := ecs.CreateDescribeTasksRequest()
-	req.PageSize = requests.NewInteger(1)
-	req.ResourceIds = ptr.To([]string{diskID})
-	req.TaskAction = "ModifyDiskSpec"
+func (m *ModifyServer) retrieveTask(logger logr.Logger, diskID string) (*ecs20140526.DescribeTasksResponseBodyTaskSetTask, error) {
+	req := &ecs20140526.DescribeTasksRequest{
+		PageSize:    new(int32(1)),
+		ResourceIds: []*string{new(diskID)},
+		TaskAction:  new("ModifyDiskSpec"),
+	}
 
-	resp, err := wrap.V1(logger, m.ecsClient.DescribeTasks)(req)
+	resp, err := wrap.V2(logger, m.ecsClient.DescribeTasks)(req)
 	if err != nil {
 		return nil, err
 	}
-	var task *ecs.Task
-	if len(resp.TaskSet.Task) > 0 {
-		task = &resp.TaskSet.Task[0]
+	var task *ecs20140526.DescribeTasksResponseBodyTaskSetTask
+	if resp.Body != nil && resp.Body.TaskSet != nil && len(resp.Body.TaskSet.Task) > 0 {
+		task = resp.Body.TaskSet.Task[0]
 	}
 	return task, nil
 }
@@ -122,9 +124,9 @@ func mapModifySpecCode(code wrap.ErrorCode) codes.Code {
 //
 // req is modified in-place, do not reuse it.
 // returns whether the volume is already at the requested status.
-func (m *ModifyServer) verifyModifyDiskSpec(ctx context.Context, logger logr.Logger, req *ecs.ModifyDiskSpecRequest) (dirty bool, err error) {
-	diskID := req.DiskId
-	req.DryRun = requests.NewBoolean(true)
+func (m *ModifyServer) verifyModifyDiskSpec(ctx context.Context, logger logr.Logger, req *ecs20140526.ModifyDiskSpecRequest) (dirty bool, err error) {
+	diskID := ptr.Deref(req.DiskId, "")
+	req.DryRun = new(true)
 
 	var taskID string
 	taskObj, ok := m.runningTaskIDs.Load(diskID)
@@ -142,12 +144,11 @@ func (m *ModifyServer) verifyModifyDiskSpec(ctx context.Context, logger logr.Log
 			m.runningTaskIDs.Delete(diskID)
 		}
 
-		_, err = wrap.V1(logger, m.ecsClient.ModifyDiskSpec)(req)
+		_, err = wrap.V2(logger, m.ecsClient.ModifyDiskSpec)(req)
 		if err == nil { // should not happen for dry run
 			return true, status.Errorf(codes.Internal, "dry run ModifyDiskSpec succeeds unexpectedly")
 		}
-		var code wrap.ErrorCode
-		if errors.As(err, &code) {
+		if code, ok := errors.AsType[wrap.ErrorCode](err); ok {
 			switch code {
 			case NoChangeInDiskCategoryAndPerformanceLevel:
 				logger.V(2).Info("disk spec clean")
@@ -161,11 +162,11 @@ func (m *ModifyServer) verifyModifyDiskSpec(ctx context.Context, logger logr.Log
 				if taskErr != nil {
 					return true, fmt.Errorf("retrieve task failed: %w", taskErr)
 				}
-				if task == nil || task.TaskStatus != desc.TaskProcessing {
+				if task == nil || ptr.Deref(task.TaskStatus, "") != desc.TaskProcessing {
 					logger.V(2).Info("no processing task found")
-					return true, status.Errorf(codes.FailedPrecondition, "disk %s has incorrect status: %v", req.DiskId, err)
+					return true, status.Errorf(codes.FailedPrecondition, "disk %s has incorrect status: %v", diskID, err)
 				}
-				taskID = task.TaskId
+				taskID = ptr.Deref(task.TaskId, "")
 				m.runningTaskIDs.Store(diskID, taskID)
 				// task is still running, check again
 				continue
@@ -173,17 +174,17 @@ func (m *ModifyServer) verifyModifyDiskSpec(ctx context.Context, logger logr.Log
 				return true, status.Error(mapModifySpecCode(code), err.Error())
 			}
 		}
-		return true, status.Errorf(codes.Internal, "modify disk %s failed: %v", req.DiskId, err)
+		return true, status.Errorf(codes.Internal, "modify disk %s failed: %v", diskID, err)
 	}
 	return true, status.Errorf(codes.Aborted, "disk %s is being modified with task %s", diskID, taskID)
 }
 
-func (m *ModifyServer) modifyDiskSpec(ctx context.Context, logger logr.Logger, req *ecs.ModifyDiskSpecRequest) error {
-	resp, err := wrap.V1(logger, m.ecsClient.ModifyDiskSpec)(req)
+func (m *ModifyServer) modifyDiskSpec(ctx context.Context, logger logr.Logger, req *ecs20140526.ModifyDiskSpecRequest) error {
+	diskID := ptr.Deref(req.DiskId, "")
+	resp, err := wrap.V2(logger, m.ecsClient.ModifyDiskSpec)(req)
 	if err != nil {
-		var code wrap.ErrorCode
 		var grpcCode = codes.Internal
-		if errors.As(err, &code) {
+		if code, ok := errors.AsType[wrap.ErrorCode](err); ok {
 			switch code {
 			case NoChangeInDiskCategoryAndPerformanceLevel:
 				logger.V(2).Info("disk spec not changed")
@@ -192,21 +193,29 @@ func (m *ModifyServer) modifyDiskSpec(ctx context.Context, logger logr.Logger, r
 				grpcCode = mapModifySpecCode(code)
 			}
 		}
-		return status.Errorf(grpcCode, "failed to modify disk %s: %v", req.DiskId, err)
+		return status.Errorf(grpcCode, "failed to modify disk %s: %v", diskID, err)
 	}
 
-	logger.V(2).Info("modifying disk spec", "task", resp.TaskId)
-	m.runningTaskIDs.Store(req.DiskId, resp.TaskId)
-	task, err := m.waitForTask(ctx, logger, resp.TaskId)
+	if resp.Body == nil {
+		return status.Errorf(codes.Internal, "ModifyDiskSpec returned nil body for disk %s", diskID)
+	}
+	taskID := ptr.Deref(resp.Body.TaskId, "")
+	if taskID == "" {
+		return status.Errorf(codes.Internal, "ModifyDiskSpec for disk %s returned no task ID", diskID)
+	}
+	logger.V(2).Info("modifying disk spec", "task", taskID)
+	m.runningTaskIDs.Store(diskID, taskID)
+	task, err := m.waitForTask(ctx, logger, taskID)
 	if err != nil {
 		return err
 	}
-	m.runningTaskIDs.Delete(req.DiskId)
+	m.runningTaskIDs.Delete(diskID)
 	if task == nil {
-		return status.Errorf(codes.Internal, "task %s not found", resp.TaskId)
+		return status.Errorf(codes.Internal, "task %s not found", taskID)
 	}
-	if task.TaskStatus != desc.TaskFinished {
-		return status.Errorf(codes.Internal, "unexpected task status %s", task.TaskStatus)
+	taskStatus := ptr.Deref(task.TaskStatus, "")
+	if taskStatus != desc.TaskFinished {
+		return status.Errorf(codes.Internal, "unexpected task status %s", taskStatus)
 	}
 	return nil
 }
@@ -214,11 +223,12 @@ func (m *ModifyServer) modifyDiskSpec(ctx context.Context, logger logr.Logger, r
 func (m *ModifyServer) modifyDiskAttribute(ctx context.Context, logger logr.Logger, diskID string, burstingEnabled bool) error {
 	var err error
 	for range 3 {
-		req := ecs.CreateModifyDiskAttributeRequest()
-		req.DiskId = diskID
-		req.BurstingEnabled = requests.NewBoolean(burstingEnabled)
+		req := &ecs20140526.ModifyDiskAttributeRequest{
+			DiskId:          new(diskID),
+			BurstingEnabled: new(burstingEnabled),
+		}
 
-		_, err = wrap.V1(logger, m.ecsClient.ModifyDiskAttribute)(req)
+		_, err = wrap.V2(logger, m.ecsClient.ModifyDiskAttribute)(req)
 		if err == nil {
 			logger.V(2).Info("modified disk bursting enabled", "enabled", burstingEnabled)
 			return nil
@@ -267,12 +277,13 @@ func (m *ModifyServer) Modify(ctx context.Context, diskID string, params ModifyP
 
 	// Remove tags before adding new ones, to avoid maximum tag count limit.
 	if len(params.RemoveTags) > 0 {
-		req := ecs.CreateUntagResourcesRequest()
-		req.ResourceType = "disk"
-		req.ResourceId = ptr.To([]string{diskID})
-		req.TagKey = &params.RemoveTags
+		req := &ecs20140526.UntagResourcesRequest{
+			ResourceType: new("disk"),
+			ResourceId:   []*string{new(diskID)},
+			TagKey:       params.RemoveTags,
+		}
 
-		_, err := wrap.V1(logger, m.ecsClient.UntagResources)(req)
+		_, err := wrap.V2(logger, m.ecsClient.UntagResources)(req)
 		if err != nil {
 			return fmt.Errorf("error while untagging disk %s: %w", diskID, err)
 		}
@@ -280,12 +291,13 @@ func (m *ModifyServer) Modify(ctx context.Context, diskID string, params ModifyP
 	}
 
 	if len(params.Tags) > 0 {
-		req := ecs.CreateTagResourcesRequest()
-		req.ResourceType = "disk"
-		req.ResourceId = ptr.To([]string{diskID})
-		req.Tag = &params.Tags
+		req := &ecs20140526.TagResourcesRequest{
+			ResourceType: new("disk"),
+			ResourceId:   []*string{new(diskID)},
+			Tag:          params.Tags,
+		}
 
-		_, err := wrap.V1(logger, m.ecsClient.TagResources)(req)
+		_, err := wrap.V2(logger, m.ecsClient.TagResources)(req)
 		if err != nil {
 			return fmt.Errorf("error while tagging disk %s: %w", diskID, err)
 		}

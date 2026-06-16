@@ -682,13 +682,13 @@ func parseMutableParameters(mutableParameters map[string]string) (ModifyParamete
 			switch {
 			case strings.HasPrefix(k, DISK_TAG_PREFIX):
 				tagKey := k[len(DISK_TAG_PREFIX):]
-				params.Tags = append(params.Tags, ecs.TagResourcesTag{
-					Key:   tagKey,
-					Value: v,
+				params.Tags = append(params.Tags, &ecs20140526.TagResourcesRequestTag{
+					Key:   &tagKey,
+					Value: &v,
 				})
 			case strings.HasPrefix(k, REMOVE_DISK_TAG_PREFIX):
 				tagKey := k[len(REMOVE_DISK_TAG_PREFIX):]
-				params.RemoveTags = append(params.RemoveTags, tagKey)
+				params.RemoveTags = append(params.RemoveTags, &tagKey)
 			default:
 				return params, fmt.Errorf("unknown parameter %s", k)
 			}
@@ -711,10 +711,10 @@ func importMutableParameters(params *diskVolumeArgs, mutable *ModifyParameters) 
 		params.BurstingEnabled = *mutable.BurstingEnabled
 	}
 	for _, tag := range mutable.RemoveTags {
-		delete(params.DiskTags, tag)
+		delete(params.DiskTags, *tag)
 	}
 	for _, tag := range mutable.Tags {
-		params.DiskTags[tag.Key] = tag.Value
+		params.DiskTags[*tag.Key] = *tag.Value
 	}
 }
 
