@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	fusePodNamespace  = "ack-csi-fuse"
-	mountProxySocket  = mounterutils.MountProxySocketKey
+	fusePodNamespace = "ack-csi-customfuse"
+	mountProxySocket = mounterutils.MountProxySocketKey
 )
 
 type controllerServer struct {

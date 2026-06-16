@@ -1,0 +1,244 @@
+{{- if and .Values.csi.customfuse.enabled .Values.csi.customfuse.controller.enabled -}}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-customfuse-provisioner
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: csi-customfuse-provisioner
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+  replicas: {{ .Values.controller.replicas }}
+  template:
+    metadata:
+      labels:
+        app: csi-customfuse-provisioner
+    spec:
+      {{- if $.Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range $.Values.imagePullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
+      affinity:
+        nodeAffinity:
+        {{- if .Values.controller.nodeAffinity }}
+          {{- toYaml .Values.controller.nodeAffinity | nindent 10 }}
+        {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+          - weight: 2
+            preference:
+              matchExpressions:
+              - key: type
+                operator: NotIn
+                values:
+                - virtual-kubelet
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: alibabacloud.com/is-edge-worker
+                operator: NotIn
+                values:
+                - "true"
+        {{- end }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - csi-customfuse-provisioner
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        operator: Exists
+        key: node-role.kubernetes.io/control-plane
+      serviceAccountName: csi-customfuse-controller
+      priorityClassName: system-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: csi-provisioner
+          image: {{ include "imageSpec" (list .Values "controller") }}
+          args:
+            - --endpoint=unix://csi/customfuseplugin.csi.alibabacloud.com/csi.sock
+            - --v=2
+            - --logging-format={{ .Values.logging.format }}
+            - "--driver=customfuse"
+            - --run-controller-service=true
+            - --run-node-service=false
+            - --kube-api-qps=100
+            - --kube-api-burst=200
+{{- if .Values.deploy.featureGates }}
+            - "--feature-gates={{ .Values.deploy.featureGates }}"
+{{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          env:
+            {{- include "networkEnv" .Values.deploy | nindent 12 }}
+            - name: "DEFAULT_REGISTRY"
+              value: {{ include "registry" .Values | quote }}
+{{- if .Values.deploy.ack }}
+            - name: "CLUSTER_ID"
+              value: {{ .Values.deploy.clusterID | quote }}
+{{- end }}
+{{- if .Values.deploy.regionID }}
+            - name: REGION_ID
+              value: {{ .Values.deploy.regionID | quote }}
+{{- end }}
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+{{- if .Values.deploy.ecsEndpoint }}
+            - name: ECS_ENDPOINT
+              value: {{ .Values.deploy.ecsEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.stsEndpoint }}
+            - name: STS_ENDPOINT
+              value: {{ .Values.deploy.stsEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.nasEndpoint }}
+            - name: NAS_ENDPOINT
+              value: {{ .Values.deploy.nasEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.privateCloud }}
+            - name: ALIBABA_CLOUD_HTTP_HEADERS
+              value: |
+                X-Acsproxy-Ascm-Context: {{ .Values.deploy.acsProxyASCMContext }}
+{{- end }}
+{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            periodSeconds: 10
+          ports:
+            - name: healthz
+              containerPort: 11270
+          volumeMounts:
+            - name: customfuse-provisioner-dir
+              mountPath: /csi/customfuseplugin.csi.alibabacloud.com
+{{- if .Values.deploy.ack }}
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
+{{- end }}
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+        - name: external-customfuse-provisioner
+          image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
+          args:
+            - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8131
+            - --volume-name-prefix=customfuse
+            - --timeout=150s
+            - --leader-election=true
+            - --retry-interval-start=500ms
+            - --default-fstype=fuse
+            - --kube-api-qps=100
+            - --kube-api-burst=200
+            - --v=5
+            - --logging-format={{ .Values.logging.format }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          ports:
+            - containerPort: 8131
+              name: cfuse-p-http
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: cfuse-p-http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: customfuse-provisioner-dir
+              mountPath: /csi
+        - name: external-customfuse-attacher
+          image: {{ include "imageSpec" (list .Values "externalAttacher") }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - --v=5
+            - --logging-format={{ .Values.logging.format }}
+            - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8130
+            - --leader-election=true
+            - --kube-api-qps=100
+            - --kube-api-burst=200
+            - --worker-threads=32
+          ports:
+            - containerPort: 8130
+              name: cfuse-a-http
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: cfuse-a-http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: customfuse-provisioner-dir
+              mountPath: /csi
+      volumes:
+        - name: customfuse-provisioner-dir
+          emptyDir: {}
+{{- if .Values.deploy.ack }}
+        - name: addon-token
+          secret:
+            defaultMode: 420
+            optional: true
+            items:
+            - key: addon.token.config
+              path: token-config
+{{- end }}
+{{- end }}

@@ -1,0 +1,104 @@
+{{- if .Values.csi.customfuse.enabled -}}
+# Namespace for customfuse pods (created by controller, managed by CSI driver)
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.csi.customfuse.namespace | default "ack-csi-customfuse" }}
+# Dedicated ServiceAccounts (NOT shared with other CSI drivers)
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-customfuse-controller
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-customfuse-node
+  namespace: {{ .Release.Namespace }}
+# Role for managing customfuse pods in the fuse pod namespace
+# Controller needs this to create/delete/list/watch fuse pods
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: customfuse-pod-manager
+  namespace: {{ .Values.csi.customfuse.namespace | default "ack-csi-customfuse" }}
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+# Role for ConfigMap informer in {{ .Release.Namespace }}
+# Controller watches csi-plugin ConfigMap to detect fuse pod image changes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: customfuse-configmap-watcher
+  namespace: {{ .Release.Namespace }}
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["csi-plugin"]
+  verbs: ["get", "list", "watch"]
+# Bind controller SA to standard CSI ClusterRole (for external-provisioner/attacher sidecars)
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: csi-customfuse-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alicloud-csi-provisioner
+subjects:
+- kind: ServiceAccount
+  name: csi-customfuse-controller
+  namespace: {{ .Release.Namespace }}
+# Bind node SA to standard CSI ClusterRole (for node-level CSI operations)
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: csi-customfuse-node
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alicloud-csi-node
+subjects:
+- kind: ServiceAccount
+  name: csi-customfuse-node
+  namespace: {{ .Release.Namespace }}
+# Bind controller SA to pod manager Role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: customfuse-pod-manager
+  namespace: {{ .Values.csi.customfuse.namespace | default "ack-csi-customfuse" }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: customfuse-pod-manager
+subjects:
+- kind: ServiceAccount
+  name: csi-customfuse-controller
+  namespace: {{ .Release.Namespace }}
+# Bind controller SA to ConfigMap watcher Role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: customfuse-configmap-watcher
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: customfuse-configmap-watcher
+subjects:
+- kind: ServiceAccount
+  name: csi-customfuse-controller
+  namespace: {{ .Release.Namespace }}
+{{- end }}
