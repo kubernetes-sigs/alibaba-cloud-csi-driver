@@ -30,9 +30,9 @@ type fuseOptions struct {
 	FuseType string
 
 	// EntrypointConfig is the name of a ConfigMap in the fuse pod's namespace
-	// (ack-csi-fuse) to mount into the fuse container at /etc/fuse-config/.
+	// (ack-csi-customfuse) to mount into the fuse container at /etc/fuse-config/.
 	// Kubernetes does not support cross-namespace ConfigMap mounts, so the
-	// ConfigMap must be pre-created in ack-csi-fuse by the user.
+	// ConfigMap must be pre-created in ack-csi-customfuse by the user.
 	EntrypointConfig string
 
 	// EntrypointKey is the key within the ConfigMap that contains the entrypoint

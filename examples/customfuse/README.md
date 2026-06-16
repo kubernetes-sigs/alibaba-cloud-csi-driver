@@ -8,7 +8,7 @@ credential injection.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ Fuse Pod (created by CSI controller in ack-csi-fuse namespace)  │
+│ Fuse Pod (created by CSI controller in ack-csi-customfuse ns)   │
 │                                                                 │
 │  PID 1: csi-mount-proxy-server                                  │
 │    ↓ receives mount request from CSI node                       │
@@ -54,7 +54,7 @@ Your image must contain:
 | `path` | — | Sub-path; only used for `source` fallback (`bucket:path`) |
 | `url` | `$url` | Storage endpoint |
 | `otherOpts` | `$otherOpts` | Opaque options string passed through to entrypoint |
-| `entrypointConfig` | — | ConfigMap name (in `ack-csi-fuse` ns) to override `/entrypoint.sh` |
+| `entrypointConfig` | — | ConfigMap name (in `ack-csi-customfuse` ns) to override `/entrypoint.sh` |
 | `entrypointKey` | — | Key in ConfigMap (default: `entrypoint.sh`) |
 | `dnsPolicy` | — | Pod DNS policy (`ClusterFirst`, `Default`, etc.) |
 
@@ -237,10 +237,10 @@ Ref: [JindoFS FUSE](https://github.com/aliyun/alibabacloud-jindodata)
 
 ## Important Notes
 
-1. **Fuse pod namespace**: Fuse pods run in `ack-csi-fuse` namespace, which is
+1. **Fuse pod namespace**: Fuse pods run in `ack-csi-customfuse` namespace, which is
    automatically created by the Helm chart when `csi.customfuse.enabled: true`.
 
-2. **`entrypointConfig` ConfigMap** must also be in `ack-csi-fuse` namespace
+2. **`entrypointConfig` ConfigMap** must also be in `ack-csi-customfuse` namespace
    (Kubernetes does not support cross-namespace ConfigMap volume mounts).
 
 3. **Do NOT bake credentials into images** in production — use Kubernetes Secrets.

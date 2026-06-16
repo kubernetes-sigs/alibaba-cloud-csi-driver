@@ -52,9 +52,8 @@ type nodeServer struct {
 	skipGlobalMount bool
 	// mountProxySock is the --mount-proxy-sock flag value.
 	// Set from main.go (csi-plugin) or from csi_agent.go (csi-agent).
-	// In sandbox agent scenario there is no ControllerPublish, so PublishContext
-	// is empty — this field provides the socket path by injecting into
-	// req.PublishContext in NodePublishVolume.
+	// In sandbox agent scenario, this field provides the socket path
+	// by injecting into req.PublishContext in NodePublishVolume.
 	// When empty, existing PublishContext values (if any) are used unchanged.
 	mountProxySock string
 }

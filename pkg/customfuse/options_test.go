@@ -133,7 +133,7 @@ func TestParseOptions_ReadOnly(t *testing.T) {
 
 func TestParseOptions_CaseInsensitive(t *testing.T) {
 	volContext := map[string]string{
-		"Source":    "my-vol",
+		"Source":   "my-vol",
 		"URL":      "endpoint.com",
 		"FuseType": "jindo",
 	}

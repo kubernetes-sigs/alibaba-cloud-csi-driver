@@ -86,6 +86,52 @@ func Test_SetFuseAttachBaseDir(t *testing.T) {
 	assert.Contains(t, actualPath, "/run/fuse.ossfs")
 }
 
+func Test_ResolveMountProxySocket(t *testing.T) {
+	tests := []struct {
+		name           string
+		publishContext map[string]string
+		overrideSock   string
+		expected       string
+	}{
+		{
+			name:           "overrideSock takes priority over publishContext",
+			publishContext: map[string]string{MountProxySocketKey: "/var/run/mounter.sock"},
+			overrideSock:   "/custom/override.sock",
+			expected:       "/custom/override.sock",
+		},
+		{
+			name:           "overrideSock only, publishContext nil",
+			publishContext: nil,
+			overrideSock:   "/custom/override.sock",
+			expected:       "/custom/override.sock",
+		},
+		{
+			name:           "fallback to publishContext when overrideSock is empty",
+			publishContext: map[string]string{MountProxySocketKey: "/var/run/mounter.sock"},
+			overrideSock:   "",
+			expected:       "/var/run/mounter.sock",
+		},
+		{
+			name:           "publishContext nil, overrideSock empty",
+			publishContext: nil,
+			overrideSock:   "",
+			expected:       "",
+		},
+		{
+			name:           "publishContext without MountProxySocketKey",
+			publishContext: map[string]string{"otherKey": "otherValue"},
+			overrideSock:   "",
+			expected:       "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, ResolveMountProxySocket(tt.publishContext, tt.overrideSock))
+		})
+	}
+}
+
 func Test_computeVolumeIdLabelVal(t *testing.T) {
 	tests := []struct {
 		name     string

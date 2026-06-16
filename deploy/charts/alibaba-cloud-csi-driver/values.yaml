@@ -46,6 +46,7 @@ csi:
       enabled: true
   customfuse:
     enabled: false
+    namespace: ack-csi-customfuse
     controller:
       enabled: true
 
