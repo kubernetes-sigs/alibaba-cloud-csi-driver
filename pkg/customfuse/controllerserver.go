@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -18,13 +17,12 @@ import (
 )
 
 const (
-	fusePodNamespace  = "ack-csi-fuse"
-	mountProxySocket  = mounterutils.MountProxySocketKey
+	fusePodNamespace = "ack-csi-customfuse"
+	mountProxySocket = mounterutils.MountProxySocketKey
 )
 
 type controllerServer struct {
 	client         kubernetes.Interface
-	metadata       metadata.MetadataProvider
 	fusePodManager *fpm.FusePodManager
 	common.GenericControllerServer
 }

@@ -6,7 +6,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	customfusefpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/customfuse"
@@ -23,7 +22,7 @@ const (
 	driverName = "customfuseplugin.csi.alibabacloud.com"
 )
 
-func NewServers(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version, mountProxySock string) *common.Servers {
+func NewServers(endpoint string, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version, mountProxySock string) *common.Servers {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
@@ -59,7 +58,6 @@ func NewServers(m metadata.MetadataProvider, endpoint string, serviceType utils.
 		fusePodManager := fpm.NewFusePodManager(fuseManager, clientset, constrainRV)
 		servers.ControllerServer = &controllerServer{
 			client:         clientset,
-			metadata:       m,
 			fusePodManager: fusePodManager,
 		}
 	}

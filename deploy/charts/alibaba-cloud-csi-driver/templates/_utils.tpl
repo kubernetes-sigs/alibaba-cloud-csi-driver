@@ -33,7 +33,7 @@
 {{- define "enabledPlugins" -}}
     {{- $drivers := list -}}
     {{- $csi := . -}}
-    {{- range $key := tuple "disk" "nas" "oss" "bmcpfs" "ens" "customfuse" }}
+    {{- range $key := tuple "disk" "nas" "oss" "bmcpfs" "ens" }}
         {{- if (index $csi $key).enabled -}}
             {{- $drivers = append $drivers $key -}}
         {{- end -}}
@@ -44,7 +44,7 @@
 {{- define "enabledControllers" -}}
     {{- $drivers := list -}}
     {{- $csi := . -}}
-    {{- range $key := tuple "disk" "nas" "oss" "bmcpfs" "ens" "customfuse" }}
+    {{- range $key := tuple "disk" "nas" "oss" "bmcpfs" "ens" }}
         {{- $val := index $csi $key -}}
         {{- if and $val.enabled $val.controller.enabled -}}
             {{- $drivers = append $drivers $key -}}

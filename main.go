@@ -327,7 +327,7 @@ func main() {
 			case TypePluginBMCPFS:
 				driver = bmcpfs.NewServers(meta, endpoint, serviceType)
 			case TypePluginCustomFuse:
-				driver = customfuse.NewServers(meta, endpoint, serviceType, csiCfg, k8sVersion, *customfuseMountProxySock)
+				driver = customfuse.NewServers(endpoint, serviceType, csiCfg, k8sVersion, *customfuseMountProxySock)
 			default:
 				klog.Fatalf("CSI start failed, not support driver: %s", driverName)
 			}

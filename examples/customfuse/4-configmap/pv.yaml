@@ -16,7 +16,7 @@ spec:
       source: "redis://redis-host.default.svc:6379/1"
       bucket: "my-jfs-data"
       url: "oss-cn-hangzhou-internal.aliyuncs.com"
-      # Name of a ConfigMap in ack-csi-fuse namespace containing entrypoint.sh.
+      # Name of a ConfigMap in ack-csi-customfuse namespace containing entrypoint.sh.
       # mount-proxy checks /etc/fuse-config/entrypoint.sh before the baked-in /entrypoint.sh.
       entrypointConfig: "juicefs-entrypoint"
     nodePublishSecretRef:

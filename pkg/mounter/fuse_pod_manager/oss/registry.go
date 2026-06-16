@@ -4,8 +4,8 @@ import (
 	"maps"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	k8sver "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"

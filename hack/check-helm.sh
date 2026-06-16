@@ -13,6 +13,7 @@ cleanup() {
     echo "Cleaning up CRDs and namespaces..."
     kubectl delete -f "$CHART_DIR/crds"
     kubectl delete namespace ack-csi-fuse
+    kubectl delete namespace ack-csi-customfuse
 }
 trap cleanup EXIT
 
@@ -26,9 +27,13 @@ cd "$CHART_DIR"
 echo "Installing CRDs..."
 kubectl create -f ./crds
 
-# Create namespace required for validation (ack-csi-fuse is defined in the chart)
+# Create namespaces required for validation. The chart declares them, but
+# --dry-run=server never creates them, so resources placed in them fail to
+# validate unless they already exist.
 echo "Creating namespace ack-csi-fuse..."
 kubectl create namespace ack-csi-fuse
+echo "Creating namespace ack-csi-customfuse..."
+kubectl create namespace ack-csi-customfuse
 
 # Validate chart with default values
 echo "=== Validating with default values ==="
@@ -46,6 +51,22 @@ for v in values-*.yaml; do
     echo "=== Validating with $v ==="
     helm lint . --values "$v"
     helm template alibaba-cloud-csi-driver . --namespace kube-system --values "$v" | \
+        tee /dev/stderr | \
+        kubectl apply --dry-run=server --validate=strict -f -
+done
+
+# customfuse is off in every values file, so its resources reach the API server
+# only through an explicit opt-in. Both switches are exercised: the node side
+# alone, then with the controller, since they render different workloads.
+for cf_args in \
+    "--set csi.customfuse.enabled=true" \
+    "--set csi.customfuse.enabled=true --set csi.customfuse.controller.enabled=true"
+do
+    echo "=== Validating with $cf_args ==="
+    # shellcheck disable=SC2086
+    helm lint . $cf_args
+    # shellcheck disable=SC2086
+    helm template alibaba-cloud-csi-driver . --namespace kube-system $cf_args | \
         tee /dev/stderr | \
         kubectl apply --dry-run=server --validate=strict -f -
 done
