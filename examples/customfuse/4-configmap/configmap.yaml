@@ -1,13 +1,13 @@
 # The entrypoint script is stored in a ConfigMap instead of baked into the image.
 # This lets you update the mount logic without rebuilding the container image.
 #
-# The ConfigMap must be in the fuse pod namespace (ack-csi-fuse).
+# The ConfigMap must be in the fuse pod namespace (ack-csi-customfuse).
 # Key must be "entrypoint.sh" — mount-proxy looks for /etc/fuse-config/entrypoint.sh.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: juicefs-entrypoint
-  namespace: ack-csi-fuse
+  namespace: ack-csi-customfuse
 data:
   entrypoint.sh: |
     #!/bin/bash

@@ -178,10 +178,10 @@ func TestBuildEnvVars_AkSkCompat(t *testing.T) {
 		}
 		got := buildEnvVars(req.Source, req.Target, req.Options, req.Secrets)
 		gotMap := envSliceToMap(got)
-		_, hasAKI := gotMap["accessKeyId"]
-		_, hasAKS := gotMap["accessKeySecret"]
-		assert.False(t, hasAKI)
-		assert.False(t, hasAKS)
+		_, hasAKId := gotMap["accessKeyId"]
+		_, hasAKSecret := gotMap["accessKeySecret"]
+		assert.False(t, hasAKId)
+		assert.False(t, hasAKSecret)
 	})
 }
 

@@ -164,7 +164,7 @@ spec:
             - name: healthz
               containerPort: 11270
           volumeMounts:
-{{- range $key := tuple "disk" "nas" "oss" "bmcpfs" "customfuse" }}
+{{- range $key := tuple "disk" "nas" "oss" "bmcpfs" }}
   {{- with index $.Values.csi $key -}}
     {{- if and .enabled .controller.enabled }}
             - name: {{ $key }}-provisioner-dir
@@ -549,75 +549,6 @@ spec:
             readOnlyRootFilesystem: true
           volumeMounts:
             - name: bmcpfs-provisioner-dir
-              mountPath: /csi
-{{- end -}}
-{{- if and .Values.csi.customfuse.enabled .Values.csi.customfuse.controller.enabled }}
-        - name: external-customfuse-provisioner
-          image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
-          args:
-            - --csi-address=/csi/csi.sock
-            - --http-endpoint=:8131
-            - --volume-name-prefix=customfuse
-            - --timeout=150s
-            - --leader-election=true
-            - --retry-interval-start=500ms
-            - --default-fstype=fuse
-            - --kube-api-qps=100
-            - --kube-api-burst=200
-            - --v=5
-            - --logging-format={{ .Values.logging.format }}
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 500m
-              memory: 1024Mi
-          ports:
-            - containerPort: 8131
-              name: cfuse-p-http
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /healthz/leader-election
-              port: cfuse-p-http
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-          volumeMounts:
-            - name: customfuse-provisioner-dir
-              mountPath: /csi
-        - name: external-customfuse-attacher
-          image: {{ include "imageSpec" (list .Values "externalAttacher") }}
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 500m
-              memory: 1024Mi
-          args:
-            - --v=5
-            - --logging-format={{ .Values.logging.format }}
-            - --csi-address=/csi/csi.sock
-            - --http-endpoint=:8130
-            - --leader-election=true
-            - --kube-api-qps=100
-            - --kube-api-burst=200
-            - --worker-threads=32
-          ports:
-            - containerPort: 8130
-              name: cfuse-a-http
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /healthz/leader-election
-              port: cfuse-a-http
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-          volumeMounts:
-            - name: customfuse-provisioner-dir
               mountPath: /csi
 {{- end -}}
 {{- if and .Values.csi.local.enabled .Values.csi.local.controller.enabled }}

@@ -141,8 +141,8 @@ func TestGetSkipGlobalMount(t *testing.T) {
 			want:       true,
 		},
 		{
-			name:            "SKIP_GLOBAL_MOUNT takes priority over OSS_SKIP_GLOBAL_MOUNT",
-			skipGlobalMount: "true",
+			name:               "SKIP_GLOBAL_MOUNT takes priority over OSS_SKIP_GLOBAL_MOUNT",
+			skipGlobalMount:    "true",
 			ossSkipGlobalMount: "false",
 			defaultVal:         false,
 			want:               true,

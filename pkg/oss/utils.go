@@ -699,7 +699,6 @@ func getDirectAssignedValue(runtimeClass string) bool {
 	}
 }
 
-
 func needRotateToken(fuseType string, secrets map[string]string) (needRotate bool) {
 	if len(secrets) == 0 {
 		return false

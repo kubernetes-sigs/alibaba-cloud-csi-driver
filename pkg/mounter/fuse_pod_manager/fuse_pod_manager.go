@@ -40,6 +40,18 @@ const (
 	ACKDrainLabelKey          = "alibabacloud.com/drain-pod"
 )
 
+// fusePodNamePrefix returns the GenerateName prefix for a fuse pod.
+// For customfuse driver, uses FuseType if available, otherwise falls back to driverName.
+// For other drivers (e.g., oss), always uses driverName to preserve backward compatibility.
+func fusePodNamePrefix(driverName, fuseType string) string {
+	if driverName == mounterutils.CustomFuseType {
+		if fuseType != "" {
+			return "csi-fuse-" + fuseType + "-"
+		}
+	}
+	return "csi-fuse-" + driverName + "-"
+}
+
 type AuthConfig struct {
 	AuthType string
 	// for RRSA
@@ -313,7 +325,7 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string) (*corev1.Pod
 			ObjectMeta: template.ObjectMeta,
 			Spec:       template.Spec,
 		}
-		rawPod.GenerateName = fmt.Sprintf("csi-fuse-%s-", fpm.Name())
+		rawPod.GenerateName = fusePodNamePrefix(fpm.Name(), c.FuseType)
 		if rawPod.Labels == nil {
 			rawPod.Labels = labels
 		} else {

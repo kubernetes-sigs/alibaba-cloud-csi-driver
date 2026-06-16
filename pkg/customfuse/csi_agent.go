@@ -20,8 +20,8 @@ type CSIAgent struct {
 
 func NewCSIAgent(socketPath string) *CSIAgent {
 	ns := &nodeServer{
-		locks:      utils.NewVolumeLocks(),
-		rawMounter: mountutils.NewWithoutSystemd(""),
+		locks:           utils.NewVolumeLocks(),
+		rawMounter:      mountutils.NewWithoutSystemd(""),
 		skipGlobalMount: utils.GetSkipGlobalMount(true),
 		// Socket injection is handled inside nodeServer.NodePublishVolume,
 		// which injects mountProxySock into req.PublishContext when non-empty.
