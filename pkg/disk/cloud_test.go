@@ -616,7 +616,6 @@ func testAttachDetach(t *testing.T) (context.Context, *cloud.MockECSInterface, *
 		batcher:         b,
 		attachThrottler: defaultThrottler(),
 		detachThrottler: defaultThrottler(),
-		dev:             DefaultDeviceManager,
 	}
 }
 
@@ -736,7 +735,7 @@ func TestAttachDisk(t *testing.T) {
 					})
 				c.EXPECT().DescribeDisks(gomock.Any()).Return(diskResp(tc.after), nil).After(attachCall)
 			}
-			serial, err := ad.attachDisk(ctx, "d-testdiskid", "i-testinstanceid", false)
+			serial, err := ad.attachDisk(ctx, "d-testdiskid", "i-testinstanceid")
 
 			assert.Equal(t, tc.forceAttach, force)
 			if tc.expectErr {

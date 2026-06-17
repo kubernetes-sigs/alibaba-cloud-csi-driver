@@ -1,5 +1,3 @@
-//go:build !windows
-
 /*
 Copyright 2019 The Kubernetes Authors.
 
@@ -370,7 +368,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 	klog.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 
-	serial, err := cs.ad.attachDisk(ctx, req.VolumeId, req.NodeId, false)
+	serial, err := cs.ad.attachDisk(ctx, req.VolumeId, req.NodeId)
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
