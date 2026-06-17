@@ -24,6 +24,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -134,6 +136,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	klog.InfoS("Mounting mount target", "targetPath", req.TargetPath, "source", source)
 
+	// Default g_lease_Enable=false unless user explicitly specified it
+	// it turns on write caching for both data and metadata (backend support required), reducing read/write latency for small files. The risk is that it may increase the possibility of abnormal data loss in extreme cases.
+	if !hasMountOption(mountOptions, "g_lease_Enable") {
+		mountOptions = append(mountOptions, "g_lease_Enable=false")
+	}
+
 	mountOptions = append(mountOptions, "efc,protocol=efc,fstype=cpfs")
 	err = ns.mounter.Mount(source, req.TargetPath, "alinas", mountOptions)
 	if err != nil {
@@ -158,4 +166,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	klog.InfoS("NodeUnpublishVolume: succeeded to umount", "targetPath", req.TargetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
+}
+
+// hasMountOption checks whether any option in the slice has the given key prefix (e.g. "g_lease_Enable").
+func hasMountOption(options []string, key string) bool {
+	prefix := key + "="
+	return slices.ContainsFunc(options, func(opt string) bool {
+		return opt == key || strings.HasPrefix(opt, prefix)
+	})
 }
