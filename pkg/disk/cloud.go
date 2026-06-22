@@ -308,6 +308,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		action = attachNormally // should fail, but try it anyway
 	}
 
+	currentInstanceID := disk.InstanceId
 	switch action {
 	case alreadyAttached:
 		if !fromNode {
@@ -325,18 +326,19 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 			return device, nil
 		}
 		logger.V(1).Info("disk has no serial, but device unknown, will be detached and try again")
+		currentInstanceID = nodeID // detach from self. (Can't reuse disk.InstanceId: it's empty for multi-attach disks.)
 		fallthrough
 	case detachFirst:
-		logger.V(1).Info("already attached to another instance, will be detached", "from", disk.InstanceId)
+		logger.V(1).Info("already attached, will be detached", "from", currentInstanceID)
 		detachRequest := ecs.CreateDetachDiskRequest()
-		detachRequest.InstanceId = disk.InstanceId
-		detachRequest.DiskId = disk.DiskId
+		detachRequest.InstanceId = currentInstanceID
+		detachRequest.DiskId = diskID
 		for key, value := range GlobalConfigVar.RequestBaseInfo {
 			detachRequest.AppendUserAgent(key, value)
 		}
 		_, err = ad.ecs.DetachDisk(detachRequest)
 		if err != nil {
-			return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
+			return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, currentInstanceID, err)
 		}
 		logger.V(2).Info("Waiting for disk to be detached")
 		if err := ad.waitForDiskDetached(ctx, diskID, nodeID); err != nil {
@@ -401,53 +403,6 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 	logger.V(2).Info("Successfully attached disk")
 	return disk.SerialNumber, nil
-}
-
-// Only called by controller
-func (ad *DiskAttachDetach) attachMultiAttachDisk(ctx context.Context, diskID, nodeID string) (string, error) {
-	klog.Infof("AttachDisk: Starting Do AttachMultiAttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
-
-	// Step 1: check disk status
-	disk, err := ad.findDiskByID(ctx, diskID)
-	if err != nil {
-		klog.Errorf("AttachDisk: find disk: %s with error: %s", diskID, err.Error())
-		return "", status.Errorf(codes.Internal, "AttachMultiAttachDisk: find disk: %s with error: %s", diskID, err.Error())
-	}
-	if disk == nil {
-		return "", status.Errorf(codes.Internal, "AttachMultiAttachDisk: can't find disk: %s, check the disk region, disk exist or not, and the csi access auth", diskID)
-	}
-
-	for _, instance := range disk.Attachments.Attachment {
-		if instance.InstanceId == nodeID {
-			klog.Infof("AttachMultiAttachDisk: Successful attach disk %s to node %s", diskID, nodeID)
-			return "", nil
-		}
-	}
-
-	// Step 3: Attach Disk, list device before attach disk
-	attachRequest := ecs.CreateAttachDiskRequest()
-	attachRequest.InstanceId = nodeID
-	attachRequest.DiskId = diskID
-	response, err := ad.ecs.AttachDisk(attachRequest)
-	if err != nil {
-		if strings.Contains(err.Error(), DiskLimitExceeded) {
-			return "", status.Error(codes.Internal, err.Error()+", Node("+nodeID+")exceed the limit attachments of disk")
-		} else if strings.Contains(err.Error(), DiskNotPortable) {
-			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html")
-		} else if strings.Contains(err.Error(), NotSupportDiskCategory) {
-			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html")
-		}
-		return "", status.Errorf(codes.Aborted, "AttachMultiAttachDisk: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
-	}
-
-	// Step 4: wait for disk attached
-	klog.Infof("AttachMultiAttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
-	if err := ad.waitForDiskAttached(ctx, diskID, nodeID); err != nil {
-		return "", err
-	}
-
-	klog.Infof("AttachMultiAttachDisk: Successful attach disk %s to node %s", diskID, nodeID)
-	return "", nil
 }
 
 func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskID, nodeID string, fromNode bool) (err error) {

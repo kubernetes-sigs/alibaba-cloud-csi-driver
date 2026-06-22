@@ -637,6 +637,15 @@ func disk(status string, node string) ecs.Disk {
 	return disk
 }
 
+func multiAttachDisk(status string, attachments ...string) ecs.Disk {
+	d := disk(status, "")
+	d.MultiAttach = "Enabled"
+	for _, node := range attachments {
+		d.Attachments.Attachment = append(d.Attachments.Attachment, ecs.Attachment{InstanceId: node})
+	}
+	return d
+}
+
 func diskResp(disk ecs.Disk) *ecs.DescribeDisksResponse {
 	return &ecs.DescribeDisksResponse{
 		Disks: ecs.DisksInDescribeDisks{
@@ -707,6 +716,30 @@ func TestAttachDisk(t *testing.T) {
 			before:      disk("Detaching", "i-anotherinstance"),
 			forceAttach: false,
 			after:       disk("In_use", "i-testinstanceid"),
+		},
+		{
+			// Multi-attach disk already attached to current node, should skip attach
+			name:     "multi-attach already attached",
+			before:   multiAttachDisk("In_use", "i-testinstanceid"),
+			noAttach: true,
+		},
+		{
+			// Multi-attach disk attached to another instance only, should attach without detach
+			name:   "multi-attach attached to other",
+			before: multiAttachDisk("In_use", "i-anotherinstance"),
+			after:  multiAttachDisk("In_use", "i-anotherinstance", "i-testinstanceid"),
+		},
+		{
+			// Multi-attach disk available
+			name:   "multi-attach normal",
+			before: multiAttachDisk("Available"),
+			after:  multiAttachDisk("In_use", "i-testinstanceid"),
+		},
+		{
+			// Multi-attach disk attached to multiple nodes including current
+			name:     "multi-attach attached to multiple including self",
+			before:   multiAttachDisk("In_use", "i-anotherinstance", "i-testinstanceid"),
+			noAttach: true,
 		},
 	}
 	for _, tc := range cases {

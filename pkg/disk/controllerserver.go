@@ -351,23 +351,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		klog.Infof("ControllerPublishVolume: sleep 5s")
 	}
 
-	isMultiAttach := false
-	if value, ok := req.VolumeContext[MultiAttach]; ok {
-		value = strings.ToLower(value)
-		if checkOption(value) {
-			isMultiAttach = true
-		}
-	}
-	if isMultiAttach {
-		_, err := cs.ad.attachMultiAttachDisk(ctx, req.VolumeId, req.NodeId)
-		if err != nil {
-			klog.Errorf("ControllerPublishVolume: attach multi-attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
-			return nil, err
-		}
-		klog.Infof("ControllerPublishVolume: Successful attach shared disk: %s to node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerPublishVolumeResponse{}, nil
-	}
-
 	klog.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 
 	serial, err := cs.ad.attachDisk(ctx, req.VolumeId, req.NodeId, false)

@@ -1226,15 +1226,6 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 	return true, nil
 }
 
-func checkOption(opt string) bool {
-	switch opt {
-	case "enable", "true", "yes":
-		return true
-	default:
-		return false
-	}
-}
-
 func makeVolumeSnapshot(snapName string, snapContentName string) *volumeSnapshotV1.VolumeSnapshot {
 	vs := &volumeSnapshotV1.VolumeSnapshot{
 		ObjectMeta: metav1.ObjectMeta{

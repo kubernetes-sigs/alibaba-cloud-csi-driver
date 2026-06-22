@@ -541,26 +541,18 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
-	isMultiAttach := false
-	if value, ok := req.VolumeContext[MultiAttach]; ok {
-		value = strings.ToLower(value)
-		if checkOption(value) {
-			isMultiAttach = true
-		}
-	}
-
 	device := ""
 	// Step 4 Attach volume
 	defaultErrCode := codes.Internal
 	serial := req.PublishContext[PUBLISH_CONTEXT_SERIAL]
-	if GlobalConfigVar.ADControllerEnable || isMultiAttach || serial != "" {
+	if GlobalConfigVar.ADControllerEnable || serial != "" {
 		if serial == "" {
 			// for capability with old controller
 			serial = strings.TrimPrefix(req.VolumeId, "d-")
 		}
 		device, err = ns.ad.findDevice(ctx, req.VolumeId, serial, nil)
 		if err != nil {
-			if GlobalConfigVar.ADControllerEnable || isMultiAttach {
+			if GlobalConfigVar.ADControllerEnable {
 				return nil, status.Errorf(defaultErrCode, "ADController Enabled, but disk can't be found: %v", err)
 			}
 			// This disk should have been attached by controller, but old NodeUnstageVolume detaches it.
