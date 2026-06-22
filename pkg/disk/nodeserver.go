@@ -1008,22 +1008,25 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 	}, nil
 }
 
-// umount path and not remove
-func (ns *nodeServer) unmountStageTarget(logger klog.Logger, targetPath string) error {
-	if !IsFileExisting(targetPath) {
-		logger.V(2).Info("unmountStageTarget: path doesn't exist", "path", targetPath)
+func (ns *nodeServer) replaceTmpfs(logger klog.Logger, targetPath, volumeID string) error {
+	isTmpfs, err := utils.IsDirTmpfs(ns.k8smounter, targetPath)
+	if err != nil {
+		return status.Errorf(codes.Internal, "check %s for tmpfs: %v", targetPath, err)
+	}
+	if isTmpfs {
+		logger.V(2).Info("targetPath is already tmpfs")
 		return nil
 	}
-	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
+
+	err = ns.unmountTargetPath(logger, targetPath, volumeID)
 	if err != nil {
-		return fmt.Errorf("check mountpoint %s: %w", targetPath, err)
+		return err
 	}
-	if !notmounted {
-		if err = ns.k8smounter.Unmount(targetPath); err != nil {
-			return fmt.Errorf("umount %s: %w", targetPath, err)
-		}
+
+	err = utilsio.MountRoTmpfs(targetPath)
+	if err != nil {
+		return status.Errorf(codes.Internal, "mount readonly tmpfs at %s: %v", targetPath, err)
 	}
-	logger.V(2).Info("unmountStageTarget successful", "path", targetPath)
 	return nil
 }
 
@@ -1248,8 +1251,8 @@ func (ns *nodeServer) umountRunDVolumes(logger klog.Logger, volumePath string) (
 func (ns *nodeServer) mountRunvVolumes(logger klog.Logger, volumeId, sourcePath, targetPath string) error {
 	logger.V(2).Info("Mount with runv")
 	// umount the stage path, which is mounted in Stage (tmpfs)
-	if err := ns.unmountStageTarget(logger, sourcePath); err != nil {
-		return status.Errorf(codes.InvalidArgument, "runv: unmountStageTarget %s: %v", sourcePath, err)
+	if err := ns.replaceTmpfs(logger, sourcePath, volumeId); err != nil {
+		return status.Errorf(codes.InvalidArgument, "runv: replaceTmpfs %s: %v", sourcePath, err)
 	}
 	deviceName, err := ns.ad.GetRootBlockDevice(logger, volumeId)
 	if err != nil {
@@ -1296,8 +1299,8 @@ func (ns *nodeServer) mountRunDVolumes(logger klog.Logger, volumeId, pvName, sou
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		logger := logger.WithValues("protocol", "rund3")
 		// umount the stage path, which is mounted in Stage
-		if err := ns.unmountStageTarget(logger, sourcePath); err != nil {
-			return true, status.Errorf(codes.InvalidArgument, "rund3: unmountStageTarget %s: %v", sourcePath, err)
+		if err := ns.replaceTmpfs(logger, sourcePath, volumeId); err != nil {
+			return true, status.Errorf(codes.InvalidArgument, "rund3: replaceTmpfs %s: %v", sourcePath, err)
 		}
 
 		deviceNumber := ""
@@ -1454,6 +1457,8 @@ func (ns *nodeServer) checkTargetPathMounted(logger klog.Logger, volumeId, targe
 }
 
 // checkMountedOfRunvAndRund check if targetVolume is used by runv or rund-csi3.0
+// Should only reach here when dealing with volumes attached by old CSI.
+// We now mount tmpfs at targetPath, which should be caught by checkTargetPathMounted.
 func (ns *nodeServer) checkMountedOfRunvAndRund(logger klog.Logger, volumeId, targetPath string) bool {
 	// check volume is mounted in runv mode for kubelet restart;
 	fileName := filepath.Join(filepath.Dir(targetPath), utils.VolDataFileName)
