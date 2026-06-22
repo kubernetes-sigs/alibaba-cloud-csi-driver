@@ -236,34 +236,58 @@ func chooseAttachAction(disk *ecs.Disk, instanceID string) (attachAction, error)
 	return attachNormally, nil
 }
 
+type attachResult struct {
+	devicePath string // only available if fromNode
+	disk       *ecs.Disk
+}
+
+func mapAttachError(err error, nodeID, diskID string) error {
+	if aliErr, ok := errors.AsType[*alicloudErr.ServerError](err); ok {
+		switch aliErr.ErrorCode() {
+		case InstanceNotFound:
+			return status.Errorf(codes.NotFound, "Node(%s) not found, request ID: %s", nodeID, aliErr.RequestId())
+		case DiskLimitExceeded:
+			return status.Errorf(codes.Internal, "%v, Node(%s) exceed the limit attachments of disk", err, nodeID)
+		case DiskNotPortable:
+			return status.Errorf(codes.Internal, "%v, Disk(%s) should be pay-as-you-go, not be subscription, please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html", err, diskID)
+		case NotSupportDiskCategory:
+			return status.Errorf(codes.Internal, "%v, Disk(%s) is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html", err, diskID)
+		}
+	}
+	return status.Errorf(codes.Aborted, "error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
+}
+
 // Attach Alibaba Cloud disk.
-// Returns device path if fromNode, disk serial number otherwise.
-func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID string, fromNode bool) (string, error) {
+// Returns device path only if fromNode
+func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID string, fromNode bool) (attachResult, error) {
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Starting Do AttachDisk")
+
+	var r attachResult
 
 	// Step 1: check disk status
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %v", diskID, err)
+		return r, status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %v", diskID, err)
 	}
 	if disk == nil {
-		return "", status.Errorf(codes.NotFound, "AttachDisk: csi can't find disk: %s in region: %s, Please check if the cloud disk exists, if the region is correct, or if the csi permissions are correct", diskID, GlobalConfigVar.Region)
+		return r, status.Errorf(codes.NotFound, "AttachDisk: csi can't find disk: %s in region: %s, Please check if the cloud disk exists, if the region is correct, or if the csi permissions are correct", diskID, GlobalConfigVar.Region)
 	}
+	r.disk = disk
 
 	if !fromNode && disk.SerialNumber == "" {
 		if GlobalConfigVar.ADControllerEnable {
-			return "", status.Errorf(codes.InvalidArgument,
+			return r, status.Errorf(codes.InvalidArgument,
 				"Disk %s does not have serial number but AD controller is enabled, we cannot attach this disk. "+
 					"Please open ticket to add serial number to this disk", diskID)
 		} else {
-			return "", nil // should defer attach to node
+			return r, nil // should defer attach to node
 		}
 	}
 
 	slot := ad.slots.GetSlotFor(nodeID).Attach()
 	if err := slot.Acquire(ctx); err != nil {
-		return "", fmt.Errorf("failed to reserve node %s for attach: %w", nodeID, err)
+		return r, fmt.Errorf("failed to reserve node %s for attach: %w", nodeID, err)
 	}
 	defer slot.Release()
 
@@ -286,19 +310,19 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 	action, err := chooseAttachAction(disk, nodeID)
 	if err != nil {
-		return "", err
+		return r, err
 	}
 	if action == detachFirst || action == forceAttach {
 		if GlobalConfigVar.DiskBdfEnable {
 			if allowed, err := forceDetachAllowed(GlobalConfigVar.EcsClient, disk); err != nil {
-				return "", status.Errorf(codes.Aborted, "forceDetachAllowed failed: %v", err)
+				return r, status.Errorf(codes.Aborted, "forceDetachAllowed failed: %v", err)
 			} else if !allowed {
-				return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
+				return r, status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
 			}
 		}
 
 		if !GlobalConfigVar.DetachBeforeAttach {
-			return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
+			return r, status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
 		}
 	}
 	if canForceAttach && action == detachFirst {
@@ -313,17 +337,15 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	case alreadyAttached:
 		if !fromNode {
 			logger.V(2).Info("already attached, skipping")
-			return disk.SerialNumber, nil
+			return r, nil
 		}
 		if disk.SerialNumber != "" {
-			return ad.dev.WaitRootBlock(ctx, disk.SerialNumber)
+			r.devicePath, err = ad.dev.WaitRootBlock(ctx, disk.SerialNumber)
+			return r, err
 		}
-		device, err := ad.devMap.Get(logger, diskID)
-		if err != nil {
-			return "", err
-		}
-		if device != "" {
-			return device, nil
+		r.devicePath, err = ad.devMap.Get(logger, diskID)
+		if r.devicePath != "" || err != nil {
+			return r, err
 		}
 		logger.V(1).Info("disk has no serial, but device unknown, will be detached and try again")
 		currentInstanceID = nodeID // detach from self. (Can't reuse disk.InstanceId: it's empty for multi-attach disks.)
@@ -338,11 +360,11 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		}
 		_, err = ad.ecs.DetachDisk(detachRequest)
 		if err != nil {
-			return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, currentInstanceID, err)
+			return r, status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, currentInstanceID, err)
 		}
 		logger.V(2).Info("Waiting for disk to be detached")
 		if err := ad.waitForDiskDetached(ctx, diskID, nodeID); err != nil {
-			return "", err
+			return r, err
 		}
 	}
 
@@ -351,7 +373,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	if fromNode && disk.SerialNumber == "" {
 		before, err = DefaultDeviceManager.ListBlocks()
 		if err != nil {
-			return "", status.Errorf(codes.Aborted, "AttachDisk: Can't list devices before attach: %v", err)
+			return r, status.Errorf(codes.Aborted, "AttachDisk: Can't list devices before attach: %v", err)
 		}
 	}
 
@@ -370,39 +392,27 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	}
 	response, err := throttle.Throttled(ad.attachThrottler, ad.ecs.AttachDisk)(ctx, attachRequest)
 	if err != nil {
-		var aliErr *alicloudErr.ServerError
-		if errors.As(err, &aliErr) {
-			switch aliErr.ErrorCode() {
-			case InstanceNotFound:
-				return "", status.Errorf(codes.NotFound, "Node(%s) not found, request ID: %s", nodeID, aliErr.RequestId())
-			case DiskLimitExceeded:
-				return "", status.Errorf(codes.Internal, "%v, Node(%s) exceed the limit attachments of disk", err, nodeID)
-			case DiskNotPortable:
-				return "", status.Errorf(codes.Internal, "%v, Disk(%s) should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html", err, diskID)
-			case NotSupportDiskCategory:
-				return "", status.Errorf(codes.Internal, "%v, Disk(%s) is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html", err, diskID)
-			}
-		}
-		return "", status.Errorf(codes.Aborted, "error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
+		return r, mapAttachError(err, nodeID, diskID)
 	}
 
 	// Step 4: wait for disk attached
 	logger.V(2).Info("waiting for disk to attach", "requestID", response.RequestId)
-	if err := ad.waitForDiskAttached(ctx, diskID, nodeID); err != nil {
-		return "", err
+	if disk, err = ad.waitForDiskAttached(ctx, diskID, nodeID); err != nil {
+		return r, err
 	}
+	r.disk = disk
 
 	// step 5: diff device with previous files under /dev
 	if fromNode {
-		device, err := ad.findDevice(ctx, diskID, disk.SerialNumber, before)
+		r.devicePath, err = ad.findDevice(ctx, diskID, disk.SerialNumber, before)
 		if err != nil {
-			return "", status.Error(codes.Aborted, err.Error())
+			return r, status.Error(codes.Aborted, err.Error())
 		}
-		return device, nil
+		return r, nil
 	}
 
 	logger.V(2).Info("Successfully attached disk")
-	return disk.SerialNumber, nil
+	return r, nil
 }
 
 func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskID, nodeID string, fromNode bool) (err error) {
@@ -557,17 +567,17 @@ func tagDiskAsK8sAttached(diskID string, ecsClient *ecs.Client) {
 	klog.Infof("tagDiskAsK8sAttached:: add tag to disk: %s", diskID)
 }
 
-func (ad *DiskAttachDetach) waitForDiskAttached(ctx context.Context, diskID, nodeID string) error {
+func (ad *DiskAttachDetach) waitForDiskAttached(ctx context.Context, diskID, nodeID string) (*ecs.Disk, error) {
 	disk, err := ad.waiter.WaitFor(ctx, diskID, func(disk *ecs.Disk) bool {
 		return waitstatus.IsInstanceAttached(disk, nodeID)
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if disk == nil {
-		return fmt.Errorf("waitForDiskAttached: disk %s not found", diskID)
+		return nil, fmt.Errorf("waitForDiskAttached: disk %s not found", diskID)
 	}
-	return nil
+	return disk, nil
 }
 
 func (ad *DiskAttachDetach) waitForDiskDetached(ctx context.Context, diskID, nodeID string) error {

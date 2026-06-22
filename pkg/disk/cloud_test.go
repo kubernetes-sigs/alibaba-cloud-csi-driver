@@ -769,14 +769,14 @@ func TestAttachDisk(t *testing.T) {
 					})
 				c.EXPECT().DescribeDisks(gomock.Any()).Return(diskResp(tc.after), nil).After(attachCall)
 			}
-			serial, err := ad.attachDisk(ctx, "d-testdiskid", "i-testinstanceid", false)
+			r, err := ad.attachDisk(ctx, "d-testdiskid", "i-testinstanceid", false)
 
 			assert.Equal(t, tc.forceAttach, force)
 			if tc.expectErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, "fake-serial-number", serial)
+				assert.Equal(t, "fake-serial-number", r.disk.SerialNumber)
 			}
 		})
 	}

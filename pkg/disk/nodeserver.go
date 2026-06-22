@@ -560,7 +560,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 	if device == "" {
-		device, err = ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID, true)
+		r, err := ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID, true)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			logger.Error(err, "Attach volume failed", "suggestion", fullErrorMessage)
@@ -569,6 +569,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		// Now we have attached the disk, if we fail later, NodeStageVolume is in-progress.
 		// Return Aborted so that the CO will call NodeUnstageVolume later to detach.
 		defaultErrCode = codes.Aborted
+		device = r.devicePath
 	}
 
 	if req.VolumeCapability.GetMount() != nil {
