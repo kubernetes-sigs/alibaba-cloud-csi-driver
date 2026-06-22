@@ -532,7 +532,7 @@ func (f *fuseOssfs) buildAuthSpec(c *fpm.FusePodContext, target string, spec *co
 			})
 		}
 		if authCfg.AgentIdentityConfig.CASecret != "" {
-			caFilePath := server.AgentIdentityCAFilePath
+			caFilePath := server.GetAgentIdentityCAFilePath()
 			spec.Volumes = append(spec.Volumes, corev1.Volume{
 				Name: "agent-identity-ca",
 				VolumeSource: corev1.VolumeSource{

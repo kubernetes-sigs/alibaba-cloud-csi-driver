@@ -35,7 +35,8 @@ func TestApplyOptionDefaults(t *testing.T) {
 		caFile := filepath.Join(tmpDir, "ca.crt")
 		require.NoError(t, os.WriteFile(caFile, []byte("fake-ca"), 0644))
 
-		d := &Driver{agentIdentityCAPath: caFile}
+		t.Setenv("SSL_CERT_FILE", caFile)
+		d := &Driver{}
 		options := []string{"url=oss.aliyuncs.com"}
 		result := d.ApplyOptionDefaults(options)
 		assert.Equal(t, []string{"url=oss.aliyuncs.com", "agent_identity_ca_file=" + caFile}, result)
@@ -46,7 +47,8 @@ func TestApplyOptionDefaults(t *testing.T) {
 		caFile := filepath.Join(tmpDir, "ca.crt")
 		require.NoError(t, os.WriteFile(caFile, []byte("fake-ca"), 0000))
 
-		d := &Driver{agentIdentityCAPath: caFile}
+		t.Setenv("SSL_CERT_FILE", caFile)
+		d := &Driver{}
 		options := []string{"url=oss.aliyuncs.com"}
 		result := d.ApplyOptionDefaults(options)
 		assert.Equal(t, []string{"url=oss.aliyuncs.com"}, result)

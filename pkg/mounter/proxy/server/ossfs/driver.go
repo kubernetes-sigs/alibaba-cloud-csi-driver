@@ -31,10 +31,9 @@ func init() {
 // Driver manages ossfs mounts and their monitoring
 type Driver struct {
 	mounter.Mounter
-	pids                sync.Map
-	monitorManager      *server.MountMonitorManager
-	wg                  sync.WaitGroup
-	agentIdentityCAPath string // override CA file path for testing; defaults to server.AgentIdentityCAFilePath when empty
+	pids           sync.Map
+	monitorManager *server.MountMonitorManager
+	wg             sync.WaitGroup
 }
 
 func NewDriver() *Driver {
@@ -83,11 +82,10 @@ func (h *Driver) ApplyOptionDefaults(options []string) []string {
 	// --- Append rules: existing user options take precedence ---
 	var appends []string
 
-	// agent_identity_ca_file: only appended if the file is readable — see AgentIdentityConfig for details
-	caPath := h.agentIdentityCAPath
-	if caPath == "" {
-		caPath = server.AgentIdentityCAFilePath
-	}
+	// agent_identity_ca_file: only appended if the file is readable.
+	// Uses server.GetAgentIdentityCAFilePath() which prefers SSL_CERT_FILE env var,
+	// falling back to AgentIdentityCAFilePath when unset.
+	caPath := server.GetAgentIdentityCAFilePath()
 	if unix.Access(caPath, unix.R_OK) == nil {
 		appends = append(appends, fmt.Sprintf("agent_identity_ca_file=%s", caPath))
 	}
