@@ -14,13 +14,10 @@ import (
 	"sync"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 )
@@ -31,7 +28,6 @@ var (
 
 const (
 	NFSMetricsCount = 16
-	GiBSize         = 1024 * 1024 * 1024
 )
 
 var (
@@ -131,29 +127,6 @@ var (
 		"The total number of milliseconds spent by all writes.",
 		nfsStatLabelNames, nil,
 	)
-	//16 - capacity available
-	nfsCapacityAvailableDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_available"),
-		"The number of available size(bytes).",
-		nfsStatLabelNames,
-		nil,
-	)
-
-	//17 - capacity total
-	nfsCapacityTotalDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_total"),
-		"The number of total size(bytes).",
-		nfsStatLabelNames,
-		nil,
-	)
-
-	//18 - capacity used
-	nfsCapacityUsedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_used"),
-		"The number of used size(bytes).",
-		nfsStatLabelNames,
-		nil,
-	)
 )
 
 type nfsInfo struct {
@@ -163,48 +136,33 @@ type nfsInfo struct {
 	VolDataPath  string
 }
 
-type nfsCapacityInfo struct {
-	TotalInodeCount  int64  `json:"totalInodeCount"`
-	UsedInodeCount   int64  `json:"usedInodeCount"`
-	TotalSize        int64  `json:"totalSize"`
-	TotalSizeInBytes *int64 `json:"totalSizeInBytes"`
-	UsedSize         int64  `json:"usedSize"`
-	UsedSizeInBytes  *int64 `json:"usedSizeInBytes"`
-}
-
 type nfsStatCollector struct {
-	descs                       []typedFactorDesc
-	pvInfoLock                  sync.Mutex
-	lastPvNfsInfoMap            map[string]nfsInfo
-	lastPvStatsMap              sync.Map
-	clientSet                   *kubernetes.Clientset
-	crdClient                   dynamic.Interface
-	monitorClient               *StorageMonitorClient
-	recorder                    record.EventRecorder
-	capacityPercentageThreshold float64
-	mounter                     mount.Interface
+	descs            []typedFactorDesc
+	pvInfoLock       sync.Mutex
+	lastPvNfsInfoMap map[string]nfsInfo
+	lastPvStatsMap   sync.Map
+	clientSet        *kubernetes.Clientset
+	crdClient        dynamic.Interface
+	mounter          mount.Interface
 }
 
 func init() {
 	registerCollector("nfs_stat", NewNfsStatCollector, nasDriverName)
 }
 
-func getNfsCapacityThreshold() float64 {
-	capacityStr := strings.ToLower(strings.Trim(os.Getenv("NFS_CAPACITY_THRESHOLD_PERCENTAGE"), " "))
-	if len(capacityStr) != 0 {
-		capacity, _ := parseCapacityThreshold(capacityStr, nfsDefaultsCapacityPercentageThreshold)
-		return capacity
+func warnIfNfsCapacityThresholdSet() {
+	if v := strings.TrimSpace(os.Getenv("NFS_CAPACITY_THRESHOLD_PERCENTAGE")); v != "" {
+		klog.Warningf("NFS_CAPACITY_THRESHOLD_PERCENTAGE=%s is set but no longer supported: NAS capacity metrics and the associated alerts have been removed, so this setting has no effect.", v)
 	}
-	return 0
 }
 
 // NewNfsStatCollector returns a new Collector exposing nfs stats.
 func NewNfsStatCollector() (Collector, error) {
+	warnIfNfsCapacityThresholdSet()
 	config, err := options.GetRestConfig()
 	if err != nil {
 		return nil, err
 	}
-	recorder := utils.NewEventRecorder()
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
@@ -237,19 +195,12 @@ func NewNfsStatCollector() (Collector, error) {
 			{desc: nfsWritesQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
 			{desc: nfsWritesRttTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
 			{desc: nfsWritesExecuteTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
-			// capacity
-			{desc: nfsCapacityTotalDesc, valueType: prometheus.GaugeValue},
-			{desc: nfsCapacityUsedDesc, valueType: prometheus.GaugeValue},
-			{desc: nfsCapacityAvailableDesc, valueType: prometheus.GaugeValue},
 		},
-		lastPvNfsInfoMap:            make(map[string]nfsInfo, 0),
-		lastPvStatsMap:              sync.Map{},
-		clientSet:                   clientset,
-		crdClient:                   crdClient,
-		recorder:                    recorder,
-		monitorClient:               NewStorageMonitorClient(clientset),
-		capacityPercentageThreshold: getNfsCapacityThreshold(),
-		mounter:                     mount.NewWithoutSystemd(""),
+		lastPvNfsInfoMap: make(map[string]nfsInfo, 0),
+		lastPvStatsMap:   sync.Map{},
+		clientSet:        clientset,
+		crdClient:        crdClient,
+		mounter:          mount.NewWithoutSystemd(""),
 	}, nil
 }
 
@@ -276,14 +227,6 @@ func (p *nfsStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch
 			break
 		}
 		nfsInfo := p.lastPvNfsInfoMap[pvName]
-		//klog.Infof("pv: %s, stats: %v, nfsInfo: %+v", pvName, stats, nfsInfo)
-		capacityStats, err := getNfsCapacityStat(pvName, nfsInfo, p)
-		if err != nil {
-			//klog.Errorf("get capacity of PV %s: %v", pvName, err)
-			stats = append(stats, UnknownValue, UnknownValue, UnknownValue)
-		} else {
-			stats = append(stats, capacityStats...)
-		}
 
 		wg.Add(1)
 		go func(pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, serverNameArgs string, statsArgs []string) {
@@ -303,10 +246,6 @@ func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcN
 		if i >= len(p.descs) {
 			return
 		}
-		if value == UnknownValue {
-			continue
-		}
-
 		valueFloat64, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			klog.Errorf("Convert value %s to float64 is failed, err:%s, stat:%+v", value, err, stats)
@@ -425,49 +364,5 @@ func addNfsStat(pvNameStatMapping *map[string][]string, mountPath string, operat
 		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.CumulativeQueueMilliseconds)))
 		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.CumulativeTotalResponseMilliseconds)))
 		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.CumulativeTotalRequestMilliseconds)))
-	}
-}
-
-func getNfsCapacityStat(pvName string, info nfsInfo, p *nfsStatCollector) ([]string, error) {
-	capacityInfo, err := p.monitorClient.GetNasCapacityInfo(pvName)
-	if err != nil {
-		return nil, err
-	}
-	if capacityInfo != nil && capacityInfo.TotalSize != -1 && capacityInfo.UsedSize != -1 {
-		total, used := getTotalAndUsedSize(capacityInfo)
-		p.capacityEventAlert(total, used, pvName, info)
-		return []string{
-			strconv.FormatInt(total, 10),
-			strconv.FormatInt(used, 10),
-			strconv.FormatInt(total-used, 10),
-		}, nil
-	}
-	// NOTE: The system is unable to extract the capacity statistics because the capacity of the NFS mount point is based
-	// on the overall quota of the NAS filesystem, rather than the specific path that is mounted.
-	return nil, errors.New("capacity metrics from storage-monitor missing or invalid")
-}
-
-func getTotalAndUsedSize(info *nfsCapacityInfo) (int64, int64) {
-	if info.TotalSizeInBytes != nil && info.UsedSizeInBytes != nil {
-		return *info.TotalSizeInBytes, *info.UsedSizeInBytes
-	}
-	return info.TotalSize * GiBSize, info.UsedSize * GiBSize
-}
-
-func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, pvName string, info nfsInfo) {
-	total, used, gibSize := float64(totalSize), float64(usedSize), float64(GiBSize)
-	if p.capacityPercentageThreshold > 0 {
-		usedPercentage := 100 * used / total
-		if usedPercentage >= float64(p.capacityPercentageThreshold) {
-			ref := &v1.ObjectReference{
-				Kind:      "PersistentVolumeClaim",
-				Name:      info.PvcName,
-				UID:       "",
-				Namespace: info.PvcNamespace,
-			}
-			reason := fmt.Sprintf("PVC %s/%s (PV %s) is running out of capacity, totalSize:%fGi, usedSize:%fGi, usedPercentage:%.2f%%, threshold:%.2f%%",
-				info.PvcNamespace, info.PvcName, pvName, total/gibSize, used/gibSize, usedPercentage, p.capacityPercentageThreshold)
-			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, capacityNotEnough, reason)
-		}
 	}
 }

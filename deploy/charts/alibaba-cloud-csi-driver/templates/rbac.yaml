@@ -246,10 +246,6 @@ rules:
   resourceNames: ["csi-plugin", "ack-cluster-profile"]
   verbs: ["get"]
 - apiGroups: [""]
-  resources: ["services"]
-  resourceNames: ["storage-monitor-service"]
-  verbs: ["get"]
-- apiGroups: [""]
   resources: ["secrets"]
   verbs: ["create"]
 ---
