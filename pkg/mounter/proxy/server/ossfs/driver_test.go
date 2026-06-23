@@ -43,6 +43,9 @@ func TestApplyOptionDefaults(t *testing.T) {
 	})
 
 	t.Run("CA file not readable, options unchanged", func(t *testing.T) {
+		if os.Getuid() == 0 {
+			t.Skip("root bypasses file permission checks")
+		}
 		tmpDir := t.TempDir()
 		caFile := filepath.Join(tmpDir, "ca.crt")
 		require.NoError(t, os.WriteFile(caFile, []byte("fake-ca"), 0000))

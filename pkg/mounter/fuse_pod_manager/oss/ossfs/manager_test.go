@@ -140,7 +140,7 @@ func Test_buildAuthSpec_agentIdentity(t *testing.T) {
 		assert.Len(t, container.VolumeMounts, 2)
 		assert.Equal(t, "/var/opt/sandbox/agent-token", container.VolumeMounts[0].MountPath)
 		assert.True(t, container.VolumeMounts[0].ReadOnly)
-		assert.Equal(t, "/var/opt/sandbox/agent-ca", container.VolumeMounts[1].MountPath)
+		assert.Equal(t, "/etc/ssl/certs/agent-identity", container.VolumeMounts[1].MountPath)
 		assert.True(t, container.VolumeMounts[1].ReadOnly)
 	})
 
@@ -176,7 +176,7 @@ func Test_buildAuthSpec_agentIdentity(t *testing.T) {
 		assert.Len(t, spec.Volumes, 1)
 		assert.Equal(t, "agent-identity-ca", spec.Volumes[0].Name)
 		assert.Len(t, container.VolumeMounts, 1)
-		assert.Equal(t, "/var/opt/sandbox/agent-ca", container.VolumeMounts[0].MountPath)
+		assert.Equal(t, "/etc/ssl/certs/agent-identity", container.VolumeMounts[0].MountPath)
 	})
 
 	t.Run("nil config", func(t *testing.T) {

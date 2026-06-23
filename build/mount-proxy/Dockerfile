@@ -24,6 +24,7 @@ FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS alinux-install
 FROM alinux-install AS ossfs
 ARG TARGETPLATFORM
 ARG OSSFS_VERSION=v1.91.10.ack.3
+ARG OSSFS_RPM_URL
 
 # install ossfs
 RUN set -ex; \
@@ -32,7 +33,7 @@ RUN set -ex; \
         linux/arm64) OSSFS_ARCH="aarch_64" ;; \
         *) echo "unknown platform"; exit 1 ;; \
     esac; \
-    yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm; \
+    yum install -y ${OSSFS_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
     yum install -y fuse-devel util-linux mailcap procps; \
     yum clean all
 
@@ -82,17 +83,17 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 FROM alinux-install AS ossfs2
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v2.0.7.ack.1
+ARG OSSFS2_VERSION=v2.0.7.ack.1
+ARG OSSFS2_RPM_URL
 
-# install ossfs
-# only supports x86_64
+# install ossfs2
 RUN set -ex; \
     case "$TARGETPLATFORM" in \
         linux/amd64) OSSFS_ARCH="x86_64" ;; \
         linux/arm64) OSSFS_ARCH="aarch_64" ;; \
         *) echo "unknown platform"; exit 1 ;; \
     esac; \
-    yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm; \
+    yum install -y ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
     yum install -y fuse3-devel util-linux mailcap procps; \
     yum clean all
 
@@ -152,6 +153,8 @@ FROM alinux-install AS aio
 ARG TARGETPLATFORM
 ARG OSSFS_VERSION=v1.91.10.ack.3
 ARG OSSFS2_VERSION=v2.0.7.ack.1
+ARG OSSFS_RPM_URL
+ARG OSSFS2_RPM_URL
 ARG ALINAS_UTILS_VERSION=2.1-0.20260624194653.cd6f58.generic
 ARG EFC_VERSION=2.1-20260618113444.c9390b.release
 # v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch.
@@ -169,8 +172,8 @@ RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=
         *) echo "unknown platform"; exit 1 ;; \
     esac; \
     yum install -y /tmp/rpms/python3-provider-*.rpm fuse-devel util-linux mailcap procps tini; \
-    yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${ARCH}.rpm; \
-    yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${ARCH}.rpm; \
+    yum install -y ${OSSFS_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${ARCH}.rpm}; \
+    yum install -y ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${ARCH}.rpm}; \
     if [ "${ARCH}" = "x86_64" ]; then \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
         yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
