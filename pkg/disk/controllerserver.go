@@ -351,38 +351,21 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		klog.Infof("ControllerPublishVolume: sleep 5s")
 	}
 
-	isMultiAttach := false
-	if value, ok := req.VolumeContext[MultiAttach]; ok {
-		value = strings.ToLower(value)
-		if checkOption(value) {
-			isMultiAttach = true
-		}
-	}
-	if isMultiAttach {
-		_, err := cs.ad.attachMultiAttachDisk(ctx, req.VolumeId, req.NodeId)
-		if err != nil {
-			klog.Errorf("ControllerPublishVolume: attach multi-attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
-			return nil, err
-		}
-		klog.Infof("ControllerPublishVolume: Successful attach shared disk: %s to node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerPublishVolumeResponse{}, nil
-	}
-
 	klog.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 
-	serial, err := cs.ad.attachDisk(ctx, req.VolumeId, req.NodeId, false)
+	r, err := cs.ad.attachDisk(ctx, req.VolumeId, req.NodeId, false)
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
 	}
-	if serial == "" {
+	if r.disk.SerialNumber == "" {
 		klog.Infof("ControllerPublishVolume: disk %s has no serial number, defer attach to node", req.VolumeId)
 	} else {
-		klog.Infof("ControllerPublishVolume: successfully attached disk: %s (serial %s) to node: %s", req.VolumeId, serial, req.NodeId)
+		klog.Infof("ControllerPublishVolume: successfully attached disk: %s (serial %s) to node: %s", req.VolumeId, r.disk.SerialNumber, req.NodeId)
 	}
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: map[string]string{
-			PUBLISH_CONTEXT_SERIAL: serial,
+			PUBLISH_CONTEXT_SERIAL: r.disk.SerialNumber,
 		},
 	}, nil
 }

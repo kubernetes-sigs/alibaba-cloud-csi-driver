@@ -41,8 +41,6 @@ const (
 	IAVolumeSnapshotKey = "csi.alibabacloud.com/snapshot-ia"
 	// annDiskID tag
 	annDiskID = "volume.alibabacloud.com/disk-id"
-	// MultiAttach tag
-	MultiAttach = "multiAttach"
 	// MinimumDiskSizeInGB ...
 	MinimumDiskSizeInGB = 20
 	// MinimumDiskSizeInBytes ...

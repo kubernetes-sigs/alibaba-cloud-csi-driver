@@ -858,28 +858,6 @@ func TestGetZone(t *testing.T) {
 	}
 }
 
-func TestCheckOption(t *testing.T) {
-	tests := []struct {
-		opt      string
-		expected bool
-	}{
-		{opt: "enable", expected: true},
-		{opt: "true", expected: true},
-		{opt: "yes", expected: true},
-		{opt: "false", expected: false},
-		{opt: "disabled", expected: false},
-		{opt: "no", expected: false},
-		{opt: "", expected: false},
-		{opt: "something", expected: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.opt, func(t *testing.T) {
-			assert.Equal(t, tt.expected, checkOption(tt.opt))
-		})
-	}
-}
-
 func TestPrepareMountInfos(t *testing.T) {
 	tests := []struct {
 		name            string
