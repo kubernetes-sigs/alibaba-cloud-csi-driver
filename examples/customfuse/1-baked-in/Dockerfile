@@ -38,7 +38,7 @@ COPY --link --from=builder /out/csi-mount-proxy-client /usr/local/bin/
 # credentials this way.
 #
 # For production, keep only non-sensitive defaults here (e.g. CACHE_SIZE) and
-# inject credentials at runtime via Kubernetes Secrets. See ../2-standard for
+# inject credentials at runtime via Kubernetes Secrets. See ../2-oss-compatible for
 # the full pattern. Minimal sketch:
 #
 #   apiVersion: v1

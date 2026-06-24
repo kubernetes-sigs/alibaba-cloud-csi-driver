@@ -1,3 +1,11 @@
+# Demo 2: OSS-compatible PV
+#
+# This PV follows the same pattern as OSS static volumes:
+# all parameters are in volumeAttributes (fuseType, source, bucket, url, otherOpts).
+# No pv.spec.mountOptions needed.
+#
+# For the alternative style using pv.spec.csi.fsType and pv.spec.mountOptions,
+# see ../3-standard.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -13,25 +21,20 @@ spec:
     volumeHandle: juicefs-standard-pv
     volumeAttributes:
       # fuseType: identifies the FUSE client for metrics and image resolution.
-      # Strongly recommended. The ConfigMap key "fuse-{fuseType}" in csi-plugin
-      # determines which image to use. Without it, defaults to "customfuse"
-      # (one FUSE client type per cluster).
+      # Maps to ConfigMap key "fuse-<fuseType>" in csi-plugin.
       fuseType: "juicefs"
 
       # source: opaque mount source passed to entrypoint as $source.
-      # For JuiceFS: the META-URL (Redis/MySQL connection string).
-      # For other FUSE clients: any string the entrypoint understands.
       source: "redis://:mypassword@redis-host.default.svc:6379/1"
 
-      # bucket: OSS bucket name, passed to entrypoint as $bucket.
+      # bucket: passed to entrypoint as $bucket.
       bucket: "my-jfs-data"
 
-      # url: OSS endpoint, passed to entrypoint as $url.
-      # Use internal endpoint (-internal) for better performance within Alibaba Cloud.
+      # url: passed to entrypoint as $url.
       url: "oss-cn-hangzhou-internal.aliyuncs.com"
 
-      # otherOpts: extra options, passed to entrypoint as $otherOpts.
-      otherOpts: "--cache-size=1024 --buffer-size=300"
+      # otherOpts: comma-separated mount options passed as $otherOpts.
+      otherOpts: "cache-size=1024,buffer-size=300"
 
     nodePublishSecretRef:
       name: juicefs-standard-creds

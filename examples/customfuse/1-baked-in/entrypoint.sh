@@ -13,11 +13,10 @@ juicefs format \
     --access-key="$ACCESS_KEY" \
     --secret-key="$SECRET_KEY" \
     "$META_URL" \
-    myjfs 2>/dev/null || true
+    myjfs
 
 echo "Mounting JuiceFS at $mountpoint"
-exec juicefs mount \
-    -f \
-    --cache-size="$CACHE_SIZE" \
-    "$META_URL" \
-    "$mountpoint"
+# foreground: required by mount-proxy; no-update: skip version check (pinned by image).
+MOUNT_OPTS="foreground,no-update,cache-size=$CACHE_SIZE"
+[ "$readOnly" = "true" ] && MOUNT_OPTS="${MOUNT_OPTS},ro"
+exec mount.juicefs "$META_URL" "$mountpoint" -o "$MOUNT_OPTS"
