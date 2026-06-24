@@ -55,7 +55,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly())
+	opts, err := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "failed to parse options: %v", err)
+	}
+	klog.V(4).Infof("NodePublishVolume: parsed options: source=%s, fuseType=%s, mountOptions=%s, otherOpts=%s", opts.Source, opts.FuseType, opts.MountOptions, opts.OtherOpts)
 
 	if err := precheckAuthConfig(opts); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "auth config error: %v", err)

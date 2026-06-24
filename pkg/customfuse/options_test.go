@@ -16,6 +16,7 @@ func TestParseOptions_Source(t *testing.T) {
 		name       string
 		volContext map[string]string
 		wantSource string
+		wantErr    bool
 	}{
 		{
 			name:       "source takes priority over bucket/path for source field",
@@ -55,7 +56,12 @@ func TestParseOptions_Source(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := parseOptions(tt.volContext, nil, nil, false)
+			opts, err := parseOptions(tt.volContext, nil, nil, false)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
 			assert.Equal(t, tt.wantSource, opts.Source)
 		})
 	}
@@ -72,7 +78,8 @@ func TestParseOptions_Fields(t *testing.T) {
 		"dnsPolicy": "ClusterFirst",
 	}
 
-	opts := parseOptions(volContext, secrets, nil, false)
+	opts, err := parseOptions(volContext, secrets, nil, false)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "my-vol", opts.Source)
 	assert.Equal(t, "endpoint.com", opts.URL)
@@ -84,7 +91,8 @@ func TestParseOptions_Fields(t *testing.T) {
 }
 
 func TestParseOptions_FuseTypeDefault(t *testing.T) {
-	opts := parseOptions(nil, nil, nil, false)
+	opts, err := parseOptions(nil, nil, nil, false)
+	assert.NoError(t, err)
 	assert.Equal(t, mounterutils.CustomFuseType, opts.FuseType)
 }
 
@@ -125,8 +133,110 @@ func TestParseOptions_ReadOnly(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := parseOptions(nil, nil, tt.volCaps, tt.readOnly)
+			opts, err := parseOptions(nil, nil, tt.volCaps, tt.readOnly)
+			assert.NoError(t, err)
 			assert.Equal(t, tt.want, opts.ReadOnly)
+		})
+	}
+}
+
+func TestParseOptions_FsTypeFromVolumeCapability(t *testing.T) {
+	tests := []struct {
+		name         string
+		volContext   map[string]string
+		volCaps      []*csi.VolumeCapability
+		wantFuseType string
+		wantErr      bool
+		errContains  string
+	}{
+		{
+			name:         "fsType from VolumeCapability",
+			volCaps:      []*csi.VolumeCapability{{AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{FsType: "juicefs"}}}},
+			wantFuseType: "juicefs",
+		},
+		{
+			name:         "fuseType from volumeAttributes takes priority",
+			volContext:   map[string]string{"fuseType": "jindo"},
+			wantFuseType: "jindo",
+		},
+		{
+			name:         "fsType from VolumeCapability used when fuseType not set",
+			volCaps:      []*csi.VolumeCapability{{AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{FsType: "juicefs"}}}},
+			wantFuseType: "juicefs",
+		},
+		{
+			name:         "matching fsType and fuseType",
+			volContext:   map[string]string{"fuseType": "juicefs"},
+			volCaps:      []*csi.VolumeCapability{{AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{FsType: "juicefs"}}}},
+			wantFuseType: "juicefs",
+		},
+		{
+			name:        "conflicting fsType and fuseType",
+			volContext:  map[string]string{"fuseType": "jindo"},
+			volCaps:     []*csi.VolumeCapability{{AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{FsType: "juicefs"}}}},
+			wantErr:     true,
+			errContains: "conflicts",
+		},
+		{
+			name:         "fsType same as default (no conflict)",
+			volCaps:      []*csi.VolumeCapability{{AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{FsType: mounterutils.CustomFuseType}}}},
+			wantFuseType: mounterutils.CustomFuseType,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts, err := parseOptions(tt.volContext, nil, tt.volCaps, false)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantFuseType, opts.FuseType)
+		})
+	}
+}
+
+func TestParseOptions_MountOptionsFromVolumeCapability(t *testing.T) {
+	tests := []struct {
+		name             string
+		volCaps          []*csi.VolumeCapability
+		wantMountOptions []string
+	}{
+		{
+			name: "single mount flag",
+			volCaps: []*csi.VolumeCapability{{
+				AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{MountFlags: []string{"cache-size=1024"}}},
+			}},
+			wantMountOptions: []string{"cache-size=1024"},
+		},
+		{
+			name: "multiple mount flags",
+			volCaps: []*csi.VolumeCapability{{
+				AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{MountFlags: []string{"cache-size=1024", "writeback", "prefetch=3"}}},
+			}},
+			wantMountOptions: []string{"cache-size=1024", "writeback", "prefetch=3"},
+		},
+		{
+			name:             "no mount flags",
+			volCaps:          []*csi.VolumeCapability{{}},
+			wantMountOptions: nil,
+		},
+		{
+			name: "bare flag (no value)",
+			volCaps: []*csi.VolumeCapability{{
+				AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{MountFlags: []string{"writeback"}}},
+			}},
+			wantMountOptions: []string{"writeback"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts, err := parseOptions(nil, nil, tt.volCaps, false)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantMountOptions, opts.MountOptions)
 		})
 	}
 }
@@ -137,7 +247,8 @@ func TestParseOptions_CaseInsensitive(t *testing.T) {
 		"URL":      "endpoint.com",
 		"FuseType": "jindo",
 	}
-	opts := parseOptions(volContext, nil, nil, false)
+	opts, err := parseOptions(volContext, nil, nil, false)
+	assert.NoError(t, err)
 	assert.Equal(t, "my-vol", opts.Source)
 	assert.Equal(t, "endpoint.com", opts.URL)
 	assert.Equal(t, "jindo", opts.FuseType)
@@ -149,7 +260,8 @@ func TestParseOptions_BucketIndependent(t *testing.T) {
 		"bucket": "my-jfs-data",
 		"url":    "oss-cn-hangzhou-internal.aliyuncs.com",
 	}
-	opts := parseOptions(volContext, nil, nil, false)
+	opts, err := parseOptions(volContext, nil, nil, false)
+	assert.NoError(t, err)
 	assert.Equal(t, "redis://host:6379/1", opts.Source)
 	assert.Equal(t, "my-jfs-data", opts.Bucket)
 	assert.Equal(t, "oss-cn-hangzhou-internal.aliyuncs.com", opts.URL)
@@ -161,14 +273,16 @@ func TestParseOptions_EmptyValuesIgnored(t *testing.T) {
 		"bucket": "mybucket",
 		"url":    "  ",
 	}
-	opts := parseOptions(volContext, nil, nil, false)
+	opts, err := parseOptions(volContext, nil, nil, false)
+	assert.NoError(t, err)
 	assert.Equal(t, "mybucket", opts.Source)
 	assert.Equal(t, "mybucket", opts.Bucket)
 	assert.Equal(t, "", opts.URL)
 }
 
 func TestParseOptions_DnsPolicyInvalid(t *testing.T) {
-	opts := parseOptions(map[string]string{"dnsPolicy": "InvalidPolicy"}, nil, nil, false)
+	opts, err := parseOptions(map[string]string{"dnsPolicy": "InvalidPolicy"}, nil, nil, false)
+	assert.NoError(t, err)
 	assert.Equal(t, corev1.DNSPolicy(""), opts.DnsPolicy)
 }
 
@@ -226,8 +340,8 @@ func TestMakeMountOptions(t *testing.T) {
 	}{
 		{
 			name: "all fields",
-			opts: fuseOptions{Bucket: "mybucket", URL: "endpoint.com", OtherOpts: "--cache-size=1024"},
-			want: []string{"bucket=mybucket", "url=endpoint.com", "otherOpts=--cache-size=1024"},
+			opts: fuseOptions{Bucket: "mybucket", URL: "endpoint.com", Path: "sub", OtherOpts: "--cache-size=1024"},
+			want: []string{"bucket=mybucket", "url=endpoint.com", "path=sub", "otherOpts=--cache-size=1024"},
 		},
 		{
 			name: "bucket and url",
@@ -243,6 +357,21 @@ func TestMakeMountOptions(t *testing.T) {
 			name: "otherOpts only",
 			opts: fuseOptions{OtherOpts: "--buffer-size=300"},
 			want: []string{"otherOpts=--buffer-size=300"},
+		},
+		{
+			name: "readOnly",
+			opts: fuseOptions{Bucket: "b", ReadOnly: true},
+			want: []string{"bucket=b", "readOnly=true"},
+		},
+		{
+			name: "mountOptions from pv.Spec.MountOptions (multiple flags)",
+			opts: fuseOptions{MountOptions: []string{"cache-size=1024", "writeback"}},
+			want: []string{"cache-size=1024", "writeback"},
+		},
+		{
+			name: "mountOptions with other fields",
+			opts: fuseOptions{Bucket: "b", URL: "ep.com", MountOptions: []string{"cache-size=1024"}},
+			want: []string{"bucket=b", "url=ep.com", "cache-size=1024"},
 		},
 		{
 			name: "empty",

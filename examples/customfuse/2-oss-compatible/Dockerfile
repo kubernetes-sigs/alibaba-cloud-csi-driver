@@ -1,11 +1,11 @@
-# Demo 2: Standard configuration (best practice)
+# Demo 2: OSS-compatible configuration
 #
 # The image contains only the FUSE client and mount-proxy.
 # Configuration comes from PV volumeAttributes and Kubernetes Secret.
 
 # Stage 1: build the mount-proxy binaries from source.
 # Run `docker build` from the repo root so the Go source tree is available as build context.
-#   docker build -f examples/customfuse/2-standard/Dockerfile -t <image>:<tag> .
+#   docker build -f examples/customfuse/2-oss-compatible/Dockerfile -t <image>:<tag> .
 FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.26.3 AS builder
 WORKDIR /src
 ARG TARGETARCH
@@ -25,7 +25,7 @@ FROM juicedata/mount:ce-v1.2.0
 COPY --link --from=builder /out/csi-mount-proxy-server /usr/local/bin/
 COPY --link --from=builder /out/csi-mount-proxy-client /usr/local/bin/
 
-COPY examples/customfuse/2-standard/entrypoint.sh /entrypoint.sh
+COPY examples/customfuse/2-oss-compatible/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["csi-mount-proxy-server", "--driver=customfuse"]
