@@ -36,6 +36,14 @@ spec:
       # otherOpts: comma-separated mount options passed as $otherOpts.
       otherOpts: "cache-size=1024,buffer-size=300"
 
+      # capacity: volume quota, passed as $capacity to entrypoint.
+      # Plain integer or Kubernetes Quantity (e.g. 100, 100Gi, 1Ti).
+      # Entrypoint strips suffix if needed: capacity=${capacity%Gi}
+      # volumeAttributes cannot be edited after the PV is created; to change the
+      # quota later, put "capacity=<value>" in spec.mountOptions instead, which
+      # is editable and overrides this.
+      capacity: "100Gi"
+
     nodePublishSecretRef:
       name: juicefs-standard-creds
       namespace: default

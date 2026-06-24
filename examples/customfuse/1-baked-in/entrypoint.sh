@@ -15,8 +15,14 @@ juicefs format \
     "$META_URL" \
     myjfs
 
-echo "Mounting JuiceFS at $mountpoint"
 # foreground: required by mount-proxy; no-update: skip version check (pinned by image).
 MOUNT_OPTS="foreground,no-update,cache-size=$CACHE_SIZE"
 [ "$readOnly" = "true" ] && MOUNT_OPTS="${MOUNT_OPTS},ro"
+
+if [ -n "$CAPACITY" ]; then
+    echo "Setting quota: capacity=${CAPACITY}GiB"
+    juicefs quota set "$META_URL" --path / --capacity "$CAPACITY"
+fi
+
+echo "Mounting JuiceFS at $mountpoint"
 exec mount.juicefs "$META_URL" "$mountpoint" -o "$MOUNT_OPTS"

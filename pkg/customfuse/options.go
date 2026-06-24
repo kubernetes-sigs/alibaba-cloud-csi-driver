@@ -10,6 +10,7 @@ import (
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type fuseOptions struct {
@@ -52,6 +53,16 @@ type fuseOptions struct {
 	// Kubernetes Secret entries directly as environment variables to the
 	// FUSE entrypoint. Planned future values: "rrsa", "agent-identity".
 	AuthType string
+	// Capacity is the volume quota passed as $capacity to the entrypoint.
+	// A plain integer (e.g. "100") or a Kubernetes Quantity (e.g. "100Gi") is
+	// validated and passed through unchanged; the entrypoint converts if its
+	// client needs a bare number, e.g. capacity=${capacity%Gi}.
+	//
+	// A dynamically provisioned volume gets this from the PVC's requested size.
+	// Otherwise it comes from volumeAttributes.capacity, or from a
+	// "capacity=<value>" entry in pv.spec.mountOptions — which, unlike
+	// volumeAttributes, stays editable after the PV exists and takes precedence.
+	Capacity string
 	// Secrets holds the raw Kubernetes Secret data.
 	// All entries are passed through to the FUSE entrypoint as environment
 	// variables with the key as the variable name (no prefix, no transformation).
@@ -61,15 +72,25 @@ type fuseOptions struct {
 	DnsPolicy corev1.DNSPolicy
 }
 
-func parseOptions(volContext, secrets map[string]string,
-	volCaps []*csi.VolumeCapability, readOnly bool) (*fuseOptions, error) {
+// publishRequest is the common interface for CSI Publish requests.
+// Both *csi.ControllerPublishVolumeRequest and *csi.NodePublishVolumeRequest
+// satisfy this interface.
+type publishRequest interface {
+	GetVolumeContext() map[string]string
+	GetSecrets() map[string]string
+	GetVolumeCapability() *csi.VolumeCapability
+	GetReadonly() bool
+}
+
+func parseOptions(req publishRequest) (*fuseOptions, error) {
+	volContext := req.GetVolumeContext()
 	if volContext == nil {
 		volContext = map[string]string{}
 	}
 
 	opts := &fuseOptions{
 		FuseType: mounterutils.CustomFuseType,
-		Secrets:  secrets,
+		Secrets:  req.GetSecrets(),
 	}
 
 	for k, v := range volContext {
@@ -93,6 +114,16 @@ func parseOptions(volContext, secrets map[string]string,
 			opts.FuseType = value
 		case "authtype":
 			opts.AuthType = value
+		case "capacity":
+			// An empty value means unset, same as omitting the key; anything else
+			// has to parse, including a bare integer, which the previous
+			// last-character heuristic let through unchecked.
+			if value != "" {
+				if _, err := resource.ParseQuantity(value); err != nil {
+					return nil, fmt.Errorf("invalid capacity %q: must be a plain integer or Kubernetes Quantity (e.g. 100, 100Gi): %v", value, err)
+				}
+			}
+			opts.Capacity = value
 		case "entrypointconfig":
 			opts.EntrypointConfig = value
 		case "entrypointkey":
@@ -108,38 +139,32 @@ func parseOptions(volContext, secrets map[string]string,
 	}
 
 	// Extract FsType and MountFlags from VolumeCapability.
-	// FsType from PV spec.csi.fsType is an alternative to volumeAttributes.fuseType.
-	// MountFlags from pv.Spec.MountOptions — each entry becomes a separate env var.
-	for _, cap := range volCaps {
-		if cap == nil {
-			continue
-		}
-		if mount := cap.GetMount(); mount != nil {
-			// FsType: alternative to volumeAttributes.fuseType
-			if mount.FsType != "" {
+	if volCap := req.GetVolumeCapability(); volCap != nil {
+		if mount := volCap.GetMount(); mount != nil {
+			// fsType is the other spelling of fuseType, so where both name a client
+			// they have to agree. CustomFuseType is exempt on either side: it is the
+			// generic marker, carrying no client name, and the external provisioner
+			// stamps it onto every dynamically provisioned volume. Read as a
+			// declaration it would contradict whichever client the volume asked for.
+			if mount.FsType != "" && mount.FsType != mounterutils.CustomFuseType {
 				if opts.FuseType != "" && opts.FuseType != mounterutils.CustomFuseType && opts.FuseType != mount.FsType {
-					// fuseType from volumeAttributes conflicts with fsType from PV spec
 					return nil, fmt.Errorf("fuseType %q from volumeAttributes conflicts with fsType %q from PV spec", opts.FuseType, mount.FsType)
-				} else {
-					opts.FuseType = mount.FsType
 				}
+				opts.FuseType = mount.FsType
 			}
-			// MountFlags → MountOptions
 			if len(mount.MountFlags) > 0 {
 				opts.MountOptions = mount.MountFlags
 			}
 		}
-		// ReadOnly from VolumeCapability access mode
-		switch cap.AccessMode.GetMode() {
+		switch volCap.AccessMode.GetMode() {
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY, csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
 			opts.ReadOnly = true
 		}
 	}
-	if readOnly {
+	if req.GetReadonly() {
 		opts.ReadOnly = true
 	}
 
-	// If "source" is not set, fall back to bucket/path for backward compatibility.
 	if opts.Source == "" && opts.Bucket != "" {
 		if opts.Path != "" {
 			opts.Source = opts.Bucket + ":" + opts.Path
@@ -201,6 +226,9 @@ func (o *fuseOptions) makeMountOptions() []string {
 	}
 	if o.OtherOpts != "" {
 		opts = append(opts, "otherOpts="+o.OtherOpts)
+	}
+	if o.Capacity != "" {
+		opts = append(opts, "capacity="+o.Capacity)
 	}
 	opts = append(opts, o.MountOptions...)
 	return opts

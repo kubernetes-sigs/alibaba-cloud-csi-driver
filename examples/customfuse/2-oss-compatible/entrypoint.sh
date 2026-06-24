@@ -55,5 +55,21 @@ MOUNT_OPTS="foreground,no-update"
 [ "$readOnly" = "true" ] && MOUNT_OPTS="${MOUNT_OPTS},ro"
 [ -n "$otherOpts" ] && MOUNT_OPTS="${MOUNT_OPTS},${otherOpts}"
 
+# $capacity may have units (e.g. "100Gi" from PV or auto-capacity feature gate).
+# juicefs quota --capacity takes a GiB integer, convert common Quantity suffixes.
+# NOTE: This only handles the most common units. Extend as needed for your use case.
+if [ -n "$capacity" ]; then
+    case "$capacity" in
+        *TiB|*Ti) capacity=$(( ${capacity%%[A-Za-z]*} * 1024 )) ;;
+        *GiB|*Gi) capacity=${capacity%%[A-Za-z]*} ;;
+        *MiB|*Mi) capacity=$(( ${capacity%%[A-Za-z]*} / 1024 )) ;;
+        *[A-Za-z]*)
+            echo "ERROR: unsupported capacity unit: $capacity (expected GiB/TiB/MiB or plain integer)" >&2
+            exit 1 ;;
+    esac
+    echo "Setting quota: capacity=${capacity}GiB path=${path:-/}"
+    juicefs quota set "$source" --path "${path:-/}" --capacity "$capacity"
+fi
+
 echo "Mounting at $mountpoint with -o $MOUNT_OPTS"
 exec mount.juicefs "$source" "$mountpoint" -o "$MOUNT_OPTS"

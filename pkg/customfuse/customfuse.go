@@ -57,7 +57,6 @@ func NewServers(endpoint string, serviceType utils.ServiceType, csiCfg utils.Con
 		constrainRV := fpm.ShouldConstrainResourceVersion(k8sVersion)
 		fusePodManager := fpm.NewFusePodManager(fuseManager, clientset, constrainRV)
 		servers.ControllerServer = &controllerServer{
-			client:         clientset,
 			fusePodManager: fusePodManager,
 		}
 	}

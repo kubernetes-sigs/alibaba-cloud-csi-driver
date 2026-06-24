@@ -4,6 +4,9 @@ The CustomFuse driver runs **any FUSE client** as a managed pod. You supply the
 image + entrypoint; the driver handles pod lifecycle, mount propagation, and
 credential injection.
 
+> **Note**: CustomFuse currently supports static PVs only (manually created).
+> Dynamic provisioning via StorageClass + PVC is not supported.
+
 ## Quick Start
 
 ### Step 1: Write your entrypoint.sh
@@ -220,6 +223,12 @@ duplicate keys):
 | Secret (`nodePublishSecretRef`) | Each key → `$key` |
 | mount-proxy (always injected) | `$mountpoint`, `$readOnly` |
 
+`mountOptions` is listed after `volumeAttributes` for a reason: Kubernetes rejects
+edits to `spec.csi.volumeAttributes` once a PV exists, while `spec.mountOptions`
+stays editable. So a value you may want to change later — a quota, a cache size —
+belongs in `mountOptions`, where it also wins over the same key in
+`volumeAttributes`.
+
 Common volumeAttributes keys (all optional):
 
 | Key | Description |
@@ -229,6 +238,7 @@ Common volumeAttributes keys (all optional):
 | `path` | Sub-path; also used for `source` fallback |
 | `url` | Storage endpoint |
 | `otherOpts` | Comma-separated options string → `$otherOpts` |
+| `capacity` | Volume quota passed as `$capacity` to the entrypoint. Plain integer or Kubernetes Quantity (e.g. `100`, `100Gi`), validated and passed through as-is; the entrypoint strips the suffix if its client needs a bare number: `capacity=${capacity%Gi}`. A dynamically provisioned volume gets it from the PVC's requested size. To change a quota after the PV exists, put `capacity=<value>` in `spec.mountOptions` instead — see the note above. |
 
 Control fields (consumed by the driver, NOT passed as env vars):
 
