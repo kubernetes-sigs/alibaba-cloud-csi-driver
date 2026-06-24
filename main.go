@@ -90,8 +90,7 @@ const (
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 	// defaultMountProxySocket is the default socket path for mount-proxy-server (alinas-mounter).
-	// Used as fallback when AlinasMountProxy feature gate is enabled but --mount-proxy-sock is not set,
-	// and as the unconditional default for BMCPFS which always requires mount proxy.
+	// Used as fallback when AlinasMountProxy feature gate is enabled but --mount-proxy-sock is not set.
 	defaultMountProxySocket = "/run/cnfs/alinas-mounter.sock"
 )
 
@@ -114,7 +113,6 @@ var (
 	//
 	// --mount-proxy-sock: socket path for alinas/cpfs/oss mounts.
 	//   NAS:    flag > feature gate AlinasMountProxy + defaultMountProxySocket > disabled.
-	//   BMCPFS: flag > defaultMountProxySocket (always enabled).
 	//   OSS:    when set, injected into req.PublishContext so the node server
 	//           uses this socket for mount-proxy communication
 	//           (see pkg/oss/nodeserver.go:NodePublishVolume).

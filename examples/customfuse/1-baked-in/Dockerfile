@@ -67,6 +67,7 @@ ENV URL="oss-cn-hangzhou-internal.aliyuncs.com"
 ENV ACCESS_KEY="<your-access-key-id>"
 ENV SECRET_KEY="<your-access-key-secret>"
 ENV CACHE_SIZE="1024"
+ENV CAPACITY="100"
 
 COPY examples/customfuse/1-baked-in/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
