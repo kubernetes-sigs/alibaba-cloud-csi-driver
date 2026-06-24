@@ -97,8 +97,8 @@ The polling loop runs in this order:
 
 Consequently, a call returning the target state after the polling budget still
 wins. The timer is stopped on every exit. The polling budget is not a guarantee on
-total SDK duration: credential resolution and non-context-aware SDK calls retain
-their existing cancellation behavior. Clock injection does not change that contract.
+total SDK duration: credential refresh in progress cannot be interrupted.
+Clock injection does not change that contract.
 
 ## Testing
 

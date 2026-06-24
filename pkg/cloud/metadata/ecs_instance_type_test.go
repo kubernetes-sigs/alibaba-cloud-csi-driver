@@ -1,11 +1,13 @@
 package metadata
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
@@ -82,7 +84,7 @@ func TestGetEcsInstanceType(t *testing.T) {
 	{
 		res := &ecs20140526.DescribeInstanceTypesResponse{}
 		require.NoError(t, json.Unmarshal([]byte(ecsDescribeInstanceTypesResponseJson), &res.Body))
-		client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(res, nil)
+		client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(res, nil)
 	}
 
 	m := testMetadata(t, fakeMiddleware{InstanceID: "i-2zec1slzwdzrwmvlr4w2"})
@@ -101,13 +103,13 @@ func TestGetEcsInstanceTypeError(t *testing.T) {
 		{
 			name: "describe_instance_types_error",
 			configClient: func(client *cloud.MockECSv2Interface) {
-				client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(nil, errors.New("failed to describe instance types"))
+				client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed to describe instance types"))
 			},
 		},
 		{
 			name: "missing_instance_types_field",
 			configClient: func(client *cloud.MockECSv2Interface) {
-				client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(&ecs20140526.DescribeInstanceTypesResponse{}, nil)
+				client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.DescribeInstanceTypesResponse{}, nil)
 			},
 		},
 		{
@@ -118,7 +120,7 @@ func TestGetEcsInstanceTypeError(t *testing.T) {
 						InstanceTypes: &ecs20140526.DescribeInstanceTypesResponseBodyInstanceTypes{},
 					},
 				}
-				client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(resp, nil)
+				client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(resp, nil)
 			},
 		},
 		{
@@ -134,7 +136,7 @@ func TestGetEcsInstanceTypeError(t *testing.T) {
 						},
 					},
 				}
-				client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(resp, nil)
+				client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(resp, nil)
 			},
 		},
 	}
@@ -177,14 +179,14 @@ func TestGetEcsInstanceTypeDensity(t *testing.T) {
 			},
 		},
 	}
-	client.EXPECT().DescribeInstanceTypes(gomock.Any()).DoAndReturn(
-		func(req *ecs20140526.DescribeInstanceTypesRequest) (*ecs20140526.DescribeInstanceTypesResponse, error) {
+	client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, req *ecs20140526.DescribeInstanceTypesRequest, _ *dara.RuntimeOptions) (*ecs20140526.DescribeInstanceTypesResponse, error) {
 			// MaxResults must be set or the API omits the Attributes array.
 			assert.NotNil(t, req.MaxResults, "MaxResults must be set")
 			return resp, nil
 		})
 
-	p, err := NewEcsInstanceTypeMetadata(client, "ecs.c7a.4xlarge")
+	p, err := NewEcsInstanceTypeMetadata(t.Context(), client, "ecs.c7a.4xlarge")
 	require.NoError(t, err)
 	assert.Equal(t, int32(9), p.DiskQuantity())
 	assert.Equal(t, int32(33), p.DiskQuantityHighDensity())

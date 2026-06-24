@@ -35,6 +35,7 @@ import (
 	"time"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	v1_credentials "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
@@ -846,7 +847,7 @@ func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSv2Interface, instance
 		ResourceType:        new("disk"),
 		RegionId:            &regionID,
 	}
-	resp, err := c.DescribeAvailableResource(req)
+	resp, err := c.DescribeAvailableResourceWithContext(ctx, req, &dara.RuntimeOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to DescribeAvailableResource(%s) for instance type %s: %w", zoneID, instanceType, err)
 	}
@@ -860,7 +861,7 @@ func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSv2Interface, instance
 		Scope:               new("region"),
 		RegionId:            &regionID,
 	}
-	respRegional, err := c.DescribeAvailableResource(reqRegional)
+	respRegional, err := c.DescribeAvailableResourceWithContext(ctx, reqRegional, &dara.RuntimeOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to DescribeAvailableResource(region) for instance type %s: %w", instanceType, err)
 	}
@@ -1072,7 +1073,7 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 
 // GetAttachedCloudDisks queries ECS (v2 API) for cloud disks attached to the
 // given instance, excluding detaching disks and local-only categories.
-func GetAttachedCloudDisks(ecsClient cloud.ECSv2Interface, instanceID, regionID string) ([]string, error) {
+func GetAttachedCloudDisks(ctx context.Context, ecsClient cloud.ECSv2Interface, instanceID, regionID string) ([]string, error) {
 	req := &ecs20140526.DescribeDisksRequest{
 		InstanceId: &instanceID,
 		RegionId:   &regionID,
@@ -1080,7 +1081,7 @@ func GetAttachedCloudDisks(ecsClient cloud.ECSv2Interface, instanceID, regionID 
 	}
 	var ids []string
 	for {
-		resp, err := ecsClient.DescribeDisks(req)
+		resp, err := ecsClient.DescribeDisksWithContext(ctx, req, &dara.RuntimeOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("DescribeDisks: %w", err)
 		}

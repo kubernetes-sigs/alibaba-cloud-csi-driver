@@ -87,7 +87,7 @@ func (cs *sharepathController) CreateVolume(ctx context.Context, req *csi.Create
 	}
 
 	volumeContext[filesystemIDKey] = getNASIDFromMapOrServer(parameters, server)
-	volumeContext[filesystemTypeKey] = getFilesystemTypeFromAPIOrServer(volumeContext[filesystemIDKey], server, cs.nasClient)
+	volumeContext[filesystemTypeKey] = getFilesystemTypeFromAPIOrServer(ctx, volumeContext[filesystemIDKey], server, cs.nasClient)
 
 	// fill volumeContext
 	if mountType := parameters["mountType"]; mountType != "" {

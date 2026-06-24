@@ -36,197 +36,197 @@ func (m *MockNasInterface) EXPECT() *MockNasInterfaceMockRecorder {
 	return m.recorder
 }
 
-// CancelDirQuota mocks base method.
-func (m *MockNasInterface) CancelDirQuota(request *client.CancelDirQuotaRequest) (*client.CancelDirQuotaResponse, error) {
+// CancelDirQuotaWithContext mocks base method.
+func (m *MockNasInterface) CancelDirQuotaWithContext(ctx context.Context, request *client.CancelDirQuotaRequest, o *dara.RuntimeOptions) (*client.CancelDirQuotaResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CancelDirQuota", request)
+	ret := m.ctrl.Call(m, "CancelDirQuotaWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.CancelDirQuotaResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CancelDirQuota indicates an expected call of CancelDirQuota.
-func (mr *MockNasInterfaceMockRecorder) CancelDirQuota(request interface{}) *gomock.Call {
+// CancelDirQuotaWithContext indicates an expected call of CancelDirQuotaWithContext.
+func (mr *MockNasInterfaceMockRecorder) CancelDirQuotaWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelDirQuota", reflect.TypeOf((*MockNasInterface)(nil).CancelDirQuota), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelDirQuotaWithContext", reflect.TypeOf((*MockNasInterface)(nil).CancelDirQuotaWithContext), ctx, request, o)
 }
 
-// CreateAccessPoint mocks base method.
-func (m *MockNasInterface) CreateAccessPoint(request *client.CreateAccessPointRequest) (*client.CreateAccessPointResponse, error) {
+// CreateAccessPointWithContext mocks base method.
+func (m *MockNasInterface) CreateAccessPointWithContext(ctx context.Context, request *client.CreateAccessPointRequest, o *dara.RuntimeOptions) (*client.CreateAccessPointResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAccessPoint", request)
+	ret := m.ctrl.Call(m, "CreateAccessPointWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.CreateAccessPointResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateAccessPoint indicates an expected call of CreateAccessPoint.
-func (mr *MockNasInterfaceMockRecorder) CreateAccessPoint(request interface{}) *gomock.Call {
+// CreateAccessPointWithContext indicates an expected call of CreateAccessPointWithContext.
+func (mr *MockNasInterfaceMockRecorder) CreateAccessPointWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessPoint", reflect.TypeOf((*MockNasInterface)(nil).CreateAccessPoint), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessPointWithContext", reflect.TypeOf((*MockNasInterface)(nil).CreateAccessPointWithContext), ctx, request, o)
 }
 
-// CreateAgenticSpace mocks base method.
-func (m *MockNasInterface) CreateAgenticSpace(request *client.CreateAgenticSpaceRequest) (*client.CreateAgenticSpaceResponse, error) {
+// CreateAgenticSpaceWithContext mocks base method.
+func (m *MockNasInterface) CreateAgenticSpaceWithContext(ctx context.Context, request *client.CreateAgenticSpaceRequest, o *dara.RuntimeOptions) (*client.CreateAgenticSpaceResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAgenticSpace", request)
+	ret := m.ctrl.Call(m, "CreateAgenticSpaceWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.CreateAgenticSpaceResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateAgenticSpace indicates an expected call of CreateAgenticSpace.
-func (mr *MockNasInterfaceMockRecorder) CreateAgenticSpace(request interface{}) *gomock.Call {
+// CreateAgenticSpaceWithContext indicates an expected call of CreateAgenticSpaceWithContext.
+func (mr *MockNasInterfaceMockRecorder) CreateAgenticSpaceWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAgenticSpace", reflect.TypeOf((*MockNasInterface)(nil).CreateAgenticSpace), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAgenticSpaceWithContext", reflect.TypeOf((*MockNasInterface)(nil).CreateAgenticSpaceWithContext), ctx, request, o)
 }
 
-// CreateDir mocks base method.
-func (m *MockNasInterface) CreateDir(request *client.CreateDirRequest) (*client.CreateDirResponse, error) {
+// CreateDirWithContext mocks base method.
+func (m *MockNasInterface) CreateDirWithContext(ctx context.Context, request *client.CreateDirRequest, o *dara.RuntimeOptions) (*client.CreateDirResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateDir", request)
+	ret := m.ctrl.Call(m, "CreateDirWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.CreateDirResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateDir indicates an expected call of CreateDir.
-func (mr *MockNasInterfaceMockRecorder) CreateDir(request interface{}) *gomock.Call {
+// CreateDirWithContext indicates an expected call of CreateDirWithContext.
+func (mr *MockNasInterfaceMockRecorder) CreateDirWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDir", reflect.TypeOf((*MockNasInterface)(nil).CreateDir), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDirWithContext", reflect.TypeOf((*MockNasInterface)(nil).CreateDirWithContext), ctx, request, o)
 }
 
 // DeleteAccessPointWithContext mocks base method.
-func (m *MockNasInterface) DeleteAccessPointWithContext(ctx context.Context, request *client.DeleteAccessPointRequest, runtime *dara.RuntimeOptions) (*client.DeleteAccessPointResponse, error) {
+func (m *MockNasInterface) DeleteAccessPointWithContext(ctx context.Context, request *client.DeleteAccessPointRequest, o *dara.RuntimeOptions) (*client.DeleteAccessPointResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteAccessPointWithContext", ctx, request, runtime)
+	ret := m.ctrl.Call(m, "DeleteAccessPointWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DeleteAccessPointResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // DeleteAccessPointWithContext indicates an expected call of DeleteAccessPointWithContext.
-func (mr *MockNasInterfaceMockRecorder) DeleteAccessPointWithContext(ctx, request, runtime interface{}) *gomock.Call {
+func (mr *MockNasInterfaceMockRecorder) DeleteAccessPointWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAccessPointWithContext", reflect.TypeOf((*MockNasInterface)(nil).DeleteAccessPointWithContext), ctx, request, runtime)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAccessPointWithContext", reflect.TypeOf((*MockNasInterface)(nil).DeleteAccessPointWithContext), ctx, request, o)
 }
 
-// DeleteAgenticSpace mocks base method.
-func (m *MockNasInterface) DeleteAgenticSpace(request *client.DeleteAgenticSpaceRequest) (*client.DeleteAgenticSpaceResponse, error) {
+// DeleteAgenticSpaceWithContext mocks base method.
+func (m *MockNasInterface) DeleteAgenticSpaceWithContext(ctx context.Context, request *client.DeleteAgenticSpaceRequest, o *dara.RuntimeOptions) (*client.DeleteAgenticSpaceResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteAgenticSpace", request)
+	ret := m.ctrl.Call(m, "DeleteAgenticSpaceWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DeleteAgenticSpaceResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DeleteAgenticSpace indicates an expected call of DeleteAgenticSpace.
-func (mr *MockNasInterfaceMockRecorder) DeleteAgenticSpace(request interface{}) *gomock.Call {
+// DeleteAgenticSpaceWithContext indicates an expected call of DeleteAgenticSpaceWithContext.
+func (mr *MockNasInterfaceMockRecorder) DeleteAgenticSpaceWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAgenticSpace", reflect.TypeOf((*MockNasInterface)(nil).DeleteAgenticSpace), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAgenticSpaceWithContext", reflect.TypeOf((*MockNasInterface)(nil).DeleteAgenticSpaceWithContext), ctx, request, o)
 }
 
-// DescribeAccessPoint mocks base method.
-func (m *MockNasInterface) DescribeAccessPoint(request *client.DescribeAccessPointRequest) (*client.DescribeAccessPointResponse, error) {
+// DescribeAccessPointWithContext mocks base method.
+func (m *MockNasInterface) DescribeAccessPointWithContext(ctx context.Context, request *client.DescribeAccessPointRequest, o *dara.RuntimeOptions) (*client.DescribeAccessPointResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeAccessPoint", request)
+	ret := m.ctrl.Call(m, "DescribeAccessPointWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DescribeAccessPointResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DescribeAccessPoint indicates an expected call of DescribeAccessPoint.
-func (mr *MockNasInterfaceMockRecorder) DescribeAccessPoint(request interface{}) *gomock.Call {
+// DescribeAccessPointWithContext indicates an expected call of DescribeAccessPointWithContext.
+func (mr *MockNasInterfaceMockRecorder) DescribeAccessPointWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAccessPoint", reflect.TypeOf((*MockNasInterface)(nil).DescribeAccessPoint), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAccessPointWithContext", reflect.TypeOf((*MockNasInterface)(nil).DescribeAccessPointWithContext), ctx, request, o)
 }
 
-// DescribeFileSystems mocks base method.
-func (m *MockNasInterface) DescribeFileSystems(request *client.DescribeFileSystemsRequest) (*client.DescribeFileSystemsResponse, error) {
+// DescribeFileSystemsWithContext mocks base method.
+func (m *MockNasInterface) DescribeFileSystemsWithContext(ctx context.Context, request *client.DescribeFileSystemsRequest, o *dara.RuntimeOptions) (*client.DescribeFileSystemsResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeFileSystems", request)
+	ret := m.ctrl.Call(m, "DescribeFileSystemsWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DescribeFileSystemsResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DescribeFileSystems indicates an expected call of DescribeFileSystems.
-func (mr *MockNasInterfaceMockRecorder) DescribeFileSystems(request interface{}) *gomock.Call {
+// DescribeFileSystemsWithContext indicates an expected call of DescribeFileSystemsWithContext.
+func (mr *MockNasInterfaceMockRecorder) DescribeFileSystemsWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeFileSystems", reflect.TypeOf((*MockNasInterface)(nil).DescribeFileSystems), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeFileSystemsWithContext", reflect.TypeOf((*MockNasInterface)(nil).DescribeFileSystemsWithContext), ctx, request, o)
 }
 
-// GetAgenticSpace mocks base method.
-func (m *MockNasInterface) GetAgenticSpace(request *client.GetAgenticSpaceRequest) (*client.GetAgenticSpaceResponse, error) {
+// GetAgenticSpaceWithContext mocks base method.
+func (m *MockNasInterface) GetAgenticSpaceWithContext(ctx context.Context, request *client.GetAgenticSpaceRequest, o *dara.RuntimeOptions) (*client.GetAgenticSpaceResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAgenticSpace", request)
+	ret := m.ctrl.Call(m, "GetAgenticSpaceWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.GetAgenticSpaceResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAgenticSpace indicates an expected call of GetAgenticSpace.
-func (mr *MockNasInterfaceMockRecorder) GetAgenticSpace(request interface{}) *gomock.Call {
+// GetAgenticSpaceWithContext indicates an expected call of GetAgenticSpaceWithContext.
+func (mr *MockNasInterfaceMockRecorder) GetAgenticSpaceWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAgenticSpace", reflect.TypeOf((*MockNasInterface)(nil).GetAgenticSpace), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAgenticSpaceWithContext", reflect.TypeOf((*MockNasInterface)(nil).GetAgenticSpaceWithContext), ctx, request, o)
 }
 
-// GetRecycleBinAttribute mocks base method.
-func (m *MockNasInterface) GetRecycleBinAttribute(request *client.GetRecycleBinAttributeRequest) (*client.GetRecycleBinAttributeResponse, error) {
+// GetRecycleBinAttributeWithContext mocks base method.
+func (m *MockNasInterface) GetRecycleBinAttributeWithContext(ctx context.Context, request *client.GetRecycleBinAttributeRequest, o *dara.RuntimeOptions) (*client.GetRecycleBinAttributeResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRecycleBinAttribute", request)
+	ret := m.ctrl.Call(m, "GetRecycleBinAttributeWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.GetRecycleBinAttributeResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetRecycleBinAttribute indicates an expected call of GetRecycleBinAttribute.
-func (mr *MockNasInterfaceMockRecorder) GetRecycleBinAttribute(request interface{}) *gomock.Call {
+// GetRecycleBinAttributeWithContext indicates an expected call of GetRecycleBinAttributeWithContext.
+func (mr *MockNasInterfaceMockRecorder) GetRecycleBinAttributeWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRecycleBinAttribute", reflect.TypeOf((*MockNasInterface)(nil).GetRecycleBinAttribute), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRecycleBinAttributeWithContext", reflect.TypeOf((*MockNasInterface)(nil).GetRecycleBinAttributeWithContext), ctx, request, o)
 }
 
-// ListAccessPoints mocks base method.
-func (m *MockNasInterface) ListAccessPoints(request *client.ListAccessPointsRequest) (*client.ListAccessPointsResponse, error) {
+// ListAccessPointsWithContext mocks base method.
+func (m *MockNasInterface) ListAccessPointsWithContext(ctx context.Context, request *client.ListAccessPointsRequest, o *dara.RuntimeOptions) (*client.ListAccessPointsResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListAccessPoints", request)
+	ret := m.ctrl.Call(m, "ListAccessPointsWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.ListAccessPointsResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListAccessPoints indicates an expected call of ListAccessPoints.
-func (mr *MockNasInterfaceMockRecorder) ListAccessPoints(request interface{}) *gomock.Call {
+// ListAccessPointsWithContext indicates an expected call of ListAccessPointsWithContext.
+func (mr *MockNasInterfaceMockRecorder) ListAccessPointsWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAccessPoints", reflect.TypeOf((*MockNasInterface)(nil).ListAccessPoints), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAccessPointsWithContext", reflect.TypeOf((*MockNasInterface)(nil).ListAccessPointsWithContext), ctx, request, o)
 }
 
-// SetAgenticSpaceQuota mocks base method.
-func (m *MockNasInterface) SetAgenticSpaceQuota(request *client.SetAgenticSpaceQuotaRequest) (*client.SetAgenticSpaceQuotaResponse, error) {
+// SetAgenticSpaceQuotaWithContext mocks base method.
+func (m *MockNasInterface) SetAgenticSpaceQuotaWithContext(ctx context.Context, request *client.SetAgenticSpaceQuotaRequest, o *dara.RuntimeOptions) (*client.SetAgenticSpaceQuotaResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetAgenticSpaceQuota", request)
+	ret := m.ctrl.Call(m, "SetAgenticSpaceQuotaWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.SetAgenticSpaceQuotaResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// SetAgenticSpaceQuota indicates an expected call of SetAgenticSpaceQuota.
-func (mr *MockNasInterfaceMockRecorder) SetAgenticSpaceQuota(request interface{}) *gomock.Call {
+// SetAgenticSpaceQuotaWithContext indicates an expected call of SetAgenticSpaceQuotaWithContext.
+func (mr *MockNasInterfaceMockRecorder) SetAgenticSpaceQuotaWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetAgenticSpaceQuota", reflect.TypeOf((*MockNasInterface)(nil).SetAgenticSpaceQuota), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetAgenticSpaceQuotaWithContext", reflect.TypeOf((*MockNasInterface)(nil).SetAgenticSpaceQuotaWithContext), ctx, request, o)
 }
 
-// SetDirQuota mocks base method.
-func (m *MockNasInterface) SetDirQuota(request *client.SetDirQuotaRequest) (*client.SetDirQuotaResponse, error) {
+// SetDirQuotaWithContext mocks base method.
+func (m *MockNasInterface) SetDirQuotaWithContext(ctx context.Context, request *client.SetDirQuotaRequest, o *dara.RuntimeOptions) (*client.SetDirQuotaResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetDirQuota", request)
+	ret := m.ctrl.Call(m, "SetDirQuotaWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.SetDirQuotaResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// SetDirQuota indicates an expected call of SetDirQuota.
-func (mr *MockNasInterfaceMockRecorder) SetDirQuota(request interface{}) *gomock.Call {
+// SetDirQuotaWithContext indicates an expected call of SetDirQuotaWithContext.
+func (mr *MockNasInterfaceMockRecorder) SetDirQuotaWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDirQuota", reflect.TypeOf((*MockNasInterface)(nil).SetDirQuota), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDirQuotaWithContext", reflect.TypeOf((*MockNasInterface)(nil).SetDirQuotaWithContext), ctx, request, o)
 }

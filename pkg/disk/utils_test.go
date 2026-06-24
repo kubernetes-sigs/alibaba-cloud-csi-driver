@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	gomock "github.com/golang/mock/gomock"
 	fakesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/fake"
@@ -336,7 +337,7 @@ func TestGetAvailableDiskTypes(t *testing.T) {
 			_, ctx := ktesting.NewTestContext(t)
 			ctrl := gomock.NewController(t)
 			c := cloud.NewMockECSv2Interface(ctrl)
-			c.EXPECT().DescribeAvailableResource(gomock.Any()).DoAndReturn(func(req *ecs20140526.DescribeAvailableResourceRequest) (*ecs20140526.DescribeAvailableResourceResponse, error) {
+			c.EXPECT().DescribeAvailableResourceWithContext(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, req *ecs20140526.DescribeAvailableResourceRequest, _ *dara.RuntimeOptions) (*ecs20140526.DescribeAvailableResourceResponse, error) {
 				var descRes ecs20140526.DescribeAvailableResourceResponse
 				if ptr.Deref(req.ZoneId, "") != "" {
 					cloud.UnmarshalV2Response([]byte(tc.resp), &descRes)

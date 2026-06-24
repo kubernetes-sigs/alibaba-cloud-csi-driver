@@ -13,7 +13,6 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
@@ -104,7 +103,7 @@ func (c *NasClientV2) CreateDir(ctx context.Context, req *sdk.CreateDirRequest) 
 	if err := c.wait(ctx, logger); err != nil {
 		return err
 	}
-	_, err := wrap.V2(logger, c.client.CreateDir)(req)
+	_, err := c.client.CreateDirWithContext(ctx, req, &dara.RuntimeOptions{})
 	return err
 }
 
@@ -115,7 +114,7 @@ func (c *NasClientV2) SetDirQuota(ctx context.Context, req *sdk.SetDirQuotaReque
 	if err := c.wait(ctx, logger); err != nil {
 		return err
 	}
-	resp, err := wrap.V2(logger, c.client.SetDirQuota)(req)
+	resp, err := c.client.SetDirQuotaWithContext(ctx, req, &dara.RuntimeOptions{})
 	if err == nil && resp.Body != nil && !tea.BoolValue(resp.Body.Success) {
 		err = ErrNotSuccess
 	}
@@ -127,13 +126,13 @@ func (c *NasClientV2) CancelDirQuota(ctx context.Context, req *sdk.CancelDirQuot
 	if err := c.wait(ctx, logger); err != nil {
 		return err
 	}
-	resp, err := wrap.V2(logger, c.client.CancelDirQuota)(req)
+	resp, err := c.client.CancelDirQuotaWithContext(ctx, req, &dara.RuntimeOptions{})
 	if err == nil {
 		if resp.Body != nil && !tea.BoolValue(resp.Body.Success) {
 			err = ErrNotSuccess
 		}
 	} else {
-		if errors.Is(err, wrap.ErrorCode("InvalidParameter.QuotaNotExistOnPath")) {
+		if cloud.ErrorCodeV2(err) == "InvalidParameter.QuotaNotExistOnPath" {
 			// ignore err if quota not exists
 			err = nil
 		}
@@ -147,7 +146,7 @@ func (c *NasClientV2) GetRecycleBinAttribute(ctx context.Context, filesystemId s
 		return nil, err
 	}
 	req := &sdk.GetRecycleBinAttributeRequest{FileSystemId: &filesystemId}
-	return wrap.V2(logger, c.client.GetRecycleBinAttribute)(req)
+	return c.client.GetRecycleBinAttributeWithContext(ctx, req, &dara.RuntimeOptions{})
 }
 
 func (c *NasClientV2) CreateAccesspoint(ctx context.Context, req *sdk.CreateAccessPointRequest) (*sdk.CreateAccessPointResponse, error) {
@@ -155,7 +154,7 @@ func (c *NasClientV2) CreateAccesspoint(ctx context.Context, req *sdk.CreateAcce
 	if err := c.wait(ctx, logger); err != nil {
 		return nil, err
 	}
-	return wrap.V2(logger, c.client.CreateAccessPoint)(req)
+	return c.client.CreateAccessPointWithContext(ctx, req, &dara.RuntimeOptions{})
 }
 
 func (c *NasClientV2) DeleteAccesspoint(ctx context.Context, filesystemId, accessPointId string) error {
@@ -167,11 +166,7 @@ func (c *NasClientV2) DeleteAccesspoint(ctx context.Context, filesystemId, acces
 		AccessPointId: &accessPointId,
 		FileSystemId:  &filesystemId,
 	}
-	// Pass ctx all the way to HTTP, including after an uninterruptible credential
-	// refresh. An expired context must never allow a late delete onto the wire.
-	_, err := wrap.V2(logger, func(req *sdk.DeleteAccessPointRequest) (*sdk.DeleteAccessPointResponse, error) {
-		return c.client.DeleteAccessPointWithContext(ctx, req, &dara.RuntimeOptions{})
-	})(req)
+	_, err := c.client.DeleteAccessPointWithContext(ctx, req, &dara.RuntimeOptions{})
 	return err
 }
 
@@ -180,10 +175,10 @@ func (c *NasClientV2) DescribeAccesspoint(ctx context.Context, filesystemId, acc
 	if err := c.wait(ctx, logger); err != nil {
 		return nil, err
 	}
-	return wrap.V2(logger, c.client.DescribeAccessPoint)(&sdk.DescribeAccessPointRequest{
+	return c.client.DescribeAccessPointWithContext(ctx, &sdk.DescribeAccessPointRequest{
 		AccessPointId: &accessPointId,
 		FileSystemId:  &filesystemId,
-	})
+	}, &dara.RuntimeOptions{})
 }
 
 func (c *NasClientV2) ListAccesspoints(ctx context.Context, req *sdk.ListAccessPointsRequest) (*sdk.ListAccessPointsResponse, error) {
@@ -191,7 +186,7 @@ func (c *NasClientV2) ListAccesspoints(ctx context.Context, req *sdk.ListAccessP
 	if err := c.wait(ctx, logger); err != nil {
 		return nil, err
 	}
-	return wrap.V2(logger, c.client.ListAccessPoints)(req)
+	return c.client.ListAccessPointsWithContext(ctx, req, &dara.RuntimeOptions{})
 }
 
 func (c *NasClientV2) DescribeFileSystems(ctx context.Context, filesystemID string) (*sdk.DescribeFileSystemsResponse, error) {
@@ -199,9 +194,9 @@ func (c *NasClientV2) DescribeFileSystems(ctx context.Context, filesystemID stri
 	if err := c.wait(ctx, logger); err != nil {
 		return nil, err
 	}
-	return wrap.V2(logger, c.client.DescribeFileSystems)(&sdk.DescribeFileSystemsRequest{
+	return c.client.DescribeFileSystemsWithContext(ctx, &sdk.DescribeFileSystemsRequest{
 		FileSystemId: &filesystemID,
-	})
+	}, &dara.RuntimeOptions{})
 }
 
 func (c *NasClientV2) CreateAgenticSpace(ctx context.Context, req *sdk.CreateAgenticSpaceRequest) (*sdk.CreateAgenticSpaceResponse, error) {
@@ -209,7 +204,7 @@ func (c *NasClientV2) CreateAgenticSpace(ctx context.Context, req *sdk.CreateAge
 	if err := c.wait(ctx, logger); err != nil {
 		return nil, err
 	}
-	return wrap.V2(logger, c.client.CreateAgenticSpace)(req)
+	return c.client.CreateAgenticSpaceWithContext(ctx, req, &dara.RuntimeOptions{})
 }
 
 func (c *NasClientV2) GetAgenticSpace(ctx context.Context, req *sdk.GetAgenticSpaceRequest) (*sdk.GetAgenticSpaceResponse, error) {
@@ -217,7 +212,7 @@ func (c *NasClientV2) GetAgenticSpace(ctx context.Context, req *sdk.GetAgenticSp
 	if err := c.wait(ctx, logger); err != nil {
 		return nil, err
 	}
-	return wrap.V2(logger, c.client.GetAgenticSpace)(req)
+	return c.client.GetAgenticSpaceWithContext(ctx, req, &dara.RuntimeOptions{})
 }
 
 func (c *NasClientV2) DeleteAgenticSpace(ctx context.Context, req *sdk.DeleteAgenticSpaceRequest) (*sdk.DeleteAgenticSpaceResponse, error) {
@@ -225,7 +220,7 @@ func (c *NasClientV2) DeleteAgenticSpace(ctx context.Context, req *sdk.DeleteAge
 	if err := c.wait(ctx, logger); err != nil {
 		return nil, err
 	}
-	return wrap.V2(logger, c.client.DeleteAgenticSpace)(req)
+	return c.client.DeleteAgenticSpaceWithContext(ctx, req, &dara.RuntimeOptions{})
 }
 
 func (c *NasClientV2) SetAgenticSpaceQuota(ctx context.Context, req *sdk.SetAgenticSpaceQuotaRequest) (*sdk.SetAgenticSpaceQuotaResponse, error) {
@@ -233,5 +228,5 @@ func (c *NasClientV2) SetAgenticSpaceQuota(ctx context.Context, req *sdk.SetAgen
 	if err := c.wait(ctx, logger); err != nil {
 		return nil, err
 	}
-	return wrap.V2(logger, c.client.SetAgenticSpaceQuota)(req)
+	return c.client.SetAgenticSpaceQuotaWithContext(ctx, req, &dara.RuntimeOptions{})
 }

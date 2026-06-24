@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	nas20170626 "github.com/alibabacloud-go/nas-20170626/v4/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
@@ -97,7 +98,7 @@ func TestTransformV2ErrorForLogDataShapesNeverPanic(t *testing.T) {
 				"Data's shape must not change how the error is classified")
 			var teaErr *tea.SDKError
 			assert.ErrorAs(t, out, &teaErr, "the original SDK error must stay reachable")
-			assert.ErrorIs(t, out, ErrorCode("TestErrorCode"))
+			assert.Equal(t, "TestErrorCode", cloud.ErrorCodeV2(out))
 		})
 	}
 }
@@ -105,19 +106,19 @@ func TestTransformV2ErrorForLogDataShapesNeverPanic(t *testing.T) {
 // The same shape through the PUBLIC entry point, so the contract is pinned where callers meet it.
 func TestV2EmptyDataErrorDoesNotPanic(t *testing.T) {
 	t.Parallel()
-	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+	_, ctx := ktesting.NewTestContext(t)
 
 	ctrl := gomock.NewController(t)
 	nasClient := cloud.NewMockNasInterface(ctrl)
 
-	// A nil Code too, so the "no error code" logging branch in v2Impl is exercised as well.
-	nasClient.EXPECT().CreateDir(gomock.Any()).Return(&nas20170626.CreateDirResponse{},
+	// A nil Code too, so the "no error code" logging branch in logV2 is exercised as well.
+	nasClient.EXPECT().CreateDirWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&nas20170626.CreateDirResponse{},
 		&tea.SDKError{Message: tea.String("sdk message"), Data: tea.String("")})
 
 	var resp *nas20170626.CreateDirResponse
 	var err error
 	require.NotPanics(t, func() {
-		resp, err = V2(logger, nasClient.CreateDir)(&nas20170626.CreateDirRequest{})
+		resp, err = NAS(nasClient).CreateDirWithContext(ctx, &nas20170626.CreateDirRequest{}, &dara.RuntimeOptions{})
 	})
 
 	require.Error(t, err)
@@ -128,17 +129,17 @@ func TestV2EmptyDataErrorDoesNotPanic(t *testing.T) {
 // Errors that are NOT *tea.SDKError must come back byte-for-byte.
 func TestV2NotAnSDKErrorIsPassedThroughUnchanged(t *testing.T) {
 	t.Parallel()
-	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+	_, ctx := ktesting.NewTestContext(t)
 
 	ctrl := gomock.NewController(t)
 	nasClient := cloud.NewMockNasInterface(ctrl)
 
 	want := assert.AnError
-	nasClient.EXPECT().CreateDir(gomock.Any()).Return(nil, want)
+	nasClient.EXPECT().CreateDirWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, want)
 
 	var err error
 	require.NotPanics(t, func() {
-		_, err = V2(logger, nasClient.CreateDir)(&nas20170626.CreateDirRequest{})
+		_, err = NAS(nasClient).CreateDirWithContext(ctx, &nas20170626.CreateDirRequest{}, &dara.RuntimeOptions{})
 	})
 	assert.Same(t, want, err, "a non-SDK error must be returned as-is, not wrapped")
 }

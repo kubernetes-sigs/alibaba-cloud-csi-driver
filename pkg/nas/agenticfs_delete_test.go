@@ -11,7 +11,6 @@ import (
 
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -29,7 +28,7 @@ func TestAgenticfsDeleteVolumeVerifiesAmbiguousListNotFound(t *testing.T) {
 		{"caseInsensitiveAccesspoint", aliErr("INVALIDACCESSPOINTID.NOTFOUND")},
 		{"unqualified", aliErr("NotFound")},
 		{"paddedUnqualified", aliErr("\tNotFound\n")},
-		{"wrappedUnqualified", wrap.ErrorCode("NotFound")},
+		{"wrappedUnqualified", aliErr("NotFound")},
 	}
 	for _, listError := range listErrors {
 		t.Run(listError.name, func(t *testing.T) {
@@ -49,7 +48,7 @@ func TestAgenticfsDeleteVolumeVerifiesAmbiguousListNotFound(t *testing.T) {
 				{"filesetAliasGone", nil, aliErr("InvalidFilesetId.NotFound"), codes.OK},
 				{"fsetAliasGone", nil, aliErr("InvalidFsetId.NotFound"), codes.OK},
 				{"filesystemGone", nil, aliErr("InvalidFileSystemId.NotFound"), codes.OK},
-				{"scopedUnqualifiedNotFound", nil, wrap.ErrorCode("NotFound"), codes.OK},
+				{"scopedUnqualifiedNotFound", nil, aliErr("NotFound"), codes.OK},
 				{"scopedPaddedNotFound", nil, aliErr("\tNotFound\n"), codes.OK},
 				{"onlyAccesspointGone", nil, aliErr("InvalidAccessPointId.NotFound"), codes.Aborted},
 				{"verificationFails", nil, errors.New("connection reset"), codes.Internal},
@@ -180,7 +179,7 @@ func TestIsAgenticSpaceNotFoundError(t *testing.T) {
 		{"fileset", aliErr("InvalidFilesetId.NotFound"), true},
 		{"fset", aliErr("InvalidFsetId.NotFound"), true},
 		{"wrappedPaddedAlias", fmt.Errorf("outer: %w", aliErr("\tINVALIDFSETID.NOTFOUND\n")), true},
-		{"unqualified", wrap.ErrorCode("NotFound"), true},
+		{"unqualified", aliErr("NotFound"), true},
 		{"filesystem", aliErr("InvalidFileSystem.NotFound"), true},
 		{"accesspoint", aliErr("InvalidAccessPoint.NotFound"), false},
 		{"accesspointID", aliErr("InvalidAccessPointId.NotFound"), false},
