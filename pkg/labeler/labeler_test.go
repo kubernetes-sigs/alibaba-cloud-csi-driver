@@ -17,6 +17,7 @@ import (
 	"time"
 
 	ecsv2 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
@@ -36,10 +37,10 @@ func testRunOnce_FullPipelineSync(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ecsMock := cloud.NewMockECSv2Interface(ctrl)
 
-	ecsMock.EXPECT().DescribeInstanceTypes(gomock.Any()).
+	ecsMock.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(describeInstanceTypesV2Resp("ecs.g7.large", 8), nil).AnyTimes()
-	ecsMock.EXPECT().DescribeAvailableResource(gomock.Any()).DoAndReturn(
-		func(req *ecsv2.DescribeAvailableResourceRequest) (*ecsv2.DescribeAvailableResourceResponse, error) {
+	ecsMock.EXPECT().DescribeAvailableResourceWithContext(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, req *ecsv2.DescribeAvailableResourceRequest, _ *dara.RuntimeOptions) (*ecsv2.DescribeAvailableResourceResponse, error) {
 			scope := ""
 			if req.Scope != nil {
 				scope = *req.Scope
@@ -53,7 +54,7 @@ func testRunOnce_FullPipelineSync(t *testing.T) {
 			}
 			return makeAvailResp(zoneID, "cloud_essd"), nil
 		}).AnyTimes()
-	ecsMock.EXPECT().DescribeDisks(gomock.Any()).Return(&ecsv2.DescribeDisksResponse{
+	ecsMock.EXPECT().DescribeDisksWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecsv2.DescribeDisksResponse{
 		Body: &ecsv2.DescribeDisksResponseBody{
 			Disks: &ecsv2.DescribeDisksResponseBodyDisks{
 				Disk: []*ecsv2.DescribeDisksResponseBodyDisksDisk{

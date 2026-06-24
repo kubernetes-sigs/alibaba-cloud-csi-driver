@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
@@ -63,7 +64,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
 		versioncollector.NewCollector("alibaba_cloud_csi_driver"),
-		&csiCollector, &CsiGrpcExecTimeCollector)
+		&csiCollector, &CsiGrpcExecTimeCollector,
+		wrap.APIRequestsTotal, wrap.APIDurationSecondsTotal)
 	handler := promhttp.InstrumentMetricHandler(reg, promhttp.HandlerFor(
 		prometheus.Gatherers{reg, legacyregistry.DefaultGatherer},
 		promhttp.HandlerOpts{

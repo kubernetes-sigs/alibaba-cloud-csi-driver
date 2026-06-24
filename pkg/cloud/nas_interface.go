@@ -1,14 +1,19 @@
 package cloud
 
-import nas "github.com/alibabacloud-go/nas-20170626/v4/client"
+import (
+	"context"
+
+	nas "github.com/alibabacloud-go/nas-20170626/v4/client"
+	"github.com/alibabacloud-go/tea/dara"
+)
 
 type NasInterface interface {
-	CancelDirQuota(request *nas.CancelDirQuotaRequest) (*nas.CancelDirQuotaResponse, error)
-	CreateAccessPoint(request *nas.CreateAccessPointRequest) (*nas.CreateAccessPointResponse, error)
-	CreateDir(request *nas.CreateDirRequest) (*nas.CreateDirResponse, error)
-	DeleteAccessPoint(request *nas.DeleteAccessPointRequest) (*nas.DeleteAccessPointResponse, error)
-	DescribeAccessPoint(request *nas.DescribeAccessPointRequest) (*nas.DescribeAccessPointResponse, error)
-	DescribeFileSystems(request *nas.DescribeFileSystemsRequest) (*nas.DescribeFileSystemsResponse, error)
-	GetRecycleBinAttribute(request *nas.GetRecycleBinAttributeRequest) (*nas.GetRecycleBinAttributeResponse, error)
-	SetDirQuota(request *nas.SetDirQuotaRequest) (*nas.SetDirQuotaResponse, error)
+	CancelDirQuotaWithContext(ctx context.Context, request *nas.CancelDirQuotaRequest, o *dara.RuntimeOptions) (*nas.CancelDirQuotaResponse, error)
+	CreateAccessPointWithContext(ctx context.Context, request *nas.CreateAccessPointRequest, o *dara.RuntimeOptions) (*nas.CreateAccessPointResponse, error)
+	CreateDirWithContext(ctx context.Context, request *nas.CreateDirRequest, o *dara.RuntimeOptions) (*nas.CreateDirResponse, error)
+	DeleteAccessPointWithContext(ctx context.Context, request *nas.DeleteAccessPointRequest, o *dara.RuntimeOptions) (*nas.DeleteAccessPointResponse, error)
+	DescribeAccessPointWithContext(ctx context.Context, request *nas.DescribeAccessPointRequest, o *dara.RuntimeOptions) (*nas.DescribeAccessPointResponse, error)
+	DescribeFileSystemsWithContext(ctx context.Context, request *nas.DescribeFileSystemsRequest, o *dara.RuntimeOptions) (*nas.DescribeFileSystemsResponse, error)
+	GetRecycleBinAttributeWithContext(ctx context.Context, request *nas.GetRecycleBinAttributeRequest, o *dara.RuntimeOptions) (*nas.GetRecycleBinAttributeResponse, error)
+	SetDirQuotaWithContext(ctx context.Context, request *nas.SetDirQuotaRequest, o *dara.RuntimeOptions) (*nas.SetDirQuotaResponse, error)
 }

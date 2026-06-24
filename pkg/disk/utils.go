@@ -37,6 +37,7 @@ import (
 	"time"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	v1_credentials "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
@@ -841,7 +842,7 @@ func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSv2Interface, instance
 		ResourceType:        new("disk"),
 		RegionId:            &regionID,
 	}
-	resp, err := c.DescribeAvailableResource(req)
+	resp, err := c.DescribeAvailableResourceWithContext(ctx, req, &dara.RuntimeOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to DescribeAvailableResource(%s) for instance type %s: %w", zoneID, instanceType, err)
 	}
@@ -855,7 +856,7 @@ func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSv2Interface, instance
 		Scope:               new("region"),
 		RegionId:            &regionID,
 	}
-	respRegional, err := c.DescribeAvailableResource(reqRegional)
+	respRegional, err := c.DescribeAvailableResourceWithContext(ctx, reqRegional, &dara.RuntimeOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to DescribeAvailableResource(region) for instance type %s: %w", instanceType, err)
 	}
@@ -1066,7 +1067,7 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 
 // GetAttachedCloudDisks queries ECS (v2 API) for cloud disks attached to the
 // given instance, excluding detaching disks and local-only categories.
-func GetAttachedCloudDisks(ecsClient cloud.ECSv2Interface, instanceID, regionID string) ([]string, error) {
+func GetAttachedCloudDisks(ctx context.Context, ecsClient cloud.ECSv2Interface, instanceID, regionID string) ([]string, error) {
 	req := &ecs20140526.DescribeDisksRequest{
 		InstanceId: &instanceID,
 		RegionId:   &regionID,
@@ -1074,7 +1075,7 @@ func GetAttachedCloudDisks(ecsClient cloud.ECSv2Interface, instanceID, regionID 
 	}
 	var ids []string
 	for {
-		resp, err := ecsClient.DescribeDisks(req)
+		resp, err := ecsClient.DescribeDisksWithContext(ctx, req, &dara.RuntimeOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("DescribeDisks: %w", err)
 		}
@@ -1134,7 +1135,7 @@ func getVolumeCountFromLabelerAnnotation(node *v1.Node) (int, error) {
 	return n, nil
 }
 
-func getUnmanagedDiskCount(getNode func() (*v1.Node, error), ecs cloud.ECSv2Interface, instanceID, regionID string, dev utilsio.DiskLister) (int, error) {
+func getUnmanagedDiskCount(ctx context.Context, getNode func() (*v1.Node, error), ecs cloud.ECSv2Interface, instanceID, regionID string, dev utilsio.DiskLister) (int, error) {
 	// An attached disk is not managed by us if:
 	// 1. it is not in node.Status.VolumesInUse or node.Status.VolumesAttached; and
 	// 2. it does not have the xattr set.
@@ -1155,7 +1156,7 @@ func getUnmanagedDiskCount(getNode func() (*v1.Node, error), ecs cloud.ECSv2Inte
 	// disappear from ListDisks after OpenAPI;
 	// ECS OpenAPI should goes before getNode because the just attached disk should
 	// appear in node before OpenAPI;
-	attachedDisks, err := GetAttachedCloudDisks(ecs, instanceID, regionID)
+	attachedDisks, err := GetAttachedCloudDisks(ctx, ecs, instanceID, regionID)
 	if err != nil {
 		return 0, err
 	}

@@ -34,7 +34,9 @@ import (
 	sts20150401 "github.com/alibabacloud-go/sts-20150401/v2/client"
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
@@ -191,7 +193,7 @@ func main() {
 	if err != nil {
 		klog.ErrorS(err, "failed to get credential for metadata, will not enable OpenAPI")
 	}
-	var ecsClient *ecs20140526.Client
+	var ecsClient cloud.ECSv2Interface
 	var efloClient *eflo_controller20221215.Client
 	if provider != nil {
 		cred := alicred_old.FromCredentialsProvider(provider.GetProviderName(), provider)
@@ -203,12 +205,16 @@ func main() {
 			meta.EnableEFLO(efloClient)
 		}
 
-		ecsClient, err = ecs20140526.NewClient(utils.GetEcsConfig(regionID).SetCredential(cred))
+		var ecsRaw *ecs20140526.Client
+		ecsRaw, err = ecs20140526.NewClient(utils.GetEcsConfig(regionID).SetCredential(cred))
 		if err != nil {
 			klog.ErrorS(err, "failed to get ecsClient")
-		} else if !*useLabeler {
+		} else {
+			ecsClient = wrap.ECS(ecsRaw)
 			// Goes after EFLO, because if EFLO API confirms it's a lingjun instance, we can skip ECS API.
-			meta.EnableOpenAPI(ecsClient)
+			if !*useLabeler {
+				meta.EnableOpenAPI(ecsClient)
+			}
 		}
 
 		stsClient, err := sts20150401.NewClient(utils.GetStsConfig(regionID).SetCredential(cred))

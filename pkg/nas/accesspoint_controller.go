@@ -4,21 +4,20 @@ package nas
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
 	"strconv"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
+	nascloud "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -122,7 +121,7 @@ func (c *accesspointController) createAccesspoint(ctx context.Context, name, bas
 	}
 	// Only standard filesystems support AccessPoint.
 	filesystemType := cnfs.Status.FsAttributes.FilesystemType
-	if filesystemType != cloud.FilesystemTypeStandard {
+	if filesystemType != nascloud.FilesystemTypeStandard {
 		return nil, status.Error(codes.InvalidArgument, "only filesystems of standard type support accesspoint")
 	}
 	vpcId := cnfs.Status.FsAttributes.VpcID
@@ -135,7 +134,7 @@ func (c *accesspointController) createAccesspoint(ctx context.Context, name, bas
 	}
 
 	req := &sdk.CreateAccessPointRequest{
-		AccessGroup:     tea.String(cloud.DefaultAccessGroup),
+		AccessGroup:     tea.String(nascloud.DefaultAccessGroup),
 		FileSystemId:    &filesystemId,
 		VpcId:           &vpcId,
 		VswId:           &vswId,
@@ -215,7 +214,7 @@ func (c *accesspointController) DeleteVolume(ctx context.Context, req *csi.Delet
 	if attributes["volumeCapacity"] == "true" {
 		apInfo, err := c.nasClient.DescribeAccesspoint(ctx, filesystemId, accesspointId)
 		if err != nil {
-			if errors.Is(err, wrap.ErrorCode("NotFound")) {
+			if cloud.ErrorCodeV2(err) == "NotFound" {
 				klog.Infof("accesspoint %s already deleted", accesspointId)
 				return &csi.DeleteVolumeResponse{}, nil
 			}
