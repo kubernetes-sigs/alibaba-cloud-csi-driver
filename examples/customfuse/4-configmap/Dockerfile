@@ -1,9 +1,12 @@
 # Demo 4: ConfigMap-based entrypoint
 #
 # The entrypoint script is NOT baked into this image — it comes from a
-# ConfigMap (see configmap.yaml). This image only provides the FUSE client
-# binary and mount-proxy. Update mount logic by editing the ConfigMap,
-# no image rebuild needed.
+# ConfigMap (see configmap-production.yaml / configmap-development.yaml).
+# This image only provides the FUSE client binary and mount-proxy.
+#
+# Complex format/mount options are hardcoded in ConfigMaps.
+# PV provides only instance-specific values (source, bucket, url)
+# and points to a ConfigMap via entrypointConfig.
 
 # Stage 1: build the mount-proxy binaries from source.
 # Run `docker build` from the repo root so the Go source tree is available as build context.

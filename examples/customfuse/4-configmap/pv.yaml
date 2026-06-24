@@ -1,7 +1,14 @@
+# Demo 4: ConfigMap-based entrypoint PVs
+#
+# Complex format/mount options are hardcoded in ConfigMaps (see configmap-*.yaml).
+# Each PV only provides instance-specific values and points to a ConfigMap.
+# Adding a new JuiceFS instance = copy a PV, change source/bucket/url.
+
+# ── Production instance ──
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: juicefs-configmap-pv
+  name: juicefs-prod-pv
 spec:
   capacity:
     storage: 100Gi
@@ -10,15 +17,37 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: customfuseplugin.csi.alibabacloud.com
-    volumeHandle: juicefs-configmap-pv
+    fsType: juicefs
+    volumeHandle: juicefs-prod-pv
     volumeAttributes:
-      fuseType: "juicefs"
-      source: "redis://redis-host.default.svc:6379/1"
-      bucket: "my-jfs-data"
+      source: "redis://:mypassword@redis-host.default.svc:6379/1"
+      bucket: "prod-jfs-data"
       url: "oss-cn-hangzhou-internal.aliyuncs.com"
-      # Name of a ConfigMap in ack-csi-customfuse namespace containing entrypoint.sh.
-      # mount-proxy checks /etc/fuse-config/entrypoint.sh before the baked-in /entrypoint.sh.
-      entrypointConfig: "juicefs-entrypoint"
+      entrypointConfig: "juicefs-production"
+    nodePublishSecretRef:
+      name: juicefs-configmap-creds
+      namespace: default
+---
+# ── Development instance ──
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-dev-pv
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: customfuseplugin.csi.alibabacloud.com
+    fsType: juicefs
+    volumeHandle: juicefs-dev-pv
+    volumeAttributes:
+      source: "redis://:devpass@redis-dev.default.svc:6379/1"
+      bucket: "dev-jfs-data"
+      url: "oss-cn-beijing-internal.aliyuncs.com"
+      entrypointConfig: "juicefs-development"
     nodePublishSecretRef:
       name: juicefs-configmap-creds
       namespace: default

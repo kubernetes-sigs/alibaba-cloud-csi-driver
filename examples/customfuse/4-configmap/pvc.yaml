@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: juicefs-configmap-pvc
+  name: juicefs-prod-pvc
   namespace: default
 spec:
   accessModes:
@@ -9,5 +9,19 @@ spec:
   resources:
     requests:
       storage: 100Gi
-  volumeName: juicefs-configmap-pv
+  volumeName: juicefs-prod-pv
+  storageClassName: ""
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs-dev-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  volumeName: juicefs-dev-pv
   storageClassName: ""
