@@ -189,18 +189,24 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 }
 
 // buildEnvVars converts mount parameters into environment variables for the
-// FUSE entrypoint. Env var names match PV volumeAttributes keys for consistency.
+// FUSE entrypoint. All options are passed through as-is:
+//
+//	key=value → env var "key=value"
+//	key       → env var "key=" (empty value; entrypoints detect presence via ${key+set})
 //
 // Driver-set env vars:
 //
 //	source     — opaque to the driver
 //	mountpoint — target path where the entrypoint must mount
 //
-// From options (carried as key=value):
+// From options (carried as key=value pairs, including expanded mountOptions):
 //
-//	bucket     — object storage bucket name
-//	url        — storage endpoint
-//	otherOpts  — single entry, raw customer string passed through
+//	bucket       — object storage bucket name
+//	url          — storage endpoint
+//	path         — sub-path within the volume (e.g., JuiceFS subdir)
+//	readOnly     — "true" when PV is read-only
+//	otherOpts    — legacy mount options from volumeAttributes (backward compat)
+//	<any key>    — arbitrary mount option from pv.Spec.MountOptions
 //
 // Secrets are passed as env vars with the key as the variable name
 // (no prefix, no transformation).
@@ -210,34 +216,22 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 // so entrypoints can standardize on "accessKeyId"/"accessKeySecret".
 func buildEnvVars(source, target string, options []string, secrets map[string]string) []string {
 	env := []string{
-		"source=" + source,
 		"mountpoint=" + target,
 	}
+	if source != "" {
+		env = append(env, "source="+source)
+	}
 
-	var otherOpts string
-	var seenOtherOpts bool
 	for _, opt := range options {
 		key, value, hasValue := strings.Cut(opt, "=")
 		if !hasValue {
-			klog.Warningf("option %q has no value, skipping", opt)
+			// Bare flag (e.g., "writeback") — set as key= with empty value.
+			// Entrypoints can use ${key+set} to detect presence.
+			env = append(env, key+"=")
 			continue
 		}
-		switch key {
-		case "bucket":
-			env = append(env, "bucket="+value)
-		case "url":
-			env = append(env, "url="+value)
-		case "otherOpts":
-			if seenOtherOpts {
-				klog.Warningf("duplicate otherOpts key, overwriting previous value %q with %q", otherOpts, value)
-			}
-			otherOpts = value
-			seenOtherOpts = true
-		default:
-			klog.Warningf("unknown option key %q", key)
-		}
+		env = append(env, key+"="+value)
 	}
-	env = append(env, "otherOpts="+otherOpts)
 
 	for key, value := range secrets {
 		env = append(env, key+"="+value)

@@ -10,12 +10,8 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: customfuseplugin.csi.alibabacloud.com
+    # fsType: identifies the FUSE client for metrics and image resolution.
+    # Equivalent to volumeAttributes.fuseType. If both are set, they must match.
+    fsType: juicefs
     volumeHandle: juicefs-baked-in-pv
-    volumeAttributes:
-      # fuseType identifies the FUSE client for metrics labeling and image resolution.
-      # Strongly recommended — without it, defaults to "customfuse", meaning the
-      # entire cluster can only have one FUSE client type.
-      # Examples: "juicefs", "juicefs3", "juicefs4", "jindo"
-      fuseType: "juicefs"
-      # No source, url, otherOpts, or nodePublishSecretRef needed —
-      # everything is baked into the Dockerfile.
+    # No volumeAttributes needed — everything is baked into the Dockerfile.

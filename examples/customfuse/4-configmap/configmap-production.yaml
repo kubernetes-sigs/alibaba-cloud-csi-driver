@@ -1,0 +1,36 @@
+# Demo 4: Production ConfigMap
+#
+# Hardcodes production-grade format and mount options.
+# PV only needs to provide instance-specific values (source, bucket, url).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-production
+  namespace: ack-csi-customfuse
+data:
+  entrypoint.sh: |
+    #!/bin/bash
+    set -e
+
+    # ── 1. Format ──
+    juicefs format \
+        --storage=oss \
+        --bucket="http://$bucket.$url" \
+        --access-key="$accessKeyId" \
+        --secret-key="$accessKeySecret" \
+        --block-size=4096 \
+        --trash-days=0 \          # production: disable trash (dev uses 2)
+        "$source" myjfs
+
+    # ── 2. Credential cleanup ──
+    unset accessKeyId accessKeySecret akId akSecret
+
+    # ── 3. Mount ──
+    MOUNT_OPTS="foreground,no-update"
+    # production: large cache + writeback (dev uses cache-size=256, no writeback)
+    MOUNT_OPTS="${MOUNT_OPTS},cache-size=4096,cache-dir=/var/jfsCache,buffer-size=300,prefetch=1,writeback"
+    [ -n "$path" ] && MOUNT_OPTS="${MOUNT_OPTS},subdir=${path}"
+    [ "$readOnly" = "true" ] && MOUNT_OPTS="${MOUNT_OPTS},ro"
+
+    echo "Mounting at $mountpoint with -o $MOUNT_OPTS"
+    exec mount.juicefs "$source" "$mountpoint" -o "$MOUNT_OPTS"

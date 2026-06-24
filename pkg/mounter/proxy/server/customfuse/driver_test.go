@@ -35,7 +35,7 @@ func TestBuildEnvVars(t *testing.T) {
 			},
 		},
 		{
-			name: "url and otherOpts without bucket",
+			name: "url without bucket",
 			req: &proxy.MountRequest{
 				Source:  "mybucket:/data",
 				Target:  "/mnt/oss",
@@ -45,7 +45,6 @@ func TestBuildEnvVars(t *testing.T) {
 				"source":     "mybucket:/data",
 				"mountpoint": "/mnt/oss",
 				"url":        "oss-cn-hangzhou.aliyuncs.com",
-				"otherOpts":  "",
 			},
 		},
 		{
@@ -57,7 +56,6 @@ func TestBuildEnvVars(t *testing.T) {
 			want: map[string]string{
 				"source":     "vol",
 				"mountpoint": "/mnt/vol",
-				"otherOpts":  "",
 			},
 		},
 		{
@@ -74,15 +72,56 @@ func TestBuildEnvVars(t *testing.T) {
 			},
 		},
 		{
-			name: "empty source",
+			name: "empty source omitted from env",
 			req: &proxy.MountRequest{
 				Source: "",
 				Target: "/mnt/vol",
 			},
 			want: map[string]string{
-				"source":     "",
 				"mountpoint": "/mnt/vol",
-				"otherOpts":  "",
+			},
+		},
+		{
+			name: "source from mountOptions when volumeAttributes.source is empty",
+			req: &proxy.MountRequest{
+				Source:  "",
+				Target:  "/mnt/vol",
+				Options: []string{"source=redis://host:6379/1", "formatOptions=storage=oss"},
+			},
+			want: map[string]string{
+				"mountpoint":    "/mnt/vol",
+				"source":        "redis://host:6379/1",
+				"formatOptions": "storage=oss",
+			},
+		},
+		{
+			name: "mountOptions passthrough (key=value)",
+			req: &proxy.MountRequest{
+				Source:  "vol",
+				Target:  "/mnt/vol",
+				Options: []string{"cache-size=1024", "writeback"},
+			},
+			want: map[string]string{
+				"source":     "vol",
+				"mountpoint": "/mnt/vol",
+				"cache-size": "1024",
+				"writeback":  "",
+			},
+		},
+		{
+			name: "mountOptions mixed with structured options",
+			req: &proxy.MountRequest{
+				Source:  "vol",
+				Target:  "/mnt/vol",
+				Options: []string{"bucket=mybucket", "url=ep.com", "cache-size=1024", "writeback"},
+			},
+			want: map[string]string{
+				"source":     "vol",
+				"mountpoint": "/mnt/vol",
+				"bucket":     "mybucket",
+				"url":        "ep.com",
+				"cache-size": "1024",
+				"writeback":  "",
 			},
 		},
 	}

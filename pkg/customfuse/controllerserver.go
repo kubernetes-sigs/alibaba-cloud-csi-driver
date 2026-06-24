@@ -42,7 +42,11 @@ func (*controllerServer) ControllerGetCapabilities(context.Context, *csi.Control
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	klog.Infof("ControllerPublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
 
-	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly())
+	opts, err := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "failed to parse options: %v", err)
+	}
+	klog.V(4).Infof("ControllerPublishVolume: parsed options: source=%s, fuseType=%s", opts.Source, opts.FuseType)
 
 	if err := precheckAuthConfig(opts); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "auth config error: %v", err)

@@ -1,0 +1,33 @@
+# Demo 3: pv.spec.mountOptions style
+#
+# Uses pv.spec.csi.fsType and pv.spec.mountOptions instead of volumeAttributes.
+# Each mountOptions entry becomes a separate environment variable in the entrypoint:
+#
+#   source=...         →  $source
+#   formatOptions=...  →  $formatOptions
+#   mountOptions=...   →  $mountOptions
+#
+# For the alternative style using volumeAttributes, see ../2-oss-compatible.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-advanced-pv
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  # mountOptions: each entry becomes an env var in the entrypoint.
+  # Ref: https://juicefs.com/docs/community/command_reference/
+  mountOptions:
+    - "source=redis://redis-host.default.svc:6379/1"
+    - "formatOptions=storage=oss,bucket=http://my-jfs-data.oss-cn-hangzhou-internal.aliyuncs.com,block-size=4096,trash-days=2"
+    - "mountOptions=cache-size=1024,cache-dir=/var/jfsCache,buffer-size=300,prefetch=1,writeback"
+  csi:
+    driver: customfuseplugin.csi.alibabacloud.com
+    fsType: juicefs
+    volumeHandle: juicefs-advanced-pv
+    nodePublishSecretRef:
+      name: juicefs-advanced-creds
+      namespace: default
