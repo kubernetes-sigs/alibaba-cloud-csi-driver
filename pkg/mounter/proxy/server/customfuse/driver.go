@@ -62,6 +62,11 @@ func (h *Driver) Fstypes() []string {
 
 func (h *Driver) Init() {}
 
+// ApplyOptionDefaults returns options unchanged; customfuse does not inject driver-specific defaults.
+func (h *Driver) ApplyOptionDefaults(options []string) []string {
+	return options
+}
+
 func (h *Driver) Terminate() {
 	h.monitorManager.StopAllMonitoring()
 
