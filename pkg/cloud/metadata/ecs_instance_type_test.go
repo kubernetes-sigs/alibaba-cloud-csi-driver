@@ -82,7 +82,7 @@ func TestGetEcsInstanceType(t *testing.T) {
 	{
 		res := &ecs20140526.DescribeInstanceTypesResponse{}
 		require.NoError(t, json.Unmarshal([]byte(ecsDescribeInstanceTypesResponseJson), &res.Body))
-		client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(res, nil)
+		client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(res, nil)
 	}
 
 	m := testMetadata(t, fakeMiddleware{InstanceID: "i-2zec1slzwdzrwmvlr4w2"})
@@ -101,13 +101,13 @@ func TestGetEcsInstanceTypeError(t *testing.T) {
 		{
 			name: "describe_instance_types_error",
 			configClient: func(client *cloud.MockECSv2Interface) {
-				client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(nil, errors.New("failed to describe instance types"))
+				client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed to describe instance types"))
 			},
 		},
 		{
 			name: "missing_instance_types_field",
 			configClient: func(client *cloud.MockECSv2Interface) {
-				client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(&ecs20140526.DescribeInstanceTypesResponse{}, nil)
+				client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.DescribeInstanceTypesResponse{}, nil)
 			},
 		},
 		{
@@ -118,7 +118,7 @@ func TestGetEcsInstanceTypeError(t *testing.T) {
 						InstanceTypes: &ecs20140526.DescribeInstanceTypesResponseBodyInstanceTypes{},
 					},
 				}
-				client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(resp, nil)
+				client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(resp, nil)
 			},
 		},
 		{
@@ -134,7 +134,7 @@ func TestGetEcsInstanceTypeError(t *testing.T) {
 						},
 					},
 				}
-				client.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(resp, nil)
+				client.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(resp, nil)
 			},
 		},
 	}

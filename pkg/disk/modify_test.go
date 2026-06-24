@@ -58,23 +58,23 @@ func TestModify_HappyPath(t *testing.T) {
 	c, m := newTestModifyServer(t)
 
 	// 1. verifyModifyDiskSpec: dry-run returns DryRunOperation → dirty=true
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(nil, sdkError("DryRunOperation"))
+	c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, sdkError("DryRunOperation"))
 
 	// 2. UntagResources
-	c.EXPECT().UntagResources(gomock.Any()).Return(&ecs20140526.UntagResourcesResponse{}, nil)
+	c.EXPECT().UntagResourcesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.UntagResourcesResponse{}, nil)
 
 	// 3. TagResources
-	c.EXPECT().TagResources(gomock.Any()).Return(&ecs20140526.TagResourcesResponse{}, nil)
+	c.EXPECT().TagResourcesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.TagResourcesResponse{}, nil)
 
 	// 4. modifyDiskSpec: actual call returns a task ID
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(&ecs20140526.ModifyDiskSpecResponse{
+	c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.ModifyDiskSpecResponse{
 		Body: &ecs20140526.ModifyDiskSpecResponseBody{
 			TaskId: new("t-123"),
 		},
 	}, nil)
 
 	// 5. modifyDiskAttribute
-	c.EXPECT().ModifyDiskAttribute(gomock.Any()).Return(&ecs20140526.ModifyDiskAttributeResponse{}, nil)
+	c.EXPECT().ModifyDiskAttributeWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.ModifyDiskAttributeResponse{}, nil)
 
 	_, ctx := ktesting.NewTestContext(t)
 	err := m.Modify(ctx, "d-test", ModifyParameters{
@@ -99,16 +99,16 @@ func TestModify_NoChange(t *testing.T) {
 	c, m := newTestModifyServer(t)
 
 	// verifyModifyDiskSpec: dry-run returns NoChange → dirty=false, skip modifySpec
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(nil, sdkError(string(NoChangeInDiskCategoryAndPerformanceLevel)))
+	c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, sdkError(string(NoChangeInDiskCategoryAndPerformanceLevel)))
 
 	// UntagResources
-	c.EXPECT().UntagResources(gomock.Any()).Return(&ecs20140526.UntagResourcesResponse{}, nil)
+	c.EXPECT().UntagResourcesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.UntagResourcesResponse{}, nil)
 
 	// TagResources
-	c.EXPECT().TagResources(gomock.Any()).Return(&ecs20140526.TagResourcesResponse{}, nil)
+	c.EXPECT().TagResourcesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.TagResourcesResponse{}, nil)
 
 	// modifyDiskAttribute
-	c.EXPECT().ModifyDiskAttribute(gomock.Any()).Return(&ecs20140526.ModifyDiskAttributeResponse{}, nil)
+	c.EXPECT().ModifyDiskAttributeWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.ModifyDiskAttributeResponse{}, nil)
 
 	_, ctx := ktesting.NewTestContext(t)
 	err := m.Modify(ctx, "d-test", ModifyParameters{
@@ -127,10 +127,10 @@ func TestModify_RecoverTask(t *testing.T) {
 	c, m := newTestModifyServer(t)
 
 	// Round 1: dry-run returns IncorrectDiskStatus → try to recover task
-	dryRun := c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(nil, sdkError(IncorrectDiskStatus))
+	dryRun := c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, sdkError(IncorrectDiskStatus))
 
 	// retrieveTask finds a processing task
-	c.EXPECT().DescribeTasks(gomock.Any()).Return(&ecs20140526.DescribeTasksResponse{
+	c.EXPECT().DescribeTasksWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.DescribeTasksResponse{
 		Body: &ecs20140526.DescribeTasksResponseBody{
 			TaskSet: &ecs20140526.DescribeTasksResponseBodyTaskSet{
 				Task: []*ecs20140526.DescribeTasksResponseBodyTaskSetTask{
@@ -144,10 +144,10 @@ func TestModify_RecoverTask(t *testing.T) {
 	// (the default finishedTaskWaiter handles this)
 
 	// Round 2: dry-run now passes
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(nil, sdkError("DryRunOperation"))
+	c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, sdkError("DryRunOperation"))
 
 	// Actual ModifyDiskSpec
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(&ecs20140526.ModifyDiskSpecResponse{
+	c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.ModifyDiskSpecResponse{
 		Body: &ecs20140526.ModifyDiskSpecResponseBody{
 			TaskId: new("t-new"),
 		},
@@ -164,7 +164,7 @@ func TestModify_DiskInCoolingPeriod(t *testing.T) {
 	c, m := newTestModifyServer(t)
 
 	// verifyModifyDiskSpec: dry-run returns DiskInCoolingPeriod → FailedPrecondition
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(nil, sdkError("DiskInCoolingPeriod"))
+	c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, sdkError("DiskInCoolingPeriod"))
 
 	_, ctx := ktesting.NewTestContext(t)
 	err := m.Modify(ctx, "d-test", ModifyParameters{
@@ -200,9 +200,9 @@ func TestModify_ModifyDiskSpecErrors(t *testing.T) {
 			c, m := newTestModifyServer(t)
 
 			// dry-run passes
-			c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(nil, sdkError("DryRunOperation"))
+			c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, sdkError("DryRunOperation"))
 			// actual call fails
-			c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(nil, sdkError(tt.errorCode))
+			c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, sdkError(tt.errorCode))
 
 			_, ctx := ktesting.NewTestContext(t)
 			err := m.Modify(ctx, "d-test", ModifyParameters{
@@ -219,9 +219,9 @@ func TestModify_TaskTimeoutThenRetry(t *testing.T) {
 
 	// --- First call: task times out ---
 	// dry-run passes
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(nil, sdkError("DryRunOperation"))
+	c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, sdkError("DryRunOperation"))
 	// actual call returns task
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(&ecs20140526.ModifyDiskSpecResponse{
+	c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.ModifyDiskSpecResponse{
 		Body: &ecs20140526.ModifyDiskSpecResponseBody{
 			TaskId: new("t-slow"),
 		},
@@ -253,9 +253,9 @@ func TestModify_TaskTimeoutThenRetry(t *testing.T) {
 	m.taskWaiter = finishedTaskWaiter()
 
 	// verifyModifyDiskSpec: waitForTask on "t-slow" succeeds (finished), then dry-run passes
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(nil, sdkError("DryRunOperation"))
+	c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, sdkError("DryRunOperation"))
 	// actual call returns a new task
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(&ecs20140526.ModifyDiskSpecResponse{
+	c.EXPECT().ModifyDiskSpecWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.ModifyDiskSpecResponse{
 		Body: &ecs20140526.ModifyDiskSpecResponseBody{
 			TaskId: new("t-new"),
 		},
@@ -279,8 +279,8 @@ func TestModify_TagsOnly(t *testing.T) {
 	c, m := newTestModifyServer(t)
 
 	// Only UntagResources + TagResources, no ModifyDiskSpec or ModifyDiskAttribute
-	c.EXPECT().UntagResources(gomock.Any()).Return(&ecs20140526.UntagResourcesResponse{}, nil)
-	c.EXPECT().TagResources(gomock.Any()).Return(&ecs20140526.TagResourcesResponse{}, nil)
+	c.EXPECT().UntagResourcesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.UntagResourcesResponse{}, nil)
+	c.EXPECT().TagResourcesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.TagResourcesResponse{}, nil)
 
 	_, ctx := ktesting.NewTestContext(t)
 	err := m.Modify(ctx, "d-test", ModifyParameters{

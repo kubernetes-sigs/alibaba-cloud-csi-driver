@@ -881,7 +881,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 				return nil, status.Errorf(codes.Internal, "cannot determine disk quantity: %v", err)
 			}
 		} else {
-			unmanaged, err := getUnmanagedDiskCount(getNode, ns.ecsV2, instanceID, regionID, utilsio.RealDevTmpFS{})
+			unmanaged, err := getUnmanagedDiskCount(ctx, getNode, ns.ecsV2, instanceID, regionID, utilsio.RealDevTmpFS{})
 			if err != nil {
 				return nil, err
 			}

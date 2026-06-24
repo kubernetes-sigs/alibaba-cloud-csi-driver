@@ -1,9 +1,11 @@
 package desc
 
 import (
+	"context"
 	"strings"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"k8s.io/utils/ptr"
 )
@@ -19,7 +21,9 @@ func (c Task) Describe(ids []string) (Response[*ecs20140526.DescribeTasksRespons
 	}
 
 	ret := Response[*ecs20140526.DescribeTasksResponseBodyTaskSetTask]{}
-	resp, err := c.Client.DescribeTasks(req)
+	// Task polling is shared across multiple waiters via the batched waiter, so it
+	// is not tied to any single request's context.
+	resp, err := c.Client.DescribeTasksWithContext(context.Background(), req, &dara.RuntimeOptions{})
 	if err != nil {
 		return ret, err
 	}

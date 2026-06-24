@@ -1,11 +1,13 @@
 package labeler
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	ecsv2 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	eflo_controller20221215 "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
@@ -216,7 +218,7 @@ func TestReconcile_Lingjun(t *testing.T) {
 		},
 	}, nil)
 
-	f.ecs.EXPECT().DescribeDisks(gomock.Any()).
+	f.ecs.EXPECT().DescribeDisksWithContext(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(&ecsv2.DescribeDisksResponse{
 			Body: &ecsv2.DescribeDisksResponseBody{
 				Disks: &ecsv2.DescribeDisksResponseBodyDisks{
@@ -270,12 +272,12 @@ func TestReconcile_FullPatch(t *testing.T) {
 	}
 	f := newTestFixture(t, node)
 
-	f.ecs.EXPECT().DescribeInstanceTypes(gomock.Any()).
+	f.ecs.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(describeInstanceTypesV2Resp("ecs.g7.large", 8), nil)
 
 	// zonal call: expect ZoneId == "cn-test-a" (from node label, not providerID).
-	f.ecs.EXPECT().DescribeAvailableResource(gomock.Any()).DoAndReturn(
-		func(req *ecsv2.DescribeAvailableResourceRequest) (*ecsv2.DescribeAvailableResourceResponse, error) {
+	f.ecs.EXPECT().DescribeAvailableResourceWithContext(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, req *ecsv2.DescribeAvailableResourceRequest, _ *dara.RuntimeOptions) (*ecsv2.DescribeAvailableResourceResponse, error) {
 			assert.Equal(t, "ecs.g7.large", ptr.Deref(req.InstanceType, ""))
 			assert.Equal(t, "DataDisk", ptr.Deref(req.DestinationResource, ""))
 			assert.Equal(t, "disk", ptr.Deref(req.ResourceType, ""))
@@ -283,14 +285,14 @@ func TestReconcile_FullPatch(t *testing.T) {
 			assert.NotEqual(t, "region", ptr.Deref(req.Scope, ""))
 			return makeAvailResp("cn-test-a", "cloud_essd"), nil
 		})
-	f.ecs.EXPECT().DescribeAvailableResource(gomock.Any()).DoAndReturn(
-		func(req *ecsv2.DescribeAvailableResourceRequest) (*ecsv2.DescribeAvailableResourceResponse, error) {
+	f.ecs.EXPECT().DescribeAvailableResourceWithContext(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, req *ecsv2.DescribeAvailableResourceRequest, _ *dara.RuntimeOptions) (*ecsv2.DescribeAvailableResourceResponse, error) {
 			assert.Equal(t, "region", ptr.Deref(req.Scope, ""))
 			assert.Equal(t, "", ptr.Deref(req.ZoneId, ""), "regional call must not carry ZoneId")
 			return makeAvailResp("", "cloud_regional_disk_auto"), nil
 		})
 
-	f.ecs.EXPECT().DescribeDisks(gomock.Any()).
+	f.ecs.EXPECT().DescribeDisksWithContext(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(&ecsv2.DescribeDisksResponse{
 			Body: &ecsv2.DescribeDisksResponseBody{
 				Disks: &ecsv2.DescribeDisksResponseBodyDisks{
@@ -342,7 +344,7 @@ func TestReconcile_APIErrors(t *testing.T) {
 				Spec: v1.NodeSpec{ProviderID: "cn-test.i-bp1ecs"},
 			},
 			setupMocks: func(ecs *cloud.MockECSv2Interface, eflo *cloud.MockEFLOInterface) {
-				ecs.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(nil, errAPI)
+				ecs.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errAPI)
 			},
 			wantErr:        true,
 			wantErrContain: "get disk quantity for ecs.g7.large",
@@ -360,9 +362,9 @@ func TestReconcile_APIErrors(t *testing.T) {
 				Spec: v1.NodeSpec{ProviderID: "cn-test.i-bp1ecs2"},
 			},
 			setupMocks: func(ecs *cloud.MockECSv2Interface, eflo *cloud.MockEFLOInterface) {
-				ecs.EXPECT().DescribeInstanceTypes(gomock.Any()).
+				ecs.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(describeInstanceTypesV2Resp("ecs.g7.large", 8), nil)
-				ecs.EXPECT().DescribeAvailableResource(gomock.Any()).Return(nil, errAPI).AnyTimes()
+				ecs.EXPECT().DescribeAvailableResourceWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errAPI).AnyTimes()
 			},
 			wantErr:        true,
 			wantErrContain: "get disk types for ecs.g7.large/cn-test-a",
@@ -380,13 +382,13 @@ func TestReconcile_APIErrors(t *testing.T) {
 				Spec: v1.NodeSpec{ProviderID: "cn-test.i-bp1ecs3"},
 			},
 			setupMocks: func(ecs *cloud.MockECSv2Interface, eflo *cloud.MockEFLOInterface) {
-				ecs.EXPECT().DescribeInstanceTypes(gomock.Any()).
+				ecs.EXPECT().DescribeInstanceTypesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(describeInstanceTypesV2Resp("ecs.g7.large", 8), nil)
-				ecs.EXPECT().DescribeAvailableResource(gomock.Any()).
+				ecs.EXPECT().DescribeAvailableResourceWithContext(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(makeAvailResp("cn-test-a", "cloud_essd"), nil)
-				ecs.EXPECT().DescribeAvailableResource(gomock.Any()).
+				ecs.EXPECT().DescribeAvailableResourceWithContext(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(makeAvailResp("", "cloud_essd"), nil)
-				ecs.EXPECT().DescribeDisks(gomock.Any()).Return(nil, errAPI)
+				ecs.EXPECT().DescribeDisksWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errAPI)
 			},
 			wantErr:        true,
 			wantErrContain: "describe disks for",

@@ -53,14 +53,14 @@ func testEcsClient(t *testing.T) *cloud.MockECSv2Interface {
 
 	ctrl := gomock.NewController(t)
 	ecsClient := cloud.NewMockECSv2Interface(ctrl)
-	ecsClient.EXPECT().DescribeInstances(gomock.Any()).Return(res, nil)
+	ecsClient.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(res, nil)
 	return ecsClient
 }
 
 func TestGetOpenAPI(t *testing.T) {
 	ecsClient := testEcsClient(t)
 
-	m, err := NewOpenAPIMetadata(ecsClient, "i-2zec1slzwdzrwmvlr4w2")
+	m, err := NewOpenAPIMetadata(t.Context(), ecsClient, "i-2zec1slzwdzrwmvlr4w2")
 	assert.NoError(t, err)
 
 	assert.Equal(t, "cn-beijing-k", MustGet(m, ZoneID))
@@ -75,19 +75,19 @@ func TestGetOpenAPIError(t *testing.T) {
 		{
 			name: "describe_instances_error",
 			configClient: func(client *cloud.MockECSv2Interface) {
-				client.EXPECT().DescribeInstances(gomock.Any()).Return(nil, errors.New("failed to describe instances"))
+				client.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed to describe instances"))
 			},
 		},
 		{
 			name: "missing_field",
 			configClient: func(client *cloud.MockECSv2Interface) {
-				client.EXPECT().DescribeInstances(gomock.Any()).Return(&ecs20140526.DescribeInstancesResponse{}, nil)
+				client.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.DescribeInstancesResponse{}, nil)
 			},
 		},
 		{
 			name: "missing_instance",
 			configClient: func(client *cloud.MockECSv2Interface) {
-				client.EXPECT().DescribeInstances(gomock.Any()).Return(&ecs20140526.DescribeInstancesResponse{
+				client.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.DescribeInstancesResponse{
 					Body: &ecs20140526.DescribeInstancesResponseBody{
 						Instances: &ecs20140526.DescribeInstancesResponseBodyInstances{
 							Instance: []*ecs20140526.DescribeInstancesResponseBodyInstancesInstance{},

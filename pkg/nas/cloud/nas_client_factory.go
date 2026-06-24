@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
@@ -44,7 +45,7 @@ func (fac *NasClientFactory) V2(region string) (interfaces.NasClientV2Interface,
 	return &NasClientV2{
 		region:  region,
 		limiter: fac.limiter,
-		client:  client,
+		client:  wrap.NAS(client),
 	}, nil
 }
 

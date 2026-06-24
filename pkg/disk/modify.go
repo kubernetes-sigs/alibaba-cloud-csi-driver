@@ -8,9 +8,9 @@ import (
 	"time"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/go-logr/logr"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"google.golang.org/grpc/codes"
@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	NoChangeInDiskCategoryAndPerformanceLevel wrap.ErrorCode = "NoChangeInDiskCategoryAndPerformanceLevel"
+	NoChangeInDiskCategoryAndPerformanceLevel = "NoChangeInDiskCategoryAndPerformanceLevel"
 )
 
 type ModifyParameters struct {
@@ -82,14 +82,14 @@ func (m *ModifyServer) waitForTask(ctx context.Context, logger logr.Logger, task
 	return task, nil
 }
 
-func (m *ModifyServer) retrieveTask(logger logr.Logger, diskID string) (*ecs20140526.DescribeTasksResponseBodyTaskSetTask, error) {
+func (m *ModifyServer) retrieveTask(ctx context.Context, diskID string) (*ecs20140526.DescribeTasksResponseBodyTaskSetTask, error) {
 	req := &ecs20140526.DescribeTasksRequest{
 		PageSize:    new(int32(1)),
 		ResourceIds: []*string{new(diskID)},
 		TaskAction:  new("ModifyDiskSpec"),
 	}
 
-	resp, err := wrap.V2(logger, m.ecsClient.DescribeTasks)(req)
+	resp, err := m.ecsClient.DescribeTasksWithContext(ctx, req, &dara.RuntimeOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (m *ModifyServer) retrieveTask(logger logr.Logger, diskID string) (*ecs2014
 	return task, nil
 }
 
-func mapModifySpecCode(code wrap.ErrorCode) codes.Code {
+func mapModifySpecCode(code string) codes.Code {
 	switch code {
 	case "InvalidDiskId.NotFound":
 		return codes.NotFound
@@ -144,11 +144,11 @@ func (m *ModifyServer) verifyModifyDiskSpec(ctx context.Context, logger logr.Log
 			m.runningTaskIDs.Delete(diskID)
 		}
 
-		_, err = wrap.V2(logger, m.ecsClient.ModifyDiskSpec)(req)
+		_, err = m.ecsClient.ModifyDiskSpecWithContext(ctx, req, &dara.RuntimeOptions{})
 		if err == nil { // should not happen for dry run
 			return true, status.Errorf(codes.Internal, "dry run ModifyDiskSpec succeeds unexpectedly")
 		}
-		if code, ok := errors.AsType[wrap.ErrorCode](err); ok {
+		if code := cloud.ErrorCodeV2(err); code != "" {
 			switch code {
 			case NoChangeInDiskCategoryAndPerformanceLevel:
 				logger.V(2).Info("disk spec clean")
@@ -158,7 +158,7 @@ func (m *ModifyServer) verifyModifyDiskSpec(ctx context.Context, logger logr.Log
 			case "InvalidStatus.DiskNotReady", IncorrectDiskStatus:
 				// Already modifying? This can happen if CSI was restarted and runningTaskIDs lost
 				logger.V(2).Info("maybe disk is being modified, recovering previous task")
-				task, taskErr := m.retrieveTask(logger, diskID)
+				task, taskErr := m.retrieveTask(ctx, diskID)
 				if taskErr != nil {
 					return true, fmt.Errorf("retrieve task failed: %w", taskErr)
 				}
@@ -181,10 +181,10 @@ func (m *ModifyServer) verifyModifyDiskSpec(ctx context.Context, logger logr.Log
 
 func (m *ModifyServer) modifyDiskSpec(ctx context.Context, logger logr.Logger, req *ecs20140526.ModifyDiskSpecRequest) error {
 	diskID := ptr.Deref(req.DiskId, "")
-	resp, err := wrap.V2(logger, m.ecsClient.ModifyDiskSpec)(req)
+	resp, err := m.ecsClient.ModifyDiskSpecWithContext(ctx, req, &dara.RuntimeOptions{})
 	if err != nil {
 		var grpcCode = codes.Internal
-		if code, ok := errors.AsType[wrap.ErrorCode](err); ok {
+		if code := cloud.ErrorCodeV2(err); code != "" {
 			switch code {
 			case NoChangeInDiskCategoryAndPerformanceLevel:
 				logger.V(2).Info("disk spec not changed")
@@ -228,12 +228,12 @@ func (m *ModifyServer) modifyDiskAttribute(ctx context.Context, logger logr.Logg
 			BurstingEnabled: new(burstingEnabled),
 		}
 
-		_, err = wrap.V2(logger, m.ecsClient.ModifyDiskAttribute)(req)
+		_, err = m.ecsClient.ModifyDiskAttributeWithContext(ctx, req, &dara.RuntimeOptions{})
 		if err == nil {
 			logger.V(2).Info("modified disk bursting enabled", "enabled", burstingEnabled)
 			return nil
 		}
-		if errors.Is(err, wrap.ErrorCode("BurstingEnabledForModifyingDiskUnsupported")) {
+		if cloud.ErrorCodeV2(err) == "BurstingEnabledForModifyingDiskUnsupported" {
 			// TODO: ECS will optimize this, and we may remove this retry in the future
 			logger.V(2).Info("disk still modifying, retrying")
 			select {
@@ -283,7 +283,7 @@ func (m *ModifyServer) Modify(ctx context.Context, diskID string, params ModifyP
 			TagKey:       params.RemoveTags,
 		}
 
-		_, err := wrap.V2(logger, m.ecsClient.UntagResources)(req)
+		_, err := m.ecsClient.UntagResourcesWithContext(ctx, req, &dara.RuntimeOptions{})
 		if err != nil {
 			return fmt.Errorf("error while untagging disk %s: %w", diskID, err)
 		}
@@ -297,7 +297,7 @@ func (m *ModifyServer) Modify(ctx context.Context, diskID string, params ModifyP
 			Tag:          params.Tags,
 		}
 
-		_, err := wrap.V2(logger, m.ecsClient.TagResources)(req)
+		_, err := m.ecsClient.TagResourcesWithContext(ctx, req, &dara.RuntimeOptions{})
 		if err != nil {
 			return fmt.Errorf("error while tagging disk %s: %w", diskID, err)
 		}
