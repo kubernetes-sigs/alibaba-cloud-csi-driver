@@ -4,6 +4,9 @@ The CustomFuse driver runs **any FUSE client** as a managed pod. You supply the
 image + entrypoint; the driver handles pod lifecycle, mount propagation, and
 credential injection.
 
+> **Note**: CustomFuse currently supports static PVs only (manually created).
+> Dynamic provisioning via StorageClass + PVC is not supported.
+
 ## Quick Start
 
 ### Step 1: Write your entrypoint.sh
@@ -229,6 +232,7 @@ Common volumeAttributes keys (all optional):
 | `path` | Sub-path; also used for `source` fallback |
 | `url` | Storage endpoint |
 | `otherOpts` | Comma-separated options string → `$otherOpts` |
+| `capacity` | Volume quota passed as `$capacity` to the entrypoint. Plain integer or Kubernetes Quantity (e.g. `100`, `100Gi`). Values with units are validated; passed through as-is. Entrypoint strips suffix if needed: `capacity=${capacity%Gi}`. With `CustomFuseAutoCapacity` feature gate enabled, auto-filled from `pv.spec.capacity.storage` (with units). **Note:** auto-fill uses volumeHandle as PV name for the API lookup — if they differ, `$capacity` will not be set (a warning is logged). Set this field explicitly for guaranteed behavior. |
 
 Control fields (consumed by the driver, NOT passed as env vars):
 

@@ -55,7 +55,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	opts, err := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly())
+	opts, err := parseOptions(req)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to parse options: %v", err)
 	}

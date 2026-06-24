@@ -5,11 +5,13 @@ package customfuse
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type fuseOptions struct {
@@ -52,6 +54,13 @@ type fuseOptions struct {
 	// Kubernetes Secret entries directly as environment variables to the
 	// FUSE entrypoint. Planned future values: "rrsa", "agent-identity".
 	AuthType string
+	// Capacity is the volume quota passed as $capacity to the entrypoint.
+	// Plain integers (e.g. "100") pass through directly; values with units
+	// (e.g. "100Gi") are validated as Kubernetes Quantity and passed through.
+	// Auto-filled from pv.spec.capacity.storage (with units) when
+	// CustomFuseAutoCapacity is enabled.
+	// Entrypoint strip example: capacity=${capacity%Gi}
+	Capacity string
 	// Secrets holds the raw Kubernetes Secret data.
 	// All entries are passed through to the FUSE entrypoint as environment
 	// variables with the key as the variable name (no prefix, no transformation).
@@ -61,15 +70,39 @@ type fuseOptions struct {
 	DnsPolicy corev1.DNSPolicy
 }
 
-func parseOptions(volContext, secrets map[string]string,
-	volCaps []*csi.VolumeCapability, readOnly bool) (*fuseOptions, error) {
+// publishRequest is the common interface for CSI Publish requests.
+// Both *csi.ControllerPublishVolumeRequest and *csi.NodePublishVolumeRequest
+// satisfy this interface.
+type publishRequest interface {
+	GetVolumeContext() map[string]string
+	GetSecrets() map[string]string
+	GetVolumeCapability() *csi.VolumeCapability
+	GetReadonly() bool
+}
+
+func parseOptions(req publishRequest) (*fuseOptions, error) {
+	volContext := req.GetVolumeContext()
 	if volContext == nil {
 		volContext = map[string]string{}
 	}
 
+	// Merge capacity from PublishContext if present (NodePublish path).
+	// PublishContext["capacity"] is set by ControllerPublishVolume (auto-capacity).
+	// volumeAttributes.capacity takes priority.
+	type publishContextProvider interface {
+		GetPublishContext() map[string]string
+	}
+	if pcp, ok := req.(publishContextProvider); ok {
+		if capacity, ok := pcp.GetPublishContext()["capacity"]; ok && capacity != "" {
+			if _, hasCapacity := volContext["capacity"]; !hasCapacity {
+				volContext["capacity"] = capacity
+			}
+		}
+	}
+
 	opts := &fuseOptions{
 		FuseType: mounterutils.CustomFuseType,
-		Secrets:  secrets,
+		Secrets:  req.GetSecrets(),
 	}
 
 	for k, v := range volContext {
@@ -93,6 +126,13 @@ func parseOptions(volContext, secrets map[string]string,
 			opts.FuseType = value
 		case "authtype":
 			opts.AuthType = value
+		case "capacity":
+			if hasUnitSuffix(value) {
+				if _, err := resource.ParseQuantity(value); err != nil {
+					return nil, fmt.Errorf("invalid capacity %q: must be a plain integer or Kubernetes Quantity (e.g. 100, 100Gi): %v", value, err)
+				}
+			}
+			opts.Capacity = value
 		case "entrypointconfig":
 			opts.EntrypointConfig = value
 		case "entrypointkey":
@@ -108,38 +148,28 @@ func parseOptions(volContext, secrets map[string]string,
 	}
 
 	// Extract FsType and MountFlags from VolumeCapability.
-	// FsType from PV spec.csi.fsType is an alternative to volumeAttributes.fuseType.
-	// MountFlags from pv.Spec.MountOptions — each entry becomes a separate env var.
-	for _, cap := range volCaps {
-		if cap == nil {
-			continue
-		}
-		if mount := cap.GetMount(); mount != nil {
-			// FsType: alternative to volumeAttributes.fuseType
+	if volCap := req.GetVolumeCapability(); volCap != nil {
+		if mount := volCap.GetMount(); mount != nil {
 			if mount.FsType != "" {
 				if opts.FuseType != "" && opts.FuseType != mounterutils.CustomFuseType && opts.FuseType != mount.FsType {
-					// fuseType from volumeAttributes conflicts with fsType from PV spec
 					return nil, fmt.Errorf("fuseType %q from volumeAttributes conflicts with fsType %q from PV spec", opts.FuseType, mount.FsType)
 				} else {
 					opts.FuseType = mount.FsType
 				}
 			}
-			// MountFlags → MountOptions
 			if len(mount.MountFlags) > 0 {
 				opts.MountOptions = mount.MountFlags
 			}
 		}
-		// ReadOnly from VolumeCapability access mode
-		switch cap.AccessMode.GetMode() {
+		switch volCap.AccessMode.GetMode() {
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY, csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
 			opts.ReadOnly = true
 		}
 	}
-	if readOnly {
+	if req.GetReadonly() {
 		opts.ReadOnly = true
 	}
 
-	// If "source" is not set, fall back to bucket/path for backward compatibility.
 	if opts.Source == "" && opts.Bucket != "" {
 		if opts.Path != "" {
 			opts.Source = opts.Bucket + ":" + opts.Path
@@ -177,6 +207,10 @@ func makeAuthConfig(opts *fuseOptions) *fpm.AuthConfig {
 	return authCfg
 }
 
+func hasUnitSuffix(s string) bool {
+	return len(s) > 0 && !unicode.IsDigit(rune(s[len(s)-1]))
+}
+
 // makeMountOptions serializes volume attributes as key=value pairs to be
 // carried through the CSI mount protocol to mount-proxy. Unlike OSS where
 // options are actual FUSE mount flags, here they are opaque transport for
@@ -201,6 +235,9 @@ func (o *fuseOptions) makeMountOptions() []string {
 	}
 	if o.OtherOpts != "" {
 		opts = append(opts, "otherOpts="+o.OtherOpts)
+	}
+	if o.Capacity != "" {
+		opts = append(opts, "capacity="+o.Capacity)
 	}
 	opts = append(opts, o.MountOptions...)
 	return opts

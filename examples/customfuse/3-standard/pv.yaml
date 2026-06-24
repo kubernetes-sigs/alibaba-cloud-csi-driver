@@ -24,6 +24,7 @@ spec:
     - "source=redis://redis-host.default.svc:6379/1"
     - "formatOptions=storage=oss,bucket=http://my-jfs-data.oss-cn-hangzhou-internal.aliyuncs.com,block-size=4096,trash-days=2"
     - "mountOptions=cache-size=1024,cache-dir=/var/jfsCache,buffer-size=300,prefetch=1,writeback"
+    - "capacity=100"
   csi:
     driver: customfuseplugin.csi.alibabacloud.com
     fsType: juicefs
