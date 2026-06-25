@@ -116,7 +116,7 @@ func (c *NasClientV2) CancelDirQuota(ctx context.Context, req *sdk.CancelDirQuot
 	}
 	resp, err := wrap.V2(logger, c.client.CancelDirQuota)(req)
 	if err == nil {
-		if !tea.BoolValue(resp.Body.Success) {
+		if resp.Body != nil && !tea.BoolValue(resp.Body.Success) {
 			err = ErrNotSuccess
 		}
 	} else {
@@ -148,7 +148,7 @@ func (c *NasClientV2) CreateAccesspoint(ctx context.Context, req *sdk.CreateAcce
 func (c *NasClientV2) DeleteAccesspoint(ctx context.Context, filesystemId, accessPointId string) error {
 	logger := klog.FromContext(ctx)
 	if err := c.wait(ctx, logger); err != nil {
-		return nil
+		return err
 	}
 	req := &sdk.DeleteAccessPointRequest{
 		AccessPointId: &accessPointId,
