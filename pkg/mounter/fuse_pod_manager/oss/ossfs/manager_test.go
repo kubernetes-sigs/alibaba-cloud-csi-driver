@@ -101,98 +101,6 @@ func Test_buildAuthSpec_ossfs(t *testing.T) {
 	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
 }
 
-func Test_buildAuthSpec_agentIdentity(t *testing.T) {
-	newCtx := func(authCfg *fpm.AuthConfig) *fpm.FusePodContext {
-		return &fpm.FusePodContext{
-			Context:    context.Background(),
-			Namespace:  mounterutils.LegacyFusePodNamespace,
-			NodeName:   "test-node",
-			VolumeId:   "test-pv",
-			AuthConfig: authCfg,
-			FuseType:   mounterutils.OssFsType,
-		}
-	}
-	newSpecAndContainer := func() (corev1.PodSpec, corev1.Container) {
-		return corev1.PodSpec{}, corev1.Container{}
-	}
-
-	t.Run("token and CA", func(t *testing.T) {
-		spec, container := newSpecAndContainer()
-		authCfg := &fpm.AuthConfig{
-			AuthType: ossfpm.AuthTypeAgentIdentity,
-			AgentIdentityConfig: &fpm.AgentIdentityConfig{
-				TokenSecret: "my-token-secret",
-				CASecret:    "my-ca-secret",
-				SandboxId:   "sandbox-123",
-			},
-		}
-		fakeOssfs := &fuseOssfs{}
-		fakeOssfs.buildAuthSpec(newCtx(authCfg), "target", &spec, &container)
-
-		assert.Len(t, spec.Volumes, 2)
-		assert.Equal(t, "agent-identity-token", spec.Volumes[0].Name)
-		assert.Equal(t, "my-token-secret", spec.Volumes[0].Secret.SecretName)
-		assert.Equal(t, "sandbox-123.token", spec.Volumes[0].Secret.Items[0].Key)
-		assert.Equal(t, "agent-identity-ca", spec.Volumes[1].Name)
-		assert.Equal(t, "my-ca-secret", spec.Volumes[1].Secret.SecretName)
-		assert.Equal(t, "ca.crt", spec.Volumes[1].Secret.Items[0].Key)
-
-		assert.Len(t, container.VolumeMounts, 2)
-		assert.Equal(t, "/var/opt/sandbox/agent-token", container.VolumeMounts[0].MountPath)
-		assert.True(t, container.VolumeMounts[0].ReadOnly)
-		assert.Equal(t, "/etc/ssl/certs/agent-identity", container.VolumeMounts[1].MountPath)
-		assert.True(t, container.VolumeMounts[1].ReadOnly)
-	})
-
-	t.Run("token only", func(t *testing.T) {
-		spec, container := newSpecAndContainer()
-		authCfg := &fpm.AuthConfig{
-			AuthType: ossfpm.AuthTypeAgentIdentity,
-			AgentIdentityConfig: &fpm.AgentIdentityConfig{
-				TokenSecret: "my-token-secret",
-				SandboxId:   "sandbox-123",
-			},
-		}
-		fakeOssfs := &fuseOssfs{}
-		fakeOssfs.buildAuthSpec(newCtx(authCfg), "target", &spec, &container)
-
-		assert.Len(t, spec.Volumes, 1)
-		assert.Equal(t, "agent-identity-token", spec.Volumes[0].Name)
-		assert.Len(t, container.VolumeMounts, 1)
-	})
-
-	t.Run("CA only", func(t *testing.T) {
-		spec, container := newSpecAndContainer()
-		authCfg := &fpm.AuthConfig{
-			AuthType: ossfpm.AuthTypeAgentIdentity,
-			AgentIdentityConfig: &fpm.AgentIdentityConfig{
-				CASecret:  "my-ca-secret",
-				SandboxId: "sandbox-123",
-			},
-		}
-		fakeOssfs := &fuseOssfs{}
-		fakeOssfs.buildAuthSpec(newCtx(authCfg), "target", &spec, &container)
-
-		assert.Len(t, spec.Volumes, 1)
-		assert.Equal(t, "agent-identity-ca", spec.Volumes[0].Name)
-		assert.Len(t, container.VolumeMounts, 1)
-		assert.Equal(t, "/etc/ssl/certs/agent-identity", container.VolumeMounts[0].MountPath)
-	})
-
-	t.Run("nil config", func(t *testing.T) {
-		spec, container := newSpecAndContainer()
-		authCfg := &fpm.AuthConfig{
-			AuthType:            ossfpm.AuthTypeAgentIdentity,
-			AgentIdentityConfig: nil,
-		}
-		fakeOssfs := &fuseOssfs{}
-		fakeOssfs.buildAuthSpec(newCtx(authCfg), "target", &spec, &container)
-
-		assert.Len(t, spec.Volumes, 0)
-		assert.Len(t, container.VolumeMounts, 0)
-	})
-}
-
 func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
 	fakeOssfs := NewFuseOssfs(utils.Config{}, fakeMeta)
@@ -543,14 +451,10 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 				AuthType:                ossfpm.AuthTypeAgentIdentity,
 				SandboxId:               "sandbox-123",
 				SandboxCredProviderName: "aliyun-one",
-				SandboxTokenSecret:      "token-secret",
-				SandboxCASecret:         "ca-secret",
 			},
 			expectedConfig: &fpm.AuthConfig{
 				AuthType: ossfpm.AuthTypeAgentIdentity,
 				AgentIdentityConfig: &fpm.AgentIdentityConfig{
-					TokenSecret:      "token-secret",
-					CASecret:         "ca-secret",
 					CredProviderName: "aliyun-one",
 					SandboxId:        "sandbox-123",
 				},

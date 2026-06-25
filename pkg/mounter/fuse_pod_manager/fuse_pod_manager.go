@@ -63,19 +63,10 @@ type RrsaConfig struct {
 
 // AgentIdentityConfig configures agent-identity-based authentication for ossfs.
 //
-// Two scenarios for file placement:
-//   - TokenSecret/CASecret configured: the CSI controller creates a standalone fuse pod
-//     and mounts the corresponding Kubernetes Secrets into it at the expected file paths.
-//   - TokenSecret/CASecret empty: an external controller is responsible for placing
-//     the files at the expected paths on the node filesystem.
-//
-// Both scenarios go through the proxy mounter.
-// Token is mandatory, so its file path is always present in mount options.
-// CA is optional — adding it unconditionally would cause ossfs to fail when absent.
+// Agent identity is only used in the sandbox (RunD/coco) scenario, where an external
+// controller places the token/CA files at the expected paths on the sandbox filesystem.
+// The fuse pod (runc) path is never used with agent identity.
 type AgentIdentityConfig struct {
-	// Kubernetes Secret; empty means external injection
-	TokenSecret      string
-	CASecret         string
 	CredProviderName string
 	SandboxId        string
 }

@@ -94,8 +94,6 @@ type Options struct {
 	// agent identity
 	SandboxId               string `json:"sandboxId"`
 	SandboxCredProviderName string `json:"sandboxCredProviderName"`
-	SandboxTokenSecret      string `json:"sandboxTokenSecret"`
-	SandboxCASecret         string `json:"sandboxCASecret"`
 
 	// ossfs options
 	OtherOpts  string     `json:"otherOpts"`

@@ -179,6 +179,13 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
+	// Agent identity auth is only supported in sandbox scenarios where an external
+	// controller places token/CA files on the sandbox filesystem. It cannot work with fuse pods
+	// created by ControllerPublishVolume because there is no mechanism to inject those files.
+	if opts.AuthType == ossfpm.AuthTypeAgentIdentity {
+		return nil, status.Error(codes.InvalidArgument, "agent-identity auth is not supported for fuse pods, it requires a sandbox (DirectAssigned) environment")
+	}
+
 	// options validation
 	if err := checkOssOptions(opts, cs.fusePodManagers[opts.FuseType]); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
