@@ -279,3 +279,21 @@ func Test_getPasswdSecretVolume(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAgentIdentityTokenFilePath(t *testing.T) {
+	path := GetAgentIdentityTokenFilePath("sandbox-abc")
+	assert.Equal(t, "/var/opt/sandbox/agent-token/sandbox-abc.token", path)
+}
+
+func TestGetAgentIdentityEndpoint(t *testing.T) {
+	t.Run("default endpoint", func(t *testing.T) {
+		ep := GetAgentIdentityEndpoint()
+		assert.Equal(t, "https://credential-provider.ack-agent-identity.svc:8443/", ep)
+	})
+
+	t.Run("env override", func(t *testing.T) {
+		t.Setenv("AGENT_IDENTITY_ENDPOINT", "https://custom-endpoint:9090")
+		ep := GetAgentIdentityEndpoint()
+		assert.Equal(t, "https://custom-endpoint:9090", ep)
+	})
+}

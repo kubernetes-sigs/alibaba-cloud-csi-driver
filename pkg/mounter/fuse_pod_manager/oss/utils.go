@@ -17,7 +17,7 @@ import (
 
 var (
 	defaultOssfsImageTag        = "v1.88.4-80d165c-aliyun"
-	defaultOssfsUpdatedImageTag = "v1.91.10.ack.3-9baae3d"
+	defaultOssfsUpdatedImageTag = "v1.91.10.ack.4-7d9bb5a"
 	defaultOssfs2ImageTag       = "v2.0.7.ack.1-2d5bf24"
 )
 
@@ -115,6 +115,17 @@ func GetSTSEndpoint(region string) string {
 		return "https://sts.aliyuncs.com"
 	}
 	return fmt.Sprintf("https://sts-vpc.%s.aliyuncs.com", region)
+}
+
+func GetAgentIdentityTokenFilePath(sandboxId string) string {
+	return fmt.Sprintf("/var/opt/sandbox/agent-token/%s.token", sandboxId)
+}
+
+func GetAgentIdentityEndpoint() string {
+	if ep := os.Getenv("AGENT_IDENTITY_ENDPOINT"); ep != "" {
+		return ep
+	}
+	return "https://credential-provider.ack-agent-identity.svc:8443/"
 }
 
 // keep consistent with RAM response

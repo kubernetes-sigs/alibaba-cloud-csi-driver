@@ -91,6 +91,13 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 		if o.SecretProviderClass == "" {
 			return fmt.Errorf("use CsiSecretStore but secretProviderClass is empty")
 		}
+	case ossfpm.AuthTypeAgentIdentity:
+		if o.SandboxId == "" {
+			return fmt.Errorf("missing sandboxId in volume attributes")
+		}
+		if o.SandboxCredProviderName == "" {
+			return fmt.Errorf("missing sandboxCredProviderName in volume attributes")
+		}
 	default:
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 			return nil
@@ -132,6 +139,11 @@ func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvide
 		authCfg.SecretProviderClassName = o.SecretProviderClass
 	case ossfpm.AuthTypeSTS:
 		authCfg.RoleName = o.RoleName
+	case ossfpm.AuthTypeAgentIdentity:
+		authCfg.AgentIdentityConfig = &fpm.AgentIdentityConfig{
+			CredProviderName: o.SandboxCredProviderName,
+			SandboxId:        o.SandboxId,
+		}
 	default:
 		// fixed credentials
 		if o.AkID != "" && o.AkSecret != "" {
@@ -322,6 +334,12 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 		if o.RoleName != "" {
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
+	case ossfpm.AuthTypeAgentIdentity:
+		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_endpoint=%s", ossfpm.GetAgentIdentityEndpoint()))
+		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_token_file=%s", ossfpm.GetAgentIdentityTokenFilePath(o.SandboxId)))
+		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_cred_provider=%s", o.SandboxCredProviderName))
+		// agent_identity_ca_file is not added here — it is optional and only appended
+		// by ApplyOptionDefaults if the file is readable. See AgentIdentityConfig for details.
 	default:
 		// fixed credentials
 		if o.AkID != "" && o.AkSecret != "" {
@@ -357,14 +375,7 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
 	}
 
-	tm := map[string]string{}
-	for _, option := range options {
-		if option == "" {
-			continue
-		}
-		k, v, _ := strings.Cut(option, "=")
-		tm[k] = v
-	}
+	tm := mounterutils.IndexMountOptions(options)
 
 	// set default dbg level
 	if _, ok := tm[KeyDbgLevel]; !ok {
@@ -491,6 +502,8 @@ func (f *fuseOssfs) buildAuthSpec(c *fpm.FusePodContext, target string, spec *co
 			ReadOnly:  true,
 		}
 		container.VolumeMounts = append(container.VolumeMounts, secretStoreVolumeMount)
+	case ossfpm.AuthTypeAgentIdentity:
+		// agent identity is sandbox-only; token/CA files are placed by an external controller
 	default:
 		secretVolumeSource := ossfpm.GetPasswdSecretVolume(authCfg.SecretRef, c.FuseType)
 		if secretVolumeSource != nil {

@@ -211,6 +211,10 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 			opts.AssumeRoleArn = value
 		case "externalid":
 			opts.ExternalId = value
+		case "sandboxid":
+			opts.SandboxId = value
+		case "sandboxcredprovidername":
+			opts.SandboxCredProviderName = value
 		case "sigversion":
 			switch ossfpm.SigVersion(value) {
 			case ossfpm.SigV1, ossfpm.SigV4:
@@ -554,7 +558,7 @@ func makeMountOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m meta
 	if err != nil {
 		return nil, err
 	}
-	mountOptions = append(mountOptions, ops...)
+	mountOptions = mounterutils.MergeMountOptions(mountOptions, ops)
 	return
 }
 

@@ -242,6 +242,43 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "agent-identity: missing sandboxId",
+			opts: &ossfpm.Options{
+				URL:                     "1.1.1.1",
+				Bucket:                  "aliyun",
+				Path:                    "/path",
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxCredProviderName: "aliyun-one",
+				FuseType:                mounterutils.OssFsType,
+			},
+			wantErr: true,
+		},
+		{
+			name: "agent-identity: missing sandboxCredProviderName",
+			opts: &ossfpm.Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				AuthType:  ossfpm.AuthTypeAgentIdentity,
+				SandboxId: "sandbox-123",
+				FuseType:  mounterutils.OssFsType,
+			},
+			wantErr: true,
+		},
+		{
+			name: "agent-identity: success",
+			opts: &ossfpm.Options{
+				URL:                     "1.1.1.1",
+				Bucket:                  "aliyun",
+				Path:                    "/path",
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxId:               "sandbox-123",
+				SandboxCredProviderName: "aliyun-one",
+				FuseType:                mounterutils.OssFsType,
+			},
+			wantErr: false,
+		},
+		{
 			name: "conflict between SecurityToken and SecretRef",
 			opts: &ossfpm.Options{
 				URL:    "1.1.1.1",
@@ -404,6 +441,22 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 				AuthType: "",
 				Secrets: map[string]string{
 					mounterutils.GetPasswdFileName(mounterutils.OssFsType): "bucket:test-ak:test-ak-secret",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "AuthTypeAgentIdentity",
+			options: &ossfpm.Options{
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxId:               "sandbox-123",
+				SandboxCredProviderName: "aliyun-one",
+			},
+			expectedConfig: &fpm.AuthConfig{
+				AuthType: ossfpm.AuthTypeAgentIdentity,
+				AgentIdentityConfig: &fpm.AgentIdentityConfig{
+					CredProviderName: "aliyun-one",
+					SandboxId:        "sandbox-123",
 				},
 			},
 			expectedError: nil,
@@ -580,6 +633,21 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			},
 		},
 		{
+			name: "AuthTypeAgentIdentity",
+			opts: &ossfpm.Options{
+				URL:                     "oss://bucket",
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxId:               "sandbox-123",
+				SandboxCredProviderName: "aliyun-one",
+			},
+			expected: []string{
+				"url=oss://bucket",
+				"agent_identity_endpoint=https://credential-provider.ack-agent-identity.svc:8443/",
+				"agent_identity_token_file=/var/opt/sandbox/agent-token/sandbox-123.token",
+				"agent_identity_cred_provider=aliyun-one",
+			},
+		},
+		{
 			name: "DefaultAuthType",
 			opts: &ossfpm.Options{
 				URL:       "oss://bucket",
@@ -682,6 +750,19 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 					AkID:     "test-ak",
 					AkSecret: "test-ak-secret",
 				},
+			},
+		},
+		{
+			name: "agent-identity",
+			opts: &ossfpm.Options{
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxId:               "sandbox-123",
+				SandboxCredProviderName: "aliyun-one",
+			},
+			wantOptions: []string{
+				"agent_identity_endpoint=https://credential-provider.ack-agent-identity.svc:8443/",
+				"agent_identity_token_file=/var/opt/sandbox/agent-token/sandbox-123.token",
+				"agent_identity_cred_provider=aliyun-one",
 			},
 		},
 		{

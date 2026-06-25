@@ -50,6 +50,8 @@ type AuthConfig struct {
 	SecretRef string
 	// for STS(ECS worker role)/RRSA
 	RoleName string
+	// for Agent Identity
+	AgentIdentityConfig *AgentIdentityConfig
 }
 
 type RrsaConfig struct {
@@ -57,6 +59,16 @@ type RrsaConfig struct {
 	RoleArn            string
 	ServiceAccountName string
 	AssumeRoleArn      string
+}
+
+// AgentIdentityConfig configures agent-identity-based authentication for ossfs.
+//
+// Agent identity is only used in the sandbox (RunD/coco) scenario, where an external
+// controller places the token/CA files at the expected paths on the sandbox filesystem.
+// The fuse pod (runc) path is never used with agent identity.
+type AgentIdentityConfig struct {
+	CredProviderName string
+	SandboxId        string
 }
 
 type PodTemplateConfig struct {

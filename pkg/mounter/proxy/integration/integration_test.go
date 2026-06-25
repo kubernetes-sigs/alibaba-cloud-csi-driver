@@ -53,10 +53,11 @@ type slowDriver struct {
 	mountCalled chan struct{}
 }
 
-func (d *slowDriver) Name() string      { return "slow" }
-func (d *slowDriver) Fstypes() []string { return []string{"slow"} }
-func (d *slowDriver) Init()             {}
-func (d *slowDriver) Terminate()        {}
+func (d *slowDriver) Name() string                                  { return "slow" }
+func (d *slowDriver) Fstypes() []string                             { return []string{"slow"} }
+func (d *slowDriver) Init()                                         {}
+func (d *slowDriver) Terminate()                                    {}
+func (d *slowDriver) ApplyOptionDefaults(options []string) []string { return options }
 
 func (d *slowDriver) Mount(ctx context.Context, _ *proxy.MountRequest) error {
 	d.mountCalled <- struct{}{}

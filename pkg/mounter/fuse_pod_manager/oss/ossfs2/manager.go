@@ -308,14 +308,7 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
 	}
 
-	tm := map[string]string{}
-	for _, option := range options {
-		if option == "" {
-			continue
-		}
-		k, v, _ := strings.Cut(option, "=")
-		tm[k] = v
-	}
+	tm := mounterutils.IndexMountOptions(options)
 
 	// set default log level
 	if _, ok := tm[KeyLogLevel]; !ok {

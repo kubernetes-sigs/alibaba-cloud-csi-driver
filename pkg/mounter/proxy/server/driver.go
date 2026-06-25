@@ -13,6 +13,7 @@ type Driver interface {
 	Init()
 	Terminate()
 	Mount(ctx context.Context, req *proxy.MountRequest) error
+	ApplyOptionDefaults(options []string) []string
 }
 
 var (

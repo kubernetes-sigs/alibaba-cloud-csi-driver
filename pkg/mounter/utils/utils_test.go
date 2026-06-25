@@ -114,3 +114,87 @@ func Test_computeVolumeIdLabelVal(t *testing.T) {
 		})
 	}
 }
+
+func TestIndexMountOptions(t *testing.T) {
+	tests := []struct {
+		name     string
+		options  []string
+		expected map[string]string
+	}{
+		{"empty", nil, map[string]string{}},
+		{"key=value", []string{"url=oss.aliyuncs.com", "region=cn-hangzhou"}, map[string]string{"url": "oss.aliyuncs.com", "region": "cn-hangzhou"}},
+		{"flag only", []string{"ro", "allow_other"}, map[string]string{"ro": "", "allow_other": ""}},
+		{"mixed", []string{"ro", "url=oss.aliyuncs.com"}, map[string]string{"ro": "", "url": "oss.aliyuncs.com"}},
+		{"skip empty", []string{"", "ro", ""}, map[string]string{"ro": ""}},
+		{"trim spaces", []string{" url = oss.aliyuncs.com ", " ro "}, map[string]string{"url": "oss.aliyuncs.com", "ro": ""}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, IndexMountOptions(tt.options))
+		})
+	}
+}
+
+func TestMergeMountOptions(t *testing.T) {
+	tests := []struct {
+		name       string
+		base       []string
+		additional []string
+		expected   []string
+	}{
+		{
+			name:       "no conflict",
+			base:       []string{"allow_other", "max_stat_cache_size=0"},
+			additional: []string{"url=oss.aliyuncs.com", "sigv4"},
+			expected:   []string{"allow_other", "max_stat_cache_size=0", "url=oss.aliyuncs.com", "sigv4"},
+		},
+		{
+			name:       "key=value conflict, base wins",
+			base:       []string{"url=user-specified.com"},
+			additional: []string{"url=system-generated.com", "region=cn-hangzhou"},
+			expected:   []string{"url=user-specified.com", "region=cn-hangzhou"},
+		},
+		{
+			name:       "flag-only duplicate",
+			base:       []string{"ro", "allow_other"},
+			additional: []string{"ro", "sigv4"},
+			expected:   []string{"ro", "allow_other", "sigv4"},
+		},
+		{
+			name:       "same key same value, dedup silently",
+			base:       []string{"region=cn-hangzhou"},
+			additional: []string{"region=cn-hangzhou"},
+			expected:   []string{"region=cn-hangzhou"},
+		},
+		{
+			name:       "flag vs key=value conflict",
+			base:       []string{"ro"},
+			additional: []string{"ro=true"},
+			expected:   []string{"ro"},
+		},
+		{
+			name:       "trimspace on comparison",
+			base:       []string{" url = a.com "},
+			additional: []string{"url=b.com"},
+			expected:   []string{" url = a.com "},
+		},
+		{
+			name:       "empty additional",
+			base:       []string{"ro"},
+			additional: nil,
+			expected:   []string{"ro"},
+		},
+		{
+			name:       "empty base",
+			base:       nil,
+			additional: []string{"url=a.com", "ro"},
+			expected:   []string{"url=a.com", "ro"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := MergeMountOptions(tt.base, tt.additional)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
