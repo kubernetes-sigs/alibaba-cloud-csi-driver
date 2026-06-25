@@ -106,13 +106,13 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 FROM alinux-install AS alinas
 
 ARG TARGETPLATFORM
-ARG ALINAS_UTILS_VERSION=1.9-0.20260605142542.e1dd14.al7
-ARG EFC_VERSION=1.9-20250822095129.f34347.release
+ARG ALINAS_UTILS_VERSION=2.1-0.20260624194653.cd6f58.generic
+ARG EFC_VERSION=2.1-20260618113444.c9390b.release
 # v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch.
 # It's temporarily unavailable for all ACK clusters,
 # catering only to ARM for compatibility. An update to all CPFS storage cluster versions is required.
-ARG EFC_ARM_VERSION=2.1-20260318190316.34c388.release
-ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20260316154701.b0a52a.generic
+ARG EFC_ARM_VERSION=2.1-20260618113444.c9390b.release
+ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20260624194653.cd6f58.generic
 
 RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
     echo 'install_weak_deps=False' >> /etc/yum.conf; \
@@ -152,13 +152,13 @@ FROM alinux-install AS aio
 ARG TARGETPLATFORM
 ARG OSSFS_VERSION=v1.91.10.ack.3
 ARG OSSFS2_VERSION=v2.0.7.ack.1
-ARG ALINAS_UTILS_VERSION=1.9-0.20260605142542.e1dd14.al7
-ARG EFC_VERSION=1.9-20250822095129.f34347.release
+ARG ALINAS_UTILS_VERSION=2.1-0.20260624194653.cd6f58.generic
+ARG EFC_VERSION=2.1-20260618113444.c9390b.release
 # v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch.
 # It's temporarily unavailable for all ACK clusters,
 # catering only to ARM for compatibility. An update to all CPFS storage cluster versions is required.
-ARG EFC_ARM_VERSION=2.1-20260318190316.34c388.release
-ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20260316154701.b0a52a.generic
+ARG EFC_ARM_VERSION=2.1-20260618113444.c9390b.release
+ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20260624194653.cd6f58.generic
 
 RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
     echo 'install_weak_deps=False' >> /etc/yum.conf; \
