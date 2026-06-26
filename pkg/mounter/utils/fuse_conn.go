@@ -37,10 +37,13 @@ func GetFuseConnectionID(mountpoint string) (uint64, error) {
 // exist when this function is reached.
 func FlushFuseConnection(connID uint64) error {
 	connDir := filepath.Join(FuseConnectionsDir, strconv.FormatUint(connID, 10))
-
 	flushPath := filepath.Join(connDir, "flush")
+
 	if err := os.WriteFile(flushPath, []byte("1"), 0o644); err != nil {
-		return fmt.Errorf("write to %s: %w", flushPath, err)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("flush FUSE connection %d: %w (kernel may lack alinux FUSE recovery patch, or connection already torn down)", connID, err)
+		}
+		return fmt.Errorf("flush FUSE connection %d: %w", connID, err)
 	}
 	return nil
 }

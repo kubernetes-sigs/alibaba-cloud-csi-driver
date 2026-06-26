@@ -27,6 +27,12 @@ func (m *extendedMounter) waitForFdPassingMountReady(
 
 	statDone := make(chan error, 1)
 	go func() {
+		// os.Stat on a FUSE mount blocks in-kernel (TASK_UNINTERRUPTIBLE) until
+		// FUSE_INIT completes. If the context times out or the process exits before
+		// that, this goroutine leaks until the FUSE fd is closed — which happens in
+		// superviseProcess's defer (at most ~15s after recovery gives up). The leak
+		// is bounded and self-healing; there is no Go-level mechanism to cancel an
+		// in-kernel stat syscall.
 		_, err := statFn(target)
 		statDone <- err
 	}()

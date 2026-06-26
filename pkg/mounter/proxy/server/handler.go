@@ -91,14 +91,16 @@ func recvMsgWithFd(conn *net.UnixConn, req *rawRequest) (fuseFd int, err error) 
 	fuseFd = 0
 	// Buffer must be large enough for an entire request in one ReadMsgUnix call,
 	// because SCM_RIGHTS (fd) is only delivered with the first read.
-	// This differs from MaxMsgSize (256MB) which guards streaming response reads on the client side.
-	const maxBufSize = 1 << 16 // 64KB
+	const maxBufSize = 1 << 20 // 1MB — typical requests are <10KB; 1MB covers extreme cases
 	buf := make([]byte, maxBufSize)
 	oob := make([]byte, unix.CmsgSpace(4)) // space for one fd
 
 	n, oobn, _, _, err := conn.ReadMsgUnix(buf, oob)
 	if err != nil {
 		return -1, fmt.Errorf("readmsg: %w", err)
+	}
+	if n == maxBufSize {
+		return -1, fmt.Errorf("message too large (exceeded %d bytes)", maxBufSize)
 	}
 
 	// Parse OOB to extract fd

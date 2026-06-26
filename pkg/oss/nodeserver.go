@@ -387,7 +387,10 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	// fuseUnsafe=false: by the time NodeUnpublish runs, kubelet has already killed
-	// the pod's containers, closing all fds to the FUSE mount — connection is dead
+	// the pod's containers, closing all fds to the FUSE mount — connection is dead.
+	// Note: this delegates to CleanupMountPoint with extensiveMountPointCheck=false,
+	// whereas the original code used true. The difference is immaterial for FUSE mounts
+	// (FUSE has an independent st_dev, so stat-only check works correctly).
 	err = mounterutils.SafeCleanupFuseMount(targetPath, ns.rawMounter, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", targetPath, err)
@@ -414,8 +417,11 @@ func (ns *nodeServer) NodeUnstageVolume(
 	defer ns.locks.Release(req.VolumeId)
 
 	attachPath := mounterutils.GetAttachPath(req.VolumeId)
-	// fuseUnsafe=true: in fd-passing mode, fuse pod still holds /dev/fuse fd at this point
-	// (ControllerUnpublish deletes fuse pod later), so FUSE connection is alive with dead daemon
+	// fuseUnsafe=true unconditionally: NodeUnstage has no access to the volume's
+	// fd-passing state, and must be safe for both modes. In fd-passing mode, the
+	// fuse pod still holds /dev/fuse fd (ControllerUnpublish deletes it later),
+	// so stat would hang. In legacy mode this is harmless — the mountinfo+syscall
+	// path produces the same result as the standard CleanupMountPoint.
 	if err := mounterutils.SafeCleanupFuseMount(attachPath, ns.rawMounter, true); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", attachPath, err)
 	}

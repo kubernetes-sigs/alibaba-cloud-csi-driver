@@ -35,4 +35,3 @@ func handleMountRequest(ctx context.Context, req *proxy.MountRequest, fuseFd int
 	}
 	return h.Mount(ctx, req, fuseFd)
 }
-

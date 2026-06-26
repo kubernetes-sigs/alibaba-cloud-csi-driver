@@ -12,7 +12,6 @@ import (
 	mountutils "k8s.io/mount-utils"
 )
 
-
 // SafeCleanupFuseMount unmounts target and removes the directory.
 //
 // When fuseUnsafe is true, the target may be a FUSE mount with dead daemon but
@@ -60,6 +59,10 @@ func unmountDirect(target string) error {
 		// Safe for both bind mounts (preserves other pods' access to the FUSE mount)
 		// and direct FUSE mounts (ControllerUnpublish will delete fuse pod later,
 		// closing the fd and fully tearing down the connection).
+		//
+		// No re-mount race: the CSI flow guarantees ControllerUnpublish (which destroys
+		// the old FUSE connection) runs before any ControllerPublish that would create a
+		// new mount on the same path.
 		klog.V(2).Infof("unmountDirect: %s busy, using MNT_DETACH", target)
 		err = unix.Unmount(target, unix.MNT_DETACH)
 		if err == nil {
