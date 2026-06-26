@@ -8,8 +8,8 @@ import (
 	"net"
 	"time"
 
-	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 	mount "k8s.io/mount-utils"

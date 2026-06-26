@@ -142,6 +142,11 @@ func (m *extendedMounter) recoveryRestart(
 		if attempt > 0 {
 			delay := backoff.Step()
 			logger.Info("Recovery attempt backing off", "attempt", attempt, "delay", delay, "target", target)
+			// NOTE: this sleep is not interruptible by Terminate(). If a crash coincides
+			// with shutdown, Terminate()'s wg.Wait() blocks until this sleep finishes
+			// (worst case ~15s across all retries). Probability is very low and the delay
+			// is within typical pod terminationGracePeriodSeconds. Replace with a select
+			// on a terminate channel if faster shutdown is needed in the future.
 			time.Sleep(delay)
 		}
 
