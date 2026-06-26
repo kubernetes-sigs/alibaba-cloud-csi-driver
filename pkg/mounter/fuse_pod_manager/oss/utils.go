@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -115,6 +116,70 @@ func GetSTSEndpoint(region string) string {
 		return "https://sts.aliyuncs.com"
 	}
 	return fmt.Sprintf("https://sts-vpc.%s.aliyuncs.com", region)
+}
+
+// parseRegionFromURL extracts region from known OSS endpoint patterns:
+//   - oss-{region}[-internal].aliyuncs.com
+//   - {region}[-internal].oss-data-acc.aliyuncs.com
+//
+// Same patterns as setNetworkType in pkg/oss/utils.go (duplicated due to circular dependency).
+func parseRegionFromURL(rawURL string) string {
+	var protocol string
+	if strings.HasPrefix(rawURL, "https://") {
+		protocol = "https://"
+	} else if strings.HasPrefix(rawURL, "http://") {
+		protocol = "http://"
+	}
+	endpoint := strings.TrimSuffix(strings.TrimPrefix(rawURL, protocol), "/")
+
+	// {region}[-internal].oss-data-acc.aliyuncs.com — check first, more specific suffix
+	if after, ok := strings.CutSuffix(endpoint, ".oss-data-acc.aliyuncs.com"); ok {
+		return strings.TrimSuffix(after, "-internal")
+	}
+
+	// oss-{region}[-internal].aliyuncs.com
+	if after, ok := strings.CutPrefix(endpoint, "oss-"); ok {
+		if region, ok := strings.CutSuffix(after, ".aliyuncs.com"); ok {
+			return strings.TrimSuffix(region, "-internal")
+		}
+	}
+
+	return ""
+}
+
+// ResolveRegion resolves the OSS bucket region with the following priority:
+//  1. User-specified o.Region
+//  2. Parsed from o.URL
+//  3. Node metadata (cluster region)
+//
+// When sigVersion=v4 is configured without an explicit region, a warning is logged.
+// This is intentionally not an error for backward compatibility: existing users whose
+// cluster and bucket are in the same region will continue to work without changes.
+// However, cross-region access may fail silently in this case.
+func ResolveRegion(o *Options, m metadata.MetadataProvider) string {
+	if o.Region != "" {
+		return o.Region
+	}
+
+	var region, source string
+
+	if r := parseRegionFromURL(o.URL); r != "" {
+		region = r
+		source = "URL"
+	} else if r, _ := m.Get(metadata.RegionID); r != "" {
+		region = r
+		source = "node metadata"
+	}
+
+	if o.SigVersion == SigV4 {
+		if region != "" {
+			klog.Warningf("sigVersion=v4 is configured without explicit region, using %q from %s; cross-region access may fail", region, source)
+		} else {
+			klog.Warning("sigVersion=v4 is configured but region cannot be determined; set region in volume parameters")
+		}
+	}
+
+	return region
 }
 
 func GetAgentIdentityTokenFilePath(sandboxId string) string {

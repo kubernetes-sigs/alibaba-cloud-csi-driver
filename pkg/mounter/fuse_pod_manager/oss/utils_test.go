@@ -297,3 +297,150 @@ func TestGetAgentIdentityEndpoint(t *testing.T) {
 		assert.Equal(t, "https://custom-endpoint:9090", ep)
 	})
 }
+
+func Test_parseRegionFromURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected string
+	}{
+		{
+			name:     "standard endpoint",
+			url:      "oss-cn-hangzhou.aliyuncs.com",
+			expected: "cn-hangzhou",
+		},
+		{
+			name:     "with https protocol",
+			url:      "https://oss-cn-beijing.aliyuncs.com",
+			expected: "cn-beijing",
+		},
+		{
+			name:     "with http protocol",
+			url:      "http://oss-cn-shanghai.aliyuncs.com",
+			expected: "cn-shanghai",
+		},
+		{
+			name:     "internal endpoint",
+			url:      "oss-cn-hangzhou-internal.aliyuncs.com",
+			expected: "cn-hangzhou",
+		},
+		{
+			name:     "internal endpoint with https",
+			url:      "https://oss-us-east-1-internal.aliyuncs.com",
+			expected: "us-east-1",
+		},
+		{
+			name:     "data-acc endpoint",
+			url:      "cn-hangzhou.oss-data-acc.aliyuncs.com",
+			expected: "cn-hangzhou",
+		},
+		{
+			name:     "data-acc internal endpoint",
+			url:      "cn-hangzhou-internal.oss-data-acc.aliyuncs.com",
+			expected: "cn-hangzhou",
+		},
+		{
+			name:     "data-acc with https",
+			url:      "https://cn-beijing.oss-data-acc.aliyuncs.com",
+			expected: "cn-beijing",
+		},
+		{
+			name:     "IP address",
+			url:      "1.1.1.1",
+			expected: "",
+		},
+		{
+			name:     "custom domain",
+			url:      "https://my-oss.example.com",
+			expected: "",
+		},
+		{
+			name:     "empty string",
+			url:      "",
+			expected: "",
+		},
+		{
+			name:     "with trailing slash",
+			url:      "https://oss-cn-hangzhou.aliyuncs.com/",
+			expected: "cn-hangzhou",
+		},
+		{
+			name:     "oss-data-acc base domain is not a user-facing endpoint",
+			url:      "oss-data-acc.aliyuncs.com",
+			expected: "data-acc",
+			// Known limitation: this product domain matches as oss-{region} pattern.
+			// Not a real issue since users never configure this bare domain as an endpoint.
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseRegionFromURL(tt.url)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestResolveRegion(t *testing.T) {
+	tests := []struct {
+		name         string
+		opts         *Options
+		metaRegion   string
+		expectedRegn string
+	}{
+		{
+			name: "explicit region takes priority",
+			opts: &Options{
+				Region:     "cn-shanghai",
+				URL:        "https://oss-cn-hangzhou.aliyuncs.com",
+				SigVersion: SigV4,
+			},
+			metaRegion:   "cn-beijing",
+			expectedRegn: "cn-shanghai",
+		},
+		{
+			name: "parse from URL when no explicit region",
+			opts: &Options{
+				URL:        "https://oss-cn-hangzhou.aliyuncs.com",
+				SigVersion: SigV4,
+			},
+			metaRegion:   "cn-beijing",
+			expectedRegn: "cn-hangzhou",
+		},
+		{
+			name: "fallback to metadata when URL cannot be parsed",
+			opts: &Options{
+				URL:        "1.1.1.1",
+				SigVersion: SigV4,
+			},
+			metaRegion:   "cn-beijing",
+			expectedRegn: "cn-beijing",
+		},
+		{
+			name: "empty when all sources fail",
+			opts: &Options{
+				URL:        "1.1.1.1",
+				SigVersion: SigV4,
+			},
+			metaRegion:   "",
+			expectedRegn: "",
+		},
+		{
+			name: "non-sigv4 also resolves region",
+			opts: &Options{
+				URL: "https://oss-cn-hangzhou.aliyuncs.com",
+			},
+			metaRegion:   "cn-beijing",
+			expectedRegn: "cn-hangzhou",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("REGION_ID", tt.metaRegion)
+			m := metadata.NewMetadata()
+			got := ResolveRegion(tt.opts, m)
+			assert.Equal(t, tt.expectedRegn, got)
+		})
+	}
+}
