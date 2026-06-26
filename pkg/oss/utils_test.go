@@ -494,6 +494,27 @@ func Test_parseOptions(t *testing.T) {
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 	}
 	assert.Equal(t, expectedOptions, gotOptions)
+
+	// test region parameter
+	options = map[string]string{
+		"url":        "oss-cn-beijing.aliyuncs.com",
+		"region":     "cn-shanghai",
+		"sigVersion": "v4",
+	}
+	gotOptions = mustParseOptions(t, options, nil, nil, false, "", true, m)
+	expectedOptions = &ossfpm.Options{
+		AccessKey: ossfpm.AccessKey{
+			AkID:     "test-akid",
+			AkSecret: "test-aksecret",
+		},
+		FuseType:      "ossfs",
+		Path:          "/",
+		UseSharedPath: true,
+		Region:        "cn-shanghai",
+		SigVersion:    "v4",
+		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
+	}
+	assert.Equal(t, expectedOptions, gotOptions)
 }
 
 func Test_parseOtherOpts(t *testing.T) {

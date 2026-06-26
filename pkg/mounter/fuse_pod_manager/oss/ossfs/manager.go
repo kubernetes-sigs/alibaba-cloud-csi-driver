@@ -275,7 +275,7 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 
 func (f *fuseOssfs) MakeMountOptions(o *ossfpm.Options, m metadata.MetadataProvider) (mountOptions []string, err error) {
 
-	region, _ := m.Get(metadata.RegionID)
+	region := ossfpm.ResolveRegion(o, m)
 
 	mountOptions = append(mountOptions, fmt.Sprintf("url=%s", o.URL))
 	if o.ReadOnly {

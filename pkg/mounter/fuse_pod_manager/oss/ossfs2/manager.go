@@ -154,14 +154,15 @@ func (f *fuseOssfs) MakeMountOptions(o *ossfpm.Options, m metadata.MetadataProvi
 		mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", o.MetricsTop))
 	}
 
+	region := ossfpm.ResolveRegion(o, m)
+
 	if o.SigVersion == ossfpm.SigV4 {
-		region, _ := m.Get(metadata.RegionID)
 		if region == "" {
 			return nil, fmt.Errorf("SigV4 is not supported without region")
 		}
 		mountOptions = append(mountOptions, fmt.Sprintf("oss_region=%s", region))
 	}
-	region, _ := m.Get(metadata.RegionID)
+
 	authOptions := f.getAuthOptions(o, region)
 	mountOptions = append(mountOptions, authOptions...)
 

@@ -602,6 +602,42 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			expectedError: false,
 		},
 		{
+			name: "SigV4 with explicit region",
+			opts: &ossfpm.Options{
+				URL:        "oss://bucket",
+				Region:     "cn-shanghai",
+				SigVersion: ossfpm.SigV4,
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
+			},
+			region: "us-east-1",
+			expected: []string{
+				"url=oss://bucket",
+				"sigv4",
+				"region=cn-shanghai",
+			},
+			expectedError: false,
+		},
+		{
+			name: "SigV4 with region parsed from URL",
+			opts: &ossfpm.Options{
+				URL:        "https://oss-cn-hangzhou.aliyuncs.com",
+				SigVersion: ossfpm.SigV4,
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
+			},
+			expected: []string{
+				"url=https://oss-cn-hangzhou.aliyuncs.com",
+				"sigv4",
+				"region=cn-hangzhou",
+			},
+			expectedError: false,
+		},
+		{
 			name: "SigV4 Without Region",
 			opts: &ossfpm.Options{
 				URL:        "oss://bucket",

@@ -100,6 +100,7 @@ type Options struct {
 	MetricsTop string     `json:"metricsTop"`
 	Encrypted  string     `json:"encrypted"`
 	KmsKeyId   string     `json:"kmsKeyId"`
+	Region     string     `json:"region"`
 	SigVersion SigVersion `json:"sigVersion"`
 
 	// mount options

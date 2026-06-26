@@ -215,6 +215,8 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 			opts.SandboxId = value
 		case "sandboxcredprovidername":
 			opts.SandboxCredProviderName = value
+		case "region":
+			opts.Region = value
 		case "sigversion":
 			switch ossfpm.SigVersion(value) {
 			case ossfpm.SigV1, ossfpm.SigV4:
