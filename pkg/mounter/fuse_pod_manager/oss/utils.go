@@ -147,6 +147,15 @@ func parseRegionFromURL(rawURL string) string {
 	return ""
 }
 
+// UseV4 returns true if the effective signature version is v4.
+// Region being set implies v4 unless sigVersion is explicitly v1.
+func UseV4(o *Options) bool {
+	if o.SigVersion == SigV1 {
+		return false
+	}
+	return o.SigVersion == SigV4 || o.Region != ""
+}
+
 // ResolveRegion resolves the OSS bucket region with the following priority:
 //  1. User-specified o.Region
 //  2. Parsed from o.URL
