@@ -22,18 +22,13 @@ OSSFS2_IMAGE_TAG=v2.0.7.ack.1-2d5bf24
 # ALINAS and EFC Version Configuration
 # This file is the single source of truth for alinas-utils and efc RPM package versions.
 # When updating versions, please update all references:
-# - build/csi-agent/Dockerfile (ALINAS_UTILS_VERSION, EFC_VERSION, EFC_ARM_VERSION, ALINAS_UTILS_ARM_VERSION ARG defaults)
-# - build/mount-proxy/Dockerfile (ALINAS_UTILS_VERSION, EFC_VERSION, EFC_ARM_VERSION, ALINAS_UTILS_ARM_VERSION ARG defaults)
+# - build/mount-proxy/Dockerfile (ALINAS_UTILS_VERSION, EFC_VERSION, ALINAS_RPM_BASE_URL ARG defaults)
 
-# ALINAS Utils version for x86_64 (used in Dockerfile for yum install)
+# Base URL for ALINAS/EFC RPM packages (includes version path)
+ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/efc-release/2.1
+
+# ALINAS Utils version (used in Dockerfile for yum install)
 ALINAS_UTILS_VERSION=2.1-0.20260624194653.cd6f58.generic
 
-# EFC version for x86_64 (used in Dockerfile for yum install)
+# EFC version (used in Dockerfile for yum install)
 EFC_VERSION=2.1-20260618113444.c9390b.release
-
-# EFC version for ARM64 (used in Dockerfile for yum install)
-EFC_ARM_VERSION=2.1-20260618113444.c9390b.release
-
-# ALINAS Utils version for ARM64 (used in Dockerfile for yum install)
-ALINAS_UTILS_ARM_VERSION=2.1-0.20260624194653.cd6f58.generic
-

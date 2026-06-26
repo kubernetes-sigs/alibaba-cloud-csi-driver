@@ -109,28 +109,19 @@ FROM alinux-install AS alinas
 ARG TARGETPLATFORM
 ARG ALINAS_UTILS_VERSION=2.1-0.20260624194653.cd6f58.generic
 ARG EFC_VERSION=2.1-20260618113444.c9390b.release
-# v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch.
-# It's temporarily unavailable for all ACK clusters,
-# catering only to ARM for compatibility. An update to all CPFS storage cluster versions is required.
-ARG EFC_ARM_VERSION=2.1-20260618113444.c9390b.release
-ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20260624194653.cd6f58.generic
+ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/efc-release/2.1
 
 RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
     echo 'install_weak_deps=False' >> /etc/yum.conf; \
     set -ex; \
     case "${TARGETPLATFORM}" in \
         linux/amd64) ARCH="x86_64" ;; \
-        linux/arm64) ARCH="aarch_64" ;; \
+        linux/arm64) ARCH="aarch64" ;; \
         *) echo "unsupported platform"; exit 1 ;; \
     esac; \
     yum install -y /tmp/rpms/python3-provider-*.rpm util-linux procps tini; \
-    if [ "${ARCH}" = "x86_64" ]; then \
-        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
-        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
-    elif [ "${ARCH}" = "aarch_64" ]; then \
-        yum install -y https://aliyun-alinas-eac-cn-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/efc-release/2.1/aliyun-alinas-utils-${ALINAS_UTILS_ARM_VERSION}.aarch64.rpm; \
-        yum install -y https://aliyun-alinas-eac-cn-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/efc-release/2.1/alinas-efc-${EFC_ARM_VERSION}.aarch64.rpm; \
-    fi; \
+    yum install -y ${ALINAS_RPM_BASE_URL}/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.${ARCH}.rpm; \
+    yum install -y ${ALINAS_RPM_BASE_URL}/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
     yum clean all; \
     # python3-pyyaml is only used by nfsdclnts (NFS server diagnostic tool, irrelevant here).
     # Remove it to silence CVE scans.
@@ -157,30 +148,21 @@ ARG OSSFS_RPM_URL
 ARG OSSFS2_RPM_URL
 ARG ALINAS_UTILS_VERSION=2.1-0.20260624194653.cd6f58.generic
 ARG EFC_VERSION=2.1-20260618113444.c9390b.release
-# v2.1 is exclusive to a specific storage cluster version and the first to support ARM arch.
-# It's temporarily unavailable for all ACK clusters,
-# catering only to ARM for compatibility. An update to all CPFS storage cluster versions is required.
-ARG EFC_ARM_VERSION=2.1-20260618113444.c9390b.release
-ARG ALINAS_UTILS_ARM_VERSION=2.1-0.20260624194653.cd6f58.generic
+ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/efc-release/2.1
 
 RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
     echo 'install_weak_deps=False' >> /etc/yum.conf; \
     set -ex; \
     case "${TARGETPLATFORM}" in \
-        linux/amd64) ARCH="x86_64" ;; \
-        linux/arm64) ARCH="aarch_64" ;; \
+        linux/amd64) OSSFS_ARCH="x86_64"; ALINAS_ARCH="x86_64" ;; \
+        linux/arm64) OSSFS_ARCH="aarch_64"; ALINAS_ARCH="aarch64" ;; \
         *) echo "unknown platform"; exit 1 ;; \
     esac; \
     yum install -y /tmp/rpms/python3-provider-*.rpm fuse-devel util-linux mailcap procps tini; \
-    yum install -y ${OSSFS_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${ARCH}.rpm}; \
-    yum install -y ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${ARCH}.rpm}; \
-    if [ "${ARCH}" = "x86_64" ]; then \
-        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
-        yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
-    elif [ "${ARCH}" = "aarch_64" ]; then \
-        yum install -y https://aliyun-alinas-eac-cn-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/efc-release/2.1/aliyun-alinas-utils-${ALINAS_UTILS_ARM_VERSION}.aarch64.rpm; \
-        yum install -y https://aliyun-alinas-eac-cn-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/efc-release/2.1/alinas-efc-${EFC_ARM_VERSION}.aarch64.rpm; \
-    fi; \
+    yum install -y ${OSSFS_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
+    yum install -y ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
+    yum install -y ${ALINAS_RPM_BASE_URL}/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.${ALINAS_ARCH}.rpm; \
+    yum install -y ${ALINAS_RPM_BASE_URL}/alinas-efc-${EFC_VERSION}.${ALINAS_ARCH}.rpm; \
     cp -r /etc/aliyun /etc/aliyun-defaults; \
     yum clean all; \
     # python3-pyyaml is only used by nfsdclnts (NFS server diagnostic tool, irrelevant here).
