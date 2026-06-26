@@ -23,7 +23,7 @@ FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS alinux-install
 
 FROM alinux-install AS ossfs
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.10.ack.4
+ARG OSSFS_VERSION=v1.91.10.ack.5
 ARG OSSFS_RPM_URL
 
 # install ossfs
@@ -151,7 +151,7 @@ ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas" ]
 FROM alinux-install AS aio
 
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.10.ack.4
+ARG OSSFS_VERSION=v1.91.10.ack.5
 ARG OSSFS2_VERSION=v2.0.7.ack.1
 ARG OSSFS_RPM_URL
 ARG OSSFS2_RPM_URL
