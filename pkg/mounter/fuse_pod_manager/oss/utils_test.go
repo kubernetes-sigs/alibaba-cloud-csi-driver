@@ -381,6 +381,52 @@ func Test_parseRegionFromURL(t *testing.T) {
 	}
 }
 
+func TestUseV4(t *testing.T) {
+	tests := []struct {
+		name     string
+		opts     *Options
+		expected bool
+	}{
+		{
+			name:     "explicit sigv4",
+			opts:     &Options{SigVersion: SigV4},
+			expected: true,
+		},
+		{
+			name:     "explicit sigv1",
+			opts:     &Options{SigVersion: SigV1},
+			expected: false,
+		},
+		{
+			name:     "explicit sigv1 with region",
+			opts:     &Options{SigVersion: SigV1, Region: "cn-hangzhou"},
+			expected: false,
+		},
+		{
+			name:     "region set without sigversion",
+			opts:     &Options{Region: "cn-hangzhou"},
+			expected: true,
+		},
+		{
+			name:     "region set with sigv4",
+			opts:     &Options{SigVersion: SigV4, Region: "cn-hangzhou"},
+			expected: true,
+		},
+		{
+			name:     "nothing set",
+			opts:     &Options{},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := UseV4(tt.opts)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
 func TestResolveRegion(t *testing.T) {
 	tests := []struct {
 		name         string

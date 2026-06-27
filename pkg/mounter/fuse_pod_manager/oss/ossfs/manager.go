@@ -298,10 +298,9 @@ func (f *fuseOssfs) MakeMountOptions(o *ossfpm.Options, m metadata.MetadataProvi
 		mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", o.MetricsTop))
 	}
 
-	switch o.SigVersion {
-	case ossfpm.SigV1:
+	if o.SigVersion == ossfpm.SigV1 {
 		mountOptions = append(mountOptions, "sigv1")
-	case ossfpm.SigV4:
+	} else if ossfpm.UseV4(o) {
 		if region == "" {
 			return nil, fmt.Errorf("SigV4 is not supported without region")
 		}

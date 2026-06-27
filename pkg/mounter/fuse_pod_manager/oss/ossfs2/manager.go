@@ -156,7 +156,7 @@ func (f *fuseOssfs) MakeMountOptions(o *ossfpm.Options, m metadata.MetadataProvi
 
 	region := ossfpm.ResolveRegion(o, m)
 
-	if o.SigVersion == ossfpm.SigV4 {
+	if ossfpm.UseV4(o) {
 		if region == "" {
 			return nil, fmt.Errorf("SigV4 is not supported without region")
 		}
