@@ -98,20 +98,9 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 }
 
 func (d *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	segments := map[string]string{
-		TopologyKey: GlobalConfigVar.regionID,
-	}
-	topology := &csi.Topology{Segments: segments}
-
 	return &csi.NodeGetInfoResponse{
-		NodeId:             d.NodeID,
-		MaxVolumesPerNode:  d.getVolumesLimit(),
-		AccessibleTopology: topology,
+		NodeId: d.NodeID,
 	}, nil
-}
-
-func (d *nodeService) getVolumesLimit() int64 {
-	return 0
 }
 
 func (d *nodeService) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
