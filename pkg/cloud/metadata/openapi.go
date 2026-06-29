@@ -1,12 +1,14 @@
 package metadata
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 )
 
@@ -14,7 +16,7 @@ type OpenAPIMetadata struct {
 	instance *ecs20140526.DescribeInstancesResponseBodyInstancesInstance
 }
 
-func NewOpenAPIMetadata(c cloud.ECSv2Interface, instanceId string) (*OpenAPIMetadata, error) {
+func NewOpenAPIMetadata(ctx context.Context, c cloud.ECSv2Interface, instanceId string) (*OpenAPIMetadata, error) {
 	ids, err := json.Marshal([]string{instanceId})
 	if err != nil {
 		panic(err)
@@ -23,7 +25,7 @@ func NewOpenAPIMetadata(c cloud.ECSv2Interface, instanceId string) (*OpenAPIMeta
 		InstanceIds: new(string(ids)),
 	}
 
-	instanceResponse, err := c.DescribeInstances(&instanceRequest)
+	instanceResponse, err := c.DescribeInstancesWithContext(ctx, &instanceRequest, &dara.RuntimeOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe instance %s: %w", instanceId, err)
 	}
@@ -89,7 +91,7 @@ func (f *OpenAPIFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, e
 	if err != nil {
 		return nil, fmt.Errorf("instance ID is not available: %w", err)
 	}
-	p, err := NewOpenAPIMetadata(f.ecsClient, instanceId.(string))
+	p, err := NewOpenAPIMetadata(ctx, f.ecsClient, instanceId.(string))
 	if err != nil {
 		return nil, err
 	}

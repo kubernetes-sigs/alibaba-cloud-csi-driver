@@ -1,9 +1,11 @@
 package metadata
 
 import (
+	"context"
 	"fmt"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 )
 
@@ -11,11 +13,11 @@ type ECSInstanceTypeMetadata struct {
 	t *ecs20140526.DescribeInstanceTypesResponseBodyInstanceTypesInstanceType
 }
 
-func NewEcsInstanceTypeMetadata(c cloud.ECSv2Interface, instanceType string) (*ECSInstanceTypeMetadata, error) {
+func NewEcsInstanceTypeMetadata(ctx context.Context, c cloud.ECSv2Interface, instanceType string) (*ECSInstanceTypeMetadata, error) {
 	req := ecs20140526.DescribeInstanceTypesRequest{
 		InstanceTypes: []*string{&instanceType},
 	}
-	resp, err := c.DescribeInstanceTypes(&req)
+	resp, err := c.DescribeInstanceTypesWithContext(ctx, &req, &dara.RuntimeOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe instance type %s: %w", instanceType, err)
 	}
@@ -71,7 +73,7 @@ func (f *ECSInstanceTypeFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middl
 	if err != nil {
 		return nil, fmt.Errorf("instance type is not available: %w", err)
 	}
-	p, err := NewEcsInstanceTypeMetadata(f.ecsClient, t.(string))
+	p, err := NewEcsInstanceTypeMetadata(ctx, f.ecsClient, t.(string))
 	if err != nil {
 		return nil, err
 	}

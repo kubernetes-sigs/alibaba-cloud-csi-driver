@@ -101,8 +101,8 @@ func TestSessionClearError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ecsClient := cloud.NewMockECSv2Interface(ctrl)
 	fakeErr := errors.New("whatever")
-	ecsClient.EXPECT().DescribeInstances(gomock.Any()).Return(nil, fakeErr)
-	ecsClient.EXPECT().DescribeInstances(gomock.Any()).Return(res, nil)
+	ecsClient.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, fakeErr)
+	ecsClient.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(res, nil)
 
 	m := testMetadata(t, fakeMiddleware{InstanceID: "i-2zec1slzwdzrwmvlr4w2"})
 	m.EnableOpenAPI(ecsClient)

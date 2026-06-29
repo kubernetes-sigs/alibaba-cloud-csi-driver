@@ -140,7 +140,7 @@ func (r *Reconciler) reconcile(ctx context.Context, logger klog.Logger, nodeName
 		return err
 	}
 
-	attachedDisks, err := disk.GetAttachedCloudDisks(r.ECS, instanceID, r.RegionID)
+	attachedDisks, err := disk.GetAttachedCloudDisks(ctx, r.ECS, instanceID, r.RegionID)
 	if err != nil {
 		return fmt.Errorf("describe disks for %s: %w", instanceID, err)
 	}
