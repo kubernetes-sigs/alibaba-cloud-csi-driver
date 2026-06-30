@@ -57,8 +57,15 @@ func sdkError(code string) error {
 func TestModify_HappyPath(t *testing.T) {
 	c, m := newTestModifyServer(t)
 
-	// 1. verifyModifyDiskSpec: dry-run returns DryRunOperation → dirty=true
-	c.EXPECT().ModifyDiskSpec(gomock.Any()).Return(nil, sdkError("DryRunOperation"))
+	// 1. verifyModifyDiskSpec: dry-run returns DryRunOperation → dirty=true.
+	// Assert the exact request: the empty PerformanceLevel must be omitted,
+	// otherwise ECS rejects it with InvalidDiskCategory.NotSupported.
+	c.EXPECT().ModifyDiskSpec(&ecs20140526.ModifyDiskSpecRequest{
+		DiskId:          new("d-test"),
+		DiskCategory:    new("cloud_auto"),
+		ProvisionedIops: new(int64(1000)),
+		DryRun:          new(true),
+	}).Return(nil, sdkError("DryRunOperation"))
 
 	// 2. UntagResources
 	c.EXPECT().UntagResources(gomock.Any()).Return(&ecs20140526.UntagResourcesResponse{}, nil)
@@ -290,4 +297,60 @@ func TestModify_TagsOnly(t *testing.T) {
 		RemoveTags: []*string{new("tag1")},
 	})
 	require.NoError(t, err)
+}
+
+func TestBuildModifySpecRequest(t *testing.T) {
+	// Empty Category/PerformanceLevel must NOT be sent: the v2 SDK serializes
+	// pointers to empty strings, and passing e.g. an empty PerformanceLevel
+	// alongside DiskCategory=cloud_auto makes ECS reject the request with
+	// InvalidDiskCategory.NotSupported.
+	cases := []struct {
+		name     string
+		params   ModifyParameters
+		wantNil  bool
+		category *string
+		level    *string
+		iops     *int64
+	}{
+		{
+			name:    "all empty",
+			params:  ModifyParameters{},
+			wantNil: true,
+		},
+		{
+			name:   "iops only",
+			params: ModifyParameters{ProvisionedIops: new(10)},
+			iops:   new(int64(10)),
+		},
+		{
+			name:     "category only",
+			params:   ModifyParameters{Category: DiskESSDAuto},
+			category: new("cloud_auto"),
+		},
+		{
+			name:   "performance level only",
+			params: ModifyParameters{PerformanceLevel: PERFORMANCE_LEVEL1},
+			level:  new("PL1"),
+		},
+		{
+			name:     "category and level",
+			params:   ModifyParameters{Category: DiskESSD, PerformanceLevel: PERFORMANCE_LEVEL2},
+			category: new("cloud_essd"),
+			level:    new("PL2"),
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := c.params.buildModifySpecRequest("d-test")
+			if c.wantNil {
+				assert.Nil(t, req)
+				return
+			}
+			require.NotNil(t, req)
+			assert.Equal(t, new("d-test"), req.DiskId)
+			assert.Equal(t, c.category, req.DiskCategory)
+			assert.Equal(t, c.level, req.PerformanceLevel)
+			assert.Equal(t, c.iops, req.ProvisionedIops)
+		})
+	}
 }
