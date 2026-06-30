@@ -46,8 +46,22 @@ func getOpenAPIConfig(regionID string) *openapi.Config {
 	return config
 }
 
-func GetStsConfig(regionID string) *openapi.Config {
+// getRPCConfig builds a config for RPC-style products. The v2 SDK does not send
+// RegionId automatically (config.RegionId is only used for endpoint
+// resolution), but the v1 SDK we migrated from injected RegionId into every RPC
+// request (see signRpcRequest) and our clients rely on it, e.g. ECS
+// TagResources requires it. Inject it as a global query parameter to restore
+// that behavior; a per-request RegionId still overrides this default.
+func getRPCConfig(regionID string) *openapi.Config {
 	config := getOpenAPIConfig(regionID)
+	config.GlobalParameters = &openapi.GlobalParameters{
+		Queries: map[string]*string{"RegionId": &regionID},
+	}
+	return config
+}
+
+func GetStsConfig(regionID string) *openapi.Config {
+	config := getRPCConfig(regionID)
 	if e := os.Getenv("STS_ENDPOINT"); e != "" {
 		config.Endpoint = &e
 	}
@@ -55,7 +69,7 @@ func GetStsConfig(regionID string) *openapi.Config {
 }
 
 func GetEcsConfig(regionID string) *openapi.Config {
-	config := getOpenAPIConfig(regionID)
+	config := getRPCConfig(regionID)
 	if e := os.Getenv("ECS_ENDPOINT"); e != "" {
 		config.Endpoint = &e
 	} else {
@@ -75,7 +89,7 @@ func GetEfloControllerConfig(regionID string) *openapi.Config {
 		regionID = r
 	}
 
-	config := getOpenAPIConfig(regionID)
+	config := getRPCConfig(regionID)
 	if e := os.Getenv("EFLO_CONTROLLER_ENDPOINT"); e != "" {
 		config.Endpoint = &e
 	}
