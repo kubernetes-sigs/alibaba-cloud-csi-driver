@@ -79,6 +79,16 @@ func TestEcsEndpoint(t *testing.T) {
 	})
 }
 
+func TestEcsConfigRegionId(t *testing.T) {
+	// The v2 SDK does not auto-fill RegionId; it must be injected as a global
+	// query parameter, otherwise region-mandatory APIs like TagResources fail
+	// with MissingParameter.
+	cfg := GetEcsConfig("cn-hangzhou")
+	if assert.NotNil(t, cfg.GlobalParameters) {
+		assert.Equal(t, ptr.To("cn-hangzhou"), cfg.GlobalParameters.Queries["RegionId"])
+	}
+}
+
 func TestEfloControllerConfig(t *testing.T) {
 	cases := []struct {
 		network  string
