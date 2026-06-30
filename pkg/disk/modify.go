@@ -37,9 +37,13 @@ func (p *ModifyParameters) buildModifySpecRequest(diskID string) *ecs20140526.Mo
 		return nil
 	}
 	req := &ecs20140526.ModifyDiskSpecRequest{
-		DiskId:           new(diskID),
-		DiskCategory:     new(string(p.Category)),
-		PerformanceLevel: new(string(p.PerformanceLevel)),
+		DiskId: &diskID,
+	}
+	if p.Category != "" {
+		req.DiskCategory = new(string(p.Category))
+	}
+	if p.PerformanceLevel != "" {
+		req.PerformanceLevel = new(string(p.PerformanceLevel))
 	}
 	if p.ProvisionedIops != nil {
 		req.ProvisionedIops = new(int64(*p.ProvisionedIops))
@@ -85,7 +89,7 @@ func (m *ModifyServer) waitForTask(ctx context.Context, logger logr.Logger, task
 func (m *ModifyServer) retrieveTask(logger logr.Logger, diskID string) (*ecs20140526.DescribeTasksResponseBodyTaskSetTask, error) {
 	req := &ecs20140526.DescribeTasksRequest{
 		PageSize:    new(int32(1)),
-		ResourceIds: []*string{new(diskID)},
+		ResourceIds: []*string{&diskID},
 		TaskAction:  new("ModifyDiskSpec"),
 	}
 
@@ -224,8 +228,8 @@ func (m *ModifyServer) modifyDiskAttribute(ctx context.Context, logger logr.Logg
 	var err error
 	for range 3 {
 		req := &ecs20140526.ModifyDiskAttributeRequest{
-			DiskId:          new(diskID),
-			BurstingEnabled: new(burstingEnabled),
+			DiskId:          &diskID,
+			BurstingEnabled: &burstingEnabled,
 		}
 
 		_, err = wrap.V2(logger, m.ecsClient.ModifyDiskAttribute)(req)
@@ -279,7 +283,7 @@ func (m *ModifyServer) Modify(ctx context.Context, diskID string, params ModifyP
 	if len(params.RemoveTags) > 0 {
 		req := &ecs20140526.UntagResourcesRequest{
 			ResourceType: new("disk"),
-			ResourceId:   []*string{new(diskID)},
+			ResourceId:   []*string{&diskID},
 			TagKey:       params.RemoveTags,
 		}
 
@@ -293,7 +297,7 @@ func (m *ModifyServer) Modify(ctx context.Context, diskID string, params ModifyP
 	if len(params.Tags) > 0 {
 		req := &ecs20140526.TagResourcesRequest{
 			ResourceType: new("disk"),
-			ResourceId:   []*string{new(diskID)},
+			ResourceId:   []*string{&diskID},
 			Tag:          params.Tags,
 		}
 
