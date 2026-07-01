@@ -108,10 +108,6 @@ type ListNodeGroupsResponseBodyGroups struct {
 	// created by ga2_prepare
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// Indicates whether file storage mounting is supported.
-	//
-	// example:
-	//
-	// False
 	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
 	// The group ID.
 	//

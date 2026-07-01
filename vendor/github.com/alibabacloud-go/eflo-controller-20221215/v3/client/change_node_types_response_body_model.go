@@ -18,11 +18,16 @@ type iChangeNodeTypesResponseBody interface {
 }
 
 type ChangeNodeTypesResponseBody struct {
+	// The responses for the nodes.
 	NodeResponse []*ChangeNodeTypesResponseBodyNodeResponse `json:"NodeResponse,omitempty" xml:"NodeResponse,omitempty" type:"Repeated"`
+	// The request ID.
+	//
 	// example:
 	//
 	// 887FA855-89F4-5DB3-B305-C5879EC480E6
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// The task ID. A task ID is returned only if all nodes pass the precheck. If an exception occurs, this parameter is empty.
+	//
 	// example:
 	//
 	// i158475611663639202234
@@ -78,14 +83,20 @@ func (s *ChangeNodeTypesResponseBody) Validate() error {
 }
 
 type ChangeNodeTypesResponseBodyNodeResponse struct {
+	// The response code for the node.
+	//
 	// example:
 	//
 	// PASSED
 	Code *string `json:"Code,omitempty" xml:"Code,omitempty"`
+	// The response message for the node.
+	//
 	// example:
 	//
 	// success
 	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
+	// The ID of the node included in the response.
+	//
 	// example:
 	//
 	// e01-in-067da4ca9c2

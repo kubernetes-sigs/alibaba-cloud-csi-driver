@@ -26,15 +26,15 @@ type ReimageNodesRequest struct {
 	//
 	// i15dfa12e8f27c44f4a006c2c8bb
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// Specifies whether to allow skipping failed nodes. Default value: False.
+	// Specifies whether to skip failed nodes. The default value is False.
 	//
 	// example:
 	//
 	// False
 	IgnoreFailedNodeTasks *bool `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
-	// The nodes.
+	// The list of nodes.
 	Nodes []*ReimageNodesRequestNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
-	// The user data.
+	// The custom data.
 	//
 	// example:
 	//
@@ -108,7 +108,7 @@ type ReimageNodesRequestNodes struct {
 	//
 	// 457db5ca-241d-11ed-9fd7-acde48001122
 	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
-	// The system image ID.
+	// The OS image ID.
 	//
 	// example:
 	//

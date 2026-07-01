@@ -280,7 +280,7 @@ type DescribeTaskResponseBodySteps struct {
 	//
 	// example:
 	//
-	// 节点缩容
+	// Node scale-down
 	StageTag *string `json:"StageTag,omitempty" xml:"StageTag,omitempty"`
 	// The start time.
 	//

@@ -16,10 +16,13 @@ type iChangeNodeTypesRequest interface {
 }
 
 type ChangeNodeTypesRequest struct {
+	// A list of node IDs. You can specify a maximum of 10 nodes in a single request.
 	NodeIds []*string `json:"NodeIds,omitempty" xml:"NodeIds,omitempty" type:"Repeated"`
+	// The node specifications.
+	//
 	// example:
 	//
-	// standard
+	// cpfs-enhanced
 	NodeType *string `json:"NodeType,omitempty" xml:"NodeType,omitempty"`
 }
 

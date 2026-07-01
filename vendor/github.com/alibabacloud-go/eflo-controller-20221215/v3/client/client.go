@@ -25,6 +25,26 @@ func (client *Client) Init(config *openapiutil.Config) (_err error) {
 		return _err
 	}
 	client.EndpointRule = dara.String("regional")
+	client.EndpointMap = map[string]*string{
+		"me-east-1":             dara.String("eflo-controller.me-east-1.aliyuncs.com"),
+		"eu-central-1":          dara.String("eflo-controller.eu-central-1.aliyuncs.com"),
+		"cn-zhangjiakou":        dara.String("eflo-controller.cn-zhangjiakou.aliyuncs.com"),
+		"cn-wulanchabu":         dara.String("eflo-controller.cn-wulanchabu.aliyuncs.com"),
+		"cn-shenzhen":           dara.String("eflo-controller.cn-shenzhen.aliyuncs.com"),
+		"cn-shanghai-finance-1": dara.String("eflo-controller.cn-shanghai-finance-1.aliyuncs.com"),
+		"cn-shanghai":           dara.String("eflo-controller.cn-shanghai.aliyuncs.com"),
+		"cn-huhehaote":          dara.String("eflo-controller.cn-huhehaote.aliyuncs.com"),
+		"cn-hongkong":           dara.String("eflo-controller.cn-hongkong.aliyuncs.com"),
+		"cn-heyuan":             dara.String("eflo-controller.cn-heyuan.aliyuncs.com"),
+		"cn-hangzhou":           dara.String("eflo-controller.cn-hangzhou.aliyuncs.com"),
+		"cn-guangzhou":          dara.String("eflo-controller.cn-guangzhou.aliyuncs.com"),
+		"cn-beijing":            dara.String("eflo-controller.cn-beijing.aliyuncs.com"),
+		"ap-southeast-8":        dara.String("eflo-controller.ap-sourtheast-8.aliyuncs.com"),
+		"ap-southeast-7":        dara.String("eflo-controller.ap-southeast-7.aliyuncs.com"),
+		"ap-southeast-3":        dara.String("eflo-controller.ap-southeast-3.aliyuncs.com"),
+		"ap-southeast-1":        dara.String("eflo-controller.ap-southeast-1.aliyuncs.com"),
+		"ap-northeast-1":        dara.String("eflo-controller.ap-northeast-1.aliyuncs.com"),
+	}
 	_err = client.CheckConfig(config)
 	if _err != nil {
 		return _err
@@ -58,7 +78,7 @@ func (client *Client) GetEndpoint(productId *string, regionId *string, endpointR
 
 // Summary:
 //
-// Approves an O\\&M operation.
+// Approves an O\\\\\\&M operation.
 //
 // @param request - ApproveOperationRequest
 //
@@ -106,7 +126,7 @@ func (client *Client) ApproveOperationWithOptions(request *ApproveOperationReque
 
 // Summary:
 //
-// Approves an O\\&M operation.
+// Approves an O\\\\\\&M operation.
 //
 // @param request - ApproveOperationRequest
 //
@@ -124,7 +144,11 @@ func (client *Client) ApproveOperation(request *ApproveOperationRequest) (_resul
 
 // Summary:
 //
-// 修改节点的节点组
+// Changes the node group of a node.
+//
+// Description:
+//
+// Creates a session, returns a frontend endpoint, and starts an auto-triggered task to track the session status.
 //
 // @param tmpReq - ChangeNodeGroupRequest
 //
@@ -184,7 +208,11 @@ func (client *Client) ChangeNodeGroupWithOptions(tmpReq *ChangeNodeGroupRequest,
 
 // Summary:
 //
-// 修改节点的节点组
+// Changes the node group of a node.
+//
+// Description:
+//
+// Creates a session, returns a frontend endpoint, and starts an auto-triggered task to track the session status.
 //
 // @param request - ChangeNodeGroupRequest
 //
@@ -202,7 +230,7 @@ func (client *Client) ChangeNodeGroup(request *ChangeNodeGroupRequest) (_result 
 
 // Summary:
 //
-// 节点规格变配
+// Upgrades or downgrades the specifications of one or more nodes. Before you change the specifications, ensure that the node resources meet the requirements of the target specifications. If a node does not meet the new specification requirements, the task reports success, but the specifications are not changed. Therefore, do not rely on the task status. To confirm a successful change, query the node after the task is complete and check the returned specifications.
 //
 // @param tmpReq - ChangeNodeTypesRequest
 //
@@ -256,7 +284,7 @@ func (client *Client) ChangeNodeTypesWithOptions(tmpReq *ChangeNodeTypesRequest,
 
 // Summary:
 //
-// 节点规格变配
+// Upgrades or downgrades the specifications of one or more nodes. Before you change the specifications, ensure that the node resources meet the requirements of the target specifications. If a node does not meet the new specification requirements, the task reports success, but the specifications are not changed. Therefore, do not rely on the task status. To confirm a successful change, query the node after the task is complete and check the returned specifications.
 //
 // @param request - ChangeNodeTypesRequest
 //
@@ -274,7 +302,7 @@ func (client *Client) ChangeNodeTypes(request *ChangeNodeTypesRequest) (_result 
 
 // Summary:
 //
-// Moves a resource from one resource group to another.
+// Changes the resource group of a resource.
 //
 // @param request - ChangeResourceGroupRequest
 //
@@ -330,7 +358,7 @@ func (client *Client) ChangeResourceGroupWithOptions(request *ChangeResourceGrou
 
 // Summary:
 //
-// Moves a resource from one resource group to another.
+// Changes the resource group of a resource.
 //
 // @param request - ChangeResourceGroupRequest
 //
@@ -349,6 +377,10 @@ func (client *Client) ChangeResourceGroup(request *ChangeResourceGroupRequest) (
 // Summary:
 //
 // # Disconnect Connection
+//
+// Description:
+//
+// # An interface for creating a session, returning the front-end EndPoint, and initiating a periodic task to track the session status
 //
 // @param request - CloseSessionRequest
 //
@@ -398,6 +430,10 @@ func (client *Client) CloseSessionWithOptions(request *CloseSessionRequest, runt
 //
 // # Disconnect Connection
 //
+// Description:
+//
+// # An interface for creating a session, returning the front-end EndPoint, and initiating a periodic task to track the session status
+//
 // @param request - CloseSessionRequest
 //
 // @return CloseSessionResponse
@@ -414,7 +450,11 @@ func (client *Client) CloseSession(request *CloseSessionRequest) (_result *Close
 
 // Summary:
 //
-// # Create a large-scale computing cluster
+// Creates a new LINGJUN Cluster.
+//
+// Description:
+//
+// 关闭远程会话的接口。
 //
 // @param tmpReq - CreateClusterRequest
 //
@@ -522,7 +562,11 @@ func (client *Client) CreateClusterWithOptions(tmpReq *CreateClusterRequest, run
 
 // Summary:
 //
-// # Create a large-scale computing cluster
+// Creates a new LINGJUN Cluster.
+//
+// Description:
+//
+// 关闭远程会话的接口。
 //
 // @param request - CreateClusterRequest
 //
@@ -626,10 +670,6 @@ func (client *Client) CreateDiagnosticTask(request *CreateDiagnosticTaskRequest)
 //
 // Creates a network test task.
 //
-// Description:
-//
-// The API creates a session, returns the frontend endpoint, and starts a periodic task to track the session status.
-//
 // @param tmpReq - CreateNetTestTaskRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
@@ -716,10 +756,6 @@ func (client *Client) CreateNetTestTaskWithOptions(tmpReq *CreateNetTestTaskRequ
 //
 // Creates a network test task.
 //
-// Description:
-//
-// The API creates a session, returns the frontend endpoint, and starts a periodic task to track the session status.
-//
 // @param request - CreateNetTestTaskRequest
 //
 // @return CreateNetTestTaskResponse
@@ -736,7 +772,11 @@ func (client *Client) CreateNetTestTask(request *CreateNetTestTaskRequest) (_res
 
 // Summary:
 //
-// # Create Node Group under Cluster
+// Create a node group in a cluster.
+//
+// Description:
+//
+// Creates a session, returns a front-end endpoint, and starts a periodic task to track the session status.
 //
 // @param tmpReq - CreateNodeGroupRequest
 //
@@ -798,7 +838,11 @@ func (client *Client) CreateNodeGroupWithOptions(tmpReq *CreateNodeGroupRequest,
 
 // Summary:
 //
-// # Create Node Group under Cluster
+// Create a node group in a cluster.
+//
+// Description:
+//
+// Creates a session, returns a front-end endpoint, and starts a periodic task to track the session status.
 //
 // @param request - CreateNodeGroupRequest
 //
@@ -894,7 +938,7 @@ func (client *Client) CreateSession(request *CreateSessionRequest) (_result *Cre
 
 // Summary:
 //
-// Creates a virtual storage channel (VSC).
+// Creates a VSC.
 //
 // @param request - CreateVscRequest
 //
@@ -960,7 +1004,7 @@ func (client *Client) CreateVscWithOptions(request *CreateVscRequest, runtime *d
 
 // Summary:
 //
-// Creates a virtual storage channel (VSC).
+// Creates a VSC.
 //
 // @param request - CreateVscRequest
 //
@@ -1040,7 +1084,7 @@ func (client *Client) DeleteCluster(request *DeleteClusterRequest) (_result *Del
 
 // Summary:
 //
-// 删除一个未使用超节点
+// Deletes an unused hyper node.
 //
 // @param request - DeleteHyperNodeRequest
 //
@@ -1084,7 +1128,7 @@ func (client *Client) DeleteHyperNodeWithOptions(request *DeleteHyperNodeRequest
 
 // Summary:
 //
-// 删除一个未使用超节点
+// Deletes an unused hyper node.
 //
 // @param request - DeleteHyperNodeRequest
 //
@@ -1102,7 +1146,7 @@ func (client *Client) DeleteHyperNode(request *DeleteHyperNodeRequest) (_result 
 
 // Summary:
 //
-// 删除一个未使用节点
+// Releases a pay-as-you-go node.
 //
 // @param request - DeleteNodeRequest
 //
@@ -1146,7 +1190,7 @@ func (client *Client) DeleteNodeWithOptions(request *DeleteNodeRequest, runtime 
 
 // Summary:
 //
-// 删除一个未使用节点
+// Releases a pay-as-you-go node.
 //
 // @param request - DeleteNodeRequest
 //
@@ -1164,7 +1208,7 @@ func (client *Client) DeleteNode(request *DeleteNodeRequest) (_result *DeleteNod
 
 // Summary:
 //
-// 删除节点分组
+// # Delete Node Group
 //
 // @param request - DeleteNodeGroupRequest
 //
@@ -1212,7 +1256,7 @@ func (client *Client) DeleteNodeGroupWithOptions(request *DeleteNodeGroupRequest
 
 // Summary:
 //
-// 删除节点分组
+// # Delete Node Group
 //
 // @param request - DeleteNodeGroupRequest
 //
@@ -1230,7 +1274,7 @@ func (client *Client) DeleteNodeGroup(request *DeleteNodeGroupRequest) (_result 
 
 // Summary:
 //
-// Deletes a virtual storage channel (VSC).
+// Deletes a VSC.
 //
 // @param request - DeleteVscRequest
 //
@@ -1280,7 +1324,7 @@ func (client *Client) DeleteVscWithOptions(request *DeleteVscRequest, runtime *d
 
 // Summary:
 //
-// Deletes a virtual storage channel (VSC).
+// Deletes a VSC.
 //
 // @param request - DeleteVscRequest
 //
@@ -1298,7 +1342,11 @@ func (client *Client) DeleteVsc(request *DeleteVscRequest) (_result *DeleteVscRe
 
 // Summary:
 //
-// Queries information about a Lingjun cluster.
+// Queries the details of a cluster.
+//
+// Description:
+//
+// Queries the details of a specified cluster.
 //
 // @param request - DescribeClusterRequest
 //
@@ -1342,7 +1390,11 @@ func (client *Client) DescribeClusterWithOptions(request *DescribeClusterRequest
 
 // Summary:
 //
-// Queries information about a Lingjun cluster.
+// Queries the details of a cluster.
+//
+// Description:
+//
+// Queries the details of a specified cluster.
 //
 // @param request - DescribeClusterRequest
 //
@@ -1430,7 +1482,11 @@ func (client *Client) DescribeDiagnosticResult(request *DescribeDiagnosticResult
 
 // Summary:
 //
-// 查询节点列表
+// Queries the details of a hyper node.
+//
+// Description:
+//
+// Queries the details of a specified hyper node.
 //
 // @param request - DescribeHyperNodeRequest
 //
@@ -1474,7 +1530,11 @@ func (client *Client) DescribeHyperNodeWithOptions(request *DescribeHyperNodeReq
 
 // Summary:
 //
-// 查询节点列表
+// Queries the details of a hyper node.
+//
+// Description:
+//
+// Queries the details of a specified hyper node.
 //
 // @param request - DescribeHyperNodeRequest
 //
@@ -1492,7 +1552,7 @@ func (client *Client) DescribeHyperNode(request *DescribeHyperNodeRequest) (_res
 
 // Summary:
 //
-// Queries the execution list and status of O\\&M Assistant commands.
+// Queries the execution history and status of Cloud Assistant commands.
 //
 // @param request - DescribeInvocationsRequest
 //
@@ -1548,7 +1608,7 @@ func (client *Client) DescribeInvocationsWithOptions(request *DescribeInvocation
 
 // Summary:
 //
-// Queries the execution list and status of O\\&M Assistant commands.
+// Queries the execution history and status of Cloud Assistant commands.
 //
 // @param request - DescribeInvocationsRequest
 //
@@ -1566,7 +1626,7 @@ func (client *Client) DescribeInvocations(request *DescribeInvocationsRequest) (
 
 // Summary:
 //
-// # Query Network Test Result
+// Queries the results of a network test.
 //
 // @param request - DescribeNetTestResultRequest
 //
@@ -1610,7 +1670,7 @@ func (client *Client) DescribeNetTestResultWithOptions(request *DescribeNetTestR
 
 // Summary:
 //
-// # Query Network Test Result
+// Queries the results of a network test.
 //
 // @param request - DescribeNetTestResultRequest
 //
@@ -1628,7 +1688,11 @@ func (client *Client) DescribeNetTestResult(request *DescribeNetTestResultReques
 
 // Summary:
 //
-// Queries a list of nodes.
+// Queries the list of nodes.
+//
+// Description:
+//
+// Queries the detailed information of a hyper node.
 //
 // @param request - DescribeNodeRequest
 //
@@ -1672,7 +1736,11 @@ func (client *Client) DescribeNodeWithOptions(request *DescribeNodeRequest, runt
 
 // Summary:
 //
-// Queries a list of nodes.
+// Queries the list of nodes.
+//
+// Description:
+//
+// Queries the detailed information of a hyper node.
 //
 // @param request - DescribeNodeRequest
 //
@@ -1690,7 +1758,11 @@ func (client *Client) DescribeNode(request *DescribeNodeRequest) (_result *Descr
 
 // Summary:
 //
-// 查询节点分组
+// Queries the details of a node group.
+//
+// Description:
+//
+// This operation queries the details of a node group.
 //
 // @param request - DescribeNodeGroupRequest
 //
@@ -1734,7 +1806,11 @@ func (client *Client) DescribeNodeGroupWithOptions(request *DescribeNodeGroupReq
 
 // Summary:
 //
-// 查询节点分组
+// Queries the details of a node group.
+//
+// Description:
+//
+// This operation queries the details of a node group.
 //
 // @param request - DescribeNodeGroupRequest
 //
@@ -1752,7 +1828,7 @@ func (client *Client) DescribeNodeGroup(request *DescribeNodeGroupRequest) (_res
 
 // Summary:
 //
-// 创建Web Terminal会话
+// Describes the constraints for a node type.
 //
 // @param request - DescribeNodeTypeRequest
 //
@@ -1796,7 +1872,7 @@ func (client *Client) DescribeNodeTypeWithOptions(request *DescribeNodeTypeReque
 
 // Summary:
 //
-// 创建Web Terminal会话
+// Describes the constraints for a node type.
 //
 // @param request - DescribeNodeTypeRequest
 //
@@ -1876,7 +1952,7 @@ func (client *Client) DescribeRegions(request *DescribeRegionsRequest) (_result 
 
 // Summary:
 //
-// Queries the files that are sent by an O\\&M assistant and the status of the files.
+// Queries the files that are sent by an O\\\\\\&M assistant and the status of the files.
 //
 // @param request - DescribeSendFileResultsRequest
 //
@@ -1924,7 +2000,7 @@ func (client *Client) DescribeSendFileResultsWithOptions(request *DescribeSendFi
 
 // Summary:
 //
-// Queries the files that are sent by an O\\&M assistant and the status of the files.
+// Queries the files that are sent by an O\\\\\\&M assistant and the status of the files.
 //
 // @param request - DescribeSendFileResultsRequest
 //
@@ -2004,7 +2080,7 @@ func (client *Client) DescribeTask(request *DescribeTaskRequest) (_result *Descr
 
 // Summary:
 //
-// Queries information about a virtual storage channel (VSC).
+// Retrieves the details of a specific virtual switch controller (Vsc).
 //
 // @param request - DescribeVscRequest
 //
@@ -2048,7 +2124,7 @@ func (client *Client) DescribeVscWithOptions(request *DescribeVscRequest, runtim
 
 // Summary:
 //
-// Queries information about a virtual storage channel (VSC).
+// Retrieves the details of a specific virtual switch controller (Vsc).
 //
 // @param request - DescribeVscRequest
 //
@@ -2128,7 +2204,11 @@ func (client *Client) DescribeZones(request *DescribeZonesRequest) (_result *Des
 
 // Summary:
 //
-// # Cluster Scaling
+// Extends a cluster.
+//
+// Description:
+//
+// Closes a remote session.
 //
 // @param tmpReq - ExtendClusterRequest
 //
@@ -2206,7 +2286,11 @@ func (client *Client) ExtendClusterWithOptions(tmpReq *ExtendClusterRequest, run
 
 // Summary:
 //
-// # Cluster Scaling
+// Extends a cluster.
+//
+// Description:
+//
+// Closes a remote session.
 //
 // @param request - ExtendClusterRequest
 //
@@ -2224,7 +2308,7 @@ func (client *Client) ExtendCluster(request *ExtendClusterRequest) (_result *Ext
 
 // Summary:
 //
-// 集群下的主机分组列表，分组下的主机列表
+// Lists the node groups of a cluster and the nodes in each group.
 //
 // @param request - ListClusterHyperNodesRequest
 //
@@ -2290,7 +2374,7 @@ func (client *Client) ListClusterHyperNodesWithOptions(request *ListClusterHyper
 
 // Summary:
 //
-// 集群下的主机分组列表，分组下的主机列表
+// Lists the node groups of a cluster and the nodes in each group.
 //
 // @param request - ListClusterHyperNodesRequest
 //
@@ -2308,7 +2392,7 @@ func (client *Client) ListClusterHyperNodes(request *ListClusterHyperNodesReques
 
 // Summary:
 //
-// Queries a list of nodes in a cluster.
+// Queries the nodes in a cluster.
 //
 // @param request - ListClusterNodesRequest
 //
@@ -2378,7 +2462,7 @@ func (client *Client) ListClusterNodesWithOptions(request *ListClusterNodesReque
 
 // Summary:
 //
-// Queries a list of nodes in a cluster.
+// Queries the nodes in a cluster.
 //
 // @param request - ListClusterNodesRequest
 //
@@ -2396,7 +2480,7 @@ func (client *Client) ListClusterNodes(request *ListClusterNodesRequest) (_resul
 
 // Summary:
 //
-// Queries a list of clusters.
+// Query cluster instances with optional filtering by resource group and tags.
 //
 // @param request - ListClustersRequest
 //
@@ -2454,7 +2538,7 @@ func (client *Client) ListClustersWithOptions(request *ListClustersRequest, runt
 
 // Summary:
 //
-// Queries a list of clusters.
+// Query cluster instances with optional filtering by resource group and tags.
 //
 // @param request - ListClustersRequest
 //
@@ -2473,6 +2557,10 @@ func (client *Client) ListClusters(request *ListClustersRequest) (_result *ListC
 // Summary:
 //
 // # List of Diagnostic Tasks
+//
+// Description:
+//
+// An interface for creating a session, which returns the frontend EndPoint and initiates a periodic task to track the session status.
 //
 // @param request - ListDiagnosticResultsRequest
 //
@@ -2530,6 +2618,10 @@ func (client *Client) ListDiagnosticResultsWithOptions(request *ListDiagnosticRe
 //
 // # List of Diagnostic Tasks
 //
+// Description:
+//
+// An interface for creating a session, which returns the frontend EndPoint and initiates a periodic task to track the session status.
+//
 // @param request - ListDiagnosticResultsRequest
 //
 // @return ListDiagnosticResultsResponse
@@ -2546,7 +2638,7 @@ func (client *Client) ListDiagnosticResults(request *ListDiagnosticResultsReques
 
 // Summary:
 //
-// 可用rack物理机列表
+// Lists the active physical servers in the rack.
 //
 // @param request - ListFreeHyperNodesRequest
 //
@@ -2614,7 +2706,7 @@ func (client *Client) ListFreeHyperNodesWithOptions(request *ListFreeHyperNodesR
 
 // Summary:
 //
-// 可用rack物理机列表
+// Lists the active physical servers in the rack.
 //
 // @param request - ListFreeHyperNodesRequest
 //
@@ -2632,7 +2724,7 @@ func (client *Client) ListFreeHyperNodes(request *ListFreeHyperNodesRequest) (_r
 
 // Summary:
 //
-// Queries a list of nodes that are not used.
+// Lists all unused nodes.
 //
 // @param request - ListFreeNodesRequest
 //
@@ -2702,7 +2794,7 @@ func (client *Client) ListFreeNodesWithOptions(request *ListFreeNodesRequest, ru
 
 // Summary:
 //
-// Queries a list of nodes that are not used.
+// Lists all unused nodes.
 //
 // @param request - ListFreeNodesRequest
 //
@@ -2720,7 +2812,11 @@ func (client *Client) ListFreeNodes(request *ListFreeNodesRequest) (_result *Lis
 
 // Summary:
 //
-// 机器列表
+// # Machines
+//
+// Description:
+//
+// Queries the details of hypernodes.
 //
 // @param tmpReq - ListHyperNodesRequest
 //
@@ -2824,7 +2920,11 @@ func (client *Client) ListHyperNodesWithOptions(tmpReq *ListHyperNodesRequest, r
 
 // Summary:
 //
-// 机器列表
+// # Machines
+//
+// Description:
+//
+// Queries the details of hypernodes.
 //
 // @param request - ListHyperNodesRequest
 //
@@ -2912,7 +3012,7 @@ func (client *Client) ListImages(request *ListImagesRequest) (_result *ListImage
 
 // Summary:
 //
-// # Query machine network configuration using HPNZone and machine type
+// Queries the network configurations for machine types.
 //
 // @param tmpReq - ListMachineNetworkInfoRequest
 //
@@ -2962,7 +3062,7 @@ func (client *Client) ListMachineNetworkInfoWithOptions(tmpReq *ListMachineNetwo
 
 // Summary:
 //
-// # Query machine network configuration using HPNZone and machine type
+// Queries the network configurations for machine types.
 //
 // @param request - ListMachineNetworkInfoRequest
 //
@@ -2980,7 +3080,7 @@ func (client *Client) ListMachineNetworkInfo(request *ListMachineNetworkInfoRequ
 
 // Summary:
 //
-// Queries a list of instance types that are available to users.
+// Queries a list of available machine types.
 //
 // @param request - ListMachineTypesRequest
 //
@@ -3024,7 +3124,7 @@ func (client *Client) ListMachineTypesWithOptions(request *ListMachineTypesReque
 
 // Summary:
 //
-// Queries a list of instance types that are available to users.
+// Queries a list of available machine types.
 //
 // @param request - ListMachineTypesRequest
 //
@@ -3042,11 +3142,7 @@ func (client *Client) ListMachineTypes(request *ListMachineTypesRequest) (_resul
 
 // Summary:
 //
-// Lists the results of network test results.
-//
-// Description:
-//
-// The API creates a session, returns the frontend endpoint, and starts a periodic task to track the session status.
+// Lists network test results.
 //
 // @param request - ListNetTestResultsRequest
 //
@@ -3102,11 +3198,7 @@ func (client *Client) ListNetTestResultsWithOptions(request *ListNetTestResultsR
 
 // Summary:
 //
-// Lists the results of network test results.
-//
-// Description:
-//
-// The API creates a session, returns the frontend endpoint, and starts a periodic task to track the session status.
+// Lists network test results.
 //
 // @param request - ListNetTestResultsRequest
 //
@@ -3124,7 +3216,7 @@ func (client *Client) ListNetTestResults(request *ListNetTestResultsRequest) (_r
 
 // Summary:
 //
-// Queries node groups in a cluster.
+// # Query Node Group Information Under the Cluster
 //
 // @param request - ListNodeGroupsRequest
 //
@@ -3180,7 +3272,7 @@ func (client *Client) ListNodeGroupsWithOptions(request *ListNodeGroupsRequest, 
 
 // Summary:
 //
-// Queries node groups in a cluster.
+// # Query Node Group Information Under the Cluster
 //
 // @param request - ListNodeGroupsRequest
 //
@@ -3198,7 +3290,7 @@ func (client *Client) ListNodeGroups(request *ListNodeGroupsRequest) (_result *L
 
 // Summary:
 //
-// 查询系统日志
+// Queries system logs.
 //
 // @param request - ListSyslogsRequest
 //
@@ -3262,7 +3354,7 @@ func (client *Client) ListSyslogsWithOptions(request *ListSyslogsRequest, runtim
 
 // Summary:
 //
-// 查询系统日志
+// Queries system logs.
 //
 // @param request - ListSyslogsRequest
 //
@@ -3280,7 +3372,7 @@ func (client *Client) ListSyslogs(request *ListSyslogsRequest) (_result *ListSys
 
 // Summary:
 //
-// Queries the tags of resources.
+// Queries the tags that are attached to resources.
 //
 // @param request - ListTagResourcesRequest
 //
@@ -3340,7 +3432,7 @@ func (client *Client) ListTagResourcesWithOptions(request *ListTagResourcesReque
 
 // Summary:
 //
-// Queries the tags of resources.
+// Queries the tags that are attached to resources.
 //
 // @param request - ListTagResourcesRequest
 //
@@ -3360,7 +3452,9 @@ func (client *Client) ListTagResources(request *ListTagResourcesRequest) (_resul
 //
 // # Query the cluster types available to the user
 //
-// @param request - ListUserClusterTypesRequest
+// Description:
+//
+// # An interface for creating a session, which returns the front-end EndPoint and initiates a periodic task to track the session status
 //
 // @param runtime - runtime options for this request RuntimeOptions
 //
@@ -3391,6 +3485,10 @@ func (client *Client) ListUserClusterTypesWithOptions(runtime *dara.RuntimeOptio
 //
 // # Query the cluster types available to the user
 //
+// Description:
+//
+// # An interface for creating a session, which returns the front-end EndPoint and initiates a periodic task to track the session status
+//
 // @return ListUserClusterTypesResponse
 func (client *Client) ListUserClusterTypes() (_result *ListUserClusterTypesResponse, _err error) {
 	runtime := &dara.RuntimeOptions{}
@@ -3405,7 +3503,7 @@ func (client *Client) ListUserClusterTypes() (_result *ListUserClusterTypesRespo
 
 // Summary:
 //
-// Queries a list of virtual storage channels (VSC).
+// Queries a list of VSCs.
 //
 // @param tmpReq - ListVscsRequest
 //
@@ -3477,7 +3575,7 @@ func (client *Client) ListVscsWithOptions(tmpReq *ListVscsRequest, runtime *dara
 
 // Summary:
 //
-// Queries a list of virtual storage channels (VSC).
+// Queries a list of VSCs.
 //
 // @param request - ListVscsRequest
 //
@@ -3571,7 +3669,7 @@ func (client *Client) RebootNodes(request *RebootNodesRequest) (_result *RebootN
 
 // Summary:
 //
-// Reinstall a node.
+// Reimages the specified nodes.
 //
 // @param tmpReq - ReimageNodesRequest
 //
@@ -3633,7 +3731,7 @@ func (client *Client) ReimageNodesWithOptions(tmpReq *ReimageNodesRequest, runti
 
 // Summary:
 //
-// Reinstall a node.
+// Reimages the specified nodes.
 //
 // @param request - ReimageNodesRequest
 //
@@ -3651,7 +3749,11 @@ func (client *Client) ReimageNodes(request *ReimageNodesRequest) (_result *Reima
 
 // Summary:
 //
-// 节点异常问题上报
+// Reports issues with abnormal nodes.
+//
+// Description:
+//
+// Creates a session, returns a frontend endpoint, and starts a periodic task to track the session status.
 //
 // @param tmpReq - ReportNodesStatusRequest
 //
@@ -3721,7 +3823,11 @@ func (client *Client) ReportNodesStatusWithOptions(tmpReq *ReportNodesStatusRequ
 
 // Summary:
 //
-// 节点异常问题上报
+// Reports issues with abnormal nodes.
+//
+// Description:
+//
+// Creates a session, returns a frontend endpoint, and starts a periodic task to track the session status.
 //
 // @param request - ReportNodesStatusRequest
 //
@@ -3979,7 +4085,7 @@ func (client *Client) SendFile(request *SendFileRequest) (_result *SendFileRespo
 
 // Summary:
 //
-// Scales in a cluster.
+// Scales in a CC cluster.
 //
 // @param tmpReq - ShrinkClusterRequest
 //
@@ -4037,7 +4143,7 @@ func (client *Client) ShrinkClusterWithOptions(tmpReq *ShrinkClusterRequest, run
 
 // Summary:
 //
-// Scales in a cluster.
+// Scales in a CC cluster.
 //
 // @param request - ShrinkClusterRequest
 //
@@ -4055,7 +4161,7 @@ func (client *Client) ShrinkCluster(request *ShrinkClusterRequest) (_result *Shr
 
 // Summary:
 //
-// Stops the O\\&M assistant command execution.
+// Stops the O\\\\\\&M assistant command execution.
 //
 // @param tmpReq - StopInvocationRequest
 //
@@ -4109,7 +4215,7 @@ func (client *Client) StopInvocationWithOptions(tmpReq *StopInvocationRequest, r
 
 // Summary:
 //
-// Stops the O\\&M assistant command execution.
+// Stops the O\\\\\\&M assistant command execution.
 //
 // @param request - StopInvocationRequest
 //
@@ -4199,7 +4305,7 @@ func (client *Client) StopNodes(request *StopNodesRequest) (_result *StopNodesRe
 
 // Summary:
 //
-// Tags resources.
+// Applies tags to resources.
 //
 // @param request - TagResourcesRequest
 //
@@ -4255,7 +4361,7 @@ func (client *Client) TagResourcesWithOptions(request *TagResourcesRequest, runt
 
 // Summary:
 //
-// Tags resources.
+// Applies tags to resources.
 //
 // @param request - TagResourcesRequest
 //
@@ -4273,7 +4379,7 @@ func (client *Client) TagResources(request *TagResourcesRequest) (_result *TagRe
 
 // Summary:
 //
-// Deletes a custom tag from a resource.
+// Removes custom tags from resources.
 //
 // @param request - UntagResourcesRequest
 //
@@ -4333,7 +4439,7 @@ func (client *Client) UntagResourcesWithOptions(request *UntagResourcesRequest, 
 
 // Summary:
 //
-// Deletes a custom tag from a resource.
+// Removes custom tags from resources.
 //
 // @param request - UntagResourcesRequest
 //
@@ -4351,7 +4457,11 @@ func (client *Client) UntagResources(request *UntagResourcesRequest) (_result *U
 
 // Summary:
 //
-// # Update Node Group
+// Updates a node group.
+//
+// Description:
+//
+// Updates a node group asynchronously. A task ID is returned to track the progress of the operation.
 //
 // @param request - UpdateNodeGroupRequest
 //
@@ -4390,6 +4500,10 @@ func (client *Client) UpdateNodeGroupWithOptions(request *UpdateNodeGroupRequest
 		body["NodeGroupId"] = request.NodeGroupId
 	}
 
+	if !dara.IsNil(request.RamRoleName) {
+		body["RamRoleName"] = request.RamRoleName
+	}
+
 	if !dara.IsNil(request.UserData) {
 		body["UserData"] = request.UserData
 	}
@@ -4419,7 +4533,11 @@ func (client *Client) UpdateNodeGroupWithOptions(request *UpdateNodeGroupRequest
 
 // Summary:
 //
-// # Update Node Group
+// Updates a node group.
+//
+// Description:
+//
+// Updates a node group asynchronously. A task ID is returned to track the progress of the operation.
 //
 // @param request - UpdateNodeGroupRequest
 //

@@ -22,7 +22,7 @@ type DeleteVscRequest struct {
 	//
 	// 123e4567-e89b-12d3-a456-426655440000
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// The ID of the VSC that you want to delete.
+	// The ID of the VSC to delete.
 	//
 	// This parameter is required.
 	//
