@@ -94,9 +94,10 @@ func GetEfloControllerConfig(regionID string) *openapi.Config {
 		config.Endpoint = &e
 	}
 
-	if config.Protocol == nil && strings.Contains(regionID, "test") {
+	if config.Protocol == nil &&
+		(strings.Contains(regionID, "test") || strings.Contains(regionID, "tianwen")) {
 		// must use HTTP in lingjun test regions
-		config.Protocol = ptr.To("http")
+		config.Protocol = new("http")
 	}
 	return config
 }

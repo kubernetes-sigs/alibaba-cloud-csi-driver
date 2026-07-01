@@ -340,7 +340,7 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 	}
 	// set protocol
 	scheme := "HTTPS"
-	if strings.Contains(region, "test") {
+	if strings.Contains(region, "test") || strings.Contains(region, "tianwen") {
 		// must use HTTP in lingjun test regions
 		scheme = "HTTP"
 	}
