@@ -30,7 +30,7 @@ type DescribeDataFlowsRequest struct {
 	//
 	// example:
 	//
-	// bmcpfs-290w65p03ok64ya****
+	// cpfs-099394bd928c****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The filter that is used to query dataflows.
 	//

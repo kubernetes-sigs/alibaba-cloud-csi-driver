@@ -48,7 +48,7 @@ type DeleteProtocolServiceRequest struct {
 	//
 	// example:
 	//
-	// cpfs-123****
+	// cpfs-099394bd928c****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The ID of the protocol service.
 	//
@@ -56,7 +56,7 @@ type DeleteProtocolServiceRequest struct {
 	//
 	// example:
 	//
-	// ptc-123****
+	// ptc-197ed6a00f2b****
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
 }
 

@@ -18,7 +18,6 @@ type iDescribeDataFlowSubTasksResponseBody interface {
 }
 
 type DescribeDataFlowSubTasksResponseBody struct {
-	// The details about data streaming tasks.
 	DataFlowSubTask *DescribeDataFlowSubTasksResponseBodyDataFlowSubTask `json:"DataFlowSubTask,omitempty" xml:"DataFlowSubTask,omitempty" type:"Struct"`
 	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
 	//
@@ -113,108 +112,20 @@ func (s *DescribeDataFlowSubTasksResponseBodyDataFlowSubTask) Validate() error {
 }
 
 type DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTask struct {
-	// The time when the data streaming task was created.
-	//
-	// example:
-	//
-	// 2024-07-01 19:59:29
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The ID of the data flow.
-	//
-	// example:
-	//
-	// df-194433a5be31****
-	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// The ID of the data streaming task.
-	//
-	// example:
-	//
-	// subTaskId-370kyfmyknxcyzw****
-	DataFlowSubTaskId *string `json:"DataFlowSubTaskId,omitempty" xml:"DataFlowSubTaskId,omitempty"`
-	// The ID of the data flow task.
-	//
-	// example:
-	//
-	// task-38aa8e890f45****
-	DataFlowTaskId *string `json:"DataFlowTaskId,omitempty" xml:"DataFlowTaskId,omitempty"`
-	// The path of the destination file. Limits:
-	//
-	// 	- The path must be 1 to 1,023 characters in length.
-	//
-	// 	- The path must be encoded in UTF-8.
-	//
-	// 	- The path must start with a forward slash (/).
-	//
-	// 	- The path must end with the file name.
-	//
-	// example:
-	//
-	// /mnt/file.png
-	DstFilePath *string `json:"DstFilePath,omitempty" xml:"DstFilePath,omitempty"`
-	// The time when the data streaming task ended.
-	//
-	// example:
-	//
-	// 2024-07-04 11:14:22
-	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	// The error message returned when the task failed.
-	ErrorMsg *string `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
-	// The file information.
-	FileDetail *DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTaskFileDetail `json:"FileDetail,omitempty" xml:"FileDetail,omitempty" type:"Struct"`
-	// The ID of the file system.
-	//
-	// example:
-	//
-	// bmcpfs-370lx1ev9ss27o0****
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The progress of the data streaming task. Valid values: 0 to 10000.
-	//
-	// example:
-	//
-	// 10000
-	Progress *int32 `json:"Progress,omitempty" xml:"Progress,omitempty"`
-	// The progress information about data streaming tasks.
-	ProgressStats *DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTaskProgressStats `json:"ProgressStats,omitempty" xml:"ProgressStats,omitempty" type:"Struct"`
-	// The path of the source file. Limits:
-	//
-	// 	- The path must be 1 to 1,023 characters in length.
-	//
-	// 	- The path must be encoded in UTF-8.
-	//
-	// 	- The path must start with a forward slash (/).
-	//
-	// 	- The path must end with the file name.
-	//
-	// example:
-	//
-	// /test/file.png
-	SrcFilePath *string `json:"SrcFilePath,omitempty" xml:"SrcFilePath,omitempty"`
-	// The time when the data streaming task started.
-	//
-	// example:
-	//
-	// 2024-07-03 10:43:16
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The status of the data streaming task. Valid values:
-	//
-	// 	- EXPIRED: The task is terminated.
-	//
-	// 	- CREATED: The task is created.
-	//
-	// 	- RUNNING: The task is running.
-	//
-	// 	- COMPLETE: The task is complete.
-	//
-	// 	- CANCELING: The task is being canceled.
-	//
-	// 	- FAILED: The task failed to be executed.
-	//
-	// 	- CANCELED: The task is canceled.
-	//
-	// example:
-	//
-	// COMPLETE
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	CreateTime        *string                                                                          `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	DataFlowId        *string                                                                          `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
+	DataFlowSubTaskId *string                                                                          `json:"DataFlowSubTaskId,omitempty" xml:"DataFlowSubTaskId,omitempty"`
+	DataFlowTaskId    *string                                                                          `json:"DataFlowTaskId,omitempty" xml:"DataFlowTaskId,omitempty"`
+	DstFilePath       *string                                                                          `json:"DstFilePath,omitempty" xml:"DstFilePath,omitempty"`
+	EndTime           *string                                                                          `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
+	ErrorMsg          *string                                                                          `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
+	FileDetail        *DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTaskFileDetail    `json:"FileDetail,omitempty" xml:"FileDetail,omitempty" type:"Struct"`
+	FileSystemId      *string                                                                          `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	Progress          *int32                                                                           `json:"Progress,omitempty" xml:"Progress,omitempty"`
+	ProgressStats     *DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTaskProgressStats `json:"ProgressStats,omitempty" xml:"ProgressStats,omitempty" type:"Struct"`
+	SrcFilePath       *string                                                                          `json:"SrcFilePath,omitempty" xml:"SrcFilePath,omitempty"`
+	StartTime         *string                                                                          `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	Status            *string                                                                          `json:"Status,omitempty" xml:"Status,omitempty"`
 }
 
 func (s DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTask) String() string {
@@ -366,24 +277,9 @@ func (s *DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTask) Val
 }
 
 type DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTaskFileDetail struct {
-	// The checksum. Format example: crc64:123456.
-	//
-	// example:
-	//
-	// crc64:850309505450944****
-	Checksum *string `json:"Checksum,omitempty" xml:"Checksum,omitempty"`
-	// The time when the file was modified. The value is a UNIX timestamp. Unit: ns.
-	//
-	// example:
-	//
-	// 1721167603
-	ModifyTime *int64 `json:"ModifyTime,omitempty" xml:"ModifyTime,omitempty"`
-	// The file size. Unit: bytes.
-	//
-	// example:
-	//
-	// 68
-	Size *int64 `json:"Size,omitempty" xml:"Size,omitempty"`
+	Checksum   *string `json:"Checksum,omitempty" xml:"Checksum,omitempty"`
+	ModifyTime *int64  `json:"ModifyTime,omitempty" xml:"ModifyTime,omitempty"`
+	Size       *int64  `json:"Size,omitempty" xml:"Size,omitempty"`
 }
 
 func (s DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTaskFileDetail) String() string {
@@ -426,30 +322,10 @@ func (s *DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTaskFileD
 }
 
 type DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTaskProgressStats struct {
-	// The actual amount of data for which the data flow task is complete. Unit: bytes.
-	//
-	// example:
-	//
-	// 68
-	ActualBytes *int64 `json:"ActualBytes,omitempty" xml:"ActualBytes,omitempty"`
-	// The average flow velocity. Unit: bytes/s.
-	//
-	// example:
-	//
-	// 34
+	ActualBytes  *int64 `json:"ActualBytes,omitempty" xml:"ActualBytes,omitempty"`
 	AverageSpeed *int64 `json:"AverageSpeed,omitempty" xml:"AverageSpeed,omitempty"`
-	// The amount of data (including skipped data) for which the data flow task is complete. Unit: bytes.
-	//
-	// example:
-	//
-	// 68
-	BytesDone *int64 `json:"BytesDone,omitempty" xml:"BytesDone,omitempty"`
-	// The amount of data scanned on the source. Unit: bytes.
-	//
-	// example:
-	//
-	// 68
-	BytesTotal *int64 `json:"BytesTotal,omitempty" xml:"BytesTotal,omitempty"`
+	BytesDone    *int64 `json:"BytesDone,omitempty" xml:"BytesDone,omitempty"`
+	BytesTotal   *int64 `json:"BytesTotal,omitempty" xml:"BytesTotal,omitempty"`
 }
 
 func (s DescribeDataFlowSubTasksResponseBodyDataFlowSubTaskDataFlowSubTaskProgressStats) String() string {

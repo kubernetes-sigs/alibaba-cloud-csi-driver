@@ -40,7 +40,7 @@ type CreateDataFlowSubTaskRequest struct {
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// The check conditions. The check must be passed after the following conditions are specified.
 	Condition *CreateDataFlowSubTaskRequestCondition `json:"Condition,omitempty" xml:"Condition,omitempty" type:"Struct"`
-	// The ID of the data flow.
+	// The ID of the dataflow.
 	//
 	// This parameter is required.
 	//
@@ -48,9 +48,9 @@ type CreateDataFlowSubTaskRequest struct {
 	//
 	// df-194433a5be31****
 	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// The ID of the data flow task.
+	// The ID of the dataflow task.
 	//
-	// >  Only the IDs of data streaming tasks are supported.
+	// > Only the IDs of data streaming tasks are supported.
 	//
 	// This parameter is required.
 	//

@@ -28,9 +28,9 @@ type AddClientToBlackListRequest struct {
 	//
 	// 192.168.0.0
 	ClientIP *string `json:"ClientIP,omitempty" xml:"ClientIP,omitempty"`
-	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests. The token can contain only ASCII characters and cannot exceed 64 characters in length.
+	// This parameter ensures the idempotency of each request. A ClientToken is generated for each client. Make sure that each ClientToken is unique between different requests. The parameter can be a maximum of 64 characters in length and contain ASCII characters.
 	//
-	// For more information, see [How to ensure idempotence](https://help.aliyun.com/document_detail/25693.html).
+	// For more information, see [How to ensure idempotence](https://www.alibabacloud.com/help/doc-detail/25693.htm).
 	//
 	// This parameter is required.
 	//
@@ -44,7 +44,7 @@ type AddClientToBlackListRequest struct {
 	//
 	// example:
 	//
-	// cpfs-00dfe7963fc6****
+	// 1ca404a348
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The ID of the region where the file system resides.
 	//

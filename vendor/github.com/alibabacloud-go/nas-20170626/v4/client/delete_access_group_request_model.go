@@ -16,7 +16,7 @@ type iDeleteAccessGroupRequest interface {
 }
 
 type DeleteAccessGroupRequest struct {
-	// The name of the permission group to be deleted.
+	// The name of the access group to delete.
 	//
 	// This parameter is required.
 	//
@@ -28,9 +28,9 @@ type DeleteAccessGroupRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- standard (default): General-purpose NAS file system
+	// - standard (default): General-purpose NAS
 	//
-	// 	- extreme: Extreme NAS file system
+	// - extreme: Extreme NAS
 	//
 	// example:
 	//

@@ -17,6 +17,7 @@ type iAlibabaCloudError interface {
 	GetStatusCode() *int
 	GetCode() *string
 	GetMessage() *string
+	GetDetail() *string
 	GetDescription() *string
 	GetRequestId() *string
 }
@@ -30,6 +31,7 @@ type AlibabaCloudError struct {
 	StatusCode         *int                   ``
 	Code               *string                ``
 	Message            *string                ``
+	Detail             *string                ``
 	Description        *string                ``
 	RequestId          *string                ``
 }
@@ -73,6 +75,10 @@ func (s *AlibabaCloudError) GetCode() *string {
 
 func (s *AlibabaCloudError) GetMessage() *string {
 	return s.Message
+}
+
+func (s *AlibabaCloudError) GetDetail() *string {
+	return s.Detail
 }
 
 func (s *AlibabaCloudError) GetDescription() *string {

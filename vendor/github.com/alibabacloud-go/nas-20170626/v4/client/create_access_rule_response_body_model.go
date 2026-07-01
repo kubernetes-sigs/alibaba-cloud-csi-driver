@@ -16,7 +16,7 @@ type iCreateAccessRuleResponseBody interface {
 }
 
 type CreateAccessRuleResponseBody struct {
-	// The rule ID.
+	// The ID of the permission rule.
 	//
 	// example:
 	//

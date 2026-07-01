@@ -22,7 +22,7 @@ type CreateDataFlowTaskResponseBody struct {
 	//
 	// 2D69A58F-345C-4FDE-88E4-BF518948****
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The ID of the dataflow task.
+	// The Dataflow task ID.
 	//
 	// example:
 	//

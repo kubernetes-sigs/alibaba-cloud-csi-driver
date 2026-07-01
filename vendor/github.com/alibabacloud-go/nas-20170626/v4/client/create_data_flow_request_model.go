@@ -178,7 +178,7 @@ type CreateDataFlowRequest struct {
 	//
 	// example:
 	//
-	// oss://bucket1
+	// oss://178321033379****:bucket-01
 	SourceStorage *string `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
 	// The access path in the bucket of the source storage. Limits:
 	//

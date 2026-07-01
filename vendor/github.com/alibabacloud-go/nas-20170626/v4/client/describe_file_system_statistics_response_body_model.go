@@ -24,10 +24,8 @@ type iDescribeFileSystemStatisticsResponseBody interface {
 }
 
 type DescribeFileSystemStatisticsResponseBody struct {
-	// The statistics of file systems.
 	FileSystemStatistics *DescribeFileSystemStatisticsResponseBodyFileSystemStatistics `json:"FileSystemStatistics,omitempty" xml:"FileSystemStatistics,omitempty" type:"Struct"`
-	// The queried file systems.
-	FileSystems *DescribeFileSystemStatisticsResponseBodyFileSystems `json:"FileSystems,omitempty" xml:"FileSystems,omitempty" type:"Struct"`
+	FileSystems          *DescribeFileSystemStatisticsResponseBodyFileSystems          `json:"FileSystems,omitempty" xml:"FileSystems,omitempty" type:"Struct"`
 	// The page number.
 	//
 	// example:
@@ -165,42 +163,11 @@ func (s *DescribeFileSystemStatisticsResponseBodyFileSystemStatistics) Validate(
 }
 
 type DescribeFileSystemStatisticsResponseBodyFileSystemStatisticsFileSystemStatistic struct {
-	// The number of expired file systems.
-	//
-	// example:
-	//
-	// 1
-	ExpiredCount *int32 `json:"ExpiredCount,omitempty" xml:"ExpiredCount,omitempty"`
-	// The number of expiring file systems.
-	//
-	// File systems whose expiration time is less than or equal to seven days away from the current time are counted.
-	//
-	// example:
-	//
-	// 1
-	ExpiringCount *int32 `json:"ExpiringCount,omitempty" xml:"ExpiringCount,omitempty"`
-	// The type of the file system.
-	//
-	// example:
-	//
-	// standard
+	ExpiredCount   *int32  `json:"ExpiredCount,omitempty" xml:"ExpiredCount,omitempty"`
+	ExpiringCount  *int32  `json:"ExpiringCount,omitempty" xml:"ExpiringCount,omitempty"`
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The storage usage of the file system.
-	//
-	// The value of this parameter is the maximum storage usage of the file system over the last hour.
-	//
-	// Unit: bytes.
-	//
-	// example:
-	//
-	// 1611
-	MeteredSize *int64 `json:"MeteredSize,omitempty" xml:"MeteredSize,omitempty"`
-	// The number of file systems of the current type.
-	//
-	// example:
-	//
-	// 10
-	TotalCount *int32 `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
+	MeteredSize    *int64  `json:"MeteredSize,omitempty" xml:"MeteredSize,omitempty"`
+	TotalCount     *int32  `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
 }
 
 func (s DescribeFileSystemStatisticsResponseBodyFileSystemStatisticsFileSystemStatistic) String() string {
@@ -295,144 +262,21 @@ func (s *DescribeFileSystemStatisticsResponseBodyFileSystems) Validate() error {
 }
 
 type DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystem struct {
-	// The capacity of the file system.
-	//
-	// Unit: GiB.
-	//
-	// example:
-	//
-	// 1
-	Capacity *int64 `json:"Capacity,omitempty" xml:"Capacity,omitempty"`
-	// The billing method.
-	//
-	// Valid values:
-	//
-	// 	- Subscription: The subscription billing method is used.
-	//
-	// 	- PayAsYouGo: The pay-as-you-go billing method is used.
-	//
-	// 	- Package: A storage plan is attached to the file system.
-	//
-	// example:
-	//
-	// PayAsYouGo
-	ChargeType *string `json:"ChargeType,omitempty" xml:"ChargeType,omitempty"`
-	// The time when the NAS file system was created.
-	//
-	// example:
-	//
-	// 2017-05-27T15:43:06CST
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The description of the file system.
-	//
-	// example:
-	//
-	// 31a8e48eda
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The time when the file system expires.
-	//
-	// example:
-	//
-	// 2017-08-27T15:43:06CST
-	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The ID of the file system.
-	//
-	// example:
-	//
-	// 109c04****
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The type of the file system.
-	//
-	// Valid values:
-	//
-	// 	- standard: General-purpose NAS file system
-	//
-	// 	- extreme: Extreme NAS file system
-	//
-	// 	- cpfs: CPFS file system
-	//
-	// example:
-	//
-	// standard
-	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The storage usage of the Infrequent Access (IA) storage medium.
-	//
-	// Unit: bytes.
-	//
-	// example:
-	//
-	// 362832
-	MeteredIASize *int64 `json:"MeteredIASize,omitempty" xml:"MeteredIASize,omitempty"`
-	// The storage usage of the file system.
-	//
-	// The value of this parameter is the maximum storage usage of the file system over the last hour. Unit: bytes.
-	//
-	// example:
-	//
-	// 1611661312
-	MeteredSize *int64 `json:"MeteredSize,omitempty" xml:"MeteredSize,omitempty"`
-	// The information about storage plans.
-	Packages *DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystemPackages `json:"Packages,omitempty" xml:"Packages,omitempty" type:"Struct"`
-	// The protocol type of the file system.
-	//
-	// Valid values:
-	//
-	// 	- NFS: Network File System (NFS)
-	//
-	// 	- SMB: Server Message Block (SMB)
-	//
-	// 	- cpfs: the protocol type supported by the CPFS file system
-	//
-	// example:
-	//
-	// NFS
-	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-	// The region ID.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The status of the file system.
-	//
-	// This parameter is returned for Extreme NAS file systems and Cloud Parallel File Storage (CPFS) file systems. Valid values:
-	//
-	// 	- Pending: The file system is being created or modified.
-	//
-	// 	- Running: The file system is available. Before you create a mount target for the file system, make sure that the file system is in the Running state.
-	//
-	// 	- Stopped: The file system is unavailable.
-	//
-	// 	- Extending: The file system is being scaled out.
-	//
-	// 	- Stopping: The file system is being disabled.
-	//
-	// 	- Deleting: The file system is being deleted.
-	//
-	// example:
-	//
-	// Pending
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The storage type.
-	//
-	// Valid values:
-	//
-	// 	- Valid values for General-purpose NAS file systems: Capacity and Performance.
-	//
-	// 	- Valid values for Extreme NAS file systems: standard and advance.
-	//
-	// 	- Valid values for CPFS file systems: advance_100 (100 MB/s/TiB baseline) and advance_200 (200 MB/s/TiB baseline).
-	//
-	// example:
-	//
-	// Performance
-	StorageType *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
-	// The zone ID.
-	//
-	// example:
-	//
-	// cn-hangzhou-b
-	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
+	Capacity       *int64                                                                 `json:"Capacity,omitempty" xml:"Capacity,omitempty"`
+	ChargeType     *string                                                                `json:"ChargeType,omitempty" xml:"ChargeType,omitempty"`
+	CreateTime     *string                                                                `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	Description    *string                                                                `json:"Description,omitempty" xml:"Description,omitempty"`
+	ExpiredTime    *string                                                                `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
+	FileSystemId   *string                                                                `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	FileSystemType *string                                                                `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
+	MeteredIASize  *int64                                                                 `json:"MeteredIASize,omitempty" xml:"MeteredIASize,omitempty"`
+	MeteredSize    *int64                                                                 `json:"MeteredSize,omitempty" xml:"MeteredSize,omitempty"`
+	Packages       *DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystemPackages `json:"Packages,omitempty" xml:"Packages,omitempty" type:"Struct"`
+	ProtocolType   *string                                                                `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
+	RegionId       *string                                                                `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	Status         *string                                                                `json:"Status,omitempty" xml:"Status,omitempty"`
+	StorageType    *string                                                                `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
+	ZoneId         *string                                                                `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
 
 func (s DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystem) String() string {
@@ -622,30 +466,10 @@ func (s *DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystemPackages) 
 }
 
 type DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystemPackagesPackage struct {
-	// The end time of the validity period for the storage plan.
-	//
-	// example:
-	//
-	// 2020-01-05T16:00:00Z
 	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The ID of the storage plan.
-	//
-	// example:
-	//
-	// naspackage-0be9c4b624-37****
-	PackageId *string `json:"PackageId,omitempty" xml:"PackageId,omitempty"`
-	// The capacity of the storage plan.
-	//
-	// example:
-	//
-	// 107374182400
-	Size *int64 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The start time of the validity period for the storage plan.
-	//
-	// example:
-	//
-	// 2019-12-05T01:40:56Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
+	PackageId   *string `json:"PackageId,omitempty" xml:"PackageId,omitempty"`
+	Size        *int64  `json:"Size,omitempty" xml:"Size,omitempty"`
+	StartTime   *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
 }
 
 func (s DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystemPackagesPackage) String() string {

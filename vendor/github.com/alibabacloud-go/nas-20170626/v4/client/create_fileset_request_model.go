@@ -34,7 +34,7 @@ type CreateFilesetRequest struct {
 	//
 	// example:
 	//
-	// 123e4567-e89b-12d3-a456-42665544****
+	// 123e4567-e89b-12d3-a456-4266554*****
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// Specifies whether to enable deletion protection to allow you to release the fileset by using the console or by calling the [DeleteFileset](https://help.aliyun.com/document_detail/2402263.html) operation.
 	//
@@ -58,7 +58,7 @@ type CreateFilesetRequest struct {
 	//
 	// example:
 	//
-	// test
+	// 内部事务目录
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// Specifies whether to perform a dry run.
 	//
@@ -84,7 +84,7 @@ type CreateFilesetRequest struct {
 	//
 	// example:
 	//
-	// bmcpfs-290w65p03ok64ya****
+	// bmcpfs-290w65p03ok64y*****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The absolute path of the fileset.
 	//

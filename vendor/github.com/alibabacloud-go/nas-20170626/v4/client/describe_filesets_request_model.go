@@ -24,11 +24,11 @@ type iDescribeFilesetsRequest interface {
 }
 
 type DescribeFilesetsRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
-	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-099394bd928c\\*\\*\\*\\*.
+	// - CPFS: The ID must start with `cpfs-`, such as cpfs-099394bd928c****.
 	//
-	// 	- The IDs of CPFS for LINGJUN file systems must start with `bmcpfs-`. Example: bmcpfs-290w65p03ok64ya\\*\\*\\*\\*.
+	// - CPFS for Lingjun: The ID must start with `bmcpfs-`, such as bmcpfs-290w65p03ok64ya****.
 	//
 	// This parameter is required.
 	//
@@ -36,9 +36,9 @@ type DescribeFilesetsRequest struct {
 	//
 	// bmcpfs-290w65p03ok64ya****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The filter that is used to query filesets.
+	// The filter key information for the filesets to query.
 	Filters []*DescribeFilesetsRequestFilters `json:"Filters,omitempty" xml:"Filters,omitempty" type:"Repeated"`
-	// The number of results for each query.
+	// The number of results per query.
 	//
 	// Valid values: 10 to 100. Default value: 20.
 	//
@@ -46,33 +46,33 @@ type DescribeFilesetsRequest struct {
 	//
 	// 20
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	// The pagination token that is used in the next request to retrieve a new page of results. If the response is truncated, you can use this token in the next request to retrieve the remaining results.
 	//
 	// example:
 	//
 	// TGlzdFJlc291cmNlU****mVzJjE1MTI2NjY4NzY5MTAzOTEmMiZORnI4NDhVeEtrUT0=
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The condition by which the results are sorted. Valid values:
+	// The field by which to sort the results.
 	//
-	// 	- FileCountLimit: the file quantity quota
+	// - FileCountLimit: the quota file count limit.
 	//
-	// 	- SizeLimit: the capacity quota
+	// - SizeLimit: the quota capacity limit.
 	//
-	// 	- FileCountUsage: the usage of the file quantity quota
+	// - FileCountUsage: the file count usage.
 	//
-	// 	- SpaceUsage: the capacity usage
+	// - SpaceUsage: the capacity usage.
 	//
 	// example:
 	//
 	// FileCountLimit
 	OrderByField *string `json:"OrderByField,omitempty" xml:"OrderByField,omitempty"`
-	// The order in which you want to sort the results. Valid values:
+	// The sort order. Valid values:
 	//
-	// 	- asc (default): ascending order
+	// - asc (default): ascending order, which sorts results from smallest to largest.
 	//
-	// 	- desc: descending order
+	// - desc: descending order, which sorts results from largest to smallest.
 	//
-	// >  This parameter takes effect only if you specify the OrderByField parameter.
+	// > This parameter takes effect only when the OrderByField parameter is specified.
 	//
 	// example:
 	//
@@ -156,35 +156,35 @@ func (s *DescribeFilesetsRequest) Validate() error {
 }
 
 type DescribeFilesetsRequestFilters struct {
-	// The filter name. Valid values:
+	// The name of the filter key. Valid values:
 	//
-	// 	- FsetIds: filters filesets by fileset ID.
+	// - FsetIds: filters by fileset ID.
 	//
-	// 	- FileSystemPath: filters filesets based on the path of a fileset in a CPFS file system.
+	// - FileSystemPath: filters by the path of the fileset in the CPFS file system.
 	//
-	// 	- Description: filters filesets based on the fileset description.
+	// - Description: filters by the description of the fileset.
 	//
-	// 	- QuotaExists: filters filesets based on whether quotas exist.
+	// - QuotaExists: filters by whether a quota exists.
 	//
-	// >  Only CPFS for LINGJUN V2.7.0 and later support the QuotaExists parameter.
+	// > Only CPFS for Lingjun 2.7.0 and later support filtering by the QuotaExists parameter.
 	//
 	// example:
 	//
 	// FsetIds
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The filter value. This parameter does not support wildcards.
+	// The value of the filter key. Wildcards are not supported for this parameter.
 	//
-	// 	- If Key is set to FsetIds, set Value to a fileset ID or a part of the fileset ID. You can specify a fileset ID or a group of fileset IDs. You can specify a maximum of 10 fileset IDs. Example: `fset-1902718ea0ae****` or `fset-1902718ea0ae****,fset-3212718ea0ae****`.
+	// - If Key is set to FsetIds, Value is set to a fileset ID. You can specify one or more fileset IDs, up to 10. Separate multiple values with commas (,). Example: `fset-1902718ea0ae****` or `fset-1902718ea0ae****,fset-3212718ea0ae****`.
 	//
-	// 	- If Key is set to FileSystemPath, set Value to the path or a part of the path of a fileset in a CPFS file system. The value must be 2 to 1024 characters in length. The value must be encoded in UTF-8.
+	// - If Key is set to FileSystemPath, Value is set to the full path or a partial path of the fileset in the CPFS file system. The value must be 2 to 1,024 characters in length and encoded in UTF-8.
 	//
-	// 	- If Key is set to Description, set Value to a fileset description or a part of the fileset description.
+	// - If Key is set to Description, Value is set to the full description or a partial description of the fileset.
 	//
-	// 	- If Key is set to QuotaExists, set Value to true or false. If you do not specify the parameter, all filesets are returned.
+	// - If Key is set to QuotaExists, Value is set to true or false. If you leave this parameter empty, all filesets are returned.
 	//
 	// example:
 	//
-	// fset-1902718ea0ae****,fset-3212718ea0ae****
+	// fset-1902718ea0ae****
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

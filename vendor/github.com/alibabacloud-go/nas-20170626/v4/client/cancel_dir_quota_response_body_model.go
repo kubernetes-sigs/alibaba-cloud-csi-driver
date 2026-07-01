@@ -22,13 +22,13 @@ type CancelDirQuotaResponseBody struct {
 	//
 	// 5BC5CB97-9F28-42FE-84A4-0CD0DF42****
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Indicates whether the request is successful.
+	// The request status.
 	//
 	// Valid values:
 	//
-	// 	- true
+	// - true: The request was successful.
 	//
-	// 	- false
+	// - false: The request failed.
 	//
 	// example:
 	//

@@ -26,45 +26,49 @@ type iDescribeFileSystemsRequest interface {
 }
 
 type DescribeFileSystemsRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
-	// 	- Sample ID of a General-purpose NAS file system: 31a8e4\\*\\*\\*\\*.
+	// - General-purpose NAS: 31a8e4****.
 	//
-	// 	- The IDs of Extreme NAS file systems must start with extreme-, for example, extreme-0015\\*\\*\\*\\*.
+	// - Extreme NAS: Must start with extreme-, such as extreme-0015****.
 	//
-	// 	- The IDs of CPFS file systems must start with cpfs-. Example: cpfs-125487\\*\\*\\*\\*.
+	// - CPFS (locally redundant): Must start with cpfs-, such as cpfs-125487****.
+	//
+	// - CPFS SE (zone-redundant): Must start with cpfsse-, such as cpfsse-022c71b134****.
 	//
 	// example:
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The type of the file system.
+	// The file system type.
 	//
 	// Valid values:
 	//
-	// 	- all (default): All types.
+	// - all (default): queries all types.
 	//
-	// 	- standard: General-purpose NAS file system.
+	// - standard: General-purpose NAS.
 	//
-	// 	- extreme: Extreme NAS file system.
+	// - extreme: Extreme NAS.
 	//
-	// 	- cpfs: CPFS file system.
+	// - cpfs: Cloud Parallel File Storage (CPFS) (locally redundant).
 	//
-	// >  Separate multiple data types with commas (,).
+	// - cpfsse: CPFS SE (zone-redundant).
+	//
+	// > To query multiple types, separate them with commas (,).
 	//
 	// example:
 	//
 	// standard
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The page number.
+	// The page number of the file system list.
 	//
-	// Pages start from page 1. Default value: 1.
+	// Start value (default value): 1.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of entries per page.
+	// The number of file systems on each page in a paging query.
 	//
 	// Valid values: 1 to 100.
 	//
@@ -72,21 +76,21 @@ type DescribeFileSystemsRequest struct {
 	//
 	// example:
 	//
-	// 10
+	// 1
 	PageSize *int32 `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
 	// The resource group ID.
 	//
-	// You can log on to the [Resource Management console](https://resourcemanager.console.aliyun.com/resource-groups?) to view resource group IDs.
+	// You can view the resource group ID in the [Resource Management console](https://resourcemanager.console.aliyun.com/resource-groups?).
 	//
 	// example:
 	//
-	// rg-acfmwavnfdf****
+	// rg-acfmwavnfef****
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The details about the tags.
+	// The tag information.
 	Tag []*DescribeFileSystemsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-	// The ID of the virtual private cloud (VPC).
+	// The virtual private cloud (VPC) ID.
 	//
-	// If you want to mount the file system on an Elastic Compute Service (ECS) instance, the file system and the ECS instance must reside in the same VPC.
+	// The VPC must be the same as the VPC of the Elastic Computing Service (ECS) server to which you want to mount the file system.
 	//
 	// example:
 	//
@@ -183,33 +187,33 @@ type DescribeFileSystemsRequestTag struct {
 	//
 	// Limits:
 	//
-	// 	- Valid values of N: 1 to 20.
+	// - Valid values of N: 1 to 20.
 	//
-	// 	- The tag key can be up to 128 characters in length.
+	// - The tag key can be up to 128 characters in length.
 	//
-	// 	- The tag key cannot start with `aliyun` or `acs:`.
+	// - The tag key cannot start with `aliyun` or `acs:`.
 	//
-	// 	- The tag key cannot contain `http://` or `https://`.
+	// - The tag key cannot contain `http://` or `https://`.
 	//
 	// example:
 	//
-	// test
+	// testKey
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	// The tag value.
 	//
 	// Limits:
 	//
-	// 	- Valid values of N: 1 to 20.
+	// - Valid values of N: 1 to 20.
 	//
-	// 	- The tag value can be up to 128 characters in length.
+	// - The tag value can be up to 128 characters in length.
 	//
-	// 	- The tag value cannot start with `aliyun` or `acs:`.
+	// - The tag value cannot start with `aliyun` or `acs:`.
 	//
-	// 	- The tag value cannot contain `http://` or `https://`.
+	// - The tag value cannot contain `http://` or `https://`.
 	//
 	// example:
 	//
-	// test-value
+	// testValue
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

@@ -22,7 +22,6 @@ type iDescribeAutoSnapshotPoliciesResponseBody interface {
 }
 
 type DescribeAutoSnapshotPoliciesResponseBody struct {
-	// The queried automatic snapshot policies.
 	AutoSnapshotPolicies *DescribeAutoSnapshotPoliciesResponseBodyAutoSnapshotPolicies `json:"AutoSnapshotPolicies,omitempty" xml:"AutoSnapshotPolicies,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,90 +146,16 @@ func (s *DescribeAutoSnapshotPoliciesResponseBodyAutoSnapshotPolicies) Validate(
 }
 
 type DescribeAutoSnapshotPoliciesResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicy struct {
-	// The ID of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// sp-extreme-233e6****
-	AutoSnapshotPolicyId *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
-	// The name of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// FinanceJoshua
+	AutoSnapshotPolicyId   *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
 	AutoSnapshotPolicyName *string `json:"AutoSnapshotPolicyName,omitempty" xml:"AutoSnapshotPolicyName,omitempty"`
-	// The time when the automatic snapshot policy was created.
-	//
-	// The time follows the [ISO8601](https://www.iso.org/iso-8601-date-and-time-format.html) standard in the `yyyy-MM-ddTHH:mm:ssZ` format. The time is displayed in UTC.
-	//
-	// example:
-	//
-	// 2014-04-21T12:08:52Z
-	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The number of file systems to which the automatic snapshot policy applies.
-	//
-	// example:
-	//
-	// 2
-	FileSystemNums *int32 `json:"FileSystemNums,omitempty" xml:"FileSystemNums,omitempty"`
-	// The type of the file system.
-	//
-	// example:
-	//
-	// extreme
-	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The region ID of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// cn-hangzhou
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The days of a week on which auto snapshots are created.
-	//
-	// Auto snapshots are created on a weekly basis.
-	//
-	// Valid values: 1 to 7. The values from 1 to 7 indicate 7 days in a week from Monday to Sunday.
-	//
-	// example:
-	//
-	// 1,5
-	RepeatWeekdays *string `json:"RepeatWeekdays,omitempty" xml:"RepeatWeekdays,omitempty"`
-	// The retention period of auto snapshots.
-	//
-	// Unit: days.
-	//
-	// Valid values:
-	//
-	// 	- \\-1: Auto snapshots are permanently retained. After the number of auto snapshots exceeds the upper limit, the earliest auto snapshot is automatically deleted.
-	//
-	// 	- 1 to 65536: Auto snapshots are retained for the specified days. After the retention period of auto snapshots expires, the auto snapshots are automatically deleted.
-	//
-	// example:
-	//
-	// 30
-	RetentionDays *int32 `json:"RetentionDays,omitempty" xml:"RetentionDays,omitempty"`
-	// The status of the automatic snapshot policy.
-	//
-	// Valid values:
-	//
-	// 	- Creating: The automatic snapshot policy is being created.
-	//
-	// 	- Available: The automatic snapshot policy is available.
-	//
-	// example:
-	//
-	// Available
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The points in time at which auto snapshots are created.
-	//
-	// Unit: hours.
-	//
-	// Valid values: `0 to 23`. The values from 0 to 23 indicate a total of 24 hours from `00:00 to 23:00`. For example, 1 indicates 01:00. A maximum of 24 points in time can be returned. Multiple points in time are separated with commas (,).
-	//
-	// example:
-	//
-	// 4,19
-	TimePoints *string `json:"TimePoints,omitempty" xml:"TimePoints,omitempty"`
+	CreateTime             *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	FileSystemNums         *int32  `json:"FileSystemNums,omitempty" xml:"FileSystemNums,omitempty"`
+	FileSystemType         *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
+	RegionId               *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	RepeatWeekdays         *string `json:"RepeatWeekdays,omitempty" xml:"RepeatWeekdays,omitempty"`
+	RetentionDays          *int32  `json:"RetentionDays,omitempty" xml:"RetentionDays,omitempty"`
+	Status                 *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	TimePoints             *string `json:"TimePoints,omitempty" xml:"TimePoints,omitempty"`
 }
 
 func (s DescribeAutoSnapshotPoliciesResponseBodyAutoSnapshotPoliciesAutoSnapshotPolicy) String() string {

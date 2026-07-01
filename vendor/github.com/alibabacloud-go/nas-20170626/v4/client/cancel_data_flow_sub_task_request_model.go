@@ -34,7 +34,7 @@ type CancelDataFlowSubTaskRequest struct {
 	//
 	// 123e4567-e89b-12d3-a456-42665544****
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// The ID of the data flow.
+	// The ID of the dataflow.
 	//
 	// This parameter is required.
 	//
@@ -50,7 +50,7 @@ type CancelDataFlowSubTaskRequest struct {
 	//
 	// subTaskId-370kyfmyknxcyzw****
 	DataFlowSubTaskId *string `json:"DataFlowSubTaskId,omitempty" xml:"DataFlowSubTaskId,omitempty"`
-	// The ID of the data flow task.
+	// The ID of the dataflow task.
 	//
 	// This parameter is required.
 	//
