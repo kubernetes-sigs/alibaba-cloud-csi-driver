@@ -1,0 +1,42 @@
+name: coverage
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage:
+    name: incremental coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Get changed Go packages
+        id: changed
+        run: |
+          FILES=$(git diff --name-only --diff-filter=ACMR ${{ github.event.pull_request.base.sha }}..HEAD -- '*.go' | grep -v '_test.go' | grep -v vendor/ || true)
+          if [ -z "$FILES" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            # Extract unique package paths
+            PKGS=$(echo "$FILES" | xargs -I{} dirname {} | sort -u | sed 's|^|./|' | paste -sd ' ' -)
+            echo "packages=$PKGS" >> "$GITHUB_OUTPUT"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run tests with coverage
+        if: steps.changed.outputs.skip != 'true'
+        run: |
+          go test -coverprofile=coverage.out -covermode=atomic ${{ steps.changed.outputs.packages }}
+
+      - name: Report coverage
+        if: steps.changed.outputs.skip != 'true'
+        uses: k1LoW/octocov-action@b3b6ee60482a667950f87553abf1df63217235d9 # v1.5.1
