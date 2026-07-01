@@ -18,13 +18,13 @@ type iCreateMountTargetResponseBody interface {
 }
 
 type CreateMountTargetResponseBody struct {
-	// The IPv4 domain name of the mount target.
+	// The IPv4 mount target.
 	//
 	// example:
 	//
 	// 174494b666-x****.cn-hangzhou.nas.aliyuncs.com
 	MountTargetDomain *string `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
-	// The information about the mount target.
+	// The mount target information.
 	MountTargetExtra *CreateMountTargetResponseBodyMountTargetExtra `json:"MountTargetExtra,omitempty" xml:"MountTargetExtra,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -79,7 +79,7 @@ func (s *CreateMountTargetResponseBody) Validate() error {
 }
 
 type CreateMountTargetResponseBodyMountTargetExtra struct {
-	// The dual-stack (IPv4 and IPv6) domain name of the mount target.
+	// The dual-stack mount target that supports both IPv4 and IPv6.
 	//
 	// example:
 	//

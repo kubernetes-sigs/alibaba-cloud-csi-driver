@@ -13,6 +13,8 @@ type iCreateAccessPointRequest interface {
 	GetAccessGroup() *string
 	SetAccessPointName(v string) *CreateAccessPointRequest
 	GetAccessPointName() *string
+	SetAgenticSpaceId(v string) *CreateAccessPointRequest
+	GetAgenticSpaceId() *string
 	SetEnabledRam(v bool) *CreateAccessPointRequest
 	GetEnabledRam() *bool
 	SetFileSystemId(v string) *CreateAccessPointRequest
@@ -42,11 +44,11 @@ type iCreateAccessPointRequest interface {
 type CreateAccessPointRequest struct {
 	// The name of the permission group.
 	//
-	// This parameter is required for a General-purpose File Storage NAS (NAS) file system.
+	// This parameter is required if the file system is a General-purpose NAS file system.
 	//
-	// The default permission group for virtual private clouds (VPCs) is named DEFAULT_VPC_GROUP_NAME.
+	// Default permission group: DEFAULT_VPC_GROUP_NAME (the default permission group for VPCs).
 	//
-	// This parameter is required.
+	// >Not supported for Agentic file systems.
 	//
 	// example:
 	//
@@ -58,19 +60,31 @@ type CreateAccessPointRequest struct {
 	//
 	// test
 	AccessPointName *string `json:"AccessPointName,omitempty" xml:"AccessPointName,omitempty"`
-	// Specifies whether to enable the RAM policy. Valid values:
+	// The AgenticSpace ID.
 	//
-	// 	- true: The RAM policy is enabled.
+	// >This parameter is required for Agentic file systems.
 	//
-	// 	- false (default): The RAM policy is disabled.
+	// example:
 	//
-	// >  After the RAM policy is enabled for access points, no RAM user is allowed to use access points to mount and access data by default. To use access points to mount and access data as a RAM user, you must grant the related access permissions to the RAM user. If the RAM policy is disabled, access points can be anonymously mounted. For more information about how to configure permissions on access points, see [Configure a policy for the access point](https://help.aliyun.com/document_detail/2545998.html).
+	// agentic-229oypxjgpau2****
+	AgenticSpaceId *string `json:"AgenticSpaceId,omitempty" xml:"AgenticSpaceId,omitempty"`
+	// Specifies whether to enable access point policy.
+	//
+	// Valid values:
+	//
+	// - true: enabled.
+	//
+	// - false (default): not enabled.
+	//
+	// > After you enable access point policy for the access point, all Resource Access Management (RAM) users are denied access to mount and access data through the access point by default. You must grant the corresponding access permissions through authorization and then mount and access the file system through the access point. After you disable access point policy, the access point allows anonymity mounting. For more information about how to configure access point permissions, see [Configure access point policies](https://help.aliyun.com/document_detail/2545998.html).
+	//
+	// >For Agentic file systems, this parameter must be set to true.
 	//
 	// example:
 	//
 	// false
 	EnabledRam *bool `json:"EnabledRam,omitempty" xml:"EnabledRam,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// This parameter is required.
 	//
@@ -78,56 +92,73 @@ type CreateAccessPointRequest struct {
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The ID of the owner group.
+	// The owner group ID.
 	//
 	// This parameter is required if the RootDirectory directory does not exist.
+	//
+	// >Not supported for Agentic file systems.
 	//
 	// example:
 	//
 	// 1
 	OwnerGroupId *int32 `json:"OwnerGroupId,omitempty" xml:"OwnerGroupId,omitempty"`
-	// The owner ID.
+	// The owner user ID.
 	//
 	// This parameter is required if the RootDirectory directory does not exist.
+	//
+	// >Not supported for Agentic file systems.
 	//
 	// example:
 	//
 	// 1
 	OwnerUserId *int32 `json:"OwnerUserId,omitempty" xml:"OwnerUserId,omitempty"`
-	// The Portable Operating System Interface for UNIX (POSIX) permission. Default value: 0777.
+	// The POSIX permission. Default value: "0755". The value must be a four-digit octal number that starts with 0.
 	//
-	// This field takes effect only if you specify the OwnerUserId and OwnerGroupId parameters.
+	// This parameter takes effect only after you specify the OwnerUserId and OwnerGroupId parameters.
+	//
+	// >Not supported for Agentic file systems.
 	//
 	// example:
 	//
-	// 0777
+	// 0755
 	Permission *string `json:"Permission,omitempty" xml:"Permission,omitempty"`
-	// The ID of the POSIX user group.
+	// The POSIX group ID.
+	//
+	// >Not supported for Agentic file systems.
 	//
 	// example:
 	//
 	// 123
 	PosixGroupId *int32 `json:"PosixGroupId,omitempty" xml:"PosixGroupId,omitempty"`
-	// The secondary user group. Separate multiple user group IDs with commas (,).
+	// The secondary group IDs. Separate multiple group IDs with commas (,).
+	//
+	// >Not supported for Agentic file systems.
 	//
 	// example:
 	//
 	// 123,345
 	PosixSecondaryGroupIds *string `json:"PosixSecondaryGroupIds,omitempty" xml:"PosixSecondaryGroupIds,omitempty"`
-	// The ID of the POSIX user.
+	// The POSIX user ID.
+	//
+	// >Not supported for Agentic file systems.
 	//
 	// example:
 	//
 	// 123
 	PosixUserId *int32 `json:"PosixUserId,omitempty" xml:"PosixUserId,omitempty"`
-	// The root directory of the access point. The default value is /. If the directory does not exist, you must also specify the OwnerUserId and OwnerGroupId parameters.
+	// The root directory of the access point.
+	//
+	// Default value: "/". If the access point directory does not exist, you must also specify the OwnerUserId and OwnerGroupId parameters.
+	//
+	// >Supported only for Agentic file systems.
 	//
 	// example:
 	//
 	// /
-	RootDirectory *string                        `json:"RootDirectory,omitempty" xml:"RootDirectory,omitempty"`
-	Tag           []*CreateAccessPointRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-	// The VPC ID.
+	RootDirectory *string `json:"RootDirectory,omitempty" xml:"RootDirectory,omitempty"`
+	// The list of access point tags.
+	Tag []*CreateAccessPointRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
+	// The virtual private cloud (VPC) ID.
 	//
 	// This parameter is required.
 	//
@@ -159,6 +190,10 @@ func (s *CreateAccessPointRequest) GetAccessGroup() *string {
 
 func (s *CreateAccessPointRequest) GetAccessPointName() *string {
 	return s.AccessPointName
+}
+
+func (s *CreateAccessPointRequest) GetAgenticSpaceId() *string {
+	return s.AgenticSpaceId
 }
 
 func (s *CreateAccessPointRequest) GetEnabledRam() *bool {
@@ -216,6 +251,11 @@ func (s *CreateAccessPointRequest) SetAccessGroup(v string) *CreateAccessPointRe
 
 func (s *CreateAccessPointRequest) SetAccessPointName(v string) *CreateAccessPointRequest {
 	s.AccessPointName = &v
+	return s
+}
+
+func (s *CreateAccessPointRequest) SetAgenticSpaceId(v string) *CreateAccessPointRequest {
+	s.AgenticSpaceId = &v
 	return s
 }
 
@@ -293,10 +333,32 @@ func (s *CreateAccessPointRequest) Validate() error {
 }
 
 type CreateAccessPointRequestTag struct {
+	// The tag key.
+	//
+	// Limits:
+	//
+	// - Cannot be empty or an empty string.
+	//
+	// - Can be up to 128 characters in length.
+	//
+	// - Cannot start with aliyun or acs:.
+	//
+	// - Cannot contain http:// or https://.
+	//
 	// example:
 	//
 	// TestKey
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The tag value.
+	//
+	// Limits:
+	//
+	// - Cannot be empty or an empty string.
+	//
+	// - Can be up to 128 characters in length.
+	//
+	// - Cannot contain http:// or https://.
+	//
 	// example:
 	//
 	// TestValue

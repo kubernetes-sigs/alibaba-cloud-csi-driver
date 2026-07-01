@@ -18,7 +18,7 @@ type iCreateLifecycleRetrieveJobRequest interface {
 }
 
 type CreateLifecycleRetrieveJobRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// This parameter is required.
 	//
@@ -26,7 +26,7 @@ type CreateLifecycleRetrieveJobRequest struct {
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The directories or files that you want to retrieve. You can specify a maximum of 10 paths.
+	// The list of directories or file paths to retrieve. You can specify up to 10 paths.
 	//
 	// This parameter is required.
 	//
@@ -34,11 +34,11 @@ type CreateLifecycleRetrieveJobRequest struct {
 	//
 	// Paths.1=/pathway/doc1,Paths.2=/pathway/doc2
 	Paths []*string `json:"Paths,omitempty" xml:"Paths,omitempty" type:"Repeated"`
-	// The storage class.
+	// The storage class. Valid values:
 	//
-	// 	- InfrequentAccess (default): the Infrequent Access (IA) storage class.
+	// - InfrequentAccess (default): IA storage class.
 	//
-	// 	- Archive: the Archive storage class.
+	// - Archive: Archive storage class.
 	//
 	// example:
 	//

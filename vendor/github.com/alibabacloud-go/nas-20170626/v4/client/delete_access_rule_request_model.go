@@ -26,7 +26,7 @@ type DeleteAccessRuleRequest struct {
 	//
 	// vpc-test
 	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	// The rule ID.
+	// The ID of the permission rule.
 	//
 	// This parameter is required.
 	//
@@ -38,9 +38,9 @@ type DeleteAccessRuleRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- standard (default): General-purpose NAS file system.
+	// - standard (default): General-purpose NAS.
 	//
-	// 	- extreme: Extreme NAS file system.
+	// - extreme: Extreme NAS.
 	//
 	// example:
 	//

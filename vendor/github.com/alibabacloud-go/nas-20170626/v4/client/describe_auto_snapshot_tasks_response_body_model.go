@@ -22,7 +22,6 @@ type iDescribeAutoSnapshotTasksResponseBody interface {
 }
 
 type DescribeAutoSnapshotTasksResponseBody struct {
-	// The queried automatic snapshot tasks.
 	AutoSnapshotTasks *DescribeAutoSnapshotTasksResponseBodyAutoSnapshotTasks `json:"AutoSnapshotTasks,omitempty" xml:"AutoSnapshotTasks,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,18 +146,8 @@ func (s *DescribeAutoSnapshotTasksResponseBodyAutoSnapshotTasks) Validate() erro
 }
 
 type DescribeAutoSnapshotTasksResponseBodyAutoSnapshotTasksAutoSnapshotTask struct {
-	// The ID of the automatic snapshot policy.
-	//
-	// example:
-	//
-	// sp-extreme-233e6****
 	AutoSnapshotPolicyId *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
-	// The ID of the file system.
-	//
-	// example:
-	//
-	// extreme-233e6****
-	SourceFileSystemId *string `json:"SourceFileSystemId,omitempty" xml:"SourceFileSystemId,omitempty"`
+	SourceFileSystemId   *string `json:"SourceFileSystemId,omitempty" xml:"SourceFileSystemId,omitempty"`
 }
 
 func (s DescribeAutoSnapshotTasksResponseBodyAutoSnapshotTasksAutoSnapshotTask) String() string {

@@ -46,7 +46,7 @@ type ModifyProtocolMountTargetRequest struct {
 	//
 	// example:
 	//
-	// test
+	// 此导出目录的描述信息
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// Specifies whether to perform only a dry run, without performing the actual request. The dry run checks parameter validity and prerequisites. The dry run does not modify the specified export directory or incur fees.
 	//

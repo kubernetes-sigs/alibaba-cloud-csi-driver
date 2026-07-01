@@ -28,7 +28,7 @@ type DescribeAccessRulesRequest struct {
 	//
 	// example:
 	//
-	// vpc-test
+	// classic-test
 	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
 	// The rule ID.
 	//
@@ -40,7 +40,7 @@ type DescribeAccessRulesRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- standard (default): General-purpose NAS file system.
+	// 	- standard: General-purpose Apsara File Storage NAS (NAS) file system
 	//
 	// 	- extreme: Extreme NAS file system.
 	//
@@ -48,7 +48,7 @@ type DescribeAccessRulesRequest struct {
 	//
 	// standard
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The page number.
+	// The number of the page to return.
 	//
 	// Pages start from page 1. Default value: 1.
 	//

@@ -16,7 +16,7 @@ type iDescribeAccessPointResponseBody interface {
 }
 
 type DescribeAccessPointResponseBody struct {
-	// The information about the access point.
+	// The access point information.
 	AccessPoint *DescribeAccessPointResponseBodyAccessPoint `json:"AccessPoint,omitempty" xml:"AccessPoint,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -64,37 +64,49 @@ func (s *DescribeAccessPointResponseBody) Validate() error {
 }
 
 type DescribeAccessPointResponseBodyAccessPoint struct {
-	// The Alibaba Cloud Resource Name (ARN) of the access point.
+	// The access point ARN.
 	//
 	// example:
 	//
 	// acs:nas:cn-hangzhou:178321033379****:accesspoint/ap-ie15yd****
 	ARN *string `json:"ARN,omitempty" xml:"ARN,omitempty"`
-	// The name of the permission group.
+	// The permission group name.
 	//
 	// example:
 	//
 	// test
 	AccessGroup *string `json:"AccessGroup,omitempty" xml:"AccessGroup,omitempty"`
-	// The ID of the access point.
+	// The access point ID.
 	//
 	// example:
 	//
 	// ap-ie15yd****
 	AccessPointId *string `json:"AccessPointId,omitempty" xml:"AccessPointId,omitempty"`
-	// The name of the access point.
+	// The access point name.
 	//
 	// example:
 	//
 	// test
 	AccessPointName *string `json:"AccessPointName,omitempty" xml:"AccessPointName,omitempty"`
+	// AgenticSpace Id。
+	//
+	// example:
+	//
+	// agentic-229oypxjgpau2****
+	AgenticSpaceId *string `json:"AgenticSpaceId,omitempty" xml:"AgenticSpaceId,omitempty"`
 	// The time when the access point was created.
 	//
 	// example:
 	//
 	// 1709619668276167
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The domain name of the access point.
+	// The time when the AgenticSpace was created. The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format.
+	//
+	// example:
+	//
+	// 2026-06-10T10:08:08Z
+	CreateTimeUtc *string `json:"CreateTimeUtc,omitempty" xml:"CreateTimeUtc,omitempty"`
+	// The access point domain name.
 	//
 	// example:
 	//
@@ -106,18 +118,24 @@ type DescribeAccessPointResponseBodyAccessPoint struct {
 	//
 	// false
 	EnabledRam *bool `json:"EnabledRam,omitempty" xml:"EnabledRam,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// example:
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The time when the access point was modified.
+	// The time when the access point was last modified.
 	//
 	// example:
 	//
 	// 1709619668276167
 	ModifyTime *string `json:"ModifyTime,omitempty" xml:"ModifyTime,omitempty"`
+	// The time when the AgenticSpace was last modified. The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format.
+	//
+	// example:
+	//
+	// 2026-06-10T10:08:08Z
+	ModifyTimeUtc *string `json:"ModifyTimeUtc,omitempty" xml:"ModifyTimeUtc,omitempty"`
 	// The POSIX user.
 	PosixUser *DescribeAccessPointResponseBodyAccessPointPosixUser `json:"PosixUser,omitempty" xml:"PosixUser,omitempty" type:"Struct"`
 	// The region ID.
@@ -132,48 +150,49 @@ type DescribeAccessPointResponseBodyAccessPoint struct {
 	//
 	// /
 	RootPath *string `json:"RootPath,omitempty" xml:"RootPath,omitempty"`
-	// The permissions to create the root directory.
+	// The permissions for creating the root directory.
 	RootPathPermission *DescribeAccessPointResponseBodyAccessPointRootPathPermission `json:"RootPathPermission,omitempty" xml:"RootPathPermission,omitempty" type:"Struct"`
-	// The status of the root directory.
+	// The current root directory status.
 	//
 	// Valid values:
 	//
-	// 	- 0: The rootpath status is unknown.
+	// - 0: The root path status is unknown.
 	//
-	// 	- 1: The rootpath does not exist and may be deleted.
+	// - 1: The root path does not exist. It may have been deleted by the user.
 	//
-	// 	- 2: The rootpath is normal.
+	// - 2: The root path status is normal.
 	//
 	// example:
 	//
 	// 2
 	RootPathStatus *string `json:"RootPathStatus,omitempty" xml:"RootPathStatus,omitempty"`
-	// The status of the access point.
+	// The current access point status.
 	//
 	// Valid values:
 	//
-	// 	- Active: The access point is available.
+	// - Active: active
 	//
-	// 	- Inactive: The access point is unavailable.
+	// - Inactive: inactive
 	//
-	// 	- Pending: The access point is being created.
+	// - Pending: being created
 	//
-	// 	- Deleting: The access point is being deleted.
+	// - Deleting: being deleted
 	//
 	// example:
 	//
 	// Active
-	Status *string                                           `json:"Status,omitempty" xml:"Status,omitempty"`
-	Tags   []*DescribeAccessPointResponseBodyAccessPointTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The list of access point tags.
+	Tags []*DescribeAccessPointResponseBodyAccessPointTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 	// The vSwitch ID.
 	//
 	// example:
 	//
 	// vsw-2zevmwkwyztjuoffg****
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// The ID of the virtual private cloud (VPC).
+	// The VPC ID.
 	//
-	// You must select the VPC of the Elastic Compute Service (ECS) instance on which you want to mount the file system.
+	// The VPC must be the same as the VPC of the Elastic Computing Service (ECS) server to which you want to mount the file system.
 	//
 	// example:
 	//
@@ -205,8 +224,16 @@ func (s *DescribeAccessPointResponseBodyAccessPoint) GetAccessPointName() *strin
 	return s.AccessPointName
 }
 
+func (s *DescribeAccessPointResponseBodyAccessPoint) GetAgenticSpaceId() *string {
+	return s.AgenticSpaceId
+}
+
 func (s *DescribeAccessPointResponseBodyAccessPoint) GetCreateTime() *string {
 	return s.CreateTime
+}
+
+func (s *DescribeAccessPointResponseBodyAccessPoint) GetCreateTimeUtc() *string {
+	return s.CreateTimeUtc
 }
 
 func (s *DescribeAccessPointResponseBodyAccessPoint) GetDomainName() *string {
@@ -223,6 +250,10 @@ func (s *DescribeAccessPointResponseBodyAccessPoint) GetFileSystemId() *string {
 
 func (s *DescribeAccessPointResponseBodyAccessPoint) GetModifyTime() *string {
 	return s.ModifyTime
+}
+
+func (s *DescribeAccessPointResponseBodyAccessPoint) GetModifyTimeUtc() *string {
+	return s.ModifyTimeUtc
 }
 
 func (s *DescribeAccessPointResponseBodyAccessPoint) GetPosixUser() *DescribeAccessPointResponseBodyAccessPointPosixUser {
@@ -281,8 +312,18 @@ func (s *DescribeAccessPointResponseBodyAccessPoint) SetAccessPointName(v string
 	return s
 }
 
+func (s *DescribeAccessPointResponseBodyAccessPoint) SetAgenticSpaceId(v string) *DescribeAccessPointResponseBodyAccessPoint {
+	s.AgenticSpaceId = &v
+	return s
+}
+
 func (s *DescribeAccessPointResponseBodyAccessPoint) SetCreateTime(v string) *DescribeAccessPointResponseBodyAccessPoint {
 	s.CreateTime = &v
+	return s
+}
+
+func (s *DescribeAccessPointResponseBodyAccessPoint) SetCreateTimeUtc(v string) *DescribeAccessPointResponseBodyAccessPoint {
+	s.CreateTimeUtc = &v
 	return s
 }
 
@@ -303,6 +344,11 @@ func (s *DescribeAccessPointResponseBodyAccessPoint) SetFileSystemId(v string) *
 
 func (s *DescribeAccessPointResponseBodyAccessPoint) SetModifyTime(v string) *DescribeAccessPointResponseBodyAccessPoint {
 	s.ModifyTime = &v
+	return s
+}
+
+func (s *DescribeAccessPointResponseBodyAccessPoint) SetModifyTimeUtc(v string) *DescribeAccessPointResponseBodyAccessPoint {
+	s.ModifyTimeUtc = &v
 	return s
 }
 
@@ -375,15 +421,15 @@ func (s *DescribeAccessPointResponseBodyAccessPoint) Validate() error {
 }
 
 type DescribeAccessPointResponseBodyAccessPointPosixUser struct {
-	// The ID of the POSIX user group.
+	// The POSIX user group ID.
 	//
 	// example:
 	//
 	// 12
 	PosixGroupId *int32 `json:"PosixGroupId,omitempty" xml:"PosixGroupId,omitempty"`
-	// The IDs of the secondary user groups.
+	// The secondary user group ID.
 	PosixSecondaryGroupIds []*int32 `json:"PosixSecondaryGroupIds,omitempty" xml:"PosixSecondaryGroupIds,omitempty" type:"Repeated"`
-	// The ID of the POSIX user.
+	// The POSIX user ID.
 	//
 	// example:
 	//
@@ -431,19 +477,19 @@ func (s *DescribeAccessPointResponseBodyAccessPointPosixUser) Validate() error {
 }
 
 type DescribeAccessPointResponseBodyAccessPointRootPathPermission struct {
-	// The ID of the owner group.
+	// The file group ID.
 	//
 	// example:
 	//
 	// 123
 	OwnerGroupId *int32 `json:"OwnerGroupId,omitempty" xml:"OwnerGroupId,omitempty"`
-	// The owner ID.
+	// The file owner ID.
 	//
 	// example:
 	//
 	// 1
 	OwnerUserId *int32 `json:"OwnerUserId,omitempty" xml:"OwnerUserId,omitempty"`
-	// The POSIX permission.
+	// The POSIX permissions.
 	//
 	// example:
 	//
@@ -491,10 +537,14 @@ func (s *DescribeAccessPointResponseBodyAccessPointRootPathPermission) Validate(
 }
 
 type DescribeAccessPointResponseBodyAccessPointTags struct {
+	// The tag key.
+	//
 	// example:
 	//
 	// TestKey
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The tag value.
+	//
 	// example:
 	//
 	// TestValue

@@ -68,7 +68,7 @@ type CreateAccessPointResponseBodyAccessPoint struct {
 	//
 	// ap-ie15ydanoz.001014****-w****.cn-hangzhou.nas.aliyuncs.com
 	AccessPointDomain *string `json:"AccessPointDomain,omitempty" xml:"AccessPointDomain,omitempty"`
-	// The ID of the access point.
+	// The access point ID.
 	//
 	// example:
 	//

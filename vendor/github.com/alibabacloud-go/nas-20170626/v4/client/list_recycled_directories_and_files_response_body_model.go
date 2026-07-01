@@ -26,7 +26,7 @@ type ListRecycledDirectoriesAndFilesResponseBody struct {
 	//
 	// example:
 	//
-	// CKuO8QMSIjE2OTc3NzI0NjI5MTcyMTYyNDVfMzEzNTUyMF81MjEzODY=
+	// 无
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	// The request ID.
 	//

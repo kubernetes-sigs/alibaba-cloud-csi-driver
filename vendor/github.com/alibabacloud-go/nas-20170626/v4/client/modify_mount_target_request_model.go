@@ -11,6 +11,8 @@ type iModifyMountTargetRequest interface {
 	GoString() string
 	SetAccessGroupName(v string) *ModifyMountTargetRequest
 	GetAccessGroupName() *string
+	SetAccessPointAccessOnly(v bool) *ModifyMountTargetRequest
+	GetAccessPointAccessOnly() *bool
 	SetDualStackMountTargetDomain(v string) *ModifyMountTargetRequest
 	GetDualStackMountTargetDomain() *string
 	SetFileSystemId(v string) *ModifyMountTargetRequest
@@ -22,15 +24,16 @@ type iModifyMountTargetRequest interface {
 }
 
 type ModifyMountTargetRequest struct {
-	// The name of the permission group that is attached to the mount target.
+	// The name of the access group that is associated with the mount target.
 	//
 	// example:
 	//
 	// classic-test
-	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	// The dual-stack (IPv4 and IPv6) domain name of the mount target.
+	AccessGroupName       *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
+	AccessPointAccessOnly *bool   `json:"AccessPointAccessOnly,omitempty" xml:"AccessPointAccessOnly,omitempty"`
+	// The domain name of the dual-stack mount target.
 	//
-	// >  Only Extreme NAS file systems that reside in the Chinese mainland support IPv6.
+	// > The IPv6 feature is available only for Extreme NAS file systems in the Chinese mainland.
 	//
 	// example:
 	//
@@ -38,9 +41,9 @@ type ModifyMountTargetRequest struct {
 	DualStackMountTargetDomain *string `json:"DualStackMountTargetDomain,omitempty" xml:"DualStackMountTargetDomain,omitempty"`
 	// The ID of the file system.
 	//
-	// 	- Sample ID of a General-purpose NAS file system: `31a8e4****`.
+	// - For a General-purpose NAS file system, the ID is similar to `31a8e4****`.
 	//
-	// 	- The IDs of Extreme NAS file systems must start with `extreme-`, for example, `extreme-0015****`.
+	// - For an Extreme NAS file system, the ID must start with `extreme-`, for example, `extreme-0015****`.
 	//
 	// This parameter is required.
 	//
@@ -48,7 +51,7 @@ type ModifyMountTargetRequest struct {
 	//
 	// 1ca404****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The IPv4 domain name of the mount target.
+	// The domain name of the IPv4 mount target.
 	//
 	// example:
 	//
@@ -58,11 +61,11 @@ type ModifyMountTargetRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- Active: The mount target is available.
+	// - Active: The mount target is available.
 	//
-	// 	- Inactive: The mount target is unavailable.
+	// - Inactive: The mount target is unavailable.
 	//
-	// >  Only General-purpose File Storage NAS (NAS) file systems support changing the mount target status.
+	// > You can change the status of a mount target only if the mount target is attached to a General-purpose NAS file system.
 	//
 	// example:
 	//
@@ -80,6 +83,10 @@ func (s ModifyMountTargetRequest) GoString() string {
 
 func (s *ModifyMountTargetRequest) GetAccessGroupName() *string {
 	return s.AccessGroupName
+}
+
+func (s *ModifyMountTargetRequest) GetAccessPointAccessOnly() *bool {
+	return s.AccessPointAccessOnly
 }
 
 func (s *ModifyMountTargetRequest) GetDualStackMountTargetDomain() *string {
@@ -100,6 +107,11 @@ func (s *ModifyMountTargetRequest) GetStatus() *string {
 
 func (s *ModifyMountTargetRequest) SetAccessGroupName(v string) *ModifyMountTargetRequest {
 	s.AccessGroupName = &v
+	return s
+}
+
+func (s *ModifyMountTargetRequest) SetAccessPointAccessOnly(v bool) *ModifyMountTargetRequest {
+	s.AccessPointAccessOnly = &v
 	return s
 }
 

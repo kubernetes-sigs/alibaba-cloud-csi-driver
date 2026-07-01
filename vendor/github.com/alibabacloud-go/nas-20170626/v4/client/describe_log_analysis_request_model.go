@@ -20,27 +20,27 @@ type iDescribeLogAnalysisRequest interface {
 }
 
 type DescribeLogAnalysisRequest struct {
-	// The type of the file system.
+	// The file system type.
 	//
 	// Valid values:
 	//
-	// 	- standard: General-purpose NAS file system
+	// - standard: General-purpose NAS
 	//
-	// 	- extreme: Extreme NAS file system
+	// - extreme: Extreme NAS
 	//
-	// 	- all (default): all types
+	// - all (default): all types.
 	//
 	// example:
 	//
 	// all
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The page number. Default value: 1.
+	// The page number of the file system list. Default value: 1.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of entries per page. Valid values: 1 to 100. Default value: 10.
+	// The number of file systems on each page in a paging query. Valid values: 1 to 100. Default value: 10.
 	//
 	// example:
 	//

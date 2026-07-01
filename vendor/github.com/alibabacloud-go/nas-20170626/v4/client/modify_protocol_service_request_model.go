@@ -47,7 +47,7 @@ type ModifyProtocolServiceRequest struct {
 	//
 	// example:
 	//
-	// test
+	// 此协议服务的描述信息
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// Specifies whether to perform only a dry run, without performing the actual request. The dry run checks parameter validity and prerequisites. The dry run does not modify a file system or incur fees.
 	//
@@ -67,7 +67,7 @@ type ModifyProtocolServiceRequest struct {
 	//
 	// example:
 	//
-	// cpfs-123****
+	// cpfs-099394bd928c****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The ID of the protocol service.
 	//
@@ -75,7 +75,7 @@ type ModifyProtocolServiceRequest struct {
 	//
 	// example:
 	//
-	// ptc-123****
+	// ptc-197ed6a00f2b****
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
 }
 

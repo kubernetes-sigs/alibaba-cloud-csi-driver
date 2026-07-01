@@ -64,7 +64,7 @@ type UpgradeFileSystemRequest struct {
 	//
 	// example:
 	//
-	// 1ca404****
+	// extreme-0015****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 }
 
