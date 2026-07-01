@@ -32,8 +32,7 @@ func TestNewLingJunMetadata(t *testing.T) {
 		require.NoError(t, os.WriteFile(lingjunConfigFile, []byte(LingjunConfigJson), 0644))
 
 		// Test the function
-		result, err := NewLingJunMetadata(lingjunConfigFile)
-		require.NoError(t, err)
+		result := NewLingJunMetadata(lingjunConfigFile)
 		require.NotNil(t, result)
 
 		m := testMetadata(t, result)
@@ -54,9 +53,7 @@ func TestNewLingJunMetadata(t *testing.T) {
 		tempDir := t.TempDir()
 		lingjunConfigFile := filepath.Join(tempDir, "non_existent_file")
 
-		result, err := NewLingJunMetadata(lingjunConfigFile)
-		assert.Error(t, err)
-		assert.True(t, os.IsNotExist(err))
+		result := NewLingJunMetadata(lingjunConfigFile)
 		assert.Nil(t, result)
 	})
 
@@ -64,9 +61,7 @@ func TestNewLingJunMetadata(t *testing.T) {
 		// Test with a directory path instead of a file
 		tempDir := t.TempDir()
 
-		result, err := NewLingJunMetadata(tempDir) // Pass directory instead of file
-		assert.Error(t, err)
-		assert.False(t, os.IsNotExist(err)) // Not a "not exist" error
+		result := NewLingJunMetadata(tempDir) // Pass directory instead of file
 		assert.Nil(t, result)
 	})
 
@@ -75,11 +70,19 @@ func TestNewLingJunMetadata(t *testing.T) {
 		tempDir := t.TempDir()
 		lingjunConfigFile := filepath.Join(tempDir, "lingjun_config_invalid")
 
-		err := os.WriteFile(lingjunConfigFile, []byte("{ invalid json }"), 0644)
-		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(lingjunConfigFile, []byte("{ invalid json }"), 0644))
 
-		result, err := NewLingJunMetadata(lingjunConfigFile)
-		assert.Error(t, err)
+		result := NewLingJunMetadata(lingjunConfigFile)
+		assert.Nil(t, result)
+	})
+
+	t.Run("missing fields", func(t *testing.T) {
+		tempDir := t.TempDir()
+		lingjunConfigFile := filepath.Join(tempDir, "lingjun_config")
+
+		require.NoError(t, os.WriteFile(lingjunConfigFile, []byte("{}"), 0644))
+
+		result := NewLingJunMetadata(lingjunConfigFile)
 		assert.Nil(t, result)
 	})
 }
