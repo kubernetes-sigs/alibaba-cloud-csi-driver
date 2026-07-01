@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -27,16 +28,22 @@ const (
 )
 
 func init() {
-	server.RegisterDriver(&Driver{
-		Mounter: mounter.NewForMounter(
-			&extendedMounter{Interface: mount.New("")},
-			interceptors.AlinasSecretInterceptor,
-		),
-	})
+	server.RegisterDriver(NewDriver())
+}
+
+func NewDriver() *Driver {
+	driver := &Driver{}
+	driver.Mounter = mounter.NewForMounter(
+		&extendedMounter{driver: driver, Interface: mount.New("")},
+		interceptors.AlinasSecretInterceptor,
+	)
+	return driver
 }
 
 type Driver struct {
 	mounter.Mounter
+	targets       sync.Map
+	ResetFlagPath string
 }
 
 func (h *Driver) Name() string {
@@ -65,7 +72,40 @@ func (h *Driver) Init() {
 	setupDefaultConfigs()
 }
 
-func (h *Driver) Terminate() {}
+// defaultResetFlagPath is the path to the reset flag file written by envd.
+// When this file exists at termination time, the driver will unmount all
+// tracked NAS mount points before exiting.
+var defaultResetFlagPath = "/etc/aliyun/alinas/reset"
+
+func (h *Driver) resetFlagPath() string {
+	if h.ResetFlagPath != "" {
+		return h.ResetFlagPath
+	}
+	return defaultResetFlagPath
+}
+
+func (h *Driver) Terminate() {
+	if !server.CleanupNASMountsOnExit() {
+		return
+	}
+	if !h.shouldCleanup() {
+		klog.InfoS("Reset flag not found, skipping NAS mount cleanup", "path", h.resetFlagPath())
+		return
+	}
+	h.targets.Range(func(key, _ any) bool {
+		target := key.(string)
+		klog.InfoS("Unmounting NAS mount point on exit", "target", target)
+		if err := h.Unmount(target); err != nil {
+			klog.ErrorS(err, "Failed to unmount NAS mount point", "target", target)
+		}
+		return true
+	})
+}
+
+func (h *Driver) shouldCleanup() bool {
+	_, err := os.Stat(h.resetFlagPath())
+	return err == nil
+}
 
 // ApplyOptionDefaults applies driver-specific option defaults.
 // alinas does not apply any environment-detected defaults.
@@ -176,6 +216,7 @@ func copyFile(src, dst string) error {
 }
 
 type extendedMounter struct {
+	driver *Driver
 	mount.Interface
 }
 
@@ -189,5 +230,17 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 		op.Options = append(op.Options, "no_atomic_move")
 		op.Options = addAutoFallbackNFSMountOptions(op.Options)
 	}
-	return m.Mount(op.Source, op.Target, op.FsType, op.Options)
+	err := m.Mount(op.Source, op.Target, op.FsType, op.Options)
+	if err == nil {
+		m.driver.targets.Store(op.Target, struct{}{})
+	}
+	return err
+}
+
+func (m *extendedMounter) Unmount(target string) error {
+	err := m.Interface.Unmount(target)
+	if err == nil {
+		m.driver.targets.Delete(target)
+	}
+	return err
 }
