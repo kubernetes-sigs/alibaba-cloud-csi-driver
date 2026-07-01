@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
@@ -107,6 +108,19 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 		}
 	}
 	return proxy.Response{}
+}
+
+var cleanupNASMountsOnExit atomic.Bool
+
+// SetCleanupNASMountsOnExit controls whether the alinas driver should
+// unmount all NAS mount points when the process receives SIGTERM.
+func SetCleanupNASMountsOnExit(v bool) {
+	cleanupNASMountsOnExit.Store(v)
+}
+
+// CleanupNASMountsOnExit reports whether NAS mount cleanup is enabled.
+func CleanupNASMountsOnExit() bool {
+	return cleanupNASMountsOnExit.Load()
 }
 
 func Init(driverNames []string) {

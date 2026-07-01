@@ -1,5 +1,7 @@
 name: coverage
 on:
+  push:
+    branches: [master]
   pull_request:
 
 permissions:
@@ -20,23 +22,29 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Get changed Go packages
+        if: github.event_name == 'pull_request'
         id: changed
         run: |
-          FILES=$(git diff --name-only --diff-filter=ACMR ${{ github.event.pull_request.base.sha }}..HEAD -- '*.go' | grep -v '_test.go' | grep -v vendor/ || true)
+          FILES=$(git diff --name-only --diff-filter=ACMR ${{ github.event.pull_request.base.sha }}..HEAD -- '*.go' | grep -v vendor/ || true)
           if [ -z "$FILES" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
-            # Extract unique package paths
+            # Extract unique package paths from changed files (including test files)
             PKGS=$(echo "$FILES" | xargs -I{} dirname {} | sort -u | sed 's|^|./|' | paste -sd ' ' -)
             echo "packages=$PKGS" >> "$GITHUB_OUTPUT"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run tests with coverage
-        if: steps.changed.outputs.skip != 'true'
+      - name: Run tests with coverage (PR)
+        if: github.event_name == 'pull_request' && steps.changed.outputs.skip != 'true'
         run: |
           go test -coverprofile=coverage.out -covermode=atomic ${{ steps.changed.outputs.packages }}
 
+      - name: Run tests with coverage (push to master)
+        if: github.event_name == 'push'
+        run: |
+          go test -coverprofile=coverage.out -covermode=atomic ./...
+
       - name: Report coverage
-        if: steps.changed.outputs.skip != 'true'
+        if: steps.changed.outputs.skip != 'true' || github.event_name == 'push'
         uses: k1LoW/octocov-action@b3b6ee60482a667950f87553abf1df63217235d9 # v1.5.1

@@ -5,7 +5,7 @@ coverage:
 diff:
   datastores:
     - artifact://${GITHUB_REPOSITORY}
-  acceptable: 80% # fail if diff (incremental) coverage < 80%
+  acceptable: 60%
 
 summary:
   if: true

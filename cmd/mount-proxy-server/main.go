@@ -24,10 +24,11 @@ import (
 )
 
 var (
-	socketPath     string
-	drivers        []string
-	handleTimeout  time.Duration
-	enableNftables bool
+	socketPath       string
+	drivers          []string
+	handleTimeout    time.Duration
+	enableNftables   bool
+	cleanupNASMounts bool
 )
 
 func main() {
@@ -35,11 +36,13 @@ func main() {
 	flag.StringSliceVar(&drivers, "driver", nil, "drivers to enable (e.g. 'ossfs,alinas')")
 	flag.DurationVar(&handleTimeout, "timeout", time.Second*30, "timeout for connection")
 	flag.BoolVar(&enableNftables, "enable-nftables", false, "enable nftables rules to restrict mount proxy port access (default: false)")
+	flag.BoolVar(&cleanupNASMounts, "cleanup-nas-mounts-on-exit", false, "unmount all NAS mount points inside the pod on SIGTERM")
 	utils.AddKlogFlags(flag.CommandLine)
 	utils.AddGoFlags(flag.CommandLine)
 	flag.Parse()
 
 	_ = os.Remove(socketPath)
+	server.SetCleanupNASMountsOnExit(cleanupNASMounts)
 	server.Init(drivers)
 
 	listener, err := listen(socketPath)
