@@ -33,7 +33,7 @@ github.com/alibabacloud-go/openapi-util/service
 # github.com/alibabacloud-go/sts-20150401/v2 v2.0.4
 ## explicit; go 1.14
 github.com/alibabacloud-go/sts-20150401/v2/client
-# github.com/alibabacloud-go/tea v1.3.13
+# github.com/alibabacloud-go/tea v1.5.2
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea/dara
 github.com/alibabacloud-go/tea/tea
@@ -41,7 +41,7 @@ github.com/alibabacloud-go/tea/utils
 # github.com/alibabacloud-go/tea-utils v1.4.3
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea-utils/service
-# github.com/alibabacloud-go/tea-utils/v2 v2.0.7
+# github.com/alibabacloud-go/tea-utils/v2 v2.0.9
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea-utils/v2/service
 # github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
@@ -155,6 +155,9 @@ github.com/google/nftables/xt
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
+# github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
+## explicit; go 1.20
+github.com/gorilla/websocket
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
