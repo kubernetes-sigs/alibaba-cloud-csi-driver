@@ -286,7 +286,7 @@ func NewMetadata() *Metadata {
 	providers := multi{
 		newImmutable(strProvider{ENVMetadata{}}, "env"),
 	}
-	lm, _ := NewLingJunMetadata(LingjunConfigFile)
+	lm := NewLingJunMetadata(LingjunConfigFile)
 	if lm != nil { // error is already logged
 		providers = append(providers, newImmutable(lm, "lingjun"))
 	}

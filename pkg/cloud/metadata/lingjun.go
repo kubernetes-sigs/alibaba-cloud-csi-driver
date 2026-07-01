@@ -15,7 +15,7 @@ type LingjunMetaData struct {
 	InstanceType string `json:"InstanceType"`
 }
 
-func NewLingJunMetadata(lingjunConfigFile string) (*LingjunMetaData, error) {
+func NewLingJunMetadata(lingjunConfigFile string) *LingjunMetaData {
 	data, err := os.ReadFile(lingjunConfigFile)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -23,15 +23,19 @@ func NewLingJunMetadata(lingjunConfigFile string) (*LingjunMetaData, error) {
 		} else {
 			klog.ErrorS(err, "Failed to read lingjun metadata file", "file", lingjunConfigFile)
 		}
-		return nil, err
+		return nil
 	}
 	var lm LingjunMetaData
 	err = json.Unmarshal(data, &lm)
 	if err != nil {
 		klog.ErrorS(err, "Failed to parse lingjun metadata file", "file", lingjunConfigFile)
-		return nil, err
+		return nil
 	}
-	return &lm, nil
+	if lm.RegionId == "" || lm.ZoneId == "" || lm.NodeId == "" || lm.InstanceType == "" {
+		klog.ErrorS(err, "Invalid lingjun metadata file", "file", lingjunConfigFile)
+		return nil
+	}
+	return &lm
 }
 
 func (m *LingjunMetaData) GetAny(_ *mcontext, key MetadataKey) (any, error) {
