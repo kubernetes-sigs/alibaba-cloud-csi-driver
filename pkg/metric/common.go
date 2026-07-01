@@ -19,8 +19,6 @@ const (
 	bmcpfsDriverName string = "bmcpfsplugin.csi.alibabacloud.com"
 	//diskDriverName represents the csi storage type name of Disk
 	diskDriverName string = "diskplugin.csi.alibabacloud.com"
-	// unknown metric value
-	UnknownValue string = "unknown"
 )
 
 const (
@@ -33,7 +31,6 @@ const (
 	diskSectorSize                          = 512
 	diskDefaultsLatencyThreshold            = 10
 	diskDefaultsCapacityPercentageThreshold = 85
-	nfsDefaultsCapacityPercentageThreshold  = 85
 	nfsStatsFileName                        = "/proc/self/mountstats"
 	latencyTooHigh                          = "LatencyTooHigh"
 	capacityNotEnough                       = "NotEnoughDiskSpace"
