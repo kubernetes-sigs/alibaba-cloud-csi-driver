@@ -1,15 +1,14 @@
 coverage:
   paths:
     - coverage.out
-  acceptable: 80% # fail if incremental coverage < 80%
 
 diff:
   datastores:
     - artifact://${GITHUB_REPOSITORY}
+  acceptable: 80% # fail if diff (incremental) coverage < 80%
 
-comment:
-  enable: true
-  if: is_pull_request
+summary:
+  if: true
 
 report:
   if: is_pull_request
