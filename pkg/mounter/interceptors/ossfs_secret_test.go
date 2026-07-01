@@ -30,7 +30,7 @@ func removeAllIgnoreNotExist(path string) {
 }
 
 var mockOssfsHandler = func(ctx context.Context, op *mounter.MountOperation) error {
-	result := server.OssfsMountResult{
+	result := server.FuseMountResult{
 		PID:      123,
 		ExitChan: make(chan error),
 	}
@@ -228,8 +228,8 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, op.MountResult, "MountResult should be set")
 
-	result, ok := op.MountResult.(server.OssfsMountResult)
-	require.True(t, ok, "MountResult should be OssfsMountResult")
+	result, ok := op.MountResult.(server.FuseMountResult)
+	require.True(t, ok, "MountResult should be FuseMountResult")
 	<-result.ExitChan
 
 	assert.Len(t, op.Options, 1)

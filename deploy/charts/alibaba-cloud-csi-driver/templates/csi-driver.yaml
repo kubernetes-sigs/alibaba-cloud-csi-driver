@@ -49,3 +49,13 @@ spec:
   attachRequired: true
   podInfoOnMount: true
 {{- end }}
+---
+{{- if .Values.csi.customfuse.enabled }}
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: customfuseplugin.csi.alibabacloud.com
+spec:
+  attachRequired: true
+  podInfoOnMount: true
+{{- end }}

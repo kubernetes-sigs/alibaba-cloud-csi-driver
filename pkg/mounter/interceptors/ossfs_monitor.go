@@ -44,7 +44,7 @@ func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 		return err
 	}
 
-	res, ok := op.MountResult.(server.OssfsMountResult)
+	res, ok := op.MountResult.(server.FuseMountResult)
 	if !ok {
 		klog.ErrorS(errors.New("failed to assert ossfs mount result type"), "skipping monitoring of mountpoint", "mountpoint", op.Target)
 		return err

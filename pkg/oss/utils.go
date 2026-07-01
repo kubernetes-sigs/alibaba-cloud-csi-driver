@@ -492,7 +492,11 @@ func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
 	if fpm == nil {
 		return WrapOssError(ParamError, "Unsupported fuseType %s", opt.FuseType)
 	}
-	// common
+
+	if opt.FuseType == mounterutils.CustomFuseType {
+		return WrapOssError(ParamError, "customfuse type is not supported by OSS driver, use customfuseplugin.csi.alibabacloud.com")
+	}
+
 	if opt.URL == "" || opt.Bucket == "" {
 		return WrapOssError(ParamError, "Url/Bucket empty")
 	}
@@ -699,22 +703,6 @@ func getDirectAssignedValue(runtimeClass string) bool {
 		klog.Warningf("invalid runtimeClass value: %q, only %s and %s are allowed", runtimeClass, utils.RuncRunTimeTag, utils.RundRunTimeTag)
 		return false
 	}
-}
-
-func getSkipGlobalMount(defaultVal bool) bool {
-	value := os.Getenv("OSS_SKIP_GLOBAL_MOUNT")
-	if value == "" {
-		return defaultVal
-	}
-	parsed, err := strconv.ParseBool(value)
-	if err != nil {
-		klog.Warningf("Invalid value for OSS_SKIP_GLOBAL_MOUNT: %q, using default %v", value, defaultVal)
-		return defaultVal
-	}
-	if parsed != defaultVal {
-		klog.Infof("OSS_SKIP_GLOBAL_MOUNT=%v overrides default %v", parsed, defaultVal)
-	}
-	return parsed
 }
 
 func needRotateToken(fuseType string, secrets map[string]string) (needRotate bool) {

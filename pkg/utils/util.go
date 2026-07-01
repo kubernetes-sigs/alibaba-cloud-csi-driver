@@ -708,3 +708,24 @@ func GetNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
 	}
 	return "", nil
 }
+
+// GetSkipGlobalMount reads skip-global-mount setting from environment.
+// Priority: SKIP_GLOBAL_MOUNT > OSS_SKIP_GLOBAL_MOUNT > defaultVal.
+func GetSkipGlobalMount(defaultVal bool) bool {
+	for _, env := range []string{"SKIP_GLOBAL_MOUNT", "OSS_SKIP_GLOBAL_MOUNT"} {
+		value := os.Getenv(env)
+		if value == "" {
+			continue
+		}
+		parsed, err := strconv.ParseBool(value)
+		if err != nil {
+			klog.Warningf("Invalid value for %s: %q, using default %v", env, value, defaultVal)
+			return defaultVal
+		}
+		if parsed != defaultVal {
+			klog.Infof("%s=%v overrides default %v", env, parsed, defaultVal)
+		}
+		return parsed
+	}
+	return defaultVal
+}

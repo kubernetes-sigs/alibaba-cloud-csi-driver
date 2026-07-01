@@ -97,7 +97,7 @@ func parseNodeID(nodeID string) (instanceID string, kind nodeKind) {
 	return instanceID, kind
 }
 
-func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType) *common.Servers {
+func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType, mountProxySock string) *common.Servers {
 	var servers common.Servers
 	servers.IdentityServer = newIdentityServer()
 
@@ -109,7 +109,7 @@ func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.Serv
 		servers.ControllerServer = cs
 	}
 	if serviceType&utils.Node != 0 {
-		ns, err := newNodeServer(meta)
+		ns, err := newNodeServer(meta, mountProxySock)
 		if err != nil {
 			klog.Fatalf("Init node server: %v", err)
 		}

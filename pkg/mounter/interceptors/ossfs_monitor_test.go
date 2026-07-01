@@ -86,7 +86,7 @@ func TestOssfsMonitorInterceptor(t *testing.T) {
 	op := &mounter.MountOperation{
 		Target:      "volume1",
 		MetricsPath: metricsDir,
-		MountResult: server.OssfsMountResult{
+		MountResult: server.FuseMountResult{
 			PID:      123,
 			ExitChan: make(chan error),
 		},

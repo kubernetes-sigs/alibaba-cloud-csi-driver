@@ -12,6 +12,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/customfuse"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
@@ -26,6 +27,7 @@ import (
 )
 
 var mountProxySocket string
+var customfuseMountProxySocket string
 
 type FileGrpcServer struct {
 	input  io.Reader
@@ -87,6 +89,7 @@ func main() {
 	logrus.SetOutput(os.Stderr)
 	utils.AddKlogFlags(flag.CommandLine)
 	flag.StringVar(&mountProxySocket, "mount-proxy-sock", "/run/kube-agent/csi-agent.sock", "socket path of mount proxy server")
+	flag.StringVar(&customfuseMountProxySocket, "customfuse-mount-proxy-sock", "/run/kube-agent/customfuse-agent.sock", "socket path of customfuse mount proxy server")
 	flag.Parse()
 
 	if len(os.Args) > 1 && os.Args[1] == "version" {
@@ -105,6 +108,8 @@ func main() {
 		agent = disk.NewCSIAgent()
 	case "nasplugin.csi.alibabacloud.com":
 		agent = nas.NewCSIAgent(mountProxySocket)
+	case "customfuseplugin.csi.alibabacloud.com":
+		agent = customfuse.NewCSIAgent(customfuseMountProxySocket)
 	default:
 		printError(fmt.Errorf("invalid CSI_DRIVER: %q", driver))
 		os.Exit(1)

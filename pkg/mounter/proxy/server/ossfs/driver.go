@@ -208,7 +208,7 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	})
 
 	if err == nil {
-		op.MountResult = server.OssfsMountResult{
+		op.MountResult = server.FuseMountResult{
 			PID:      pid,
 			ExitChan: ossfsExited,
 		}

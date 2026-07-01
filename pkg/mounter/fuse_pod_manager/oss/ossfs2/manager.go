@@ -251,7 +251,7 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 	spec.Volumes = []corev1.Volume{targetDirVolume, metricsDirVolume}
 
 	bidirectional := corev1.MountPropagationBidirectional
-	socketPath := mounterutils.GetMountProxySocketPath(c.VolumeId)
+	socketPath := mounterutils.GetMountProxySocketPath(c.VolumeId, false)
 	container := corev1.Container{
 		Name:  f.Name(),
 		Image: f.config.Image,
