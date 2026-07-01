@@ -57,13 +57,11 @@ var AllCategories = map[Category]CategoryDesc{
 		Size: SizeRange{Min: 20, Max: 65536},
 	},
 	DiskESSDXc0: {
-		Size:                    SizeRange{Min: 20, Max: 65536},
-		InstantAccessSnapshot:   true,
+		Size:                    SizeRange{Min: 40, Max: 65536},
 		SnapshotConsistentGroup: true,
 	},
 	DiskESSDXc1: {
-		Size:                    SizeRange{Min: 20, Max: 65536},
-		InstantAccessSnapshot:   true,
+		Size:                    SizeRange{Min: 40, Max: 65536},
 		SnapshotConsistentGroup: true,
 	},
 	DiskESSD: {
