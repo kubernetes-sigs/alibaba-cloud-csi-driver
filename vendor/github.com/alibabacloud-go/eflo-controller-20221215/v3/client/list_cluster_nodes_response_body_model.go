@@ -18,13 +18,13 @@ type iListClusterNodesResponseBody interface {
 }
 
 type ListClusterNodesResponseBody struct {
-	// The returned pagination token which can be used in the next request to retrieve a new page of results.
+	// The token to retrieve the next page of results. If this parameter is empty, no more results are available.
 	//
 	// example:
 	//
 	// AAAAAXW/ZB9TBvH+0ZK0phtCibQgQmu1RbqplAI6Velo2OKR
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The nodes.
+	// The list of nodes.
 	Nodes []*ListClusterNodesResponseBodyNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
 	// The request ID.
 	//
@@ -83,25 +83,25 @@ func (s *ListClusterNodesResponseBody) Validate() error {
 }
 
 type ListClusterNodesResponseBodyNodes struct {
-	// The commodity code.
+	// The unique code that identifies the cloud product or service.
 	//
 	// example:
 	//
-	// bcccluster
+	// bccluster_eflocomputing_public_cn（表示灵骏中国站包年包月）、bccluster_eflocomputing_public_intl（表示灵骏国际站包年包月）
 	CommodityCode *string `json:"CommodityCode,omitempty" xml:"CommodityCode,omitempty"`
 	// The creation time.
 	//
 	// example:
 	//
-	// 1642472468000
+	// 2026-02-02T11:27:07
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The time when the node expires.
+	// The expiration time of the node.
 	//
 	// example:
 	//
-	// 1762185600000
+	// 2026-03-03T00:00:00
 	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// Indicates whether file storage mounting is supported.
+	// Indicates whether the node supports mounting file storage.
 	//
 	// example:
 	//
@@ -113,17 +113,19 @@ type ListClusterNodesResponseBodyNodes struct {
 	//
 	// 72432f80-273e-11ed-b57a-acde48001122
 	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
-	// The cluster number.
+	// The ID of the HPN zone.
 	//
 	// example:
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// The hyper node ID.
+	//
 	// example:
 	//
 	// e01-cn-2r42tmj4z02
 	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
-	// The system image ID.
+	// The image ID.
 	//
 	// example:
 	//
@@ -133,15 +135,15 @@ type ListClusterNodesResponseBodyNodes struct {
 	//
 	// example:
 	//
-	// Alinux3_x86_AMD_R_Host_D3_E3_24.13.00_UEFI_N_250121
+	// Alinux3_x86_gu8xf_P_Host_D3_C7E3_550.127_Legacy_N_241230
 	ImageName *string `json:"ImageName,omitempty" xml:"ImageName,omitempty"`
-	// The node type.
+	// The machine type.
 	//
 	// example:
 	//
 	// cn-wulanchabu-b11
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
-	// The network information.
+	// Network details.
 	Networks []*ListClusterNodesResponseBodyNodesNetworks `json:"Networks,omitempty" xml:"Networks,omitempty" type:"Repeated"`
 	// The node group ID.
 	//
@@ -160,69 +162,46 @@ type ListClusterNodesResponseBodyNodes struct {
 	// example:
 	//
 	// e01-cn-2r42tmj4z02
-	NodeId   *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	// The type of the node.
+	//
+	// example:
+	//
+	// standard
 	NodeType *string `json:"NodeType,omitempty" xml:"NodeType,omitempty"`
-	// The node status.
-	//
-	// Valid values:
-	//
-	// 	- Extending
-	//
-	// 	- UnusedNodeStopped
-	//
-	// 	- UnusedNodeStopping
-	//
-	// 	- Unused
-	//
-	// 	- Using
-	//
-	// 	- ReleaseLocking
-	//
-	// 	- Operating
-	//
-	// 	- Cutting
-	//
-	// 	- ClusterNodeStopped
-	//
-	// 	- UnusedNodeRecovering
-	//
-	// 	- ClusterNodeStopping
-	//
-	// 	- ClusterNodeRecovering
-	//
-	// 	- Replacing
+	// The status of the node.
 	//
 	// example:
 	//
 	// Extending
 	OperatingState *string `json:"OperatingState,omitempty" xml:"OperatingState,omitempty"`
-	// The serial number of the node.
+	// The serial number (SN) of the node.
 	//
 	// example:
 	//
 	// sn_tOuUk
 	Sn *string `json:"Sn,omitempty" xml:"Sn,omitempty"`
-	// The tags.
+	// The list of tags attached to the node.
 	Tags []*ListClusterNodesResponseBodyNodesTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
-	// The job ID.
+	// The task ID.
 	//
 	// example:
 	//
-	// i28ddkdkkdkdd
+	// i-skkdsdl83ksxxs3
 	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
 	// The vSwitch ID.
 	//
 	// example:
 	//
-	// vsw-bp1mxqhw8o20tgv3xk47h
+	// vsw-0jlohur7nhbxd1ttyq8p8
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// The VPC ID.
+	// The ID of the VPC where the node is located.
 	//
 	// example:
 	//
-	// vpc-0jltf9vinjz3if3lltdy7
+	// vpc-f8zcet5mwerafyqlrhyoi
 	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
-	// The zone ID.
+	// The availability zone ID.
 	//
 	// example:
 	//
@@ -459,13 +438,13 @@ func (s *ListClusterNodesResponseBodyNodes) Validate() error {
 }
 
 type ListClusterNodesResponseBodyNodesNetworks struct {
-	// The name of the network port for the node.
+	// The name of the network interface.
 	//
 	// example:
 	//
 	// bond0
 	BondName *string `json:"BondName,omitempty" xml:"BondName,omitempty"`
-	// The IP address of the node in the virtual private cloud (VPC).
+	// The IP address of the node in the VPC.
 	//
 	// example:
 	//
@@ -477,7 +456,7 @@ type ListClusterNodesResponseBodyNodesNetworks struct {
 	//
 	// subnet-fwekrvg9
 	SubnetId *string `json:"SubnetId,omitempty" xml:"SubnetId,omitempty"`
-	// The VPC ID.
+	// The ID of the VPC to which the network interface belongs.
 	//
 	// example:
 	//
@@ -538,13 +517,13 @@ type ListClusterNodesResponseBodyNodesTags struct {
 	//
 	// example:
 	//
-	// aa_key
+	// alarm_xdc
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	// The tag value.
 	//
 	// example:
 	//
-	// aa_value
+	// true
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

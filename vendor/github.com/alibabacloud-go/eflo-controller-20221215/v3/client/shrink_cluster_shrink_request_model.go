@@ -24,13 +24,13 @@ type ShrinkClusterShrinkRequest struct {
 	//
 	// i15dfa12e8f27c44f4a006c2c8bb
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// Specifies whether to allow skipping failed nodes. Default value: False.
+	// Specifies whether to skip failed nodes. The default value is False.
 	//
 	// example:
 	//
 	// False
 	IgnoreFailedNodeTasks *bool `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
-	// The node groups.
+	// The information about the node groups.
 	NodeGroupsShrink *string `json:"NodeGroups,omitempty" xml:"NodeGroups,omitempty"`
 }
 

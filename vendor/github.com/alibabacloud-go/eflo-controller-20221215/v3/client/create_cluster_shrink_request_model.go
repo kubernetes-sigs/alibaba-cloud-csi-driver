@@ -36,57 +36,57 @@ type iCreateClusterShrinkRequest interface {
 }
 
 type CreateClusterShrinkRequest struct {
-	// Cluster description
+	// The description of the cluster.
 	//
 	// example:
 	//
-	// Cluster description
+	// Standard cluster test
 	ClusterDescription *string `json:"ClusterDescription,omitempty" xml:"ClusterDescription,omitempty"`
-	// Cluster name
+	// The name of the cluster.
 	//
 	// example:
 	//
 	// Standard_Cluster
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
-	// Cluster type
+	// The type of the cluster.
 	//
 	// example:
 	//
 	// Lite
 	ClusterType *string `json:"ClusterType,omitempty" xml:"ClusterType,omitempty"`
-	// Components (software instances)
+	// The components (software instances).
 	ComponentsShrink *string `json:"Components,omitempty" xml:"Components,omitempty"`
-	// Cluster number
+	// The cluster number.
 	//
 	// example:
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
-	// Whether to allow skipping failed nodes, the default value is False
+	// Specifies whether to skip failed nodes. The default value is False.
 	//
 	// example:
 	//
 	// False
 	IgnoreFailedNodeTasks *bool `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
-	// Network information
+	// The network information.
 	NetworksShrink *string `json:"Networks,omitempty" xml:"Networks,omitempty"`
-	// Node VSwitches
+	// The vSwitches for the node.
 	NimizVSwitchesShrink *string `json:"NimizVSwitches,omitempty" xml:"NimizVSwitches,omitempty"`
-	// Node group list
+	// The list of node groups.
 	NodeGroupsShrink *string `json:"NodeGroups,omitempty" xml:"NodeGroups,omitempty"`
-	// Whether the network interface supports jumbo frames
+	// Specifies whether the network interface supports jumbo frames.
 	//
 	// example:
 	//
 	// false
 	OpenEniJumboFrame *bool `json:"OpenEniJumboFrame,omitempty" xml:"OpenEniJumboFrame,omitempty"`
-	// Resource group ID
+	// The resource group ID.
 	//
 	// example:
 	//
 	// rg-aek2xdkc6icwfha
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// Resource tags
+	// The resource tags.
 	Tag []*CreateClusterShrinkRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 }
 
@@ -220,13 +220,13 @@ func (s *CreateClusterShrinkRequest) Validate() error {
 }
 
 type CreateClusterShrinkRequestTag struct {
-	// Key
+	// The key.
 	//
 	// example:
 	//
 	// env-name
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// Value
+	// The value.
 	//
 	// example:
 	//

@@ -320,7 +320,9 @@ func handleRepeatedParams(repeatedFieldValue reflect.Value, result map[string]*s
 			elementValue := repeatedFieldValue.Index(m)
 			key := prefix + "." + strconv.Itoa(m+1)
 			fieldValue := reflect.ValueOf(elementValue.Interface())
-			if fieldValue.Kind().String() == "map" {
+			if fieldValue.Kind().String() == "slice" {
+				handleRepeatedParams(fieldValue, result, key)
+			} else if fieldValue.Kind().String() == "map" {
 				handleMap(fieldValue, result, key)
 			} else {
 				result[key] = dara.String(fmt.Sprintf("%v", fieldValue.Interface()))

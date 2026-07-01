@@ -22,13 +22,13 @@ type CreateSessionRequest struct {
 	//
 	// example:
 	//
-	// e01-cn-kvw44e6dn04
+	// e01-cn-kvw44e6****
 	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
 	// The type of the session corresponding to the session package.
 	//
 	// example:
 	//
-	// Valid values: Sol (default): based on serial port Assistant: based on cloud assistant
+	// Sol
 	SessionType *string `json:"SessionType,omitempty" xml:"SessionType,omitempty"`
 	// The start time. The value is a 13-digit timestamp.
 	//

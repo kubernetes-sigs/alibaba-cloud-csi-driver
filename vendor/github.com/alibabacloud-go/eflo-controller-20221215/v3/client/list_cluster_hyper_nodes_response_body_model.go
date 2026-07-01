@@ -18,12 +18,15 @@ type iListClusterHyperNodesResponseBody interface {
 }
 
 type ListClusterHyperNodesResponseBody struct {
+	// The list of nodes.
 	HyperNodes []*ListClusterHyperNodesResponseBodyHyperNodes `json:"HyperNodes,omitempty" xml:"HyperNodes,omitempty" type:"Repeated"`
+	// The query token returned from this call.
+	//
 	// example:
 	//
 	// 563d42ae0b17572449ec8c97f7f66069
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// Id of the request
+	// The ID of the request.
 	//
 	// example:
 	//
@@ -80,69 +83,102 @@ func (s *ListClusterHyperNodesResponseBody) Validate() error {
 }
 
 type ListClusterHyperNodesResponseBodyHyperNodes struct {
+	// The commodity code.
+	//
 	// example:
 	//
 	// bccluster_eflocomputing_public_cn
 	CommodityCode *string `json:"CommodityCode,omitempty" xml:"CommodityCode,omitempty"`
+	// The time when the node was created.
+	//
 	// example:
 	//
 	// 2025-07-07T17:38:35.391
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	// The expiration time of the machine.
+	//
 	// example:
 	//
 	// 2025-04-19T02:32:48Z
 	ExpireTime *string `json:"ExpireTime,omitempty" xml:"ExpireTime,omitempty"`
+	// Indicates whether file storage mounting is supported.
+	//
 	// example:
 	//
 	// False
 	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
+	// The hostname.
+	//
 	// example:
 	//
 	// alywlcb-lingjun-gpu-0025
 	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
+	// The cluster ID.
+	//
 	// example:
 	//
 	// B1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// The node ID.
+	//
 	// example:
 	//
 	// e01-cn-2r42tmj4z02
 	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
+	// The machine type.
+	//
 	// example:
 	//
 	// efg2.NH2cn
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
+	// The node group ID.
+	//
 	// example:
 	//
 	// i123229811742436895560
 	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	// The name of the node group.
+	//
 	// example:
 	//
 	// g1
 	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
+	// The status of the hyper node.
+	//
 	// example:
 	//
 	// Using
 	OperatingState *string `json:"OperatingState,omitempty" xml:"OperatingState,omitempty"`
 	// Deprecated
 	//
+	// The status of the node.
+	//
 	// example:
 	//
 	// Extending
-	Status *string                                            `json:"Status,omitempty" xml:"Status,omitempty"`
-	Tags   []*ListClusterHyperNodesResponseBodyHyperNodesTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The tag information.
+	Tags []*ListClusterHyperNodesResponseBodyHyperNodesTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	// The task ID.
+	//
 	// example:
 	//
 	// i153907661745288876128
 	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
+	// The vSwitch ID.
+	//
 	// example:
 	//
 	// vsw-bp1u4ej4ap8c4yiqfi87c
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The virtual private cloud (VPC) ID.
+	//
 	// example:
 	//
 	// vpc-0jl8gs7qmx89739e210dn
 	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	// The zone ID.
+	//
 	// example:
 	//
 	// cn-shanghai-b
@@ -324,10 +360,14 @@ func (s *ListClusterHyperNodesResponseBodyHyperNodes) Validate() error {
 }
 
 type ListClusterHyperNodesResponseBodyHyperNodesTags struct {
+	// The tag key.
+	//
 	// example:
 	//
 	// key1
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The tag value.
+	//
 	// example:
 	//
 	// ali-zeekr-ota-doris-prod-hz-selectdb

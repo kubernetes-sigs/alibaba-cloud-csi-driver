@@ -16,9 +16,9 @@ type iDescribeInvocationsResponseBody interface {
 }
 
 type DescribeInvocationsResponseBody struct {
-	// The command execution record.
+	// The object that contains the script execution records.
 	Invocations *DescribeInvocationsResponseBodyInvocations `json:"Invocations,omitempty" xml:"Invocations,omitempty" type:"Struct"`
-	// The request ID.
+	// The ID of the request.
 	//
 	// example:
 	//
@@ -62,7 +62,7 @@ func (s *DescribeInvocationsResponseBody) Validate() error {
 }
 
 type DescribeInvocationsResponseBodyInvocations struct {
-	// The file sending records.
+	// The command execution records.
 	Invocation []*DescribeInvocationsResponseBodyInvocationsInvocation `json:"Invocation,omitempty" xml:"Invocation,omitempty" type:"Repeated"`
 }
 
@@ -97,79 +97,79 @@ func (s *DescribeInvocationsResponseBodyInvocations) Validate() error {
 }
 
 type DescribeInvocationsResponseBodyInvocationsInvocation struct {
-	// The executed command.
+	// The content of the command.
 	//
-	// 	- If ContentEncoding is set to PlainText in the request, the original command content is returned.
+	// - If \\`ContentEncoding\\` is set to \\`PlainText\\`, the original script content is returned.
 	//
-	// 	- If ContentEncoding is set to Base64 in the request, the Base64-encoded command content is returned.
+	// - If \\`ContentEncoding\\` is set to \\`Base64\\`, the Base64-encoded script content is returned.
 	//
 	// example:
 	//
 	// cnBtIC1xYSB8IGdyZXAgdnNm****
 	CommandContent *string `json:"CommandContent,omitempty" xml:"CommandContent,omitempty"`
-	// The command description.
+	// The description of the command.
 	//
 	// example:
 	//
 	// testDescription
 	CommandDescription *string `json:"CommandDescription,omitempty" xml:"CommandDescription,omitempty"`
-	// The command name.
+	// The name of the command.
 	//
 	// example:
 	//
 	// CommandTestName
 	CommandName *string `json:"CommandName,omitempty" xml:"CommandName,omitempty"`
-	// The time when the command task was created.
+	// The time when the task was created.
 	//
 	// example:
 	//
 	// 2020-01-19T09:15:46Z
 	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The schedule on which the command was run.
+	// The cron expression for the scheduled command.
 	Frequency *string `json:"Frequency,omitempty" xml:"Frequency,omitempty"`
-	// The overall execution state of the command task. The value of this parameter depends on the execution states of the command task on all the involved instances. Valid values:
+	// The overall execution status of the command. This status is determined by the execution status on all involved instances. Valid values:
 	//
-	// 	- Pending: The command was being verified or sent. If the execution state on at least one instance is Pending, the overall execution state is Pending.
+	// - Pending: The system is verifying or sending the command. If the command is in the Pending state on at least one instance, the overall status is Pending.
 	//
-	// 	- Scheduled: The command that is set to run on a schedule is sent and waiting to be run. If the execution state on at least one instance is Scheduled, the overall execution state is Scheduled.
+	// - Scheduled: The scheduled command is sent and is waiting to run. If the command is in the Scheduled state on at least one instance, the overall status is Scheduled.
 	//
-	// 	- Running: The command is being run on the instance. When the execution state on at least one instance is Running, the overall execution state is Running.
+	// - Running: The command is running on the instances. If the command is in the Running state on at least one instance, the overall status is Running.
 	//
-	// 	- Success: When the execution state on at least one instance is Success and the execution state on the other instances is Stopped or Success, the overall execution state is Success.
+	// - Success: The command was successfully executed. The command status on each instance is Stopped or Success, and the status on at least one instance is Success.
 	//
-	//     	- One-time task: The execution is complete, and the exit code is 0.
+	//   - For one-time tasks: The command execution is complete and the exit code is 0.
 	//
-	//     	- Scheduled task: The last execution was complete, the exit code was 0, and the specified period ended.
+	//   - For scheduled tasks: The last execution was successful with an exit code of 0, and all scheduled executions are complete.
 	//
-	// 	- Failed: When the execution state on all instances is Stopped or Failed, the overall execution state is Failed. When the execution state on an instance is one of the following values, Failed is returned as the overall execution state:
+	// - Failed: The command execution failed. The command status on each instance is Stopped or Failed. The overall status is Failed if the command status on one or more instances is one of the following:
 	//
-	//     	- Invalid: The command is invalid.
+	//   - The command failed to be verified (Invalid).
 	//
-	//     	- Aborted: The command failed to be sent.
+	//   - The command failed to be sent (Aborted).
 	//
-	//     	- Failed: The execution was complete, but the exit code was not 0.
+	//   - The command execution is complete, but the exit code is not 0 (Failed).
 	//
-	//     	- Timeout: The execution timed out.
+	//   - The command timed out (Timeout).
 	//
-	//     	- Error: An error occurred while the command was being run.
+	//   - An error occurred during the command execution (Error).
 	//
-	// 	- Stopping: The command task is being stopped. When the execution state on at least one instance is Stopping, the overall execution state is Stopping.
+	// - Stopping: The task is being stopped. If the command is in the Stopping state on at least one instance, the overall status is Stopping.
 	//
-	// 	- Stopped: The task was stopped. When the execution state on all instances is Stopped, the overall execution state is Stopped. When the execution state on an instance is one of the following values, Stopped is returned as the overall execution state:
+	// - Stopped: The task was stopped. The overall status is Stopped if the command is in the Stopped state on all instances. The overall status is Stopped if the command status on the instances is one of the following:
 	//
-	//     	- Cancelled: The task was canceled.
+	//   - The task was canceled (Cancelled).
 	//
-	//     	- Terminated: The task was terminated.
+	//   - The task was terminated (Terminated).
 	//
-	// 	- PartialFailed: The execution was complete on some instances and failed on other instances. When the execution state is Success on some instances and is Failed or Stopped on the other instances, the overall execution state is PartialFailed.
+	// - PartialFailed: The command was successfully executed on some instances but failed on others. The overall status is PartialFailed if the command status on the instances is Success, Failed, or Stopped.
 	//
-	// >  The value of the `InvokeStatus` response parameter is similar to the value of InvocationStatus. We recommend that you ignore InvokeStatus and check the value of InvocationStatus.
+	// > The `InvokeStatus` parameter has a similar meaning. However, check the value of this parameter.
 	//
 	// example:
 	//
 	// Success
 	InvocationStatus *string `json:"InvocationStatus,omitempty" xml:"InvocationStatus,omitempty"`
-	// The execution ID.
+	// The ID of the command execution.
 	//
 	// example:
 	//
@@ -177,31 +177,31 @@ type DescribeInvocationsResponseBodyInvocationsInvocation struct {
 	InvokeId *string `json:"InvokeId,omitempty" xml:"InvokeId,omitempty"`
 	// The command execution records.
 	InvokeNodes *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes `json:"InvokeNodes,omitempty" xml:"InvokeNodes,omitempty" type:"Struct"`
-	// The overall execution status of the command task. The value of this parameter depends on the execution states of the command task on all involved instances. Valid values:
+	// The overall execution status of the command. This status is determined by the execution status on one or more instances. Valid values:
 	//
-	// 	- Running:
+	// - Running:
 	//
-	//     	- Scheduled task: Before you stop the scheduled execution of the command, the overall execution state is always Running.
+	//   - Scheduled execution: The status is always Running before you manually stop the scheduled command.
 	//
-	//     	- One-time task: If the command is being run on instances, the overall execution state is Running.
+	//   - One-time execution: The overall status is Running if a command process is in progress.
 	//
-	// 	- Finished:
+	// - Finished:
 	//
-	//     	- Scheduled task: The overall execution state can never be Finished.
+	//   - Scheduled execution: A command process cannot be in the Finished state.
 	//
-	//     	- One-time task: The execution is complete on all instances, or the execution is stopped on some instances and is complete on the other instances.
+	//   - One-time execution: The execution is complete on all instances. Alternatively, the command process is manually stopped on some instances and the execution is complete on the other instances.
 	//
-	// 	- Failed:
+	// - Failed:
 	//
-	//     	- Scheduled task: The overall execution state can never be Failed.
+	//   - Scheduled execution: A command process cannot be in the Failed state.
 	//
-	//     	- One-time task: The execution failed on all instances.
+	//   - One-time execution: The execution failed on all instances.
 	//
-	// 	- Stopped: The task is stopped.
+	// - Stopped: The command is stopped.
 	//
-	// 	- Stopping: The task is being stopped.
+	// - Stopping: The command is being stopped.
 	//
-	// 	- PartialFailed: The task fails on some instances. If you specify both this parameter and `InstanceId`, this parameter does not take effect.
+	// - PartialFailed: The execution failed on some instances. This value is not returned if you specify the `NodeId` parameter.
 	//
 	// example:
 	//
@@ -215,13 +215,13 @@ type DescribeInvocationsResponseBodyInvocationsInvocation struct {
 	Parameters *string `json:"Parameters,omitempty" xml:"Parameters,omitempty"`
 	// The execution mode of the command. Valid values:
 	//
-	// 	- Once: The command is run immediately.
+	// - Once: The command is immediately executed.
 	//
-	// 	- Period: The command is run on a schedule.
+	// - Period: The command is executed on a schedule.
 	//
-	// 	- NextRebootOnly: The command is run the next time the instances start.
+	// - NextRebootOnly: The command is automatically executed the next time the instance starts.
 	//
-	// 	- EveryReboot: runs the command every time the instances start.
+	// - EveryReboot: The command is automatically executed every time the instance starts.
 	//
 	// example:
 	//
@@ -233,13 +233,13 @@ type DescribeInvocationsResponseBodyInvocationsInvocation struct {
 	//
 	// 60
 	Timeout *int32 `json:"Timeout,omitempty" xml:"Timeout,omitempty"`
-	// The username that is used to run the command.
+	// The name of the user who runs the command.
 	//
 	// example:
 	//
 	// root
 	Username *string `json:"Username,omitempty" xml:"Username,omitempty"`
-	// The working directory of the command on the instance.
+	// The directory where the command is run on the instance.
 	//
 	// example:
 	//
@@ -391,7 +391,7 @@ func (s *DescribeInvocationsResponseBodyInvocationsInvocation) Validate() error 
 }
 
 type DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes struct {
-	// The command execution records of the node.
+	// The command execution records on the nodes.
 	InvokeNode []*DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode `json:"InvokeNode,omitempty" xml:"InvokeNode,omitempty" type:"Repeated"`
 }
 
@@ -426,111 +426,111 @@ func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes) Valida
 }
 
 type DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode struct {
-	// The start time of the execution.
+	// The start time of the command execution.
 	//
 	// example:
 	//
 	// 2023-02-06T07:12:50Z
 	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The size of the Output text that was truncated and discarded because the Output value exceeded 24 KB in size.
+	// The number of characters that are truncated and discarded because the \\`Output\\` value exceeds 24 KB in size.
 	//
 	// example:
 	//
 	// 0
 	Dropped *int32 `json:"Dropped,omitempty" xml:"Dropped,omitempty"`
-	// The error code returned when the file failed to be sent to the instance. Valid values:
+	// The error code for a file sending failure. Valid values:
 	//
-	// 	- Null: The file is sent to the instance.
+	// - Empty: The file was sent as expected.
 	//
-	// 	- NodeNotExists: The specified instance does not exist or has been released.
+	// - NodeNotExists: The specified instance does not exist or has been released.
 	//
-	// 	- NodeReleased: The instance was released while the file was being sent.
+	// - NodeReleased: The instance was released while the file was being sent.
 	//
-	// 	- NodeNotRunning: The instance was not running while the file sending task was being created.
+	// - NodeNotRunning: The instance was not in the Running state when the file sending task was created.
 	//
-	// 	- AccountNotExists: The specified account does not exist.
+	// - AccountNotExists: The specified account does not exist.
 	//
-	// 	- ClientNotRunning: Cloud Assistant Agent is not running.
+	// - ClientNotRunning: Cloud Assistant Agent is not running.
 	//
-	// 	- ClientNotResponse: Cloud Assistant Agent does not respond.
+	// - ClientNotResponse: Cloud Assistant Agent is not responding.
 	//
-	// 	- ClientIsUpgrading: Cloud Assistant Agent is being upgraded.
+	// - ClientIsUpgrading: Cloud Assistant Agent is being upgraded.
 	//
-	// 	- ClientNeedUpgrade: Cloud Assistant Agent needs to be upgraded.
+	// - ClientNeedUpgrade: Cloud Assistant Agent needs to be upgraded.
 	//
-	// 	- DeliveryTimeout: The file sending task timed out.
+	// - DeliveryTimeout: The file failed to be sent due to a timeout.
 	//
-	// 	- FileCreateFail: The file failed to be created.
+	// - FileCreateFail: The file failed to be created.
 	//
-	// 	- FileAlreadyExists: A file with the same name exists in the specified directory.
+	// - FileAlreadyExists: A file with the same name exists in the same path.
 	//
-	// 	- FileContentInvalid: The file content is invalid.
+	// - FileContentInvalid: The file content is invalid.
 	//
-	// 	- FileNameInvalid: The file name is invalid.
+	// - FileNameInvalid: The file name is invalid.
 	//
-	// 	- FilePathInvalid: The specified directory is invalid.
+	// - FilePathInvalid: The file path is invalid.
 	//
-	// 	- FileAuthorityInvalid: The specified permissions on the file are invalid.
+	// - FileAuthorityInvalid: The file permissions are invalid.
 	//
-	// 	- UserGroupNotExists: The specified user group does not exist.
+	// - UserGroupNotExists: The user group specified for sending the file does not exist.
 	//
 	// example:
 	//
 	// NodeNotExists
 	ErrorCode *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
-	// The error message returned when the command cannot be sent or run.
+	// The details about the cause of a command sending or execution failure. Valid values:
 	//
-	// 	- If this parameter is empty, the command was run as expected.
+	// - Empty: The command was executed as expected.
 	//
-	// 	- the specified node does not exists: The specified instance does not exist or is released.
+	// - the specified node does not exist: The specified instance does not exist or has been released.
 	//
-	// 	- the node has node when create task: The instance is released when the command is being run.
+	// - the instance was released during the command execution: The instance was released during the command execution.
 	//
-	// 	- the node is not running when create task: The instance is not in the Running state while the command is being run.
+	// - the instance is not running when create task: The instance was not in the Running state during the command execution.
 	//
-	// 	- the command is not applicable: The command is not applicable to the specified instance.
+	// - the command is not applicable: The command is not applicable to the specified instance.
 	//
-	// 	- the specified account does not exists: The specified account does not exist.
+	// - the specified account does not exist: The specified account does not exist.
 	//
-	// 	- the specified directory does not exists: The specified directory does not exist.
+	// - the specified directory does not exist: The specified directory does not exist.
 	//
-	// 	- the cron job expression is invalid: The cron expression that specifies the execution time is invalid.
+	// - the cron job expression is invalid: The specified cron expression is invalid.
 	//
-	// 	- the aliyun service is not running on the instance: Cloud Assistant Agent is not running.
+	// - Cloud Assistant Agent is not running: Cloud Assistant Agent is not running.
 	//
-	// 	- the aliyun service in the instance does not response: Cloud Assistant Agent does not respond.
+	// - Cloud Assistant Agent is not responding: Cloud Assistant Agent is not responding.
 	//
-	// 	- the aliyun service in the node is upgrading now: Cloud Assistant Agent is being upgraded.
+	// - Cloud Assistant Agent is being upgraded: Cloud Assistant Agent is being upgraded.
 	//
-	// 	- the aliyun service in the node need upgrade: Cloud Assistant Agent needs to be upgraded.
+	// - Cloud Assistant Agent needs to be upgraded: Cloud Assistant Agent needs to be upgraded.
 	//
-	// 	- the command delivery has been timeout: The request to send the command timed out.
+	// - The command failed to be sent due to a timeout: The command failed to be sent due to a timeout.
 	//
-	// 	- the command execution has been timeout: The command execution timed out.
+	// - The command execution timed out: The command execution timed out.
 	//
-	// 	- the command execution got an exception: An exception occurred when the command is being run.
+	// - An exception occurred during the command execution: An exception occurred during the command execution.
 	//
-	// 	- the command execution has been interrupted: The command execution is interrupted.
+	// - The command execution was interrupted: The command execution was interrupted.
 	//
-	// 	- the command execution exit code is not zero: The command execution completes, but the exit code is not 0.
+	// - The command execution is complete, but the exit code is not 0: The command execution is complete, but the exit code is not 0.
 	//
-	// 	- the specified node has been released: The instance is released while the file is being sent.
+	// - The instance was released while the file was being sent: The instance was released while the file was being sent.
 	//
 	// example:
 	//
 	// the specified node does not exists
 	ErrorInfo *string `json:"ErrorInfo,omitempty" xml:"ErrorInfo,omitempty"`
-	// The exit code of the execution. Valid values:
+	// The exit code of the command process. Valid values:
 	//
-	// 	- For Linux instances, the value is the exit code of the shell process.
+	// - On a Linux instance, this is the exit code of the Shell process.
 	//
-	// 	- For Windows instances, the value is the exit code of the batch or PowerShell process.
+	// - On a Windows instance, this is the exit code of the Batch or PowerShell process.
 	//
 	// example:
 	//
 	// 0
 	ExitCode *int32 `json:"ExitCode,omitempty" xml:"ExitCode,omitempty"`
-	// The end time of the execution.
+	// The time when the execution was complete.
 	//
 	// example:
 	//
@@ -538,47 +538,47 @@ type DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode s
 	FinishTime *string `json:"FinishTime,omitempty" xml:"FinishTime,omitempty"`
 	// The execution status of the command on a single instance. Valid values:
 	//
-	// 	- Pending: The command was being verified or sent.
+	// - Pending: The system is verifying or sending the command.
 	//
-	// 	- Invalid: The specified command type or parameter is invalid.
+	// - Invalid: The specified command type or parameter is incorrect.
 	//
-	// 	- Aborted: The command failed to be sent to the instance. To send a command to an instance, make sure that the instance is in the Running state and the command can be sent to the instance within 1 minute.
+	// - Aborted: Failed to send the command to the instance. The instance must be in the Running state and the command must be sent within 1 minute.
 	//
-	// 	- Running: The command is being run on the instance.
+	// - Running: The command is running on the instance.
 	//
-	// 	- Success:
+	// - Success:
 	//
-	//     	- One-time task: The execution was complete, and the exit code was 0.
+	//   - For a one-time command: The execution is complete and the exit code is 0.
 	//
-	//     	- Recurring execution: The previous occurrence of the execution is complete, and the exit code is 0. The specified recurring period during which the command is run ends.
+	//   - For a scheduled command: The last execution was successful with an exit code of 0, and the specified period is over.
 	//
-	// 	- Failed:
+	// - Failed:
 	//
-	//     	- One-time task: The execution was complete, but the exit code was not 0.
+	//   - For a one-time command: The execution is complete, but the exit code is not 0.
 	//
-	//     	- Recurring execution: The previous occurrence of the execution is complete, but the exit code is not 0. The specified recurring period during which the command is run is about to end.
+	//   - For a scheduled command: The last execution was successful, but the exit code was not 0. The scheduled execution will be aborted.
 	//
-	// 	- Error: The execution cannot proceed due to an exception.
+	// - Error: An exception occurred during the command execution and the execution cannot continue.
 	//
-	// 	- Timeout: The execution timed out.
+	// - Timeout: The command execution timed out.
 	//
-	// 	- Cancelled: The execution was canceled before it started.
+	// - Cancelled: The command execution was canceled. The command was not started.
 	//
-	// 	- Stopping: The command task is being stopped.
+	// - Stopping: The task is being stopped.
 	//
-	// 	- Terminated: The execution was terminated before completion.
+	// - Terminated: The command was terminated during execution.
 	//
-	// 	- Scheduled:
+	// - Scheduled:
 	//
-	//     	- One-time task: The execution state can never be Scheduled.
+	//   - For a one-time command: This status is not applicable and will not occur.
 	//
-	//     	- Recurring execution: The command is waiting to be run.
+	//   - For a scheduled command: The command is waiting to run.
 	//
 	// example:
 	//
 	// Pending
 	InvocationStatus *string `json:"InvocationStatus,omitempty" xml:"InvocationStatus,omitempty"`
-	// The node ID.
+	// The ID of the node.
 	//
 	// example:
 	//
@@ -590,21 +590,21 @@ type DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode s
 	//
 	// Finished
 	NodeInvokeStatus *string `json:"NodeInvokeStatus,omitempty" xml:"NodeInvokeStatus,omitempty"`
-	// The command output.
+	// The output of the command.
 	//
-	// 	- If ContentEncoding is set to PlainText in the request, the original command output is returned.
+	// - If \\`ContentEncoding\\` is set to \\`PlainText\\`, the original output is returned.
 	//
-	// 	- If ContentEncoding is set to Base64 in the request, the Base64-encoded command output is returned.
+	// - If \\`ContentEncoding\\` is set to \\`Base64\\`, the Base64-encoded output is returned.
 	//
 	// example:
 	//
 	// OutPutTestmsg
 	Output *string `json:"Output,omitempty" xml:"Output,omitempty"`
-	// The number of times that the command was run on the instance.
+	// The number of times the command has been executed on the instance.
 	//
-	// 	- If the command is set to run only once, the value is 0 or 1.
+	// - If the command is a one-time execution, the value is 0 or 1.
 	//
-	// 	- If the command is set to run on a schedule, the value is the number of times that the command has been run on the instance.
+	// - If the command is a scheduled execution, the value is the number of times the command has been executed.
 	//
 	// example:
 	//
@@ -616,27 +616,27 @@ type DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode s
 	//
 	// 2019-12-20T06:15:55Z
 	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The time when the command task was stopped. If you call the StopInvocation operation to stop the command task, the value of this parameter is the time when the operation is called.
+	// The time when \\`StopInvocation\\` was called to stop the command execution.
 	//
 	// example:
 	//
 	// 2019-12-20T06:15:55Z
 	StopTime *string `json:"StopTime,omitempty" xml:"StopTime,omitempty"`
-	// Indicates whether the command is to be automatically run. Valid values:
+	// Indicates whether the command will be automatically run in the future. Valid values:
 	//
-	// 	- true: The command is run by calling the `RunCommand` or `InvokeCommand` operation with `RepeatMode` set to `Period`, `NextRebootOnly`, or `EveryReboot`.
+	// - true: The command is a scheduled command. The `RepeatMode` parameter was set to `Period`, `NextRebootOnly`, or `EveryReboot` when `RunCommand` or `InvokeCommand` was called.
 	//
-	// 	- false (default): The command meets the following requirements.
+	// - false (default): The command is a one-time command or has finished.
 	//
-	//     	- The command is run by calling the `RunCommand` or `InvokeCommand` operation with `RepeatMode` set to `Once`.
+	//   - The `RepeatMode` parameter was set to `Once` when `RunCommand` or `InvokeCommand` was called.
 	//
-	//     	- The command task is canceled, stopped, or completed.
+	//   - The command was canceled, stopped, or has finished running.
 	//
 	// example:
 	//
 	// false
 	Timed *string `json:"Timed,omitempty" xml:"Timed,omitempty"`
-	// The update time of the execution.
+	// The time when the record was updated.
 	//
 	// example:
 	//

@@ -9,7 +9,7 @@ import (
 
 // Summary:
 //
-// Approves an O\\&M operation.
+// Approves an O\\\\\\&M operation.
 //
 // @param request - ApproveOperationRequest
 //
@@ -57,7 +57,11 @@ func (client *Client) ApproveOperationWithContext(ctx context.Context, request *
 
 // Summary:
 //
-// 修改节点的节点组
+// Changes the node group of a node.
+//
+// Description:
+//
+// Creates a session, returns a frontend endpoint, and starts an auto-triggered task to track the session status.
 //
 // @param tmpReq - ChangeNodeGroupRequest
 //
@@ -117,7 +121,7 @@ func (client *Client) ChangeNodeGroupWithContext(ctx context.Context, tmpReq *Ch
 
 // Summary:
 //
-// 节点规格变配
+// Upgrades or downgrades the specifications of one or more nodes. Before you change the specifications, ensure that the node resources meet the requirements of the target specifications. If a node does not meet the new specification requirements, the task reports success, but the specifications are not changed. Therefore, do not rely on the task status. To confirm a successful change, query the node after the task is complete and check the returned specifications.
 //
 // @param tmpReq - ChangeNodeTypesRequest
 //
@@ -171,7 +175,7 @@ func (client *Client) ChangeNodeTypesWithContext(ctx context.Context, tmpReq *Ch
 
 // Summary:
 //
-// Moves a resource from one resource group to another.
+// Changes the resource group of a resource.
 //
 // @param request - ChangeResourceGroupRequest
 //
@@ -229,6 +233,10 @@ func (client *Client) ChangeResourceGroupWithContext(ctx context.Context, reques
 //
 // # Disconnect Connection
 //
+// Description:
+//
+// # An interface for creating a session, returning the front-end EndPoint, and initiating a periodic task to track the session status
+//
 // @param request - CloseSessionRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
@@ -275,7 +283,11 @@ func (client *Client) CloseSessionWithContext(ctx context.Context, request *Clos
 
 // Summary:
 //
-// # Create a large-scale computing cluster
+// Creates a new LINGJUN Cluster.
+//
+// Description:
+//
+// 关闭远程会话的接口。
 //
 // @param tmpReq - CreateClusterRequest
 //
@@ -451,10 +463,6 @@ func (client *Client) CreateDiagnosticTaskWithContext(ctx context.Context, tmpRe
 //
 // Creates a network test task.
 //
-// Description:
-//
-// The API creates a session, returns the frontend endpoint, and starts a periodic task to track the session status.
-//
 // @param tmpReq - CreateNetTestTaskRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
@@ -539,7 +547,11 @@ func (client *Client) CreateNetTestTaskWithContext(ctx context.Context, tmpReq *
 
 // Summary:
 //
-// # Create Node Group under Cluster
+// Create a node group in a cluster.
+//
+// Description:
+//
+// Creates a session, returns a front-end endpoint, and starts a periodic task to track the session status.
 //
 // @param tmpReq - CreateNodeGroupRequest
 //
@@ -657,7 +669,7 @@ func (client *Client) CreateSessionWithContext(ctx context.Context, request *Cre
 
 // Summary:
 //
-// Creates a virtual storage channel (VSC).
+// Creates a VSC.
 //
 // @param request - CreateVscRequest
 //
@@ -767,7 +779,7 @@ func (client *Client) DeleteClusterWithContext(ctx context.Context, request *Del
 
 // Summary:
 //
-// 删除一个未使用超节点
+// Deletes an unused hyper node.
 //
 // @param request - DeleteHyperNodeRequest
 //
@@ -811,7 +823,7 @@ func (client *Client) DeleteHyperNodeWithContext(ctx context.Context, request *D
 
 // Summary:
 //
-// 删除一个未使用节点
+// Releases a pay-as-you-go node.
 //
 // @param request - DeleteNodeRequest
 //
@@ -855,7 +867,7 @@ func (client *Client) DeleteNodeWithContext(ctx context.Context, request *Delete
 
 // Summary:
 //
-// 删除节点分组
+// # Delete Node Group
 //
 // @param request - DeleteNodeGroupRequest
 //
@@ -903,7 +915,7 @@ func (client *Client) DeleteNodeGroupWithContext(ctx context.Context, request *D
 
 // Summary:
 //
-// Deletes a virtual storage channel (VSC).
+// Deletes a VSC.
 //
 // @param request - DeleteVscRequest
 //
@@ -953,7 +965,11 @@ func (client *Client) DeleteVscWithContext(ctx context.Context, request *DeleteV
 
 // Summary:
 //
-// Queries information about a Lingjun cluster.
+// Queries the details of a cluster.
+//
+// Description:
+//
+// Queries the details of a specified cluster.
 //
 // @param request - DescribeClusterRequest
 //
@@ -1045,7 +1061,11 @@ func (client *Client) DescribeDiagnosticResultWithContext(ctx context.Context, r
 
 // Summary:
 //
-// 查询节点列表
+// Queries the details of a hyper node.
+//
+// Description:
+//
+// Queries the details of a specified hyper node.
 //
 // @param request - DescribeHyperNodeRequest
 //
@@ -1089,7 +1109,7 @@ func (client *Client) DescribeHyperNodeWithContext(ctx context.Context, request 
 
 // Summary:
 //
-// Queries the execution list and status of O\\&M Assistant commands.
+// Queries the execution history and status of Cloud Assistant commands.
 //
 // @param request - DescribeInvocationsRequest
 //
@@ -1145,7 +1165,7 @@ func (client *Client) DescribeInvocationsWithContext(ctx context.Context, reques
 
 // Summary:
 //
-// # Query Network Test Result
+// Queries the results of a network test.
 //
 // @param request - DescribeNetTestResultRequest
 //
@@ -1189,7 +1209,11 @@ func (client *Client) DescribeNetTestResultWithContext(ctx context.Context, requ
 
 // Summary:
 //
-// Queries a list of nodes.
+// Queries the list of nodes.
+//
+// Description:
+//
+// Queries the detailed information of a hyper node.
 //
 // @param request - DescribeNodeRequest
 //
@@ -1233,7 +1257,11 @@ func (client *Client) DescribeNodeWithContext(ctx context.Context, request *Desc
 
 // Summary:
 //
-// 查询节点分组
+// Queries the details of a node group.
+//
+// Description:
+//
+// This operation queries the details of a node group.
 //
 // @param request - DescribeNodeGroupRequest
 //
@@ -1277,7 +1305,7 @@ func (client *Client) DescribeNodeGroupWithContext(ctx context.Context, request 
 
 // Summary:
 //
-// 创建Web Terminal会话
+// Describes the constraints for a node type.
 //
 // @param request - DescribeNodeTypeRequest
 //
@@ -1365,7 +1393,7 @@ func (client *Client) DescribeRegionsWithContext(ctx context.Context, request *D
 
 // Summary:
 //
-// Queries the files that are sent by an O\\&M assistant and the status of the files.
+// Queries the files that are sent by an O\\\\\\&M assistant and the status of the files.
 //
 // @param request - DescribeSendFileResultsRequest
 //
@@ -1457,7 +1485,7 @@ func (client *Client) DescribeTaskWithContext(ctx context.Context, request *Desc
 
 // Summary:
 //
-// Queries information about a virtual storage channel (VSC).
+// Retrieves the details of a specific virtual switch controller (Vsc).
 //
 // @param request - DescribeVscRequest
 //
@@ -1545,7 +1573,11 @@ func (client *Client) DescribeZonesWithContext(ctx context.Context, request *Des
 
 // Summary:
 //
-// # Cluster Scaling
+// Extends a cluster.
+//
+// Description:
+//
+// Closes a remote session.
 //
 // @param tmpReq - ExtendClusterRequest
 //
@@ -1623,7 +1655,7 @@ func (client *Client) ExtendClusterWithContext(ctx context.Context, tmpReq *Exte
 
 // Summary:
 //
-// 集群下的主机分组列表，分组下的主机列表
+// Lists the node groups of a cluster and the nodes in each group.
 //
 // @param request - ListClusterHyperNodesRequest
 //
@@ -1689,7 +1721,7 @@ func (client *Client) ListClusterHyperNodesWithContext(ctx context.Context, requ
 
 // Summary:
 //
-// Queries a list of nodes in a cluster.
+// Queries the nodes in a cluster.
 //
 // @param request - ListClusterNodesRequest
 //
@@ -1759,7 +1791,7 @@ func (client *Client) ListClusterNodesWithContext(ctx context.Context, request *
 
 // Summary:
 //
-// Queries a list of clusters.
+// Query cluster instances with optional filtering by resource group and tags.
 //
 // @param request - ListClustersRequest
 //
@@ -1819,6 +1851,10 @@ func (client *Client) ListClustersWithContext(ctx context.Context, request *List
 //
 // # List of Diagnostic Tasks
 //
+// Description:
+//
+// An interface for creating a session, which returns the frontend EndPoint and initiates a periodic task to track the session status.
+//
 // @param request - ListDiagnosticResultsRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
@@ -1873,7 +1909,7 @@ func (client *Client) ListDiagnosticResultsWithContext(ctx context.Context, requ
 
 // Summary:
 //
-// 可用rack物理机列表
+// Lists the active physical servers in the rack.
 //
 // @param request - ListFreeHyperNodesRequest
 //
@@ -1941,7 +1977,7 @@ func (client *Client) ListFreeHyperNodesWithContext(ctx context.Context, request
 
 // Summary:
 //
-// Queries a list of nodes that are not used.
+// Lists all unused nodes.
 //
 // @param request - ListFreeNodesRequest
 //
@@ -2011,7 +2047,11 @@ func (client *Client) ListFreeNodesWithContext(ctx context.Context, request *Lis
 
 // Summary:
 //
-// 机器列表
+// # Machines
+//
+// Description:
+//
+// Queries the details of hypernodes.
 //
 // @param tmpReq - ListHyperNodesRequest
 //
@@ -2167,7 +2207,7 @@ func (client *Client) ListImagesWithContext(ctx context.Context, request *ListIm
 
 // Summary:
 //
-// # Query machine network configuration using HPNZone and machine type
+// Queries the network configurations for machine types.
 //
 // @param tmpReq - ListMachineNetworkInfoRequest
 //
@@ -2217,7 +2257,7 @@ func (client *Client) ListMachineNetworkInfoWithContext(ctx context.Context, tmp
 
 // Summary:
 //
-// Queries a list of instance types that are available to users.
+// Queries a list of available machine types.
 //
 // @param request - ListMachineTypesRequest
 //
@@ -2261,11 +2301,7 @@ func (client *Client) ListMachineTypesWithContext(ctx context.Context, request *
 
 // Summary:
 //
-// Lists the results of network test results.
-//
-// Description:
-//
-// The API creates a session, returns the frontend endpoint, and starts a periodic task to track the session status.
+// Lists network test results.
 //
 // @param request - ListNetTestResultsRequest
 //
@@ -2321,7 +2357,7 @@ func (client *Client) ListNetTestResultsWithContext(ctx context.Context, request
 
 // Summary:
 //
-// Queries node groups in a cluster.
+// # Query Node Group Information Under the Cluster
 //
 // @param request - ListNodeGroupsRequest
 //
@@ -2377,7 +2413,7 @@ func (client *Client) ListNodeGroupsWithContext(ctx context.Context, request *Li
 
 // Summary:
 //
-// 查询系统日志
+// Queries system logs.
 //
 // @param request - ListSyslogsRequest
 //
@@ -2441,7 +2477,7 @@ func (client *Client) ListSyslogsWithContext(ctx context.Context, request *ListS
 
 // Summary:
 //
-// Queries the tags of resources.
+// Queries the tags that are attached to resources.
 //
 // @param request - ListTagResourcesRequest
 //
@@ -2501,7 +2537,7 @@ func (client *Client) ListTagResourcesWithContext(ctx context.Context, request *
 
 // Summary:
 //
-// Queries a list of virtual storage channels (VSC).
+// Queries a list of VSCs.
 //
 // @param tmpReq - ListVscsRequest
 //
@@ -2631,7 +2667,7 @@ func (client *Client) RebootNodesWithContext(ctx context.Context, tmpReq *Reboot
 
 // Summary:
 //
-// Reinstall a node.
+// Reimages the specified nodes.
 //
 // @param tmpReq - ReimageNodesRequest
 //
@@ -2693,7 +2729,11 @@ func (client *Client) ReimageNodesWithContext(ctx context.Context, tmpReq *Reima
 
 // Summary:
 //
-// 节点异常问题上报
+// Reports issues with abnormal nodes.
+//
+// Description:
+//
+// Creates a session, returns a frontend endpoint, and starts a periodic task to track the session status.
 //
 // @param tmpReq - ReportNodesStatusRequest
 //
@@ -2967,7 +3007,7 @@ func (client *Client) SendFileWithContext(ctx context.Context, tmpReq *SendFileR
 
 // Summary:
 //
-// Scales in a cluster.
+// Scales in a CC cluster.
 //
 // @param tmpReq - ShrinkClusterRequest
 //
@@ -3025,7 +3065,7 @@ func (client *Client) ShrinkClusterWithContext(ctx context.Context, tmpReq *Shri
 
 // Summary:
 //
-// Stops the O\\&M assistant command execution.
+// Stops the O\\\\\\&M assistant command execution.
 //
 // @param tmpReq - StopInvocationRequest
 //
@@ -3133,7 +3173,7 @@ func (client *Client) StopNodesWithContext(ctx context.Context, tmpReq *StopNode
 
 // Summary:
 //
-// Tags resources.
+// Applies tags to resources.
 //
 // @param request - TagResourcesRequest
 //
@@ -3189,7 +3229,7 @@ func (client *Client) TagResourcesWithContext(ctx context.Context, request *TagR
 
 // Summary:
 //
-// Deletes a custom tag from a resource.
+// Removes custom tags from resources.
 //
 // @param request - UntagResourcesRequest
 //
@@ -3249,7 +3289,11 @@ func (client *Client) UntagResourcesWithContext(ctx context.Context, request *Un
 
 // Summary:
 //
-// # Update Node Group
+// Updates a node group.
+//
+// Description:
+//
+// Updates a node group asynchronously. A task ID is returned to track the progress of the operation.
 //
 // @param request - UpdateNodeGroupRequest
 //
@@ -3286,6 +3330,10 @@ func (client *Client) UpdateNodeGroupWithContext(ctx context.Context, request *U
 
 	if !dara.IsNil(request.NodeGroupId) {
 		body["NodeGroupId"] = request.NodeGroupId
+	}
+
+	if !dara.IsNil(request.RamRoleName) {
+		body["RamRoleName"] = request.RamRoleName
 	}
 
 	if !dara.IsNil(request.UserData) {

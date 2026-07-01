@@ -18,15 +18,15 @@ type iListMachineTypesResponseBody interface {
 }
 
 type ListMachineTypesResponseBody struct {
-	// The instance types.
+	// Details of the machine types.
 	MachineTypes []*ListMachineTypesResponseBodyMachineTypes `json:"MachineTypes,omitempty" xml:"MachineTypes,omitempty" type:"Repeated"`
-	// The token that is used in the next request to retrieve a new page of results.
+	// The token to request the next page of results. Include this token in your next request to retrieve the next page.
 	//
 	// example:
 	//
 	// a3f2224a5ec7224116c4f5246120abe4
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The request ID.
+	// Id of the request
 	//
 	// example:
 	//
@@ -89,37 +89,37 @@ type ListMachineTypesResponseBodyMachineTypes struct {
 	//
 	// 2
 	BondNum *int32 `json:"BondNum,omitempty" xml:"BondNum,omitempty"`
-	// The CPU information.
+	// CPU information.
 	//
 	// example:
 	//
 	// 2x Intel Icelake 8369B 32C CPU
 	CpuInfo *string `json:"CpuInfo,omitempty" xml:"CpuInfo,omitempty"`
-	// The disk information.
+	// Disk information.
 	//
 	// example:
 	//
 	// 2x 480GB SATA SSD
 	DiskInfo *string `json:"DiskInfo,omitempty" xml:"DiskInfo,omitempty"`
-	// The GPU information.
+	// GPU information.
 	//
 	// example:
 	//
 	// 8x NVIDIA SXM4 80GB A100 GPU
 	GpuInfo *string `json:"GpuInfo,omitempty" xml:"GpuInfo,omitempty"`
-	// The storage information.
+	// Memory information.
 	//
 	// example:
 	//
 	// 32x 64GB DDR4 3200 Memory
 	MemoryInfo *string `json:"MemoryInfo,omitempty" xml:"MemoryInfo,omitempty"`
-	// The name of the instance type.
+	// The name of the machine type.
 	//
 	// example:
 	//
 	// efg1.nvga1
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The network information.
+	// Network information.
 	//
 	// example:
 	//
@@ -131,13 +131,13 @@ type ListMachineTypesResponseBodyMachineTypes struct {
 	//
 	// 10
 	NodeCount *string `json:"NodeCount,omitempty" xml:"NodeCount,omitempty"`
-	// The number of vCPUs.
+	// The number of CPU cores.
 	//
 	// example:
 	//
 	// 48
 	TotalCpuCore *int32 `json:"TotalCpuCore,omitempty" xml:"TotalCpuCore,omitempty"`
-	// The access type.
+	// The type of the machine type.
 	//
 	// example:
 	//

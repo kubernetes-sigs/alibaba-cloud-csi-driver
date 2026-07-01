@@ -16,13 +16,13 @@ type iExtendClusterResponseBody interface {
 }
 
 type ExtendClusterResponseBody struct {
-  // Request ID
+  // Request ID.
   // 
   // example:
   // 
   // 03668372-18FF-5959-98D9-6B36A4643C7A
   RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-  // Task ID
+  // Task ID.
   // 
   // example:
   // 

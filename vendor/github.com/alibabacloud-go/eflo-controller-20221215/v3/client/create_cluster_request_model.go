@@ -36,57 +36,57 @@ type iCreateClusterRequest interface {
 }
 
 type CreateClusterRequest struct {
-	// Cluster description
+	// The description of the cluster.
 	//
 	// example:
 	//
-	// Cluster description
+	// Standard cluster test
 	ClusterDescription *string `json:"ClusterDescription,omitempty" xml:"ClusterDescription,omitempty"`
-	// Cluster name
+	// The name of the cluster.
 	//
 	// example:
 	//
 	// Standard_Cluster
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
-	// Cluster type
+	// The type of the cluster.
 	//
 	// example:
 	//
 	// Lite
 	ClusterType *string `json:"ClusterType,omitempty" xml:"ClusterType,omitempty"`
-	// Components (software instances)
+	// The components (software instances).
 	Components []*CreateClusterRequestComponents `json:"Components,omitempty" xml:"Components,omitempty" type:"Repeated"`
-	// Cluster number
+	// The cluster number.
 	//
 	// example:
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
-	// Whether to allow skipping failed nodes, the default value is False
+	// Specifies whether to skip failed nodes. The default value is False.
 	//
 	// example:
 	//
 	// False
 	IgnoreFailedNodeTasks *bool `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
-	// Network information
+	// The network information.
 	Networks *CreateClusterRequestNetworks `json:"Networks,omitempty" xml:"Networks,omitempty" type:"Struct"`
-	// Node VSwitches
+	// The vSwitches for the node.
 	NimizVSwitches []*string `json:"NimizVSwitches,omitempty" xml:"NimizVSwitches,omitempty" type:"Repeated"`
-	// Node group list
+	// The list of node groups.
 	NodeGroups []*CreateClusterRequestNodeGroups `json:"NodeGroups,omitempty" xml:"NodeGroups,omitempty" type:"Repeated"`
-	// Whether the network interface supports jumbo frames
+	// Specifies whether the network interface supports jumbo frames.
 	//
 	// example:
 	//
 	// false
 	OpenEniJumboFrame *bool `json:"OpenEniJumboFrame,omitempty" xml:"OpenEniJumboFrame,omitempty"`
-	// Resource group ID
+	// The resource group ID.
 	//
 	// example:
 	//
 	// rg-aek2xdkc6icwfha
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// Resource tags
+	// The resource tags.
 	Tag []*CreateClusterRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 }
 
@@ -243,9 +243,9 @@ func (s *CreateClusterRequest) Validate() error {
 }
 
 type CreateClusterRequestComponents struct {
-	// Component configuration
+	// The component configuration.
 	ComponentConfig *CreateClusterRequestComponentsComponentConfig `json:"ComponentConfig,omitempty" xml:"ComponentConfig,omitempty" type:"Struct"`
-	// Component type
+	// The component type.
 	//
 	// example:
 	//
@@ -289,7 +289,7 @@ func (s *CreateClusterRequestComponents) Validate() error {
 }
 
 type CreateClusterRequestComponentsComponentConfig struct {
-	// Basic component parameters
+	// The basic parameters of the component.
 	//
 	// example:
 	//
@@ -351,7 +351,7 @@ type CreateClusterRequestComponentsComponentConfig struct {
 	//
 	// }
 	BasicArgs interface{} `json:"BasicArgs,omitempty" xml:"BasicArgs,omitempty"`
-	// Node pool configuration, used to establish the correspondence between node groups and node pools. Required when ComponentType is "ACKEdge", otherwise it can be empty.
+	// The node pool configuration. This is used to establish the mapping between node groups and node pools. This parameter is required when ComponentType is set to ACKEdge. Otherwise, leave it empty.
 	NodeUnits []interface{} `json:"NodeUnits,omitempty" xml:"NodeUnits,omitempty" type:"Repeated"`
 }
 
@@ -386,41 +386,41 @@ func (s *CreateClusterRequestComponentsComponentConfig) Validate() error {
 }
 
 type CreateClusterRequestNetworks struct {
-	// IP allocation policy
+	// The IP address allocation policy.
 	IpAllocationPolicy []*CreateClusterRequestNetworksIpAllocationPolicy `json:"IpAllocationPolicy,omitempty" xml:"IpAllocationPolicy,omitempty" type:"Repeated"`
-	// Vpd configuration information
+	// The VPD configuration information.
 	NewVpdInfo *CreateClusterRequestNetworksNewVpdInfo `json:"NewVpdInfo,omitempty" xml:"NewVpdInfo,omitempty" type:"Struct"`
-	// Security group ID
+	// The security group ID.
 	//
 	// example:
 	//
 	// sg-bp1d3dvbh9by7j5rujax
 	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
-	// IP version
+	// The IP version.
 	//
 	// example:
 	//
 	// IPv4
 	TailIpVersion *string `json:"TailIpVersion,omitempty" xml:"TailIpVersion,omitempty"`
-	// VSwitch ID
+	// The vSwitch ID.
 	//
 	// example:
 	//
 	// vsw-asjdfklj
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// VSwitch Zone ID
+	// The zone ID of the vSwitch.
 	//
 	// example:
 	//
 	// cn-shanghai-b
 	VSwitchZoneId *string `json:"VSwitchZoneId,omitempty" xml:"VSwitchZoneId,omitempty"`
-	// VPC ID
+	// The VPC ID.
 	//
 	// example:
 	//
 	// vpc-0jl36lqzmc06qogy0t5ll
 	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
-	// Reuse VPD information
+	// The information about the reused VPD.
 	VpdInfo *CreateClusterRequestNetworksVpdInfo `json:"VpdInfo,omitempty" xml:"VpdInfo,omitempty" type:"Struct"`
 }
 
@@ -528,11 +528,11 @@ func (s *CreateClusterRequestNetworks) Validate() error {
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicy struct {
-	// Bond policy
+	// The bond policy.
 	BondPolicy *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy `json:"BondPolicy,omitempty" xml:"BondPolicy,omitempty" type:"Struct"`
-	// Machine type allocation policy
+	// The machine type allocation policy.
 	MachineTypePolicy []*CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy `json:"MachineTypePolicy,omitempty" xml:"MachineTypePolicy,omitempty" type:"Repeated"`
-	// Node allocation policy
+	// The node allocation policy.
 	NodePolicy []*CreateClusterRequestNetworksIpAllocationPolicyNodePolicy `json:"NodePolicy,omitempty" xml:"NodePolicy,omitempty" type:"Repeated"`
 }
 
@@ -599,13 +599,13 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicy) Validate() error {
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyBondPolicy struct {
-	// Default bond subnet for the cluster
+	// The default bond cluster subnet.
 	//
 	// example:
 	//
 	// 172.168.0.0/24
 	BondDefaultSubnet *string `json:"BondDefaultSubnet,omitempty" xml:"BondDefaultSubnet,omitempty"`
-	// Bond information
+	// The bond information.
 	Bonds []*CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds `json:"Bonds,omitempty" xml:"Bonds,omitempty" type:"Repeated"`
 }
 
@@ -649,13 +649,13 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) Validate() er
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds struct {
-	// Bond name
+	// The bond name.
 	//
 	// example:
 	//
 	// bond0
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// IP source subnet for the cluster
+	// The source cluster subnet for the IP address.
 	//
 	// example:
 	//
@@ -694,9 +694,9 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds) Validate
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy struct {
-	// Bond information
+	// The bond information.
 	Bonds []*CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds `json:"Bonds,omitempty" xml:"Bonds,omitempty" type:"Repeated"`
-	// Machine type
+	// The machine type.
 	//
 	// example:
 	//
@@ -744,13 +744,13 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) Valida
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds struct {
-	// Bond name
+	// The bond name.
 	//
 	// example:
 	//
 	// bond0
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// IP source subnet for the cluster
+	// The source cluster subnet for the IP address.
 	//
 	// example:
 	//
@@ -789,9 +789,9 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds) V
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyNodePolicy struct {
-	// Bond information
+	// The bond information.
 	Bonds []*CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds `json:"Bonds,omitempty" xml:"Bonds,omitempty" type:"Repeated"`
-	// Node ID
+	// The node ID.
 	//
 	// example:
 	//
@@ -839,13 +839,13 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) Validate() er
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds struct {
-	// Bond name
+	// The bond name.
 	//
 	// example:
 	//
 	// bond0
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// IP source subnet for the cluster
+	// The source cluster subnet for the IP address.
 	//
 	// example:
 	//
@@ -884,43 +884,43 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds) Validate
 }
 
 type CreateClusterRequestNetworksNewVpdInfo struct {
-	// Cloud Enterprise Network ID
+	// The Cloud Enterprise Network (CEN) ID.
 	//
 	// example:
 	//
 	// cen-1gb1eftc5qp2ao75fo
 	CenId *string `json:"CenId,omitempty" xml:"CenId,omitempty"`
-	// Cloud link CIDR
+	// The Cloud Link CIDR block.
 	//
 	// example:
 	//
 	// 172.16.0.0/24
 	CloudLinkCidr *string `json:"CloudLinkCidr,omitempty" xml:"CloudLinkCidr,omitempty"`
-	// Cloud link ID
+	// The Cloud Link ID.
 	//
 	// example:
 	//
 	// vcc-cn-c4dtycm5i08
 	CloudLinkId *string `json:"CloudLinkId,omitempty" xml:"CloudLinkId,omitempty"`
-	// Virtual Private Cloud (VPC)
+	// The VPC.
 	//
 	// example:
 	//
 	// vpc-0jl2x45apm6odc2c10h25
 	MonitorVpcId *string `json:"MonitorVpcId,omitempty" xml:"MonitorVpcId,omitempty"`
-	// VPC switch
+	// The vSwitch.
 	//
 	// example:
 	//
 	// vsw-0jl2w3ffbghkss0x2foff
 	MonitorVswitchId *string `json:"MonitorVswitchId,omitempty" xml:"MonitorVswitchId,omitempty"`
-	// Cluster network segment
+	// The CIDR block of the cluster.
 	//
 	// example:
 	//
 	// 192.168.0.0/16
 	VpdCidr *string `json:"VpdCidr,omitempty" xml:"VpdCidr,omitempty"`
-	// Cluster subnets
+	// The subnets of the cluster.
 	VpdSubnets []*CreateClusterRequestNetworksNewVpdInfoVpdSubnets `json:"VpdSubnets,omitempty" xml:"VpdSubnets,omitempty" type:"Repeated"`
 }
 
@@ -1009,19 +1009,19 @@ func (s *CreateClusterRequestNetworksNewVpdInfo) Validate() error {
 }
 
 type CreateClusterRequestNetworksNewVpdInfoVpdSubnets struct {
-	// Subnet CIDR
+	// The CIDR block of the subnet.
 	//
 	// example:
 	//
 	// 10.0.1.8/24
 	SubnetCidr *string `json:"SubnetCidr,omitempty" xml:"SubnetCidr,omitempty"`
-	// Subnet type
+	// The subnet type.
 	//
 	// example:
 	//
 	// 10.0.2.8/24
 	SubnetType *string `json:"SubnetType,omitempty" xml:"SubnetType,omitempty"`
-	// Zone ID
+	// The zone ID.
 	//
 	// example:
 	//
@@ -1069,13 +1069,13 @@ func (s *CreateClusterRequestNetworksNewVpdInfoVpdSubnets) Validate() error {
 }
 
 type CreateClusterRequestNetworksVpdInfo struct {
-	// VPC ID
+	// The VPD ID.
 	//
 	// example:
 	//
 	// vpd-vfuz6ejv
 	VpdId *string `json:"VpdId,omitempty" xml:"VpdId,omitempty"`
-	// List of cluster subnet IDs
+	// The list of cluster subnet IDs.
 	VpdSubnets []*string `json:"VpdSubnets,omitempty" xml:"VpdSubnets,omitempty" type:"Repeated"`
 }
 
@@ -1110,66 +1110,75 @@ func (s *CreateClusterRequestNetworksVpdInfo) Validate() error {
 }
 
 type CreateClusterRequestNodeGroups struct {
-	// Whether to support file system mounting
+	// Specifies whether to enable file system mounting.
 	//
 	// example:
 	//
-	// true
-	FileSystemMountEnabled *bool                                       `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
-	HyperNodes             []*CreateClusterRequestNodeGroupsHyperNodes `json:"HyperNodes,omitempty" xml:"HyperNodes,omitempty" type:"Repeated"`
-	// System image ID
+	// false
+	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
+	// The list of supernodes.
+	HyperNodes []*CreateClusterRequestNodeGroupsHyperNodes `json:"HyperNodes,omitempty" xml:"HyperNodes,omitempty" type:"Repeated"`
+	// The OS image ID.
 	//
 	// example:
 	//
 	// i190297201634099844192
 	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
-	// Key pair name.
+	// The name of the key pair.
 	//
 	// example:
 	//
 	// test-keypair
 	KeyPairName *string `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
-	// Login password
+	// The logon password.
 	//
 	// example:
 	//
 	// Password
 	LoginPassword *string `json:"LoginPassword,omitempty" xml:"LoginPassword,omitempty"`
-	// Machine type
+	// The machine type.
 	//
 	// example:
 	//
 	// efg1.nvga1
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
-	// Node group description
+	// The description of the node group.
 	//
 	// example:
 	//
-	// Node group description
+	// Default node group
 	NodeGroupDescription *string `json:"NodeGroupDescription,omitempty" xml:"NodeGroupDescription,omitempty"`
-	// Node group name
+	// The name of the node group.
 	//
 	// example:
 	//
 	// emr-default
 	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
-	// Node list
+	// The list of nodes.
 	Nodes []*CreateClusterRequestNodeGroupsNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
-	// System disk information
+	// The name of the RAM role for the node. You can call the ListRoles operation of the RAM API to query the RAM roles that you have created. The trusted entity of the role must be Intelligent Computing LINGJUN.
+	//
+	// Note: You cannot clear an existing role.
+	//
+	// example:
+	//
+	// xianwen-test-ram-role
+	RamRoleName *string `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
+	// The information about the system disk.
 	SystemDisk *CreateClusterRequestNodeGroupsSystemDisk `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
-	// Instance custom data. It needs to be encoded in Base64, and the original data should not exceed 16 KB.
+	// The instance user data. The data must be Base64-encoded. The raw data can be up to 16 KB in size.
 	//
 	// example:
 	//
 	// ZWNobyBoZWxsbyBlY3Mh
 	UserData *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
-	// Whether to enable gpu virtualization or not
+	// Specifies whether to enable GPU virtualization.
 	//
 	// example:
 	//
 	// false
 	VirtualGpuEnabled *bool `json:"VirtualGpuEnabled,omitempty" xml:"VirtualGpuEnabled,omitempty"`
-	// Zone ID
+	// The zone ID.
 	//
 	// example:
 	//
@@ -1219,6 +1228,10 @@ func (s *CreateClusterRequestNodeGroups) GetNodeGroupName() *string {
 
 func (s *CreateClusterRequestNodeGroups) GetNodes() []*CreateClusterRequestNodeGroupsNodes {
 	return s.Nodes
+}
+
+func (s *CreateClusterRequestNodeGroups) GetRamRoleName() *string {
+	return s.RamRoleName
 }
 
 func (s *CreateClusterRequestNodeGroups) GetSystemDisk() *CreateClusterRequestNodeGroupsSystemDisk {
@@ -1282,6 +1295,11 @@ func (s *CreateClusterRequestNodeGroups) SetNodes(v []*CreateClusterRequestNodeG
 	return s
 }
 
+func (s *CreateClusterRequestNodeGroups) SetRamRoleName(v string) *CreateClusterRequestNodeGroups {
+	s.RamRoleName = &v
+	return s
+}
+
 func (s *CreateClusterRequestNodeGroups) SetSystemDisk(v *CreateClusterRequestNodeGroupsSystemDisk) *CreateClusterRequestNodeGroups {
 	s.SystemDisk = v
 	return s
@@ -1330,12 +1348,38 @@ func (s *CreateClusterRequestNodeGroups) Validate() error {
 }
 
 type CreateClusterRequestNodeGroupsHyperNodes struct {
-	DataDisk      []*CreateClusterRequestNodeGroupsHyperNodesDataDisk `json:"DataDisk,omitempty" xml:"DataDisk,omitempty" type:"Repeated"`
-	Hostname      *string                                             `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
-	HyperNodeId   *string                                             `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
-	LoginPassword *string                                             `json:"LoginPassword,omitempty" xml:"LoginPassword,omitempty"`
-	VSwitchId     *string                                             `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	VpcId         *string                                             `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	// The list of data disks.
+	DataDisk []*CreateClusterRequestNodeGroupsHyperNodesDataDisk `json:"DataDisk,omitempty" xml:"DataDisk,omitempty" type:"Repeated"`
+	// The hostname.
+	//
+	// example:
+	//
+	// q25b01265.cloud.ng152
+	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
+	// The supernode ID.
+	//
+	// example:
+	//
+	// e01-dw72u2c23jk
+	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
+	// The logon password.
+	//
+	// example:
+	//
+	// aaadddddfdsfdsfsdffd
+	LoginPassword *string `json:"LoginPassword,omitempty" xml:"LoginPassword,omitempty"`
+	// The vSwitch ID.
+	//
+	// example:
+	//
+	// vsw-bp1xn9iq3s3p8218c4qu4
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The VPC ID.
+	//
+	// example:
+	//
+	// vpc-uf689skpx56nk7yfw0jhy
+	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
 
 func (s CreateClusterRequestNodeGroupsHyperNodes) String() string {
@@ -1414,12 +1458,54 @@ func (s *CreateClusterRequestNodeGroupsHyperNodes) Validate() error {
 }
 
 type CreateClusterRequestNodeGroupsHyperNodesDataDisk struct {
-	BurstingEnabled  *bool   `json:"BurstingEnabled,omitempty" xml:"BurstingEnabled,omitempty"`
-	Category         *string `json:"Category,omitempty" xml:"Category,omitempty"`
-	DeleteWithNode   *bool   `json:"DeleteWithNode,omitempty" xml:"DeleteWithNode,omitempty"`
+	// Specifies whether to enable performance burst.
+	//
+	// example:
+	//
+	// true
+	BurstingEnabled *bool `json:"BurstingEnabled,omitempty" xml:"BurstingEnabled,omitempty"`
+	// The disk type. Valid value:
+	//
+	// - cloud_essd: ESSD.
+	//
+	// example:
+	//
+	// cloud_essd
+	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	// Specifies whether to delete the data disk when the node is released.
+	//
+	// example:
+	//
+	// true
+	DeleteWithNode *bool `json:"DeleteWithNode,omitempty" xml:"DeleteWithNode,omitempty"`
+	// The performance level of the ESSD that you create as a data disk. Valid values:
+	//
+	// - PL0: A single disk delivers up to 10,000 random read/write IOPS.
+	//
+	// - PL1: A single disk delivers up to 50,000 random read/write IOPS.
+	//
+	// - PL2: A single disk delivers up to 100,000 random read/write IOPS.
+	//
+	// - PL3: A single disk delivers up to 1,000,000 random read/write IOPS.
+	//
+	// Default value: PL1.
+	//
+	// example:
+	//
+	// PL0
 	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
-	ProvisionedIops  *int64  `json:"ProvisionedIops,omitempty" xml:"ProvisionedIops,omitempty"`
-	Size             *int32  `json:"Size,omitempty" xml:"Size,omitempty"`
+	// The provisioned read/write IOPS of the ESSD AutoPL disk.
+	//
+	// example:
+	//
+	// 10000
+	ProvisionedIops *int64 `json:"ProvisionedIops,omitempty" xml:"ProvisionedIops,omitempty"`
+	// The disk size in GiB.
+	//
+	// example:
+	//
+	// 180
+	Size *int32 `json:"Size,omitempty" xml:"Size,omitempty"`
 }
 
 func (s CreateClusterRequestNodeGroupsHyperNodesDataDisk) String() string {
@@ -1489,33 +1575,33 @@ func (s *CreateClusterRequestNodeGroupsHyperNodesDataDisk) Validate() error {
 }
 
 type CreateClusterRequestNodeGroupsNodes struct {
-	// Data disk specifications.
+	// The specifications of the data disk.
 	DataDisk []*CreateClusterRequestNodeGroupsNodesDataDisk `json:"DataDisk,omitempty" xml:"DataDisk,omitempty" type:"Repeated"`
-	// Hostname
+	// The hostname.
 	//
 	// example:
 	//
 	// 8d13b784-17a9-11ed-bc7b-acde48001122
 	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
-	// Login password
+	// The logon password.
 	//
 	// example:
 	//
 	// ***
 	LoginPassword *string `json:"LoginPassword,omitempty" xml:"LoginPassword,omitempty"`
-	// Node ID
+	// The node ID.
 	//
 	// example:
 	//
 	// e01poc-cn-i7m2wnivf0d
 	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
-	// VSwitch ID
+	// The vSwitch ID.
 	//
 	// example:
 	//
 	// vsw-bp169pi5fj151rrms4sia
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// VPC ID
+	// The virtual private cloud (VPC) ID.
 	//
 	// example:
 	//
@@ -1599,27 +1685,37 @@ func (s *CreateClusterRequestNodeGroupsNodes) Validate() error {
 }
 
 type CreateClusterRequestNodeGroupsNodesDataDisk struct {
+	// Specifies whether to enable performance burst.
+	//
+	// example:
+	//
+	// false
 	BurstingEnabled *bool `json:"BurstingEnabled,omitempty" xml:"BurstingEnabled,omitempty"`
-	// Type
+	// The type.
 	//
 	// example:
 	//
 	// cloud_essd
 	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
-	// Whether the data disk is deleted with the node when it is unsubscribed
+	// Specifies whether to delete the data disk when the node is released.
 	//
 	// example:
 	//
 	// true
 	DeleteWithNode *bool `json:"DeleteWithNode,omitempty" xml:"DeleteWithNode,omitempty"`
-	// Data disk performance level
+	// The performance metric of the data disk.
 	//
 	// example:
 	//
 	// PL0
 	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
-	ProvisionedIops  *int64  `json:"ProvisionedIops,omitempty" xml:"ProvisionedIops,omitempty"`
-	// Disk size
+	// The provisioned performance (IOPS). The value must be in the range of 0 to 50,000.
+	//
+	// example:
+	//
+	// 1000
+	ProvisionedIops *int64 `json:"ProvisionedIops,omitempty" xml:"ProvisionedIops,omitempty"`
+	// The disk size.
 	//
 	// example:
 	//
@@ -1694,25 +1790,25 @@ func (s *CreateClusterRequestNodeGroupsNodesDataDisk) Validate() error {
 }
 
 type CreateClusterRequestNodeGroupsSystemDisk struct {
-	// Disk type. The value range is:
+	// The disk type. Valid value:
 	//
-	// - cloud_essd: ESSD disk.
+	// - cloud_essd: enhanced SSD (ESSD).
 	//
 	// example:
 	//
 	// cloud_essd
 	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
-	// When creating an ESSD disk as the system disk, set the performance level of the disk. The value range is:
+	// The performance level of the ESSD that you create as a system disk. Valid values:
 	//
-	// - PL0: Maximum random read/write IOPS for a single disk is 10,000.
+	// - PL0: A single disk delivers up to 10,000 random read/write input/output operations per second (IOPS).
 	//
-	// - PL1: Maximum random read/write IOPS for a single disk is 50,000.
+	// - PL1: A single disk delivers up to 50,000 random read/write IOPS.
 	//
 	// example:
 	//
 	// PL1
 	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
-	// Unit: GB.
+	// The unit is GB.
 	//
 	// example:
 	//
@@ -1760,13 +1856,13 @@ func (s *CreateClusterRequestNodeGroupsSystemDisk) Validate() error {
 }
 
 type CreateClusterRequestTag struct {
-	// Key
+	// The key.
 	//
 	// example:
 	//
 	// env-name
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// Value
+	// The value.
 	//
 	// example:
 	//

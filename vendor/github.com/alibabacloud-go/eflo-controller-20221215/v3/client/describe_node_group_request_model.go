@@ -14,7 +14,13 @@ type iDescribeNodeGroupRequest interface {
 }
 
 type DescribeNodeGroupRequest struct {
+	// The ID of the node group.
+	//
 	// This parameter is required.
+	//
+	// example:
+	//
+	// i128903591758597631635
 	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
 }
 

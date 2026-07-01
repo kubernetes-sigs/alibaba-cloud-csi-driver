@@ -20,25 +20,25 @@ type iListClustersRequest interface {
 }
 
 type ListClustersRequest struct {
-	// The number of entries per page. Default value: 20.
+	// Number of entries per page. Default: 20.
 	//
 	// example:
 	//
 	// 20
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The token that determines the start position of the query. Set this parameter to the value of the NextToken parameter that is returned from the last call.
+	// Token for retrieving the next page of results. Use the NextToken value returned in the previous response.
 	//
 	// example:
 	//
-	// a3f2224a5ec7224116c4f5246120abe4
+	// a3f2224a5ec7224116c4f5246120abe2
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The resource group ID.
+	// Resource group ID.
 	//
 	// example:
 	//
 	// rg-aek2bg6wyoox6jq
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags.
+	// List of tags.
 	Tags []*ListClustersRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 }
 
@@ -100,17 +100,17 @@ func (s *ListClustersRequest) Validate() error {
 }
 
 type ListClustersRequestTags struct {
-	// The tag key.
+	// Tag key.
 	//
 	// example:
 	//
-	// key_aa
+	// my_key
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The tag value.
+	// Tag value.
 	//
 	// example:
 	//
-	// value_aa
+	// my_value
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

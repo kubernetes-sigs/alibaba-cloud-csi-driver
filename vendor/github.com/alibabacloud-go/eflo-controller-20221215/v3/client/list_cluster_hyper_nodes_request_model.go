@@ -24,29 +24,46 @@ type iListClusterHyperNodesRequest interface {
 }
 
 type ListClusterHyperNodesRequest struct {
+	// The cluster ID.
+	//
 	// This parameter is required.
 	//
 	// example:
 	//
 	// i119982311660892626523
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
+	// The number of entries to return on each page. The maximum value is 100.
+	//
+	// Default value:
+	//
+	// • If this parameter is not set or is set to a value less than 20, the default value is 20.
+	//
+	// • If this parameter is set to a value greater than 100, the default value is 100.
+	//
 	// example:
 	//
 	// 20
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// The token used to start the query. Set this parameter to the NextToken value returned from a previous call.
+	//
 	// example:
 	//
 	// 563d42ae0b17572449ec8c97f7f66069
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The node group ID.
+	//
 	// example:
 	//
 	// ng-ec3c96ff0aa4c60d
 	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	// The resource group ID.
+	//
 	// example:
 	//
 	// rg-acfmywpvugkh7kq
-	ResourceGroupId *string                             `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	Tags            []*ListClusterHyperNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	// The tag information.
+	Tags []*ListClusterHyperNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 }
 
 func (s ListClusterHyperNodesRequest) String() string {
@@ -125,10 +142,14 @@ func (s *ListClusterHyperNodesRequest) Validate() error {
 }
 
 type ListClusterHyperNodesRequestTags struct {
+	// The tag key.
+	//
 	// example:
 	//
 	// my_key
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The tag value.
+	//
 	// example:
 	//
 	// my_value
