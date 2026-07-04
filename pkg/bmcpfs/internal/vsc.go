@@ -139,7 +139,7 @@ func newEfloVscBackend(client *efloClient.Client) *efloVscBackend {
 func (b *efloVscBackend) CreatePrimaryVsc(ctx context.Context, instanceId string) (string, error) {
 	req := &efloClient.CreateVscRequest{
 		NodeId:  &instanceId,
-		VscType: tea.String(efloVscDialect.PrimaryType),
+		VscType: new(efloVscDialect.PrimaryType),
 	}
 	resp, err := throttle.Throttled(b.createThrottler, b.client.CreateVsc)(ctx, req)
 	if err != nil {
@@ -210,7 +210,7 @@ func newEcsVscBackend(client *ecsClient.Client) *ecsVscBackend {
 func (b *ecsVscBackend) CreatePrimaryVsc(ctx context.Context, instanceId string) (string, error) {
 	req := &ecsClient.CreateVscRequest{
 		InstanceId: &instanceId,
-		VscType:    tea.String(ecsVscDialect.PrimaryType),
+		VscType:    new(ecsVscDialect.PrimaryType),
 	}
 	resp, err := throttle.Throttled(b.createThrottler, b.client.CreateVsc)(ctx, req)
 	if err != nil {
@@ -435,12 +435,11 @@ func IsAttachNotSupportedError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var attachErr *AttachNotSupportedError
-	if errors.As(err, &attachErr) {
+	if _, ok := errors.AsType[*AttachNotSupportedError](err); ok {
 		return true
 	}
-	sdkErr := &tea.SDKError{}
-	return errors.As(err, &sdkErr) && tea.StringValue(sdkErr.Code) == VscAttachNotSupported
+	sdkErr, ok := errors.AsType[*tea.SDKError](err)
+	return ok && tea.StringValue(sdkErr.Code) == VscAttachNotSupported
 }
 
 type CPFSVscAttachInfo = nasclient.DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo
@@ -507,8 +506,7 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 
 func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) error {
 	if err := ad.detach(fsId, vscId); err != nil {
-		sdkErr := new(tea.SDKError)
-		if errors.As(err, &sdkErr) {
+		if sdkErr, ok := errors.AsType[*tea.SDKError](err); ok {
 			errCode := tea.StringValue(sdkErr.Code)
 			// attached by legacy inner api, ignore it
 			if errCode == "Resource.Check.Fail" || errCode == "InvalidFileSystem.NotFound" {
