@@ -14,7 +14,7 @@ type iListMachineNetworkInfoShrinkRequest interface {
 }
 
 type ListMachineNetworkInfoShrinkRequest struct {
-	// hpn information of machine
+	// The information about the machine types.
 	MachineHpnInfoShrink *string `json:"MachineHpnInfo,omitempty" xml:"MachineHpnInfo,omitempty"`
 }
 

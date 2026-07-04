@@ -26,15 +26,15 @@ type ReimageNodesShrinkRequest struct {
 	//
 	// i15dfa12e8f27c44f4a006c2c8bb
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// Specifies whether to allow skipping failed nodes. Default value: False.
+	// Specifies whether to skip failed nodes. The default value is False.
 	//
 	// example:
 	//
 	// False
 	IgnoreFailedNodeTasks *bool `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
-	// The nodes.
+	// The list of nodes.
 	NodesShrink *string `json:"Nodes,omitempty" xml:"Nodes,omitempty"`
-	// The user data.
+	// The custom data.
 	//
 	// example:
 	//

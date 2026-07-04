@@ -140,7 +140,7 @@ type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
 	//
 	// example:
 	//
-	// Description
+	// Description.
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// The user group of the file.
 	//

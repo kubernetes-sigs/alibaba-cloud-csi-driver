@@ -16,10 +16,13 @@ type iChangeNodeTypesShrinkRequest interface {
 }
 
 type ChangeNodeTypesShrinkRequest struct {
+	// A list of node IDs. You can specify a maximum of 10 nodes in a single request.
 	NodeIdsShrink *string `json:"NodeIds,omitempty" xml:"NodeIds,omitempty"`
+	// The node specifications.
+	//
 	// example:
 	//
-	// standard
+	// cpfs-enhanced
 	NodeType *string `json:"NodeType,omitempty" xml:"NodeType,omitempty"`
 }
 

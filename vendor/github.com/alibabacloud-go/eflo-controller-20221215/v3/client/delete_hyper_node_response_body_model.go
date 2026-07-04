@@ -14,6 +14,8 @@ type iDeleteHyperNodeResponseBody interface {
 }
 
 type DeleteHyperNodeResponseBody struct {
+	// The request ID.
+	//
 	// example:
 	//
 	// 041724FC-2BD7-58B1-863B-B42022D4B351

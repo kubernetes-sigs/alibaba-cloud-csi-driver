@@ -18,15 +18,15 @@ type iListClustersResponseBody interface {
 }
 
 type ListClustersResponseBody struct {
-	// The clusters.
+	// Cluster information.
 	Clusters []*ListClustersResponseBodyClusters `json:"Clusters,omitempty" xml:"Clusters,omitempty" type:"Repeated"`
-	// The returned pagination token which can be used in the next request to retrieve a new page of results.
+	// Token returned by this call for retrieving next page.
 	//
 	// example:
 	//
 	// f4f9a292c17072a2
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The request ID.
+	// Request ID.
 	//
 	// example:
 	//
@@ -83,111 +83,93 @@ func (s *ListClustersResponseBody) Validate() error {
 }
 
 type ListClustersResponseBodyClusters struct {
-	// The cluster description.
+	// Cluster description.
 	//
 	// example:
 	//
-	// PPU-cluster2 bz
+	// Test cluster
 	ClusterDescription *string `json:"ClusterDescription,omitempty" xml:"ClusterDescription,omitempty"`
-	// The cluster ID.
+	// Cluster ID.
 	//
 	// example:
 	//
 	// i137590131672134915401
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// The cluster name.
+	// Cluster name.
 	//
 	// example:
 	//
 	// cnp_test_cluster
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
-	// The cluster type.
-	//
-	// Valid values:
-	//
-	// 	- AckEdgePro
-	//
-	// 	- ExclusiveBareCluster
-	//
-	// 	- Lite
+	// Cluster type.
 	//
 	// example:
 	//
 	// AckEdgePro
 	ClusterType *string `json:"ClusterType,omitempty" xml:"ClusterType,omitempty"`
-	// The component information.
+	// Component information.
 	//
 	// example:
 	//
 	// {}
 	Components interface{} `json:"Components,omitempty" xml:"Components,omitempty"`
-	// The IP type of the computing network.
+	// IP version of computing network.
 	//
 	// example:
 	//
 	// IPv4
 	ComputingIpVersion *string `json:"ComputingIpVersion,omitempty" xml:"ComputingIpVersion,omitempty"`
-	// The creation time.
+	// Cluster creation time.
 	//
 	// example:
 	//
-	// 1672134938
+	// 2026-01-27T14:54:02.360
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The cluster number.
+	// Cluster zone identifier.
 	//
 	// example:
 	//
 	// B1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
-	// The number of nodes.
+	// Number of nodes.
 	//
 	// example:
 	//
 	// 12
 	NodeCount *int64 `json:"NodeCount,omitempty" xml:"NodeCount,omitempty"`
-	// The number of node groups.
+	// Number of node groups.
 	//
 	// example:
 	//
 	// 2
 	NodeGroupCount *int64 `json:"NodeGroupCount,omitempty" xml:"NodeGroupCount,omitempty"`
-	// The cluster status.
-	//
-	// Valid values:
-	//
-	// 	- running
-	//
-	// 	- expanding
-	//
-	// 	- shrinking
-	//
-	// 	- initializing
+	// Cluster status.
 	//
 	// example:
 	//
 	// initializing
 	OperatingState *string `json:"OperatingState,omitempty" xml:"OperatingState,omitempty"`
-	// The resource group ID.
+	// Resource group ID.
 	//
 	// example:
 	//
 	// rg-aek2ajbjoloa23q
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags.
+	// Tag information.
 	Tags []*ListClustersResponseBodyClustersTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
-	// The job ID.
+	// Task ID.
 	//
 	// example:
 	//
 	// i156365121663149566024
 	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
-	// The update time.
+	// Last update time.
 	//
 	// example:
 	//
-	// 1672134968
+	// 2026-01-28T20:56:32.585
 	UpdateTime *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
-	// The virtual private cloud (VPC) ID.
+	// VPC ID.
 	//
 	// example:
 	//
@@ -361,17 +343,17 @@ func (s *ListClustersResponseBodyClusters) Validate() error {
 }
 
 type ListClustersResponseBodyClustersTags struct {
-	// The tag key.
+	// Tag key.
 	//
 	// example:
 	//
-	// aa_key
+	// env
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The tag value.
+	// Tag value.
 	//
 	// example:
 	//
-	// aa_value
+	// daily
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

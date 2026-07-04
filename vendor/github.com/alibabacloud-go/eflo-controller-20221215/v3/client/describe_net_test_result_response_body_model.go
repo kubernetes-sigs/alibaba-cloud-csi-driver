@@ -50,17 +50,17 @@ type DescribeNetTestResultResponseBody struct {
 	//
 	// Standard_Cluster
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
-	// Specify when NetTestType is CommTest.
+	// The configuration for the communication library test. This parameter is returned when the network test type is a communication library test.
 	CommTest *DescribeNetTestResultResponseBodyCommTest `json:"CommTest,omitempty" xml:"CommTest,omitempty" type:"Struct"`
-	// create time
+	// The time when the diagnostic task was created.
 	//
 	// example:
 	//
 	// 2024-10-15T10:25:42+08:00
 	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// Fill in when the network test type is a delay test.
+	// The configuration for the delay test. This parameter is returned when the network test type is a delay test.
 	DelayTest *DescribeNetTestResultResponseBodyDelayTest `json:"DelayTest,omitempty" xml:"DelayTest,omitempty" type:"Struct"`
-	// finish time
+	// The time when the diagnostic task was completed.
 	//
 	// example:
 	//
@@ -72,7 +72,7 @@ type DescribeNetTestResultResponseBody struct {
 	//
 	// DelayTest
 	NetTestType *string `json:"NetTestType,omitempty" xml:"NetTestType,omitempty"`
-	// Test port number.
+	// The test port number.
 	//
 	// example:
 	//
@@ -84,25 +84,31 @@ type DescribeNetTestResultResponseBody struct {
 	//
 	// 8F065DDD-6996-5973-9691-9EC57BD0072E
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// result detail
+	// The details of the diagnostic result. The value is a JSON string.
 	//
 	// example:
 	//
 	// {}
 	ResultDetial *string `json:"ResultDetial,omitempty" xml:"ResultDetial,omitempty"`
-	// status of session
+	// The status of the diagnostic task. Valid values:
+	//
+	// - InProgress: The task is in progress.
+	//
+	// - Finished: The task is complete.
+	//
+	// - Failed: The task failed.
 	//
 	// example:
 	//
 	// Failed
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The ID of the test task. The unique identifier of a network test task.
+	// The ID of the test task. This ID uniquely identifies the network test task.
 	//
 	// example:
 	//
 	// af35ce53-7c35-4277-834a-fbf49c316a96
 	TestId *string `json:"TestId,omitempty" xml:"TestId,omitempty"`
-	// Fill in when the network test type is a traffic test.
+	// The configuration for the traffic test. This parameter is returned when the network test type is a traffic test.
 	TrafficTest *DescribeNetTestResultResponseBodyTrafficTest `json:"TrafficTest,omitempty" xml:"TrafficTest,omitempty" type:"Struct"`
 }
 
@@ -251,13 +257,13 @@ func (s *DescribeNetTestResultResponseBody) Validate() error {
 }
 
 type DescribeNetTestResultResponseBodyCommTest struct {
-	// Number of GPUs
+	// The number of GPUs.
 	//
 	// example:
 	//
 	// 1
 	GPUNum *string `json:"GPUNum,omitempty" xml:"GPUNum,omitempty"`
-	// All hosts infomation
+	// The hosts for the test.
 	Hosts []*DescribeNetTestResultResponseBodyCommTestHosts `json:"Hosts,omitempty" xml:"Hosts,omitempty" type:"Repeated"`
 	// The communication library model.
 	//
@@ -265,7 +271,7 @@ type DescribeNetTestResultResponseBodyCommTest struct {
 	//
 	// intention_v4
 	Model *string `json:"Model,omitempty" xml:"Model,omitempty"`
-	// The CommTest type, which can be ACCL or NCCL.
+	// The type of the communication library test. Valid values: Alibaba Cloud Collective Communication Library (ACCL) and NVIDIA Collective Communication Library (NCCL).
 	//
 	// example:
 	//
@@ -343,7 +349,7 @@ type DescribeNetTestResultResponseBodyCommTestHosts struct {
 	//
 	// i111670831721110797708
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// Service name.
+	// The service name.
 	//
 	// example:
 	//
@@ -391,7 +397,7 @@ func (s *DescribeNetTestResultResponseBodyCommTestHosts) Validate() error {
 }
 
 type DescribeNetTestResultResponseBodyDelayTest struct {
-	// All hosts infomation
+	// The hosts of the test nodes.
 	Hosts []*DescribeNetTestResultResponseBodyDelayTestHosts `json:"Hosts,omitempty" xml:"Hosts,omitempty" type:"Repeated"`
 }
 
@@ -426,13 +432,13 @@ func (s *DescribeNetTestResultResponseBodyDelayTest) Validate() error {
 }
 
 type DescribeNetTestResultResponseBodyDelayTestHosts struct {
-	// The bonding of network interface card.
+	// The bonded port of the NIC.
 	//
 	// example:
 	//
 	// bond1
 	Bond *string `json:"Bond,omitempty" xml:"Bond,omitempty"`
-	// The IP address.
+	// The IP address of the node.
 	//
 	// example:
 	//
@@ -444,7 +450,7 @@ type DescribeNetTestResultResponseBodyDelayTestHosts struct {
 	//
 	// e01-cn-bcd3u1aee06
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// Service name.
+	// The service name.
 	//
 	// example:
 	//
@@ -501,37 +507,35 @@ func (s *DescribeNetTestResultResponseBodyDelayTestHosts) Validate() error {
 }
 
 type DescribeNetTestResultResponseBodyTrafficTest struct {
-	// All clients information
+	// The client nodes.
 	Clients []*DescribeNetTestResultResponseBodyTrafficTestClients `json:"Clients,omitempty" xml:"Clients,omitempty" type:"Repeated"`
-	// Call duration, in seconds.
+	// The runtime of the flow task in seconds.
 	//
 	// example:
 	//
 	// 1
 	Duration *int64 `json:"Duration,omitempty" xml:"Duration,omitempty"`
-	// When the protocol is RDMA, fill in True/False,
-	//
-	// when the protocol is TCP, this field is empty.
+	// Indicates whether GPUDirect RDMA (GDR) is enabled. This parameter is returned only if the protocol is RDMA. Valid values: True and False. If the protocol is TCP, this field is empty.
 	//
 	// example:
 	//
 	// False
 	GDR *string `json:"GDR,omitempty" xml:"GDR,omitempty"`
-	// Network protocol, either RDMA or TCP.
+	// The network protocol. Valid values: Remote Direct Memory Access (RDMA) and Transmission Control Protocol (TCP).
 	//
 	// example:
 	//
 	// TCP
 	Protocol *string `json:"Protocol,omitempty" xml:"Protocol,omitempty"`
-	// When the protocol is TCP, fill in the number of concurrent connections; when the protocol is RDMA, fill in the configured QP value.
+	// If the protocol is TCP, this is the number of concurrent connections for the test. If the protocol is RDMA, this is the Queue Pair (QP) value.
 	//
 	// example:
 	//
 	// 1
 	QP *int64 `json:"QP,omitempty" xml:"QP,omitempty"`
-	// Servers infomation.
+	// The list of servers.
 	Servers []*DescribeNetTestResultResponseBodyTrafficTestServers `json:"Servers,omitempty" xml:"Servers,omitempty" type:"Repeated"`
-	// Traffic model, either MTON or Fullmesh.
+	// The traffic model. Valid values: MTON and Fullmesh.
 	//
 	// example:
 	//
@@ -633,13 +637,13 @@ func (s *DescribeNetTestResultResponseBodyTrafficTest) Validate() error {
 }
 
 type DescribeNetTestResultResponseBodyTrafficTestClients struct {
-	// Network interface bond port
+	// The bonded port of the network interface card (NIC).
 	//
 	// example:
 	//
 	// bond1
 	Bond *string `json:"Bond,omitempty" xml:"Bond,omitempty"`
-	// IP address.
+	// The IP address of the node.
 	//
 	// example:
 	//
@@ -651,7 +655,7 @@ type DescribeNetTestResultResponseBodyTrafficTestClients struct {
 	//
 	// e01-cn-20s41p6cx01
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The name of the service.
+	// The service name.
 	//
 	// example:
 	//
@@ -708,13 +712,13 @@ func (s *DescribeNetTestResultResponseBodyTrafficTestClients) Validate() error {
 }
 
 type DescribeNetTestResultResponseBodyTrafficTestServers struct {
-	// Network interface bond port
+	// The bonded port of the NIC.
 	//
 	// example:
 	//
 	// bond1
 	Bond *string `json:"Bond,omitempty" xml:"Bond,omitempty"`
-	// The IP address.
+	// The IP address of the node.
 	//
 	// example:
 	//
@@ -726,7 +730,7 @@ type DescribeNetTestResultResponseBodyTrafficTestServers struct {
 	//
 	// e01-cn-wwo3etaqu0b
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// Service name.
+	// The service name.
 	//
 	// example:
 	//

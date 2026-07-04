@@ -22,6 +22,8 @@ type ChangeNodeGroupResponseBody struct {
 	//
 	// 887FA855-89F4-5DB3-B305-C5879EC480E6
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// The task ID.
+	//
 	// example:
 	//
 	// i159136551662516768776

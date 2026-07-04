@@ -18,7 +18,7 @@ type iCreateNodeGroupRequest interface {
 }
 
 type CreateNodeGroupRequest struct {
-	// Cluster ID
+	// The ID of the cluster to which the node group belongs.
 	//
 	// This parameter is required.
 	//
@@ -26,11 +26,11 @@ type CreateNodeGroupRequest struct {
 	//
 	// i118191731740041623425
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// Node ID.
+	// The configurations of the node group.
 	//
 	// This parameter is required.
 	NodeGroup *CreateNodeGroupRequestNodeGroup `json:"NodeGroup,omitempty" xml:"NodeGroup,omitempty" type:"Struct"`
-	// Node information
+	// The configuration of the node unit.
 	//
 	// example:
 	//
@@ -83,7 +83,7 @@ func (s *CreateNodeGroupRequest) Validate() error {
 }
 
 type CreateNodeGroupRequestNodeGroup struct {
-	// Availability Zone
+	// The availability zone of the node group.
 	//
 	// This parameter is required.
 	//
@@ -91,13 +91,13 @@ type CreateNodeGroupRequestNodeGroup struct {
 	//
 	// cn-wulanchabu-b
 	Az *string `json:"Az,omitempty" xml:"Az,omitempty"`
-	// Whether file storage mounting is supported
+	// Specifies whether to enable file system mounting.
 	//
 	// example:
 	//
-	// true
+	// false
 	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
-	// Image ID.
+	// The image ID for the nodes.
 	//
 	// This parameter is required.
 	//
@@ -105,19 +105,19 @@ type CreateNodeGroupRequestNodeGroup struct {
 	//
 	// i191887641687336652616
 	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
-	// Key pair name.
+	// The name of the key pair for SSH login.
 	//
 	// example:
 	//
 	// test-keypair
 	KeyPairName *string `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
-	// Password
+	// The password to log in to the nodes.
 	//
 	// example:
 	//
 	// test-LoginPassword
 	LoginPassword *string `json:"LoginPassword,omitempty" xml:"LoginPassword,omitempty"`
-	// Machine type
+	// The machine type for the nodes.
 	//
 	// This parameter is required.
 	//
@@ -125,13 +125,13 @@ type CreateNodeGroupRequestNodeGroup struct {
 	//
 	// mock-machine-type3
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
-	// Node group description
+	// The description of the node group.
 	//
 	// example:
 	//
-	// describe for node group
+	// Node group description
 	NodeGroupDescription *string `json:"NodeGroupDescription,omitempty" xml:"NodeGroupDescription,omitempty"`
-	// Node group name
+	// The name of the node group.
 	//
 	// This parameter is required.
 	//
@@ -139,9 +139,15 @@ type CreateNodeGroupRequestNodeGroup struct {
 	//
 	// PAI-LINGJUN
 	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
-	// Details of the node system disk configuration.
+	// The name of the RAM role to attach to the nodes. You can call the RAM API `ListRoles` operation to query the RAM roles that you have created. The trust entity of the specified role must be Intelligent Computing Lingjun.<br>**Note:*	- You cannot detach an existing role by clearing this parameter.<br>
+	//
+	// example:
+	//
+	// xianwen-test-ram-role
+	RamRoleName *string `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
+	// The system disk configuration for the nodes.
 	SystemDisk *CreateNodeGroupRequestNodeGroupSystemDisk `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
-	// User-defined data
+	// The user data passed to the nodes at launch.
 	//
 	// example:
 	//
@@ -151,7 +157,7 @@ type CreateNodeGroupRequestNodeGroup struct {
 	//
 	// echo "aaaaaaa" >> /tmp/ttttt20250110141010.sh
 	UserData *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
-	// Whether to enable gpu virtualization or not
+	// Specifies whether to enable GPU virtualization.
 	//
 	// example:
 	//
@@ -197,6 +203,10 @@ func (s *CreateNodeGroupRequestNodeGroup) GetNodeGroupDescription() *string {
 
 func (s *CreateNodeGroupRequestNodeGroup) GetNodeGroupName() *string {
 	return s.NodeGroupName
+}
+
+func (s *CreateNodeGroupRequestNodeGroup) GetRamRoleName() *string {
+	return s.RamRoleName
 }
 
 func (s *CreateNodeGroupRequestNodeGroup) GetSystemDisk() *CreateNodeGroupRequestNodeGroupSystemDisk {
@@ -251,6 +261,11 @@ func (s *CreateNodeGroupRequestNodeGroup) SetNodeGroupName(v string) *CreateNode
 	return s
 }
 
+func (s *CreateNodeGroupRequestNodeGroup) SetRamRoleName(v string) *CreateNodeGroupRequestNodeGroup {
+	s.RamRoleName = &v
+	return s
+}
+
 func (s *CreateNodeGroupRequestNodeGroup) SetSystemDisk(v *CreateNodeGroupRequestNodeGroupSystemDisk) *CreateNodeGroupRequestNodeGroup {
 	s.SystemDisk = v
 	return s
@@ -276,25 +291,25 @@ func (s *CreateNodeGroupRequestNodeGroup) Validate() error {
 }
 
 type CreateNodeGroupRequestNodeGroupSystemDisk struct {
-	// Disk type. Value range:
+	// The type of the system disk. Valid values:
 	//
-	//  - cloud_essd: ESSD cloud disk.
+	// - `cloud_essd`: ESSD.
 	//
 	// example:
 	//
 	// clou_essd
 	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
-	// When creating an ESSD cloud disk as a system disk, set the performance level of the cloud disk. Value range:
+	// The performance level of the ESSD system disk. Valid values:
 	//
-	// - PL0: Maximum random read/write IOPS per disk 10,000.
+	// - `PL0`: A single disk delivers up to 10,000 random read/write IOPS.
 	//
-	// - PL1: Maximum random read/write IOPS per disk 50,000.
+	// - `PL1`: A single disk delivers up to 50,000 random read/write IOPS.
 	//
 	// example:
 	//
 	// PL1
 	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
-	// Unit: GB.
+	// The size of the system disk, in GB.
 	//
 	// example:
 	//
