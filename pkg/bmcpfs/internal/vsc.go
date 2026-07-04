@@ -40,30 +40,16 @@ func newVscThrottler() *throttle.Throttler {
 	return throttle.NewThrottler(clock.RealClock{}, 1*time.Second, 10*time.Second, throttle.V2Classifier)
 }
 
-// vscDialect captures backend-specific values for VSC type/status enums
-// that are conceptually identical between Lingjun (eflo) and ECS backends
-// but use different string literals.
-type vscDialect struct {
-	PrimaryType  string // VSC type for "primary"
-	StatusNormal string // status meaning the VSC is healthy/usable
-}
+// Backend-specific wire values for the VSC "primary" type and the healthy/usable
+// status. The concepts are identical across Lingjun (eflo) and ECS; only the string
+// literals differ. Each backend uses its own pair directly.
+const (
+	efloPrimaryVscType  = "primary" // VSC type for "primary"
+	efloVscStatusNormal = "Normal"  // status meaning the VSC is healthy/usable
 
-var (
-	efloVscDialect = vscDialect{
-		PrimaryType:  "primary",
-		StatusNormal: "Normal",
-	}
-	ecsVscDialect = vscDialect{
-		PrimaryType:  "Primary",
-		StatusNormal: "In_use",
-	}
+	ecsPrimaryVscType  = "Primary"
+	ecsVscStatusNormal = "In_use"
 )
-
-// isECSInstance reports whether the instanceId belongs to an ECS instance.
-// ECS instance IDs are prefixed with "i-"; Lingjun node IDs are not.
-func isECSInstance(instanceId string) bool {
-	return strings.HasPrefix(instanceId, "i-")
-}
 
 type Vsc struct {
 	NodeID string
@@ -72,54 +58,36 @@ type Vsc struct {
 	Status string
 }
 
-// VscBackend is the interface each cloud backend implements independently.
-type VscBackend interface {
+// Backend is the interface each cloud backend (Lingjun/eflo or ECS) implements.
+// It holds all per-backend shared state (client, throttlers) and owns its own
+// status/type dialect via Ready. A Backend is constructed once and shared across
+// every instance it serves.
+type Backend interface {
 	CreatePrimaryVsc(ctx context.Context, instanceId string) (string, error)
-	GetPrimaryVscOf(ctx context.Context, instanceId string) (*Vsc, error)
+	GetPrimaryVsc(ctx context.Context, instanceId string) (*Vsc, error)
 	GetVsc(ctx context.Context, vscId string) (*Vsc, error)
+	// Ready reports whether a VSC has reached this backend's usable status.
+	Ready(*Vsc) bool
 }
 
-type VscManager interface {
-	CreatePrimaryVscFor(ctx context.Context, instanceId string) (string, error)
-	GetPrimaryVscOf(ctx context.Context, instanceId string) (*Vsc, error)
-	// GetVsc retrieves a single VSC by ID. The instanceId is used only for
-	// routing to the correct backend; individual backends do not need it.
-	GetVsc(ctx context.Context, vscId, instanceId string) (*Vsc, error)
+// Instance binds an instance/node ID to the Backend that serves it. It is a cheap
+// value: Backend carries the shared state, so callers build an Instance per request
+// for free. The caller picks the Backend (the CSI layer does so from the node kind
+// it parsed); this package does not inspect the ID to choose a Backend.
+type Instance struct {
+	ID      string
+	Backend Backend
 }
 
-func NewVscManager(eflo *efloClient.Client, ecs *ecsClient.Client) VscManager {
-	return &dispatchingVscManager{
-		eflo: newEfloVscBackend(eflo),
-		ecs:  newEcsVscBackend(ecs),
-	}
+func (i Instance) createPrimary(ctx context.Context) (string, error) {
+	return i.Backend.CreatePrimaryVsc(ctx, i.ID)
 }
 
-// dispatchingVscManager routes calls to the correct backend based on instanceId.
-type dispatchingVscManager struct {
-	eflo VscBackend
-	ecs  VscBackend
+func (i Instance) getPrimary(ctx context.Context) (*Vsc, error) {
+	return i.Backend.GetPrimaryVsc(ctx, i.ID)
 }
 
-func (m *dispatchingVscManager) backendFor(instanceId string) VscBackend {
-	if isECSInstance(instanceId) {
-		return m.ecs
-	}
-	return m.eflo
-}
-
-func (m *dispatchingVscManager) CreatePrimaryVscFor(ctx context.Context, instanceId string) (string, error) {
-	return m.backendFor(instanceId).CreatePrimaryVsc(ctx, instanceId)
-}
-
-func (m *dispatchingVscManager) GetPrimaryVscOf(ctx context.Context, instanceId string) (*Vsc, error) {
-	return m.backendFor(instanceId).GetPrimaryVscOf(ctx, instanceId)
-}
-
-func (m *dispatchingVscManager) GetVsc(ctx context.Context, vscId, instanceId string) (*Vsc, error) {
-	return m.backendFor(instanceId).GetVsc(ctx, vscId)
-}
-
-// efloVscBackend implements VscBackend for Lingjun (eflo) nodes.
+// efloVscBackend implements Backend for Lingjun (eflo) nodes.
 type efloVscBackend struct {
 	client            *efloClient.Client
 	createThrottler   *throttle.Throttler
@@ -127,7 +95,9 @@ type efloVscBackend struct {
 	describeThrottler *throttle.Throttler
 }
 
-func newEfloVscBackend(client *efloClient.Client) *efloVscBackend {
+// NewEfloBackend builds the Backend for Lingjun (eflo) nodes. Construct it once and
+// share it: the throttlers are per-action and must be shared across all instances.
+func NewEfloBackend(client *efloClient.Client) Backend {
 	return &efloVscBackend{
 		client:            client,
 		createThrottler:   newVscThrottler(),
@@ -136,10 +106,14 @@ func newEfloVscBackend(client *efloClient.Client) *efloVscBackend {
 	}
 }
 
+func (b *efloVscBackend) Ready(v *Vsc) bool {
+	return v.Status == efloVscStatusNormal
+}
+
 func (b *efloVscBackend) CreatePrimaryVsc(ctx context.Context, instanceId string) (string, error) {
 	req := &efloClient.CreateVscRequest{
 		NodeId:  &instanceId,
-		VscType: new(efloVscDialect.PrimaryType),
+		VscType: new(efloPrimaryVscType),
 	}
 	resp, err := throttle.Throttled(b.createThrottler, b.client.CreateVsc)(ctx, req)
 	if err != nil {
@@ -152,7 +126,7 @@ func (b *efloVscBackend) CreatePrimaryVsc(ctx context.Context, instanceId string
 	return tea.StringValue(resp.Body.VscId), nil
 }
 
-func (b *efloVscBackend) GetPrimaryVscOf(ctx context.Context, instanceId string) (*Vsc, error) {
+func (b *efloVscBackend) GetPrimaryVsc(ctx context.Context, instanceId string) (*Vsc, error) {
 	req := &efloClient.ListVscsRequest{
 		NodeIds:    []*string{&instanceId},
 		MaxResults: tea.Int32(100),
@@ -163,7 +137,7 @@ func (b *efloVscBackend) GetPrimaryVscOf(ctx context.Context, instanceId string)
 	}
 	klog.V(4).InfoS("eflo:ListVscs succeeded", "instanceId", instanceId, "response", resp.Body)
 	for _, vsc := range resp.Body.Vscs {
-		if tea.StringValue(vsc.VscType) == efloVscDialect.PrimaryType {
+		if tea.StringValue(vsc.VscType) == efloPrimaryVscType {
 			return &Vsc{
 				NodeID: tea.StringValue(vsc.NodeId),
 				VscID:  tea.StringValue(vsc.VscId),
@@ -192,14 +166,16 @@ func (b *efloVscBackend) GetVsc(ctx context.Context, vscId string) (*Vsc, error)
 	}, nil
 }
 
-// ecsVscBackend implements VscBackend for ECS nodes with VSC enabled.
+// ecsVscBackend implements Backend for ECS nodes with VSC enabled.
 type ecsVscBackend struct {
 	client            *ecsClient.Client
 	createThrottler   *throttle.Throttler
 	describeThrottler *throttle.Throttler
 }
 
-func newEcsVscBackend(client *ecsClient.Client) *ecsVscBackend {
+// NewEcsBackend builds the Backend for ECS nodes with VSC enabled. Construct it once
+// and share it: the throttlers are per-action and must be shared across all instances.
+func NewEcsBackend(client *ecsClient.Client) Backend {
 	return &ecsVscBackend{
 		client:            client,
 		createThrottler:   newVscThrottler(),
@@ -207,10 +183,14 @@ func newEcsVscBackend(client *ecsClient.Client) *ecsVscBackend {
 	}
 }
 
+func (b *ecsVscBackend) Ready(v *Vsc) bool {
+	return v.Status == ecsVscStatusNormal
+}
+
 func (b *ecsVscBackend) CreatePrimaryVsc(ctx context.Context, instanceId string) (string, error) {
 	req := &ecsClient.CreateVscRequest{
 		InstanceId: &instanceId,
-		VscType:    new(ecsVscDialect.PrimaryType),
+		VscType:    new(ecsPrimaryVscType),
 	}
 	resp, err := throttle.Throttled(b.createThrottler, b.client.CreateVsc)(ctx, req)
 	if err != nil {
@@ -223,7 +203,7 @@ func (b *ecsVscBackend) CreatePrimaryVsc(ctx context.Context, instanceId string)
 	return tea.StringValue(resp.Body.VscId), nil
 }
 
-func (b *ecsVscBackend) GetPrimaryVscOf(ctx context.Context, instanceId string) (*Vsc, error) {
+func (b *ecsVscBackend) GetPrimaryVsc(ctx context.Context, instanceId string) (*Vsc, error) {
 	req := &ecsClient.DescribeVscsRequest{
 		InstanceId: &instanceId,
 		MaxResults: tea.Int32(100),
@@ -234,7 +214,7 @@ func (b *ecsVscBackend) GetPrimaryVscOf(ctx context.Context, instanceId string) 
 	}
 	klog.V(4).InfoS("ecs:DescribeVscs succeeded", "instanceId", instanceId, "response", resp.Body)
 	for _, vsc := range resp.Body.Vscs {
-		if tea.StringValue(vsc.VscType) == ecsVscDialect.PrimaryType {
+		if tea.StringValue(vsc.VscType) == ecsPrimaryVscType {
 			return &Vsc{
 				NodeID: tea.StringValue(vsc.InstanceId),
 				VscID:  tea.StringValue(vsc.VscId),
@@ -272,16 +252,17 @@ func (b *ecsVscBackend) GetVsc(ctx context.Context, vscId string) (*Vsc, error) 
 // absence might be transient) while still deduplicating concurrent lookups.
 var errVscNotFound = errors.New("primary vsc not found")
 
-// PrimaryVscManagerWithCache adds single-flight TTL caching on top of a
-// VscManager. Concurrency is reactive: requests are sent freely and each
-// backend action backs off only when the cloud actually throttles it (see
+// PrimaryVscManagerWithCache adds single-flight TTL caching on top of the VSC
+// Backends. It is backend-agnostic: callers pass a resolved Instance (an ID paired
+// with its Backend) and this layer only caches, single-flights and polls — it does
+// no backend selection itself. Concurrency is reactive: requests are sent freely and
+// each backend action backs off only when the cloud actually throttles it (see
 // newVscThrottler), rather than being capped by a fixed worker pool.
 type PrimaryVscManagerWithCache struct {
-	VscManager
-
 	// vscCache is the single VSC cache, shared by GetPrimaryVscOf (read-through)
 	// and EnsurePrimaryVsc (write-through on a confirmed VSC), so a publish warms
-	// the cache that a later unpublish reads.
+	// the cache that a later unpublish reads. Keyed by instance ID; ECS ("i-…") and
+	// Lingjun IDs never collide, so one cache safely spans both backends.
 	vscCache *ttlcache.TTLCache[string, *Vsc]
 	// createVsc single-flights EnsurePrimaryVsc per instance so concurrent
 	// publishes for a new node create only one VSC. Its TTL is 0: it never caches
@@ -291,7 +272,7 @@ type PrimaryVscManagerWithCache struct {
 	clk          clock.Clock
 	pollInterval time.Duration
 	// pollAttempts is how many times getOrCreatePrimaryFor polls GetVsc for the
-	// expected status. Must be >= 1, so a freshly created VSC (not fetched before
+	// ready status. Must be >= 1, so a freshly created VSC (not fetched before
 	// the loop) is always fetched at least once.
 	pollAttempts int
 }
@@ -304,9 +285,8 @@ const (
 	defaultVscPollAttempts = 5
 )
 
-func NewPrimaryVscManagerWithCache(efloClient *efloClient.Client, ecsClient *ecsClient.Client) *PrimaryVscManagerWithCache {
+func NewPrimaryVscManagerWithCache() *PrimaryVscManagerWithCache {
 	return &PrimaryVscManagerWithCache{
-		VscManager:   NewVscManager(efloClient, ecsClient),
 		vscCache:     ttlcache.NewTTLCache[string, *Vsc](defaultVscCacheTTL),
 		createVsc:    ttlcache.NewTTLCache[string, *Vsc](0),
 		clk:          clock.RealClock{},
@@ -315,11 +295,11 @@ func NewPrimaryVscManagerWithCache(efloClient *efloClient.Client, ecsClient *ecs
 	}
 }
 
-func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, instanceId string) (string, error) {
-	vsc, err := m.createVsc.Get(ctx, instanceId, func() (*Vsc, error) {
+func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, inst Instance) (string, error) {
+	vsc, err := m.createVsc.Get(ctx, inst.ID, func() (*Vsc, error) {
 		// Decouple the shared computation from any single caller's cancellation;
 		// concurrent waiters still cancel their own wait via the ctx passed to Get.
-		return m.getOrCreatePrimaryFor(context.WithoutCancel(ctx), instanceId)
+		return m.getOrCreatePrimaryFor(context.WithoutCancel(ctx), inst)
 	})
 	if err != nil {
 		return "", err
@@ -327,9 +307,9 @@ func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, insta
 	return vsc.VscID, nil
 }
 
-func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(ctx context.Context, instanceId string) (*Vsc, error) {
-	vsc, err := m.vscCache.Get(ctx, instanceId, func() (*Vsc, error) {
-		vsc, err := m.VscManager.GetPrimaryVscOf(ctx, instanceId)
+func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(ctx context.Context, inst Instance) (*Vsc, error) {
+	vsc, err := m.vscCache.Get(ctx, inst.ID, func() (*Vsc, error) {
+		vsc, err := inst.getPrimary(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -344,48 +324,43 @@ func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(ctx context.Context, instan
 	return vsc, err
 }
 
-func (m *PrimaryVscManagerWithCache) getOrCreatePrimaryFor(ctx context.Context, instanceId string) (*Vsc, error) {
-	expected := efloVscDialect.StatusNormal
-	if isECSInstance(instanceId) {
-		expected = ecsVscDialect.StatusNormal
-	}
-
+func (m *PrimaryVscManagerWithCache) getOrCreatePrimaryFor(ctx context.Context, inst Instance) (*Vsc, error) {
 	// try to get existing vsc (through the read cache)
-	vsc, err := m.GetPrimaryVscOf(ctx, instanceId)
+	vsc, err := m.GetPrimaryVscOf(ctx, inst)
 	if err != nil {
 		return nil, err
 	}
 
 	var vscID string
 	if vsc != nil {
-		if vsc.Status == expected {
+		if inst.Backend.Ready(vsc) {
 			return vsc, nil // already usable; GetPrimaryVscOf cached it
 		}
 		vscID = vsc.VscID
 	} else {
 		// primary vsc of the instance not found, create it
-		vscID, err = m.CreatePrimaryVscFor(ctx, instanceId)
+		vscID, err = inst.createPrimary(ctx)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// A freshly created (or not-yet-ready) VSC may take a moment to become
-	// usable; poll GetVsc a bounded number of times until it reaches expected.
+	// usable; poll GetVsc a bounded number of times until it becomes ready.
 	for range m.pollAttempts {
 		select {
 		case <-ctx.Done():
 			return vsc, ctx.Err()
 		case <-m.clk.After(m.pollInterval):
 		}
-		if vsc, err = m.GetVsc(ctx, vscID, instanceId); err != nil {
+		if vsc, err = inst.Backend.GetVsc(ctx, vscID); err != nil {
 			return nil, err
 		}
 		if vsc == nil {
 			return nil, fmt.Errorf("vsc %s not found after creation", vscID)
 		}
-		if vsc.Status == expected {
-			m.vscCache.Store(instanceId, vsc)
+		if inst.Backend.Ready(vsc) {
+			m.vscCache.Store(inst.ID, vsc)
 			return vsc, nil
 		}
 	}
