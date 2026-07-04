@@ -16,7 +16,7 @@ type iCreateLifecycleRetrieveJobResponseBody interface {
 }
 
 type CreateLifecycleRetrieveJobResponseBody struct {
-	// The ID of the data retrieval task.
+	// The data retrieval task ID.
 	//
 	// example:
 	//

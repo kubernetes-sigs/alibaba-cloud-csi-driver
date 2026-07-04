@@ -54,7 +54,7 @@ type ModifyDataFlowRequest struct {
 	//
 	// example:
 	//
-	// test
+	// Bucket01数据流动
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// Specifies whether to perform a dry run.
 	//

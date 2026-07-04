@@ -22,11 +22,11 @@ type ModifyFileSystemRequest struct {
 	//
 	// Limits:
 	//
-	// 	- The description must be 2 to 128 characters in length.
+	// - The description must be 2 to 128 characters.
 	//
-	// 	- It must start with a letter but cannot start with `http://` or `https://`.
+	// - It must start with an uppercase or lowercase letter or a Chinese character, and cannot start with `http://` or `https://`.
 	//
-	// 	- The description can contain letters, digits, colons (:), underscores (_), and hyphens (-).
+	// - It can contain digits, colons (:), underscores (_), and hyphens (-).
 	//
 	// example:
 	//
@@ -34,11 +34,11 @@ type ModifyFileSystemRequest struct {
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// The ID of the file system.
 	//
-	// 	- Sample ID of a General-purpose NAS file system: `31a8e4****`.
+	// - General-purpose NAS: For example, `31a8e4****`.
 	//
-	// 	- The IDs of Extreme NAS file systems must start with `extreme-`. Example: `extreme-0015****`.
+	// - Extreme NAS: The ID must start with `extreme-`. For example, `extreme-0015****`.
 	//
-	// 	- The IDs of Cloud Paralleled File System (CPFS) file systems must start with `cpfs-`. Example: `cpfs-125487****`.
+	// - CPFS: The ID must start with `cpfs-`. For example, `cpfs-125487****`.
 	//
 	// This parameter is required.
 	//
@@ -46,7 +46,7 @@ type ModifyFileSystemRequest struct {
 	//
 	// 1ca404****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The options.
+	// Additional options for the file system.
 	Options *ModifyFileSystemRequestOptions `json:"Options,omitempty" xml:"Options,omitempty" type:"Struct"`
 }
 
@@ -95,18 +95,20 @@ func (s *ModifyFileSystemRequest) Validate() error {
 }
 
 type ModifyFileSystemRequestOptions struct {
-	// Specifies whether to enable the oplock feature. Valid values:
+	EnableABE *bool `json:"EnableABE,omitempty" xml:"EnableABE,omitempty"`
+	// Specifies whether to enable OpLock. Valid values:
 	//
-	// 	- true: enables the feature.
+	// - true: Enables OpLock.
 	//
-	// 	- false: disables the feature.
+	// - false: Disables OpLock.
 	//
-	// >  Only Server Message Block (SMB) file systems support this feature.
+	// > This feature is available only for file systems that use the SMB protocol.
 	//
 	// example:
 	//
 	// true
-	EnableOplock *bool `json:"EnableOplock,omitempty" xml:"EnableOplock,omitempty"`
+	EnableOplock             *bool `json:"EnableOplock,omitempty" xml:"EnableOplock,omitempty"`
+	VscAccessPointAccessOnly *bool `json:"VscAccessPointAccessOnly,omitempty" xml:"VscAccessPointAccessOnly,omitempty"`
 }
 
 func (s ModifyFileSystemRequestOptions) String() string {
@@ -117,12 +119,30 @@ func (s ModifyFileSystemRequestOptions) GoString() string {
 	return s.String()
 }
 
+func (s *ModifyFileSystemRequestOptions) GetEnableABE() *bool {
+	return s.EnableABE
+}
+
 func (s *ModifyFileSystemRequestOptions) GetEnableOplock() *bool {
 	return s.EnableOplock
 }
 
+func (s *ModifyFileSystemRequestOptions) GetVscAccessPointAccessOnly() *bool {
+	return s.VscAccessPointAccessOnly
+}
+
+func (s *ModifyFileSystemRequestOptions) SetEnableABE(v bool) *ModifyFileSystemRequestOptions {
+	s.EnableABE = &v
+	return s
+}
+
 func (s *ModifyFileSystemRequestOptions) SetEnableOplock(v bool) *ModifyFileSystemRequestOptions {
 	s.EnableOplock = &v
+	return s
+}
+
+func (s *ModifyFileSystemRequestOptions) SetVscAccessPointAccessOnly(v bool) *ModifyFileSystemRequestOptions {
+	s.VscAccessPointAccessOnly = &v
 	return s
 }
 

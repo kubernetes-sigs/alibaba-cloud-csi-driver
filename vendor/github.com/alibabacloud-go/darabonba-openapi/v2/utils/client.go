@@ -128,15 +128,12 @@ func Convert(body interface{}, content interface{}) {
 //
 // @return time left
 func GetThrottlingTimeLeft(headers map[string]*string) (_result *int64) {
-	rateLimitForUserApi := headers["x-ratelimit-user-api"]
-	rateLimitForUser := headers["x-ratelimit-user"]
-	timeLeftForUserApi := getTimeLeft(rateLimitForUserApi)
-	timeLeftForUser := getTimeLeft(rateLimitForUser)
-	if dara.Int64Value(timeLeftForUserApi) > dara.Int64Value(timeLeftForUser) {
-		return timeLeftForUserApi
-	} else {
-		return timeLeftForUser
+	timeLeft := dara.StringValue(headers["x-acs-retry-after"])
+	timeLeftValue, err := strconv.ParseInt(timeLeft, 10, 64)
+	if err != nil {
+		return nil
 	}
+	return dara.Int64(timeLeftValue)
 }
 
 // Description:
@@ -187,6 +184,17 @@ func GetNonce() (_result *string) {
 	h.Write([]byte(msg))
 	ret := hex.EncodeToString(h.Sum(nil))
 	return &ret
+}
+
+func ApplyRetryHeaders(headers map[string]*string, retriesAttempted int, backoffDelay int) {
+	if retriesAttempted <= 0 {
+		return
+	}
+	if headers == nil {
+		return
+	}
+	headers["x-acs-retry-attempts"] = dara.String(strconv.Itoa(retriesAttempted))
+	headers["x-acs-retry-delay"] = dara.String(strconv.Itoa(backoffDelay))
 }
 
 // Description:
@@ -320,7 +328,9 @@ func handleRepeatedParams(repeatedFieldValue reflect.Value, result map[string]*s
 			elementValue := repeatedFieldValue.Index(m)
 			key := prefix + "." + strconv.Itoa(m+1)
 			fieldValue := reflect.ValueOf(elementValue.Interface())
-			if fieldValue.Kind().String() == "map" {
+			if fieldValue.Kind().String() == "slice" {
+				handleRepeatedParams(fieldValue, result, key)
+			} else if fieldValue.Kind().String() == "map" {
 				handleMap(fieldValue, result, key)
 			} else {
 				result[key] = dara.String(fmt.Sprintf("%v", fieldValue.Interface()))

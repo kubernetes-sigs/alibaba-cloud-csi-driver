@@ -54,7 +54,7 @@ type ListRecycledDirectoriesAndFilesRequest struct {
 	//
 	// example:
 	//
-	// CJyNARIsMTY5OTI2NjQ3NTEzMjY2OTMwOF8xODA5NF8ufnl0YkROTl9uZXcuaXB5bmI=
+	// 1256****25
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 }
 

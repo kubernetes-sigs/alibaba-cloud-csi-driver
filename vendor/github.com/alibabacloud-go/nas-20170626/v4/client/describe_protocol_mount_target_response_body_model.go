@@ -99,7 +99,7 @@ type DescribeProtocolMountTargetResponseBodyProtocolMountTargets struct {
 	//
 	// example:
 	//
-	// test
+	// 此协议服务导出目录的描述。
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// The ID of the export directory for the protocol service.
 	//
@@ -148,7 +148,8 @@ type DescribeProtocolMountTargetResponseBodyProtocolMountTargets struct {
 	// example:
 	//
 	// vsw-2vc3c2lybvdllxyq4****
-	VSwitchId  *string   `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// A list of IDs for the zone-redundant vSwitches.
 	VSwitchIds []*string `json:"VSwitchIds,omitempty" xml:"VSwitchIds,omitempty" type:"Repeated"`
 	// The VPC ID of the export directory for the protocol service.
 	//

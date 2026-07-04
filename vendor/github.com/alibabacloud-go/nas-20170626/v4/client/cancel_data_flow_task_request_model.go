@@ -22,17 +22,17 @@ type iCancelDataFlowTaskRequest interface {
 }
 
 type CancelDataFlowTaskRequest struct {
-	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
+	// A client-generated token that you can use to ensure the idempotence of the request. The token must be unique across different requests.
 	//
-	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](https://help.aliyun.com/document_detail/25693.html)
+	// The `ClientToken` value must be an ASCII string of 64 characters or less. For more information, see [How to ensure idempotence](https://help.aliyun.com/document_detail/25693.html).
 	//
-	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
+	// > If you do not specify this parameter, the system automatically uses the request ID as the `ClientToken`. The request ID is unique for each request.
 	//
 	// example:
 	//
 	// 123e4567-e89b-12d3-a456-42665544****
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// The ID of the dataflow.
+	// The data flow ID.
 	//
 	// This parameter is required.
 	//
@@ -40,25 +40,25 @@ type CancelDataFlowTaskRequest struct {
 	//
 	// df-194433a5be31****
 	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// Specifies whether to perform only a dry run, without performing the actual request.
+	// Specifies whether to perform a dry run for the request.
 	//
-	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. The dry run does not cancel the specified dataflow task or incur fees.
+	// A dry run checks for parameter validity and resource availability without actually canceling the task or incurring charges.
 	//
 	// Valid values:
 	//
-	// 	- true: performs only a dry run. The system checks the required parameters, request syntax, service limits, and available NAS resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned.
+	// - `true`: Performs a dry run. The system checks the request for potential issues, including missing parameters, invalid formats, and service limits. If the check fails, the system returns an error message; otherwise, it returns a success code.
 	//
-	// 	- false (default): performs a dry run and sends the request. If the request passes the dry run, the specified dataflow task is canceled.
+	// - `false` (default): Sends a normal request. After the request passes the check, the task is canceled.
 	//
 	// example:
 	//
 	// false
 	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
-	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-125487\\*\\*\\*\\*.
+	// - For a general-purpose CPFS instance, the ID must start with `cpfs-`, for example, `cpfs-125487****`.
 	//
-	// 	- The IDs of CPFS for LINGJUN file systems must start with `bmcpfs-`. Example: bmcpfs-0015\\*\\*\\*\\*.
+	// - For a CPFS for AI Computing instance, the ID must start with `bmcpfs-`, for example, `bmcpfs-0015****`.
 	//
 	// This parameter is required.
 	//
@@ -66,7 +66,7 @@ type CancelDataFlowTaskRequest struct {
 	//
 	// cpfs-099394bd928c****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The ID of the dataflow task.
+	// The data flow task ID.
 	//
 	// This parameter is required.
 	//
