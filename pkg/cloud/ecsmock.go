@@ -5,9 +5,11 @@
 package cloud
 
 import (
+	context "context"
 	reflect "reflect"
 
 	client "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	dara "github.com/alibabacloud-go/tea/dara"
 	ecs "github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -223,137 +225,137 @@ func (m *MockECSv2Interface) EXPECT() *MockECSv2InterfaceMockRecorder {
 	return m.recorder
 }
 
-// DescribeAvailableResource mocks base method.
-func (m *MockECSv2Interface) DescribeAvailableResource(request *client.DescribeAvailableResourceRequest) (*client.DescribeAvailableResourceResponse, error) {
+// DescribeAvailableResourceWithContext mocks base method.
+func (m *MockECSv2Interface) DescribeAvailableResourceWithContext(ctx context.Context, request *client.DescribeAvailableResourceRequest, o *dara.RuntimeOptions) (*client.DescribeAvailableResourceResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeAvailableResource", request)
+	ret := m.ctrl.Call(m, "DescribeAvailableResourceWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DescribeAvailableResourceResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DescribeAvailableResource indicates an expected call of DescribeAvailableResource.
-func (mr *MockECSv2InterfaceMockRecorder) DescribeAvailableResource(request interface{}) *gomock.Call {
+// DescribeAvailableResourceWithContext indicates an expected call of DescribeAvailableResourceWithContext.
+func (mr *MockECSv2InterfaceMockRecorder) DescribeAvailableResourceWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAvailableResource", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeAvailableResource), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAvailableResourceWithContext", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeAvailableResourceWithContext), ctx, request, o)
 }
 
-// DescribeDisks mocks base method.
-func (m *MockECSv2Interface) DescribeDisks(request *client.DescribeDisksRequest) (*client.DescribeDisksResponse, error) {
+// DescribeDisksWithContext mocks base method.
+func (m *MockECSv2Interface) DescribeDisksWithContext(ctx context.Context, request *client.DescribeDisksRequest, o *dara.RuntimeOptions) (*client.DescribeDisksResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeDisks", request)
+	ret := m.ctrl.Call(m, "DescribeDisksWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DescribeDisksResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DescribeDisks indicates an expected call of DescribeDisks.
-func (mr *MockECSv2InterfaceMockRecorder) DescribeDisks(request interface{}) *gomock.Call {
+// DescribeDisksWithContext indicates an expected call of DescribeDisksWithContext.
+func (mr *MockECSv2InterfaceMockRecorder) DescribeDisksWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeDisks", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeDisks), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeDisksWithContext", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeDisksWithContext), ctx, request, o)
 }
 
-// DescribeInstanceTypes mocks base method.
-func (m *MockECSv2Interface) DescribeInstanceTypes(request *client.DescribeInstanceTypesRequest) (*client.DescribeInstanceTypesResponse, error) {
+// DescribeInstanceTypesWithContext mocks base method.
+func (m *MockECSv2Interface) DescribeInstanceTypesWithContext(ctx context.Context, request *client.DescribeInstanceTypesRequest, o *dara.RuntimeOptions) (*client.DescribeInstanceTypesResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeInstanceTypes", request)
+	ret := m.ctrl.Call(m, "DescribeInstanceTypesWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DescribeInstanceTypesResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DescribeInstanceTypes indicates an expected call of DescribeInstanceTypes.
-func (mr *MockECSv2InterfaceMockRecorder) DescribeInstanceTypes(request interface{}) *gomock.Call {
+// DescribeInstanceTypesWithContext indicates an expected call of DescribeInstanceTypesWithContext.
+func (mr *MockECSv2InterfaceMockRecorder) DescribeInstanceTypesWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstanceTypes", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeInstanceTypes), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstanceTypesWithContext", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeInstanceTypesWithContext), ctx, request, o)
 }
 
-// DescribeInstances mocks base method.
-func (m *MockECSv2Interface) DescribeInstances(request *client.DescribeInstancesRequest) (*client.DescribeInstancesResponse, error) {
+// DescribeInstancesWithContext mocks base method.
+func (m *MockECSv2Interface) DescribeInstancesWithContext(ctx context.Context, request *client.DescribeInstancesRequest, o *dara.RuntimeOptions) (*client.DescribeInstancesResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeInstances", request)
+	ret := m.ctrl.Call(m, "DescribeInstancesWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DescribeInstancesResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DescribeInstances indicates an expected call of DescribeInstances.
-func (mr *MockECSv2InterfaceMockRecorder) DescribeInstances(request interface{}) *gomock.Call {
+// DescribeInstancesWithContext indicates an expected call of DescribeInstancesWithContext.
+func (mr *MockECSv2InterfaceMockRecorder) DescribeInstancesWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstances", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeInstances), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstancesWithContext", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeInstancesWithContext), ctx, request, o)
 }
 
-// DescribeTasks mocks base method.
-func (m *MockECSv2Interface) DescribeTasks(request *client.DescribeTasksRequest) (*client.DescribeTasksResponse, error) {
+// DescribeTasksWithContext mocks base method.
+func (m *MockECSv2Interface) DescribeTasksWithContext(ctx context.Context, request *client.DescribeTasksRequest, o *dara.RuntimeOptions) (*client.DescribeTasksResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeTasks", request)
+	ret := m.ctrl.Call(m, "DescribeTasksWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DescribeTasksResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DescribeTasks indicates an expected call of DescribeTasks.
-func (mr *MockECSv2InterfaceMockRecorder) DescribeTasks(request interface{}) *gomock.Call {
+// DescribeTasksWithContext indicates an expected call of DescribeTasksWithContext.
+func (mr *MockECSv2InterfaceMockRecorder) DescribeTasksWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeTasks", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeTasks), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeTasksWithContext", reflect.TypeOf((*MockECSv2Interface)(nil).DescribeTasksWithContext), ctx, request, o)
 }
 
-// ModifyDiskAttribute mocks base method.
-func (m *MockECSv2Interface) ModifyDiskAttribute(request *client.ModifyDiskAttributeRequest) (*client.ModifyDiskAttributeResponse, error) {
+// ModifyDiskAttributeWithContext mocks base method.
+func (m *MockECSv2Interface) ModifyDiskAttributeWithContext(ctx context.Context, request *client.ModifyDiskAttributeRequest, o *dara.RuntimeOptions) (*client.ModifyDiskAttributeResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ModifyDiskAttribute", request)
+	ret := m.ctrl.Call(m, "ModifyDiskAttributeWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.ModifyDiskAttributeResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ModifyDiskAttribute indicates an expected call of ModifyDiskAttribute.
-func (mr *MockECSv2InterfaceMockRecorder) ModifyDiskAttribute(request interface{}) *gomock.Call {
+// ModifyDiskAttributeWithContext indicates an expected call of ModifyDiskAttributeWithContext.
+func (mr *MockECSv2InterfaceMockRecorder) ModifyDiskAttributeWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ModifyDiskAttribute", reflect.TypeOf((*MockECSv2Interface)(nil).ModifyDiskAttribute), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ModifyDiskAttributeWithContext", reflect.TypeOf((*MockECSv2Interface)(nil).ModifyDiskAttributeWithContext), ctx, request, o)
 }
 
-// ModifyDiskSpec mocks base method.
-func (m *MockECSv2Interface) ModifyDiskSpec(request *client.ModifyDiskSpecRequest) (*client.ModifyDiskSpecResponse, error) {
+// ModifyDiskSpecWithContext mocks base method.
+func (m *MockECSv2Interface) ModifyDiskSpecWithContext(ctx context.Context, request *client.ModifyDiskSpecRequest, o *dara.RuntimeOptions) (*client.ModifyDiskSpecResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ModifyDiskSpec", request)
+	ret := m.ctrl.Call(m, "ModifyDiskSpecWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.ModifyDiskSpecResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ModifyDiskSpec indicates an expected call of ModifyDiskSpec.
-func (mr *MockECSv2InterfaceMockRecorder) ModifyDiskSpec(request interface{}) *gomock.Call {
+// ModifyDiskSpecWithContext indicates an expected call of ModifyDiskSpecWithContext.
+func (mr *MockECSv2InterfaceMockRecorder) ModifyDiskSpecWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ModifyDiskSpec", reflect.TypeOf((*MockECSv2Interface)(nil).ModifyDiskSpec), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ModifyDiskSpecWithContext", reflect.TypeOf((*MockECSv2Interface)(nil).ModifyDiskSpecWithContext), ctx, request, o)
 }
 
-// TagResources mocks base method.
-func (m *MockECSv2Interface) TagResources(request *client.TagResourcesRequest) (*client.TagResourcesResponse, error) {
+// TagResourcesWithContext mocks base method.
+func (m *MockECSv2Interface) TagResourcesWithContext(ctx context.Context, request *client.TagResourcesRequest, o *dara.RuntimeOptions) (*client.TagResourcesResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "TagResources", request)
+	ret := m.ctrl.Call(m, "TagResourcesWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.TagResourcesResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// TagResources indicates an expected call of TagResources.
-func (mr *MockECSv2InterfaceMockRecorder) TagResources(request interface{}) *gomock.Call {
+// TagResourcesWithContext indicates an expected call of TagResourcesWithContext.
+func (mr *MockECSv2InterfaceMockRecorder) TagResourcesWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TagResources", reflect.TypeOf((*MockECSv2Interface)(nil).TagResources), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TagResourcesWithContext", reflect.TypeOf((*MockECSv2Interface)(nil).TagResourcesWithContext), ctx, request, o)
 }
 
-// UntagResources mocks base method.
-func (m *MockECSv2Interface) UntagResources(request *client.UntagResourcesRequest) (*client.UntagResourcesResponse, error) {
+// UntagResourcesWithContext mocks base method.
+func (m *MockECSv2Interface) UntagResourcesWithContext(ctx context.Context, request *client.UntagResourcesRequest, o *dara.RuntimeOptions) (*client.UntagResourcesResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UntagResources", request)
+	ret := m.ctrl.Call(m, "UntagResourcesWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.UntagResourcesResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// UntagResources indicates an expected call of UntagResources.
-func (mr *MockECSv2InterfaceMockRecorder) UntagResources(request interface{}) *gomock.Call {
+// UntagResourcesWithContext indicates an expected call of UntagResourcesWithContext.
+func (mr *MockECSv2InterfaceMockRecorder) UntagResourcesWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UntagResources", reflect.TypeOf((*MockECSv2Interface)(nil).UntagResources), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UntagResourcesWithContext", reflect.TypeOf((*MockECSv2Interface)(nil).UntagResourcesWithContext), ctx, request, o)
 }

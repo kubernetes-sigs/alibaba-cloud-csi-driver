@@ -5,9 +5,11 @@
 package cloud
 
 import (
+	context "context"
 	reflect "reflect"
 
 	client "github.com/alibabacloud-go/nas-20170626/v4/client"
+	dara "github.com/alibabacloud-go/tea/dara"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -34,122 +36,122 @@ func (m *MockNasInterface) EXPECT() *MockNasInterfaceMockRecorder {
 	return m.recorder
 }
 
-// CancelDirQuota mocks base method.
-func (m *MockNasInterface) CancelDirQuota(request *client.CancelDirQuotaRequest) (*client.CancelDirQuotaResponse, error) {
+// CancelDirQuotaWithContext mocks base method.
+func (m *MockNasInterface) CancelDirQuotaWithContext(ctx context.Context, request *client.CancelDirQuotaRequest, o *dara.RuntimeOptions) (*client.CancelDirQuotaResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CancelDirQuota", request)
+	ret := m.ctrl.Call(m, "CancelDirQuotaWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.CancelDirQuotaResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CancelDirQuota indicates an expected call of CancelDirQuota.
-func (mr *MockNasInterfaceMockRecorder) CancelDirQuota(request interface{}) *gomock.Call {
+// CancelDirQuotaWithContext indicates an expected call of CancelDirQuotaWithContext.
+func (mr *MockNasInterfaceMockRecorder) CancelDirQuotaWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelDirQuota", reflect.TypeOf((*MockNasInterface)(nil).CancelDirQuota), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelDirQuotaWithContext", reflect.TypeOf((*MockNasInterface)(nil).CancelDirQuotaWithContext), ctx, request, o)
 }
 
-// CreateAccessPoint mocks base method.
-func (m *MockNasInterface) CreateAccessPoint(request *client.CreateAccessPointRequest) (*client.CreateAccessPointResponse, error) {
+// CreateAccessPointWithContext mocks base method.
+func (m *MockNasInterface) CreateAccessPointWithContext(ctx context.Context, request *client.CreateAccessPointRequest, o *dara.RuntimeOptions) (*client.CreateAccessPointResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAccessPoint", request)
+	ret := m.ctrl.Call(m, "CreateAccessPointWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.CreateAccessPointResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateAccessPoint indicates an expected call of CreateAccessPoint.
-func (mr *MockNasInterfaceMockRecorder) CreateAccessPoint(request interface{}) *gomock.Call {
+// CreateAccessPointWithContext indicates an expected call of CreateAccessPointWithContext.
+func (mr *MockNasInterfaceMockRecorder) CreateAccessPointWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessPoint", reflect.TypeOf((*MockNasInterface)(nil).CreateAccessPoint), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessPointWithContext", reflect.TypeOf((*MockNasInterface)(nil).CreateAccessPointWithContext), ctx, request, o)
 }
 
-// CreateDir mocks base method.
-func (m *MockNasInterface) CreateDir(request *client.CreateDirRequest) (*client.CreateDirResponse, error) {
+// CreateDirWithContext mocks base method.
+func (m *MockNasInterface) CreateDirWithContext(ctx context.Context, request *client.CreateDirRequest, o *dara.RuntimeOptions) (*client.CreateDirResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateDir", request)
+	ret := m.ctrl.Call(m, "CreateDirWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.CreateDirResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateDir indicates an expected call of CreateDir.
-func (mr *MockNasInterfaceMockRecorder) CreateDir(request interface{}) *gomock.Call {
+// CreateDirWithContext indicates an expected call of CreateDirWithContext.
+func (mr *MockNasInterfaceMockRecorder) CreateDirWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDir", reflect.TypeOf((*MockNasInterface)(nil).CreateDir), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDirWithContext", reflect.TypeOf((*MockNasInterface)(nil).CreateDirWithContext), ctx, request, o)
 }
 
-// DeleteAccessPoint mocks base method.
-func (m *MockNasInterface) DeleteAccessPoint(request *client.DeleteAccessPointRequest) (*client.DeleteAccessPointResponse, error) {
+// DeleteAccessPointWithContext mocks base method.
+func (m *MockNasInterface) DeleteAccessPointWithContext(ctx context.Context, request *client.DeleteAccessPointRequest, o *dara.RuntimeOptions) (*client.DeleteAccessPointResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteAccessPoint", request)
+	ret := m.ctrl.Call(m, "DeleteAccessPointWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DeleteAccessPointResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DeleteAccessPoint indicates an expected call of DeleteAccessPoint.
-func (mr *MockNasInterfaceMockRecorder) DeleteAccessPoint(request interface{}) *gomock.Call {
+// DeleteAccessPointWithContext indicates an expected call of DeleteAccessPointWithContext.
+func (mr *MockNasInterfaceMockRecorder) DeleteAccessPointWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAccessPoint", reflect.TypeOf((*MockNasInterface)(nil).DeleteAccessPoint), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAccessPointWithContext", reflect.TypeOf((*MockNasInterface)(nil).DeleteAccessPointWithContext), ctx, request, o)
 }
 
-// DescribeAccessPoint mocks base method.
-func (m *MockNasInterface) DescribeAccessPoint(request *client.DescribeAccessPointRequest) (*client.DescribeAccessPointResponse, error) {
+// DescribeAccessPointWithContext mocks base method.
+func (m *MockNasInterface) DescribeAccessPointWithContext(ctx context.Context, request *client.DescribeAccessPointRequest, o *dara.RuntimeOptions) (*client.DescribeAccessPointResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeAccessPoint", request)
+	ret := m.ctrl.Call(m, "DescribeAccessPointWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DescribeAccessPointResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DescribeAccessPoint indicates an expected call of DescribeAccessPoint.
-func (mr *MockNasInterfaceMockRecorder) DescribeAccessPoint(request interface{}) *gomock.Call {
+// DescribeAccessPointWithContext indicates an expected call of DescribeAccessPointWithContext.
+func (mr *MockNasInterfaceMockRecorder) DescribeAccessPointWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAccessPoint", reflect.TypeOf((*MockNasInterface)(nil).DescribeAccessPoint), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAccessPointWithContext", reflect.TypeOf((*MockNasInterface)(nil).DescribeAccessPointWithContext), ctx, request, o)
 }
 
-// DescribeFileSystems mocks base method.
-func (m *MockNasInterface) DescribeFileSystems(request *client.DescribeFileSystemsRequest) (*client.DescribeFileSystemsResponse, error) {
+// DescribeFileSystemsWithContext mocks base method.
+func (m *MockNasInterface) DescribeFileSystemsWithContext(ctx context.Context, request *client.DescribeFileSystemsRequest, o *dara.RuntimeOptions) (*client.DescribeFileSystemsResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeFileSystems", request)
+	ret := m.ctrl.Call(m, "DescribeFileSystemsWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.DescribeFileSystemsResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DescribeFileSystems indicates an expected call of DescribeFileSystems.
-func (mr *MockNasInterfaceMockRecorder) DescribeFileSystems(request interface{}) *gomock.Call {
+// DescribeFileSystemsWithContext indicates an expected call of DescribeFileSystemsWithContext.
+func (mr *MockNasInterfaceMockRecorder) DescribeFileSystemsWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeFileSystems", reflect.TypeOf((*MockNasInterface)(nil).DescribeFileSystems), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeFileSystemsWithContext", reflect.TypeOf((*MockNasInterface)(nil).DescribeFileSystemsWithContext), ctx, request, o)
 }
 
-// GetRecycleBinAttribute mocks base method.
-func (m *MockNasInterface) GetRecycleBinAttribute(request *client.GetRecycleBinAttributeRequest) (*client.GetRecycleBinAttributeResponse, error) {
+// GetRecycleBinAttributeWithContext mocks base method.
+func (m *MockNasInterface) GetRecycleBinAttributeWithContext(ctx context.Context, request *client.GetRecycleBinAttributeRequest, o *dara.RuntimeOptions) (*client.GetRecycleBinAttributeResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRecycleBinAttribute", request)
+	ret := m.ctrl.Call(m, "GetRecycleBinAttributeWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.GetRecycleBinAttributeResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetRecycleBinAttribute indicates an expected call of GetRecycleBinAttribute.
-func (mr *MockNasInterfaceMockRecorder) GetRecycleBinAttribute(request interface{}) *gomock.Call {
+// GetRecycleBinAttributeWithContext indicates an expected call of GetRecycleBinAttributeWithContext.
+func (mr *MockNasInterfaceMockRecorder) GetRecycleBinAttributeWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRecycleBinAttribute", reflect.TypeOf((*MockNasInterface)(nil).GetRecycleBinAttribute), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRecycleBinAttributeWithContext", reflect.TypeOf((*MockNasInterface)(nil).GetRecycleBinAttributeWithContext), ctx, request, o)
 }
 
-// SetDirQuota mocks base method.
-func (m *MockNasInterface) SetDirQuota(request *client.SetDirQuotaRequest) (*client.SetDirQuotaResponse, error) {
+// SetDirQuotaWithContext mocks base method.
+func (m *MockNasInterface) SetDirQuotaWithContext(ctx context.Context, request *client.SetDirQuotaRequest, o *dara.RuntimeOptions) (*client.SetDirQuotaResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetDirQuota", request)
+	ret := m.ctrl.Call(m, "SetDirQuotaWithContext", ctx, request, o)
 	ret0, _ := ret[0].(*client.SetDirQuotaResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// SetDirQuota indicates an expected call of SetDirQuota.
-func (mr *MockNasInterfaceMockRecorder) SetDirQuota(request interface{}) *gomock.Call {
+// SetDirQuotaWithContext indicates an expected call of SetDirQuotaWithContext.
+func (mr *MockNasInterfaceMockRecorder) SetDirQuotaWithContext(ctx, request, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDirQuota", reflect.TypeOf((*MockNasInterface)(nil).SetDirQuota), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDirQuotaWithContext", reflect.TypeOf((*MockNasInterface)(nil).SetDirQuotaWithContext), ctx, request, o)
 }

@@ -1,7 +1,10 @@
 package cloud
 
 import (
+	"context"
+
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 )
 
@@ -20,13 +23,13 @@ type ECSInterface interface {
 }
 
 type ECSv2Interface interface {
-	DescribeInstances(request *ecs20140526.DescribeInstancesRequest) (response *ecs20140526.DescribeInstancesResponse, err error)
-	DescribeInstanceTypes(request *ecs20140526.DescribeInstanceTypesRequest) (response *ecs20140526.DescribeInstanceTypesResponse, err error)
-	DescribeAvailableResource(request *ecs20140526.DescribeAvailableResourceRequest) (response *ecs20140526.DescribeAvailableResourceResponse, err error)
-	DescribeDisks(request *ecs20140526.DescribeDisksRequest) (response *ecs20140526.DescribeDisksResponse, err error)
-	TagResources(request *ecs20140526.TagResourcesRequest) (response *ecs20140526.TagResourcesResponse, err error)
-	UntagResources(request *ecs20140526.UntagResourcesRequest) (response *ecs20140526.UntagResourcesResponse, err error)
-	ModifyDiskSpec(request *ecs20140526.ModifyDiskSpecRequest) (response *ecs20140526.ModifyDiskSpecResponse, err error)
-	ModifyDiskAttribute(request *ecs20140526.ModifyDiskAttributeRequest) (response *ecs20140526.ModifyDiskAttributeResponse, err error)
-	DescribeTasks(request *ecs20140526.DescribeTasksRequest) (response *ecs20140526.DescribeTasksResponse, err error)
+	DescribeInstancesWithContext(ctx context.Context, request *ecs20140526.DescribeInstancesRequest, o *dara.RuntimeOptions) (response *ecs20140526.DescribeInstancesResponse, err error)
+	DescribeInstanceTypesWithContext(ctx context.Context, request *ecs20140526.DescribeInstanceTypesRequest, o *dara.RuntimeOptions) (response *ecs20140526.DescribeInstanceTypesResponse, err error)
+	DescribeAvailableResourceWithContext(ctx context.Context, request *ecs20140526.DescribeAvailableResourceRequest, o *dara.RuntimeOptions) (response *ecs20140526.DescribeAvailableResourceResponse, err error)
+	DescribeDisksWithContext(ctx context.Context, request *ecs20140526.DescribeDisksRequest, o *dara.RuntimeOptions) (response *ecs20140526.DescribeDisksResponse, err error)
+	TagResourcesWithContext(ctx context.Context, request *ecs20140526.TagResourcesRequest, o *dara.RuntimeOptions) (response *ecs20140526.TagResourcesResponse, err error)
+	UntagResourcesWithContext(ctx context.Context, request *ecs20140526.UntagResourcesRequest, o *dara.RuntimeOptions) (response *ecs20140526.UntagResourcesResponse, err error)
+	ModifyDiskSpecWithContext(ctx context.Context, request *ecs20140526.ModifyDiskSpecRequest, o *dara.RuntimeOptions) (response *ecs20140526.ModifyDiskSpecResponse, err error)
+	ModifyDiskAttributeWithContext(ctx context.Context, request *ecs20140526.ModifyDiskAttributeRequest, o *dara.RuntimeOptions) (response *ecs20140526.ModifyDiskAttributeResponse, err error)
+	DescribeTasksWithContext(ctx context.Context, request *ecs20140526.DescribeTasksRequest, o *dara.RuntimeOptions) (response *ecs20140526.DescribeTasksResponse, err error)
 }

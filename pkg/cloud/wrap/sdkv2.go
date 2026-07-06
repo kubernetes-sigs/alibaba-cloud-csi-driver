@@ -1,13 +1,14 @@
 package wrap
 
 import (
+	"context"
 	"encoding/json"
-	"reflect"
-	"strings"
 	"time"
 
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -34,22 +35,21 @@ func (e *teaError) Unwrap() error {
 	return e.SDKError
 }
 
+// transformV2ErrorForLog wraps a direct tea SDK error in a briefAliError (stable
+// message for k8s event aggregation) and returns its code and request ID for logging.
 func transformV2ErrorForLog(errIn error) (code, requestID string, err error) {
 	err = errIn
 	// Intentionally not using errors.As, we should only deal with direct SDK errors.
 	// Don't throw away other wrappers.
 	if teaerr, ok := err.(*tea.SDKError); ok {
 		e2 := &teaError{SDKError: teaerr}
-		if teaerr.Code != nil {
-			code = *teaerr.Code
-		}
-		if teaerr.Data != nil && (*teaerr.Data)[0] == '{' { // likely a json object
+		code = ptr.Deref(teaerr.Code, "")
+		if teaerr.Data != nil && len(*teaerr.Data) > 0 && (*teaerr.Data)[0] == '{' { // likely a json object
 			var data struct {
 				Message   string
 				RequestId string
 			}
-			errJson := json.Unmarshal([]byte(*teaerr.Data), &data)
-			if errJson == nil {
+			if json.Unmarshal([]byte(*teaerr.Data), &data) == nil {
 				requestID = data.RequestId
 				e2.message = data.Message
 			}
@@ -59,41 +59,29 @@ func transformV2ErrorForLog(errIn error) (code, requestID string, err error) {
 	return
 }
 
+// v2Resp is satisfied by every OpenAPI v2 response type; GetHeaders carries the request ID.
 type v2Resp interface {
 	comparable
 	GetHeaders() map[string]*string
 }
 
-func V2[TReq any, TResp v2Resp](logger logr.Logger, f func(TReq) (TResp, error)) func(TReq) (TResp, error) {
-	t := reflect.TypeFor[TReq]()
-	if t.Kind() == reflect.Pointer {
-		t = t.Elem()
+// logV2 runs one OpenAPI v2 call, logging it at the boundary (logger comes from ctx),
+// recording metrics, and transforming the error for stable message.
+func logV2[TReq any, TResp v2Resp](ctx context.Context, product, action string, req TReq, o *dara.RuntimeOptions, f func(context.Context, TReq, *dara.RuntimeOptions) (TResp, error)) (TResp, error) {
+	logger := klog.FromContext(ctx).WithCallDepth(2).WithValues("action", action)
+	if logger.V(5).Enabled() {
+		logger.V(3).Info("OpenAPI start", "request", req)
+	} else {
+		logger.V(3).Info("OpenAPI start")
 	}
-	action := strings.TrimSuffix(t.Name(), "Request")
-	logger = logger.WithValues("api", action)
-
-	return func(req TReq) (TResp, error) {
-		helper, logger := logger.WithCallStackHelper()
-		helper()
-		logger.V(5).Info("OpenAPI trace", "request", req)
-
-		return v2Impl(logger, func() (TResp, error) { return f(req) })
-	}
-}
-
-func v2Impl[TResp v2Resp](logger logr.Logger, f func() (TResp, error)) (TResp, error) {
-	helper, logger := logger.WithCallStackHelper()
-	helper()
-
-	logger.V(3).Info("OpenAPI start")
 
 	t := time.Now()
-	resp, err := f()
-	logger.V(5).Info("OpenAPI trace", "response", resp, "error", err)
+	resp, err := f(ctx, req, o)
 
 	level := 2
-	duration := time.Since(t)
-	attrs := []any{"elapsed", duration}
+	attrs := make([]any, 0, 8)
+	elapsed := time.Since(t)
+	attrs = append(attrs, "elapsed", elapsed)
 
 	var respZero TResp
 	var reqID string
@@ -101,24 +89,35 @@ func v2Impl[TResp v2Resp](logger logr.Logger, f func() (TResp, error)) (TResp, e
 		header := resp.GetHeaders()
 		reqID = ptr.Deref(header["x-acs-request-id"], "")
 	}
+	var code = "OK"
 	if err != nil {
 		level = 1
-		code, r, e := transformV2ErrorForLog(err)
+		var r string
+		code, r, err = transformV2ErrorForLog(err)
 		if code != "" {
 			attrs = append(attrs, "errorCode", code)
 		} else {
-			// No error code, just log entire error
 			attrs = append(attrs, "error", err)
+			code = "Unknown"
 		}
 		if r != "" {
 			reqID = r
 		}
-		err = e
 	}
 	if reqID != "" {
 		attrs = append(attrs, "requestID", reqID)
 	}
+	if logger.V(5).Enabled() {
+		attrs = append(attrs, "response", resp)
+	}
 	logger.V(level).Info("OpenAPI finish", attrs...)
-	return resp, err
 
+	labels := prometheus.Labels{
+		"product": product,
+		"action":  action,
+		"code":    code,
+	}
+	APIRequestsTotal.With(labels).Inc()
+	APIDurationSecondsTotal.With(labels).Add(elapsed.Seconds())
+	return resp, err
 }
