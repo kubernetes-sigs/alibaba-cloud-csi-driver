@@ -2176,8 +2176,8 @@ func Test_checkOssOptions_fdPassingRecoveryCapability(t *testing.T) {
 	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
 	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
 	fusePodManagers := map[string]*ossfpm.OSSFusePodManager{
-		mounterutils.OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil),
-		mounterutils.OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil),
+		mounterutils.OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil, false),
+		mounterutils.OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil, false),
 	}
 
 	tests := []struct {

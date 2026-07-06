@@ -210,8 +210,8 @@ func TestCheckKernelForRecovery_ValidationError(t *testing.T) {
 		{"valid al8 x86_64", "5.10.134-18.al8.x86_64", "x86_64", false},
 		{"valid higher version", "5.10.135-20.al8.x86_64", "x86_64", false},
 		{"valid kernel 6", "6.6.0-1.al8.x86_64", "x86_64", false},
-		{"valid alnx4 x86_64", "6.6.102-5.alnx4.x86_64", "x86_64", false},
-		{"valid alnx5 x86_64", "6.6.102-5.alnx5.x86_64", "x86_64", false},
+		{"valid alnx4 x86_64", "6.6.102-5.alnx4.x86_64", "x86_64", true}, // TODO: change to false when ossfs2 supports alinux4+
+		{"valid alnx5 x86_64", "6.6.102-5.alnx5.x86_64", "x86_64", true}, // TODO: change to false when ossfs2 supports alinux4+
 		{"valid multi-segment sublevel", "5.10.134-19.3.1.al8.x86_64", "x86_64", false},
 		{"not alinux - al9", "5.10.134-18.al9.x86_64", "x86_64", true},
 		{"not alinux - alnx3", "5.10.134-18.alnx3.x86_64", "x86_64", true},

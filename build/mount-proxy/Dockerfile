@@ -102,6 +102,29 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 
 #################### OSSFS2 MOUNT-PROXY IMAGE ####################
 
+#################### OSSFS2 FAILOVER MOUNT-PROXY IMAGE ####################
+
+FROM alinux-install AS ossfs2-failover
+ARG TARGETPLATFORM
+ARG OSSFS2_VERSION=v2.0.8.ack.1.failover
+ARG OSSFS2_RPM_URL
+
+# install ossfs2 (failover branch: fd-passing + recovery support)
+RUN set -ex; \
+    case "$TARGETPLATFORM" in \
+        linux/amd64) OSSFS_ARCH="x86_64" ;; \
+        linux/arm64) OSSFS_ARCH="aarch_64" ;; \
+        *) echo "unknown platform"; exit 1 ;; \
+    esac; \
+    yum install -y ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
+    yum install -y fuse3-devel util-linux mailcap procps; \
+    yum clean all
+
+COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
+ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
+
+#################### OSSFS2 FAILOVER MOUNT-PROXY IMAGE ####################
+
 #################### ALINAS MOUNT-PROXY IMAGE ####################
 
 FROM alinux-install AS alinas

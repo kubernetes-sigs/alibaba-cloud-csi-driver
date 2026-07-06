@@ -26,6 +26,8 @@ func (d *fdReceivingDriver) Fstypes() []string { return []string{"fdtest"} }
 func (d *fdReceivingDriver) Init()             {}
 func (d *fdReceivingDriver) Terminate()        {}
 
+func (d *fdReceivingDriver) ApplyOptionDefaults(options []string) []string { return options }
+
 func (d *fdReceivingDriver) Mount(_ context.Context, _ *proxy.MountRequest, fuseFd int) error {
 	d.receivedFd <- fuseFd
 	return nil

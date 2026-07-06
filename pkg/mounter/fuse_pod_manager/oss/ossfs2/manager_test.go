@@ -539,6 +539,7 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			fakeOssfs.config = fpm.FuseContainerConfig{}
 			if tt.defaultOpts != "" {
 				t.Setenv("DEFAULT_OSSFS2_OPTIONS", tt.defaultOpts)
 			}

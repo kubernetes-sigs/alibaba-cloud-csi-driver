@@ -22,6 +22,7 @@ type MonitorState int
 const (
 	MonitorStateInitialized MonitorState = iota
 	MonitorStateMonitoring
+	MonitorStateRecovering
 )
 
 // MountMonitor manages monitoring for a single mount point
@@ -119,6 +120,8 @@ func (m *MountMonitor) HandleProcessExitForRecovery(err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	m.State = MonitorStateRecovering
+
 	if m.failoverCount < maxCountRecord {
 		m.failoverCount++
 	}
@@ -137,6 +140,8 @@ func (m *MountMonitor) HandleProcessExitForRecovery(err error) {
 func (m *MountMonitor) HandleRecoverySuccess(pid int, exitErr error, attempts int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	m.State = MonitorStateMonitoring
 
 	reason := fmt.Errorf("%w; recovered after %d attempt(s) at %s",
 		exitErr, attempts, time.Now().Format(time.RFC3339))

@@ -42,8 +42,9 @@ fi
 # Extract image tags from VERSIONS file
 OSSFS_IMAGE_TAG=$(grep "^OSSFS_IMAGE_TAG=" "${VERSIONS_FILE}" | cut -d'=' -f2)
 OSSFS2_IMAGE_TAG=$(grep "^OSSFS2_IMAGE_TAG=" "${VERSIONS_FILE}" | cut -d'=' -f2)
+OSSFS2_FAILOVER_IMAGE_TAG=$(grep "^OSSFS2_FAILOVER_IMAGE_TAG=" "${VERSIONS_FILE}" | cut -d'=' -f2)
 
-if [[ -z "${OSSFS_IMAGE_TAG}" || -z "${OSSFS2_IMAGE_TAG}" ]]; then
+if [[ -z "${OSSFS_IMAGE_TAG}" || -z "${OSSFS2_IMAGE_TAG}" || -z "${OSSFS2_FAILOVER_IMAGE_TAG}" ]]; then
     echo "Error: Failed to extract image tags from VERSIONS file" >&2
     exit 1
 fi
@@ -52,6 +53,7 @@ fi
 # Format: v<version>-<commit_hash> -> v<version>
 OSSFS_RPM_VERSION=$(echo "${OSSFS_IMAGE_TAG}" | sed 's/-[^-]*$//')
 OSSFS2_RPM_VERSION=$(echo "${OSSFS2_IMAGE_TAG}" | sed 's/-[^-]*$//')
+OSSFS2_FAILOVER_RPM_VERSION=$(echo "${OSSFS2_FAILOVER_IMAGE_TAG}" | sed 's/-[^-]*$//')
 
 # Extract ALINAS and EFC versions from VERSIONS file
 ALINAS_RPM_BASE_URL=$(grep "^ALINAS_RPM_BASE_URL=" "${VERSIONS_FILE}" | cut -d'=' -f2-)
@@ -66,8 +68,10 @@ fi
 # Export variables so they can be used by sourcing scripts
 export OSSFS_IMAGE_TAG
 export OSSFS2_IMAGE_TAG
+export OSSFS2_FAILOVER_IMAGE_TAG
 export OSSFS_RPM_VERSION
 export OSSFS2_RPM_VERSION
+export OSSFS2_FAILOVER_RPM_VERSION
 export ALINAS_RPM_BASE_URL
 export ALINAS_UTILS_VERSION
 export EFC_VERSION

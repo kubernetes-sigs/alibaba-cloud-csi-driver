@@ -77,13 +77,19 @@ func detectKernelRecoverySupport() bool {
 		klog.Warningf("Node kernel does NOT support FUSE recovery; ossfs2 mounts on this node will fall back to non-recovery mode: %v", err)
 		return false
 	}
-	klog.Info("Node kernel supports FUSE recovery; ossfs2 recovery requests will be honored on this node")
+	klog.Infof("%s; ossfs2 recovery requests will be honored on this node", LogKernelSupportsRecovery)
 	return true
 }
 
 const (
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/ossfs/"
+
+	// LogKernelSupportsRecovery is the log message emitted at startup when the
+	// node kernel satisfies FUSE recovery prerequisites. E2E tests match on this
+	// string to determine per-node recovery support — do not change it without
+	// updating the E2E suite.
+	LogKernelSupportsRecovery = "Node kernel supports FUSE recovery"
 )
 
 // for cases where fuseType does not affect like UnPublishVolume,

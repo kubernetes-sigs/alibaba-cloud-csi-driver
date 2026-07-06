@@ -304,7 +304,7 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 	// hard would block ossfs2 entirely on older nodes where it would otherwise
 	// work fine in non-recovery mode. The intentional design is to fall back
 	// silently-but-loudly (warning log) and let the mount succeed without
-	// recovery. Validation in checkOssOptions only catches mis-configurations
+	// recovery. Validation in checkOssOptions only catches misconfigurations
 	// (e.g. recovery requested on ossfs1) — not per-node kernel mismatches.
 	//
 	// FdPassing is intentionally NOT downgraded: it has no kernel/OS
