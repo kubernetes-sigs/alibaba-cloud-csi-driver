@@ -113,7 +113,7 @@ func recvMsgWithFd(conn *net.UnixConn, req *rawRequest) (fuseFd int, err error) 
 					fuseFd = fds[0]
 					// Close any extra fds we don't need
 					for _, fd := range fds[1:] {
-						unix.Close(fd)
+						_ = unix.Close(fd)
 					}
 					break
 				}
@@ -128,7 +128,7 @@ func recvMsgWithFd(conn *net.UnixConn, req *rawRequest) (fuseFd int, err error) 
 	}
 	if err := json.Unmarshal(data, req); err != nil {
 		if fuseFd > 0 {
-			unix.Close(fuseFd)
+			_ = unix.Close(fuseFd)
 		}
 		return -1, fmt.Errorf("unmarshal request: %w", err)
 	}
@@ -152,7 +152,7 @@ func handle(ctx context.Context, req *rawRequest, fuseFd int) proxy.Response {
 			// independently in this process's fd table — the client closing its copy
 			// does NOT close ours.
 			if fuseFd > 0 {
-				unix.Close(fuseFd)
+				_ = unix.Close(fuseFd)
 			}
 			return proxy.Response{
 				Error: err.Error(),

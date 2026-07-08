@@ -129,7 +129,7 @@ func TestStartAndWaitReady_LegacyModeSuccess(t *testing.T) {
 	proc, err := m.startAndWaitReady(ctx, op, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, proc)
-	defer proc.cmd.Process.Kill()
+	defer func() { _ = proc.cmd.Process.Kill() }()
 }
 
 func TestStartAndWaitReady_LegacyModeProcessExits(t *testing.T) {
@@ -233,7 +233,7 @@ func TestMount_ActiveTargetsStored(t *testing.T) {
 
 	var pipeFds [2]int
 	require.NoError(t, syscall.Pipe(pipeFds[:]))
-	syscall.Close(pipeFds[1])
+	_ = syscall.Close(pipeFds[1])
 
 	op := &mounter.MountOperation{Target: target, FuseFd: pipeFds[0]}
 	err := m.mount(ctx, op)
@@ -246,7 +246,7 @@ func TestMount_ActiveTargetsStored(t *testing.T) {
 	require.True(t, ok)
 	defer func() {
 		if p, _ := os.FindProcess(result.PID); p != nil {
-			p.Kill()
+			_ = p.Kill()
 		}
 	}()
 }

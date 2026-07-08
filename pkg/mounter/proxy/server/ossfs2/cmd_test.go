@@ -85,7 +85,7 @@ func TestBuildOssfs2Args(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clean up any pre-existing failover dir
-			os.RemoveAll(filepath.Dir(failoverDir))
+			_ = os.RemoveAll(filepath.Dir(failoverDir))
 
 			tt.op.FuseFd = tt.fuseFd
 			args, err := buildOssfs2Args(tt.op, tt.recovery)
@@ -109,7 +109,7 @@ func TestBuildOssfs2Args(t *testing.T) {
 			}
 
 			// Cleanup
-			os.RemoveAll(filepath.Dir(failoverDir))
+			_ = os.RemoveAll(filepath.Dir(failoverDir))
 		})
 	}
 }
@@ -121,7 +121,7 @@ func TestBuildOssfs2Args(t *testing.T) {
 func TestFuseFdSurvivesDupAndGC(t *testing.T) {
 	var pipeFds [2]int
 	require.NoError(t, syscall.Pipe(pipeFds[:]))
-	syscall.Close(pipeFds[1])
+	_ = syscall.Close(pipeFds[1])
 	originalFd := pipeFds[0]
 
 	for i := 0; i < 3; i++ {
@@ -132,7 +132,7 @@ func TestFuseFdSurvivesDupAndGC(t *testing.T) {
 		cmd := exec.Command("/bin/sh", "-c", "exit 0")
 		cmd.ExtraFiles = []*os.File{fuseFile}
 		require.NoError(t, cmd.Start())
-		fuseFile.Close()
+		_ = fuseFile.Close()
 		_ = cmd.Wait()
 
 		runtime.GC()
@@ -143,7 +143,7 @@ func TestFuseFdSurvivesDupAndGC(t *testing.T) {
 		require.NoError(t, err, "original fd must survive iteration %d", i)
 	}
 
-	unix.Close(originalFd)
+	_ = unix.Close(originalFd)
 
 	var stat unix.Stat_t
 	err := unix.Fstat(originalFd, &stat)

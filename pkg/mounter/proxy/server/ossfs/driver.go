@@ -64,7 +64,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest, fuseFd int)
 	if fuseFd > 0 {
 		// ossfs (libfuse2) does not support fd-passing; close the received fd to prevent leak
 		// and fall back to normal mount.
-		unix.Close(fuseFd)
+		_ = unix.Close(fuseFd)
 		klog.FromContext(ctx).V(0).Info("ossfs (libfuse2) does not support fd-passing, falling back to normal mount", "target", req.Target)
 	}
 	return h.ExtendedMount(ctx, &mounter.MountOperation{

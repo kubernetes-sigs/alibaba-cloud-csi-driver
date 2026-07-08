@@ -113,7 +113,7 @@ func (c *client) Mount(ctx context.Context, req *proxy.MountRequest) (*proxy.Res
 		if err != nil {
 			return nil, err
 		}
-		defer unix.Close(fd)
+		defer func() { _ = unix.Close(fd) }()
 		defer func() {
 			// If Mount fails, clean up the kernel mount we created.
 			// This ensures no stale mount is left when the operation fails.
@@ -173,10 +173,10 @@ func (c *client) prepareFuseFd(ctx context.Context, req *proxy.MountRequest, mou
 	// has no actual effect - it's purely informational and shown in /proc/mounts.
 	err = mounter.MountSensitiveWithoutSystemdWithMountFlags(req.Fstype, req.Target, FuseMountType, fuseOptions, nil, []string{"--internal-only"})
 	if err != nil {
-		unix.Close(fuseFd)
-		return 0, fmt.Errorf("failed to mount the fuse filesystem: %w\n"+
-			"Note: FUSE mount parameters should be configured via volumeAttributes.otherOpts, "+
-			"not pv.spec.mountOptions (mountFlags). mountFlags are used for FUSE kernel mount only.", err)
+		_ = unix.Close(fuseFd)
+		return 0, fmt.Errorf("failed to mount the fuse filesystem: %w; "+
+			"note: FUSE mount parameters should be configured via volumeAttributes.otherOpts, "+
+			"not pv.spec.mountOptions (mountFlags), which are used for FUSE kernel mount only", err)
 	}
 	logger.V(4).Info("FUSE kernel mount succeeded", "target", req.Target)
 

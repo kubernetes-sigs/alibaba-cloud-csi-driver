@@ -64,7 +64,7 @@ func (m *extendedMounter) runCmd(op *mounter.MountOperation, recovery bool, sw s
 			return nil, fmt.Errorf("dup FUSE fd %d: %w", op.FuseFd, err)
 		}
 		fuseFile := os.NewFile(uintptr(dupFd), "/dev/fuse")
-		defer fuseFile.Close()
+		defer func() { _ = fuseFile.Close() }()
 		cmd.ExtraFiles = []*os.File{fuseFile}
 		klog.V(4).InfoS("Passing FUSE fd to ossfs2 child", "originalFd", op.FuseFd, "dupFd", dupFd, "childFd", 3)
 	}
