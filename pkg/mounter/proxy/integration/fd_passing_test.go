@@ -56,12 +56,12 @@ func TestFdPassingViaSCMRights(t *testing.T) {
 	// Create a temporary file to use as a fd
 	tmpFile, err := os.CreateTemp(dir, "fuse-fd-test")
 	require.NoError(t, err)
-	defer tmpFile.Close()
+	defer func() { _ = tmpFile.Close() }()
 
 	// Dial and send a request with fd
 	conn, err := net.DialUnix("unix", nil, &addr)
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	req := proxy.Request{
 		Header: proxy.Header{Method: proxy.Mount},
@@ -84,7 +84,7 @@ func TestFdPassingViaSCMRights(t *testing.T) {
 	case fd := <-d.receivedFd:
 		assert.GreaterOrEqual(t, fd, 0, "received fd should be valid")
 		// Clean up the received fd
-		unix.Close(fd)
+		_ = unix.Close(fd)
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for driver to receive fd")
 	}
@@ -120,7 +120,7 @@ func TestNoFdPassing(t *testing.T) {
 	// Dial and send a request WITHOUT fd (normal Write)
 	conn, err := net.DialUnix("unix", nil, &addr)
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	req := proxy.Request{
 		Header: proxy.Header{Method: proxy.Mount},

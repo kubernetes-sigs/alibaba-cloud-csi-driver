@@ -39,7 +39,7 @@ func (m *extendedMounter) superviseProcess(
 	defer m.driver.activeTargets.Delete(op.Target)
 	defer func() {
 		if op.FuseFd > 0 {
-			unix.Close(op.FuseFd)
+			_ = unix.Close(op.FuseFd)
 		}
 	}()
 

@@ -268,7 +268,7 @@ func TestRecoveryRestart_SucceedsAfterRetries(t *testing.T) {
 	proc, attempts, err := m.recoveryRestart(op, target)
 	require.NoError(t, err)
 	require.NotNil(t, proc)
-	defer proc.cmd.Process.Kill()
+	defer func() { _ = proc.cmd.Process.Kill() }()
 
 	assert.Equal(t, int32(3), attemptCount.Load())
 	assert.Equal(t, 3, attempts)
@@ -346,7 +346,7 @@ func TestSuperviseProcess_RecoverySuccess(t *testing.T) {
 
 	var pipeFds [2]int
 	require.NoError(t, syscall.Pipe(pipeFds[:]))
-	syscall.Close(pipeFds[1])
+	_ = syscall.Close(pipeFds[1])
 
 	op := &mounter.MountOperation{
 		Target: target,
@@ -392,7 +392,7 @@ func TestSuperviseProcess_RecoverySuccess(t *testing.T) {
 	// Set terminating before kill so the loop doesn't attempt another recovery
 	driver.terminating.Store(true)
 	storedCmd, _ := driver.pids.Load(newPid)
-	storedCmd.(*exec.Cmd).Process.Kill()
+	_ = storedCmd.(*exec.Cmd).Process.Kill()
 
 	select {
 	case <-trulyExited:
@@ -480,7 +480,7 @@ func TestSuperviseProcess_TerminatingDuringRecovery(t *testing.T) {
 
 	var pipeFds2 [2]int
 	require.NoError(t, syscall.Pipe(pipeFds2[:]))
-	syscall.Close(pipeFds2[1])
+	_ = syscall.Close(pipeFds2[1])
 
 	op := &mounter.MountOperation{
 		Target: target,
@@ -538,7 +538,7 @@ func TestRecoveryRestart_UsesRecoveryFlag(t *testing.T) {
 	proc, _, err := m.recoveryRestart(op, target)
 	require.NoError(t, err)
 	require.NotNil(t, proc)
-	defer proc.cmd.Process.Kill()
+	defer func() { _ = proc.cmd.Process.Kill() }()
 
 	assert.True(t, gotRecovery.Load(), "recoveryRestart should pass recovery=true to startAndWaitReady")
 }
@@ -555,7 +555,7 @@ func TestSuperviseProcess_FdValidDuringRecoveryAndClosedAfter(t *testing.T) {
 
 	var pipeFds [2]int
 	require.NoError(t, syscall.Pipe(pipeFds[:]))
-	syscall.Close(pipeFds[1])
+	_ = syscall.Close(pipeFds[1])
 	fuseFd := pipeFds[0]
 
 	var runCmdCount atomic.Int32
