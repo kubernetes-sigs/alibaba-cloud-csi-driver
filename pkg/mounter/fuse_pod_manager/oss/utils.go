@@ -17,9 +17,10 @@ import (
 )
 
 var (
-	defaultOssfsImageTag        = "v1.88.4-80d165c-aliyun"
-	defaultOssfsUpdatedImageTag = "v1.91.10.ack.5-f5e325e"
-	defaultOssfs2ImageTag       = "v2.0.8.ack.1-d7bd1d4"
+	defaultOssfsImageTag          = "v1.88.4-80d165c-aliyun"
+	defaultOssfsUpdatedImageTag   = "v1.91.10.ack.5-f5e325e"
+	defaultOssfs2ImageTag         = "v2.0.8.ack.1-d7bd1d4"
+	defaultOssfs2FailoverImageTag = "v2.0.8.ack.1.failover-1fd839a"
 )
 
 func SetDefaultImage(fuseType string, m metadata.MetadataProvider, config *fpm.FuseContainerConfig) {
@@ -42,7 +43,12 @@ func SetDefaultImage(fuseType string, m metadata.MetadataProvider, config *fpm.F
 				config.ImageTag = defaultOssfsImageTag
 			}
 		case mounterutils.OssFs2Type:
-			config.ImageTag = defaultOssfs2ImageTag
+			if features.FunctionalMutableFeatureGate.Enabled(features.EnableOssfs2Recovery) ||
+				features.FunctionalMutableFeatureGate.Enabled(features.EnableFUSEFdPassing) {
+				config.ImageTag = defaultOssfs2FailoverImageTag
+			} else {
+				config.ImageTag = defaultOssfs2ImageTag
+			}
 		default:
 			klog.Warningf("Unknown fuse type: %s", fuseType)
 			config.ImageTag = "latest"

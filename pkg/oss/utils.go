@@ -143,8 +143,13 @@ func parseCredentialsFromSecret(secrets map[string]string) (ossfpm.AccessKey, os
 // region: for signature v4
 // reqName: for subpath generating, CreateVolumeRequest.GetName
 // onNode: run on nodeserver mode
+// nodeKernelSupportsRecovery: only consulted when onNode is true. When false on a
+// node that does not satisfy the FUSE recovery kernel/OS prerequisites, the
+// computed opts.Recovery is forcibly downgraded to false. The flag is ignored
+// in controller mode (onNode=false) because controllers don't run mounts and
+// per-node capability is not their concern.
 func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, reqName string, onNode bool, m metadata.MetadataProvider) (*ossfpm.Options, error) {
+	readOnly bool, reqName string, onNode bool, nodeKernelSupportsRecovery bool, m metadata.MetadataProvider) (*ossfpm.Options, error) {
 	if volOptions == nil {
 		volOptions = map[string]string{}
 	}
@@ -236,6 +241,12 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 			}
 		case "runtimeclass":
 			runtimeClassValue = value
+		case "recovery":
+			if res, err := strconv.ParseBool(value); err == nil {
+				opts.Recovery = res
+			} else {
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
+			}
 		// deprecated:
 		case strings.ToLower(AkID):
 			opts.AkID = value
@@ -263,6 +274,45 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 	// default fuseType is ossfs
 	if opts.FuseType == "" {
 		opts.FuseType = mounterutils.OssFsType
+	}
+
+	// Feature gate override: enable recovery and fd-passing.
+	// Capability validation is deferred to checkOssOptions.
+	switch opts.FuseType {
+	case mounterutils.OssFsType:
+		// do nothing
+	case mounterutils.OssFs2Type:
+		if features.FunctionalMutableFeatureGate.Enabled(features.EnableOssfs2Recovery) {
+			opts.Recovery = true
+		}
+		if opts.Recovery || features.FunctionalMutableFeatureGate.Enabled(features.EnableFUSEFdPassing) {
+			opts.FdPassing = true
+		}
+	}
+
+	// Node-local recovery capability fallback.
+	//
+	// Recovery has hard kernel/OS prerequisites that vary per node (see
+	// utilsos.CheckKernelForRecovery). Once volumeAttributes and the feature
+	// gate have decided opts.Recovery=true above, we still have to honor the
+	// reality of the specific node we're running on: if this node's kernel does
+	// not meet the prerequisites, recovery cannot work and must be downgraded
+	// to false here, with a warning so operators can correlate.
+	//
+	// Why we don't reject this in checkOssOptions with a hard error: kernel
+	// support is a node-local capability, not a configuration error. Failing
+	// hard would block ossfs2 entirely on older nodes where it would otherwise
+	// work fine in non-recovery mode. The intentional design is to fall back
+	// silently-but-loudly (warning log) and let the mount succeed without
+	// recovery. Validation in checkOssOptions only catches misconfigurations
+	// (e.g. recovery requested on ossfs1) — not per-node kernel mismatches.
+	//
+	// FdPassing is intentionally NOT downgraded: it has no kernel/OS
+	// prerequisite tied to CheckKernelForRecovery. Only opts.Recovery is
+	// affected.
+	if onNode && opts.Recovery && !nodeKernelSupportsRecovery {
+		klog.Warningf("FUSE recovery requested for volume (fuseType=%s) but node kernel does not support it; falling back to non-recovery mode", opts.FuseType)
+		opts.Recovery = false
 	}
 
 	// Resolve CNFS fallback before URL normalization:
@@ -502,16 +552,21 @@ func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
 		return WrapOssError(UrlError, "url is invalid, %v", err)
 	}
 
-	// TODO: ossfs2 should matain compatibility with ossfs on encryption,
-	// then remove this `switch`
+	// TODO: Refactor per-client capability checks (encryption, fd-passing, recovery, etc.)
+	// into a declarative capability registry instead of growing if-else chains.
 	switch opt.FuseType {
 	case mounterutils.OssFsType:
 		if !strings.HasPrefix(opt.Path, "/") {
 			return WrapOssError(PathError, "start with %s, should start with /", opt.Path)
 		}
-
 		if opt.Encrypted != "" && opt.Encrypted != ossfpm.EncryptedTypeKms && opt.Encrypted != ossfpm.EncryptedTypeAes256 {
 			return WrapOssError(EncryptError, "invalid SSE encrypted type")
+		}
+		if opt.FdPassing {
+			return WrapOssError(ParamError, "ossfs does not support fd-passing")
+		}
+		if opt.Recovery {
+			return WrapOssError(ParamError, "ossfs does not support recovery")
 		}
 
 	case mounterutils.OssFs2Type:
@@ -540,25 +595,21 @@ func makePodTemplateConfig(opt *ossfpm.Options) *fpm.PodTemplateConfig {
 	}
 }
 
-func makeMountOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) (
-	mountOptions []string, err error) {
-	mountOptions, err = parseOtherOpts(opt.OtherOpts)
-	if err != nil {
-		return nil, err
+func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) (
+	mountOptions []string, mountFlags []string, err error) {
+
+	if volumeCapability != nil && volumeCapability.GetMount() != nil {
+		mountFlags = volumeCapability.GetMount().MountFlags
 	}
 
-	// TODO: currently the common options for fuse like kernel_cache set on mountOptions will be ignored.
-	if volumeCapability != nil && volumeCapability.GetMount() != nil && volumeCapability.GetMount().MountFlags != nil {
-		if opt.FuseType == mounterutils.OssFs2Type {
-			klog.Warningf("NodePublishVolume: ossfs2 does not support mountOptions, only support volumeAttributes")
-		} else {
-			mountOptions = append(mountOptions, volumeCapability.GetMount().MountFlags...)
-		}
+	mountOptions, err = parseOtherOpts(opt.OtherOpts)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	ops, err := fpm.MakeMountOptions(opt, m)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	mountOptions = mounterutils.MergeMountOptions(mountOptions, ops)
 	return

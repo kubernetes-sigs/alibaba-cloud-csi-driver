@@ -470,6 +470,7 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 	tests := []struct {
 		name        string
 		options     []string
+		mountFlags  []string
 		config      *fpm.FuseContainerConfig
 		defaultOpts string
 		want        []string
@@ -521,16 +522,31 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 			},
 			want: []string{"log_level=info", "log_dir=/dev/stdout"},
 		},
+		{
+			// ossfs2 ignores mountFlags entirely (logs a warning); they MUST NOT appear in the result.
+			name:       "non-empty mountFlags are ignored",
+			options:    []string{"others"},
+			mountFlags: []string{"flag1", "flag2=value", "log_level=debug"},
+			want:       []string{"others", "log_level=info", "log_dir=/dev/stdout", "use_metrics=true"},
+		},
+		{
+			// Even mountFlags-only call must not leak any flag into the result.
+			name:       "mountFlags only, options nil",
+			options:    nil,
+			mountFlags: []string{"flag1", "log_level=debug"},
+			want:       []string{"log_level=info", "log_dir=/dev/stdout", "use_metrics=true"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			fakeOssfs.config = fpm.FuseContainerConfig{}
 			if tt.defaultOpts != "" {
 				t.Setenv("DEFAULT_OSSFS2_OPTIONS", tt.defaultOpts)
 			}
 			if tt.config != nil {
 				fakeOssfs.config = *tt.config
 			}
-			got := fakeOssfs.AddDefaultMountOptions(tt.options)
+			got := fakeOssfs.AddDefaultMountOptions(tt.options, tt.mountFlags)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -700,4 +716,38 @@ func TestBuildAuthSpec_ossfs2(t *testing.T) {
 	volumeMount = container.VolumeMounts[len(container.VolumeMounts)-1]
 	assert.Contains(t, "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens", volumeMount.MountPath)
 	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
+}
+
+func TestBuildPodSpec_PrivilegedMode(t *testing.T) {
+	tests := []struct {
+		name           string
+		fdPassing      bool
+		wantPrivileged bool
+	}{
+		{
+			name:           "fd-passing disabled, privileged",
+			fdPassing:      false,
+			wantPrivileged: true,
+		},
+		{
+			name:           "fd-passing enabled, non-privileged",
+			fdPassing:      true,
+			wantPrivileged: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fuseOssfs{}
+			spec, err := f.buildPodSpec(&fpm.FusePodContext{
+				FdPassing:         tt.fdPassing,
+				PodTemplateConfig: &fpm.PodTemplateConfig{},
+			}, "/mnt/target")
+			require.NoError(t, err)
+			require.Len(t, spec.Containers, 1)
+			require.NotNil(t, spec.Containers[0].SecurityContext)
+			require.NotNil(t, spec.Containers[0].SecurityContext.Privileged)
+			assert.Equal(t, tt.wantPrivileged, *spec.Containers[0].SecurityContext.Privileged)
+		})
+	}
 }

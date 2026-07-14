@@ -43,6 +43,8 @@ var mockOssfsHandler = func(ctx context.Context, op *mounter.MountOperation) err
 }
 
 func TestOssfsSecretInterceptor(t *testing.T) {
+	baseDir := t.TempDir()
+
 	tests := []struct {
 		name        string
 		handler     mounter.MountHandler
@@ -67,7 +69,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 			handler:   failureMountHandler,
 			expectErr: true,
 			op: &mounter.MountOperation{
-				Target: "/mnt/target1",
+				Target: filepath.Join(baseDir, "target1"),
 				Secrets: map[string]string{
 					"passwd-ossfs": "akid:aksecret:bucket",
 				},
@@ -77,7 +79,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 			name:    "nil mount result with fixed credentials",
 			handler: successMountHandler,
 			op: &mounter.MountOperation{
-				Target: "/mnt/target2",
+				Target: filepath.Join(baseDir, "target2"),
 				Secrets: map[string]string{
 					"passwd-ossfs": "akid:aksecret:bucket",
 				},
@@ -89,7 +91,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 			name:    "invalid mount result with fixed credentials",
 			handler: successMountHandler,
 			op: &mounter.MountOperation{
-				Target:      "/mnt/target3",
+				Target:      filepath.Join(baseDir, "target3"),
 				MountResult: "invalid",
 				Secrets: map[string]string{
 					"passwd-ossfs": "akid:aksecret:bucket",
@@ -102,7 +104,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 			name:    "token credentials",
 			handler: successMountHandler,
 			op: &mounter.MountOperation{
-				Target: "/mnt/target4",
+				Target: filepath.Join(baseDir, "target4"),
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "testAKID",
 					mounterutils.KeyAccessKeySecret: "testAKSecret",
@@ -118,7 +120,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 			name:    "token credentials without expiration",
 			handler: successMountHandler,
 			op: &mounter.MountOperation{
-				Target: "/mnt/target5",
+				Target: filepath.Join(baseDir, "target5"),
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "testAKID",
 					mounterutils.KeyAccessKeySecret: "testAKSecret",
@@ -212,7 +214,7 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 	}
 
 	// Test cleanup of passwd file after mount
-	target := "/mnt/target_cleanup"
+	target := filepath.Join(baseDir, "target_cleanup")
 	hash := mounterutils.ComputeMountPathHash(target)
 	hashDir := filepath.Join("/tmp", hash)
 	removeAllIgnoreNotExist(hashDir)       // Cleanup before test
@@ -225,20 +227,22 @@ func TestOssfsSecretInterceptor(t *testing.T) {
 		},
 	}
 	err := OssfsSecretInterceptor(context.Background(), op, mockOssfsHandler)
-	assert.NoError(t, err)
-	assert.NotNil(t, op.MountResult, "MountResult should be set")
+	require.NoError(t, err)
+	require.NotNil(t, op.MountResult, "MountResult should be set")
 
 	result, ok := op.MountResult.(server.OssfsMountResult)
 	require.True(t, ok, "MountResult should be OssfsMountResult")
 	<-result.ExitChan
 
-	assert.Len(t, op.Options, 1)
+	require.Len(t, op.Options, 1)
 	assert.Contains(t, op.Options[0], "passwd_file=")
 	time.Sleep(500 * time.Millisecond) // Wait for ossfs monitor interceptor to cleanup the credential file
 	assert.NoFileExists(t, op.Options[0][len("passwd_file="):])
 }
 
 func TestOssfs2SecretInterceptor(t *testing.T) {
+	baseDir := t.TempDir()
+
 	tests := []struct {
 		name        string
 		handler     mounter.MountHandler
@@ -262,7 +266,7 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 			handler:   failureMountHandler,
 			expectErr: true,
 			op: &mounter.MountOperation{
-				Target: "/mnt/target_ossfs2_1",
+				Target: filepath.Join(baseDir, "target_ossfs2_1"),
 				Secrets: map[string]string{
 					"passwd-ossfs2": "akid:aksecret:bucket",
 				},
@@ -272,7 +276,7 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 			name:    "fixed credentials",
 			handler: successMountHandler,
 			op: &mounter.MountOperation{
-				Target: "/mnt/target_ossfs2_2",
+				Target: filepath.Join(baseDir, "target_ossfs2_2"),
 				Secrets: map[string]string{
 					"passwd-ossfs2": "akid:aksecret:bucket",
 				},
@@ -283,7 +287,7 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 			name:    "token credentials",
 			handler: successMountHandler,
 			op: &mounter.MountOperation{
-				Target: "/mnt/target_ossfs2_3",
+				Target: filepath.Join(baseDir, "target_ossfs2_3"),
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "testAKID",
 					mounterutils.KeyAccessKeySecret: "testAKSecret",
@@ -298,7 +302,7 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 			name:    "token credentials without expiration",
 			handler: successMountHandler,
 			op: &mounter.MountOperation{
-				Target: "/mnt/target_ossfs2_4",
+				Target: filepath.Join(baseDir, "target_ossfs2_4"),
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "testAKID",
 					mounterutils.KeyAccessKeySecret: "testAKSecret",
@@ -333,7 +337,7 @@ func TestOssfs2SecretInterceptor(t *testing.T) {
 			}
 
 			if tt.expectFile {
-				assert.GreaterOrEqual(t, len(tt.op.Args), 2)
+				require.GreaterOrEqual(t, len(tt.op.Args), 2)
 				assert.Equal(t, "-c", tt.op.Args[0])
 				assert.FileExists(t, tt.op.Args[1])
 			}
@@ -863,11 +867,13 @@ func TestRotateTokenFiles(t *testing.T) {
 // (mount point already exists) scenarios.
 func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 	tests := []struct {
-		name           string
-		fuseType       string
-		mountPoint     string // if empty, mount point doesn't exist
-		expectSkip     bool
-		expectTokenDir bool
+		name            string
+		fuseType        string
+		mountPoint      string // if empty, mount point doesn't exist
+		fuseFd          int    // FUSE fd; >0 means fd-passing mode
+		hasActiveDaemon bool   // true when daemon is already running (server-side)
+		expectSkip      bool
+		expectTokenDir  bool
 	}{
 		{
 			name:           "ossfs first time mount - mount point doesn't exist",
@@ -896,6 +902,31 @@ func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 			mountPoint:     "target", // mount point exists
 			expectSkip:     true,
 			expectTokenDir: true,
+		},
+		{
+			name:           "ossfs2 fd-passing first mount - mount point exists but no active daemon",
+			fuseType:       "ossfs2",
+			mountPoint:     "target", // mount point exists (created by client's kernel mount)
+			fuseFd:         3,        // fd-passing mode
+			expectSkip:     false,    // must NOT skip — daemon needs to start
+			expectTokenDir: true,
+		},
+		{
+			name:            "ossfs2 fd-passing token rotation - active daemon",
+			fuseType:        "ossfs2",
+			mountPoint:      "target",
+			fuseFd:          3,
+			hasActiveDaemon: true,
+			expectSkip:      true, // daemon already running, skip mount
+			expectTokenDir:  true,
+		},
+		{
+			name:            "ossfs2 legacy token rotation - active daemon flag",
+			fuseType:        "ossfs2",
+			mountPoint:      "target",
+			hasActiveDaemon: true,
+			expectSkip:      true,
+			expectTokenDir:  true,
 		},
 	}
 
@@ -949,12 +980,14 @@ func TestOssfsSecretInterceptor_TokenRotation(t *testing.T) {
 
 			op := &mounter.MountOperation{
 				Target: target,
+				FuseFd: tt.fuseFd,
 				Secrets: map[string]string{
 					mounterutils.KeyAccessKeyId:     "newAKID",
 					mounterutils.KeyAccessKeySecret: "newAKSecret",
 					mounterutils.KeySecurityToken:   "newToken",
 					mounterutils.KeyExpiration:      "2024-12-31T23:59:59Z",
 				},
+				HasActiveDaemon: tt.hasActiveDaemon,
 			}
 
 			handlerCalled := false

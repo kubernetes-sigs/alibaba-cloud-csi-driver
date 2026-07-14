@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
+	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 )
@@ -26,8 +27,8 @@ func Handle(conn *net.UnixConn, timeout time.Duration, seq int64) error {
 	}
 	logger.V(4).Info("Start to recvmsg")
 	var req rawRequest
-	err := proxy.ReadMsg(conn, &req)
-	logger.V(4).Info("finished recvmsg")
+	fuseFd, err := recvMsgWithFd(conn, &req)
+	logger.V(4).Info("finished recvmsg", "fuseFd", fuseFd)
 
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
@@ -58,7 +59,7 @@ func Handle(conn *net.UnixConn, timeout time.Duration, seq int64) error {
 			Error: fmt.Sprintf("read request: %v", err),
 		}
 	} else {
-		resp = handle(ctx, &req)
+		resp = handle(ctx, &req, fuseFd)
 	}
 	resp.Seq = seq
 	if resp.Error != "" {
@@ -84,7 +85,57 @@ type rawRequest struct {
 	Body   json.RawMessage `json:"body,omitempty"`
 }
 
-func handle(ctx context.Context, req *rawRequest) proxy.Response {
+// recvMsgWithFd reads a JSON message from conn and extracts the FUSE fd from OOB data if present.
+// Returns fuseFd=0 when no fd is received (backward compatible with old clients).
+func recvMsgWithFd(conn *net.UnixConn, req *rawRequest) (fuseFd int, err error) {
+	fuseFd = 0
+	// Buffer must be large enough for an entire request in one ReadMsgUnix call,
+	// because SCM_RIGHTS (fd) is only delivered with the first read.
+	const maxBufSize = 1 << 20 // 1MB — typical requests are <10KB; 1MB covers extreme cases
+	buf := make([]byte, maxBufSize)
+	oob := make([]byte, unix.CmsgSpace(4)) // space for one fd
+
+	n, oobn, _, _, err := conn.ReadMsgUnix(buf, oob)
+	if err != nil {
+		return -1, fmt.Errorf("readmsg: %w", err)
+	}
+	if n == maxBufSize {
+		return -1, fmt.Errorf("message too large (exceeded %d bytes)", maxBufSize)
+	}
+
+	// Parse OOB to extract fd
+	if oobn > 0 {
+		scms, err := unix.ParseSocketControlMessage(oob[:oobn])
+		if err == nil {
+			for _, scm := range scms {
+				fds, err := unix.ParseUnixRights(&scm)
+				if err == nil && len(fds) > 0 {
+					fuseFd = fds[0]
+					// Close any extra fds we don't need
+					for _, fd := range fds[1:] {
+						_ = unix.Close(fd)
+					}
+					break
+				}
+			}
+		}
+	}
+
+	// Parse JSON payload — strip trailing MessageEnd
+	data := buf[:n]
+	if len(data) > 0 && data[len(data)-1] == proxy.MessageEnd {
+		data = data[:len(data)-1]
+	}
+	if err := json.Unmarshal(data, req); err != nil {
+		if fuseFd > 0 {
+			_ = unix.Close(fuseFd)
+		}
+		return -1, fmt.Errorf("unmarshal request: %w", err)
+	}
+	return fuseFd, nil
+}
+
+func handle(ctx context.Context, req *rawRequest, fuseFd int) proxy.Response {
 	switch req.Header.Method {
 	case proxy.Mount:
 		var mountReq proxy.MountRequest
@@ -94,8 +145,15 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 				Error: err.Error(),
 			}
 		}
-		err = handleMountRequest(ctx, &mountReq)
+		err = handleMountRequest(ctx, &mountReq, fuseFd)
 		if err != nil {
+			// Close the received FUSE fd on mount failure to prevent fd leak.
+			// When fd-passing is used, the fd was received via SCM_RIGHTS and exists
+			// independently in this process's fd table — the client closing its copy
+			// does NOT close ours.
+			if fuseFd > 0 {
+				_ = unix.Close(fuseFd)
+			}
 			return proxy.Response{
 				Error: err.Error(),
 			}

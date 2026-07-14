@@ -241,7 +241,7 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
-			Privileged: new(true),
+			Privileged: new(true), // ossfs 1.0 do not support fd-passing
 		},
 		ReadinessProbe: &corev1.Probe{
 			ProbeHandler: corev1.ProbeHandler{
@@ -368,7 +368,17 @@ const (
 	KeyListObjectsV2 = "listobjectsv2"
 )
 
-func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
+func (f *fuseOssfs) AddDefaultMountOptions(options []string, mountFlags []string) []string {
+	// For ossfs, mountFlags are appended to options (legacy behavior).
+	// TODO: configuring ossfs daemon options via pv.spec.mountOptions (mountFlags) may be
+	// deprecated in the future; users should migrate to volumeAttributes.otherOpts.
+	if len(mountFlags) > 0 {
+		klog.Warningf("NodePublishVolume: configuring ossfs daemon options via pv.spec.mountOptions (mountFlags) " +
+			"is still supported but may be deprecated in the future. " +
+			"Please migrate to volumeAttributes.otherOpts.")
+	}
+	options = append(options, mountFlags...)
+
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS_OPTIONS")
 	if defaultOSSFSOptions != "" {
 		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)

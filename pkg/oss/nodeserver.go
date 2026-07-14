@@ -32,6 +32,7 @@ import (
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilsos "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/os"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
@@ -50,11 +51,45 @@ type nodeServer struct {
 	ossfsPaths      map[string]string
 	common.GenericNodeServer
 	skipGlobalMount bool
+	// kernelSupportsRecovery records whether this node's kernel/OS satisfies the
+	// prerequisites for FUSE recovery (see utilsos.CheckKernelForRecovery). It is
+	// probed once at nodeServer construction so we don't pay a uname syscall on
+	// every mount request. When false, mount flows must NOT enable opts.Recovery
+	// even if the EnableOssfs2Recovery feature gate is on; instead they fall back
+	// to non-recovery mode (a hard failure here would block ossfs2 entirely on
+	// older nodes, which is unacceptable for a node-local capability mismatch).
+	kernelSupportsRecovery bool
+}
+
+// detectKernelRecoverySupport probes the running node's kernel/OS to determine
+// whether FUSE recovery (used by ossfs2) can be safely enabled on this node.
+//
+// Behavior:
+//   - On any error from the underlying check (uname failure, parse failure, or
+//     prerequisite not met), this function treats the node as unsupported and
+//     returns false. We deliberately conflate "could not determine" with "not
+//     supported": better to fall back to non-recovery mode than to enable a
+//     feature whose runtime requirements we couldn't verify.
+//   - The outcome is logged unconditionally (Info on success, Warning on
+//     failure) so operators have a single startup signal to correlate against.
+func detectKernelRecoverySupport() bool {
+	if err := utilsos.CheckKernelForRecovery(); err != nil {
+		klog.Warningf("Node kernel does NOT support FUSE recovery; ossfs2 mounts on this node will fall back to non-recovery mode: %v", err)
+		return false
+	}
+	klog.Infof("%s; ossfs2 recovery requests will be honored on this node", LogKernelSupportsRecovery)
+	return true
 }
 
 const (
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/ossfs/"
+
+	// LogKernelSupportsRecovery is the log message emitted at startup when the
+	// node kernel satisfies FUSE recovery prerequisites. E2E tests match on this
+	// string to determine per-node recovery support — do not change it without
+	// updating the E2E suite.
+	LogKernelSupportsRecovery = "Node kernel supports FUSE recovery"
 )
 
 // for cases where fuseType does not affect like UnPublishVolume,
@@ -127,7 +162,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Parse options and ensure fuseType is not empty
-	opts, err := parseOptions(ctx, ns.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", true, ns.metadata)
+	opts, err := parseOptions(ctx, ns.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", true, ns.kernelSupportsRecovery, ns.metadata)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -151,7 +186,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Check if targetPath is already mounted (used to determine if token rotation is needed)
 	// Note: For RunC, targetPath may not be mounted even if attachPath is mounted (bind mount not done yet)
-	notMntTarget, err := mounterutils.IsNotMountPoint(ns.rawMounter, targetPath)
+	// fuseUnsafe=false: targetPath is either non-existent (new pod) or has an active daemon (token rotation)
+	notMntTarget, err := mounterutils.SafeIsNotMountPoint(ns.rawMounter, targetPath, false)
 	if err != nil {
 		return nil, err
 	}
@@ -170,6 +206,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	var ossfsMounter mounter.Mounter
 	var mountOptions []string
+	var mountFlags []string
 
 	// New mounter in MicroVM scenario
 	if runtimeType == RuntimeTypeMicroVM {
@@ -185,11 +222,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if err = checkOssOptions(opts, ns.fusePodManagers[opts.FuseType]); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions, err = makeMountOptions(opts, ns.fusePodManagers[opts.FuseType], ns.metadata, req.VolumeCapability)
+			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, ns.fusePodManagers[opts.FuseType], ns.metadata, req.VolumeCapability)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions = ns.fusePodManagers[opts.FuseType].AddDefaultMountOptions(mountOptions)
+			mountOptions = ns.fusePodManagers[opts.FuseType].AddDefaultMountOptions(mountOptions, mountFlags)
 			// only for MicroVM
 			mountOptions, err = ossfpm.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
 			if err != nil {
@@ -225,11 +262,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if err = checkOssOptions(opts, ns.fusePodManagers[opts.FuseType]); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions, err = makeMountOptions(opts, ns.fusePodManagers[opts.FuseType], ns.metadata, req.VolumeCapability)
+			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, ns.fusePodManagers[opts.FuseType], ns.metadata, req.VolumeCapability)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions = ns.fusePodManagers[opts.FuseType].AddDefaultMountOptions(mountOptions)
+			mountOptions = ns.fusePodManagers[opts.FuseType].AddDefaultMountOptions(mountOptions, mountFlags)
 		}
 		// needRotateToken or new mount
 		// case 2 & 3: New mounter with proxy-mounter.
@@ -249,11 +286,18 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			// new mounts
 			metricsPath = utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.Bucket)
 		}
+		// fd-passing and recovery are not enabled for RunD/MicroVM:
+		// 1. Both depend on ProxyMounter (only available for RunC/RunD with proxy)
+		// 2. Recovery requires extra volumes (/sys/fs/fuse/) mounted in fuse pod
+		// 3. In RunC the FUSE daemon is shared across pods, making recovery more
+		//    critical; RunD/MicroVM has per-pod daemons with lower blast radius
+		// TODO: enable for RunD after stabilization in RunC
 		err := ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
 			Source:      mountSource,
 			Target:      targetPath,
 			FsType:      opts.FuseType,
 			Options:     mountOptions,
+			Args:        mountFlags,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
 		})
@@ -272,7 +316,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Note: For RunC, if attachPath is already mounted, ExtendedMount is skipped (only bind mount was done above)
 	attachPath := mounterutils.GetAttachPath(req.VolumeId)
-	notMntAttach, err := mounterutils.IsNotMountPoint(ns.rawMounter, attachPath)
+	// fuseUnsafe=true: in fd-passing mode, attachPath may be a FUSE mount with dead daemon
+	// but alive connection (fuse pod holds /dev/fuse fd), stat would D-state hang
+	notMntAttach, err := mounterutils.SafeIsNotMountPoint(ns.rawMounter, attachPath, opts.FdPassing)
 	if err != nil {
 		return nil, err
 	}
@@ -285,13 +331,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			// new mounts
 			metricsPath = utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opts.FuseType, "oss", opts.Bucket, attachPath)
 		}
+		// Fd-passing and recovery are enabled only for RunC:
+		// the FUSE daemon is shared across pods via bind mounts, so a daemon crash
+		// affects all consumers — recovery provides automatic failover.
+		// For token rotation (attachPath already mounted), disable fd-passing and
+		// recovery: no new kernel mount or daemon start is needed.
 		err = ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
 			Source:      mountSource,
 			Target:      attachPath,
 			FsType:      opts.FuseType,
 			Options:     mountOptions,
+			Args:        mountFlags,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
+			FdPassing:   opts.FdPassing && notMntAttach,
+			Recovery:    opts.Recovery && notMntAttach,
 		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -338,7 +392,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return ns.unPublishDirectVolume(ctx, req)
 	}
 
-	err = mountutils.CleanupMountPoint(targetPath, ns.rawMounter, true)
+	// fuseUnsafe=false: by the time NodeUnpublish runs, kubelet has already killed
+	// the pod's containers, closing all fds to the FUSE mount — connection is dead.
+	// Note: this delegates to CleanupMountPoint with extensiveMountPointCheck=false,
+	// whereas the original code used true. The difference is immaterial for FUSE mounts
+	// (FUSE has an independent st_dev, so stat-only check works correctly).
+	err = mounterutils.SafeCleanupFuseMount(targetPath, ns.rawMounter, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", targetPath, err)
 	}
@@ -364,26 +423,27 @@ func (ns *nodeServer) NodeUnstageVolume(
 	defer ns.locks.Release(req.VolumeId)
 
 	attachPath := mounterutils.GetAttachPath(req.VolumeId)
-	err := mountutils.CleanupMountPoint(attachPath, ns.rawMounter, false)
-	if err != nil {
+	// fuseUnsafe=true unconditionally: NodeUnstage has no access to the volume's
+	// fd-passing state, and must be safe for both modes. In fd-passing mode, the
+	// fuse pod still holds /dev/fuse fd (ControllerUnpublish deletes it later),
+	// so stat would hang. In legacy mode this is harmless — the mountinfo+syscall
+	// path produces the same result as the standard CleanupMountPoint.
+	if err := mounterutils.SafeCleanupFuseMount(attachPath, ns.rawMounter, true); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", attachPath, err)
 	}
 
 	// The metricsPath in fuse Pod will be cleaned and not allowed to update the metrics
 	utils.RemoveMetrics(metricsPathPrefix, req)
 
-	// In the legacy mount process, NodePublishVolume creates ossfs pods in kube-system namespace to mount ossfpm.
-	// We still need to umount the mountpoint in case csi-plugin is upgraded from these versions.
-	err = mountutils.CleanupMountPoint(req.StagingTargetPath, ns.rawMounter, false)
-	if err != nil {
+	// fuseUnsafe=false: legacy staging path never used fd-passing, no "daemon dead + fd held" scenario
+	if err := mounterutils.SafeCleanupFuseMount(req.StagingTargetPath, ns.rawMounter, false); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", req.StagingTargetPath, err)
 	}
 
 	// Note: credentialSecret has been deprecated, but we still need to clean up the credentialSecret
 	// in case csi-plugin is upgraded from these versions.
 	// credentialSecret only supports ossfs.
-	err = mounterutils.CleanupCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, unifiedFsType)
-	if err != nil {
+	if err := mounterutils.CleanupCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, unifiedFsType); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to cleanup ossfs credential secret: %v", err)
 	}
 	return &csi.NodeUnstageVolumeResponse{}, nil

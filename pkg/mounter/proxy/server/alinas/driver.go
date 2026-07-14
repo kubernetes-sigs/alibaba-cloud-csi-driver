@@ -17,6 +17,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -54,7 +55,13 @@ func (h *Driver) Fstypes() []string {
 	return []string{fstypeAlinas, fstypeCpfsNfs}
 }
 
-func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
+func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest, fuseFd int) error {
+	if fuseFd > 0 {
+		// alinas does not support fd-passing; close the received fd to prevent leak
+		// and fall back to normal mount.
+		_ = unix.Close(fuseFd)
+		klog.FromContext(ctx).Error(nil, "alinas does not support fd-passing, falling back to normal mount", "target", req.Target)
+	}
 	return h.ExtendedMount(ctx, &mounter.MountOperation{
 		Source:      req.Source,
 		Target:      req.Target,

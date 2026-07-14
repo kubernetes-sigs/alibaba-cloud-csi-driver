@@ -19,6 +19,9 @@ func (m *ConnectorMounter) ExtendedMount(_ context.Context, op *MountOperation) 
 	if op == nil {
 		return nil
 	}
+	if op.FdPassing || op.Recovery {
+		klog.Warningf("ConnectorMounter: FdPassing or Recovery is not supported, fallback to default mounter")
+	}
 	args := mountutils.MakeMountArgs(op.Source, op.Target, op.FsType, op.Options)
 	mntCmd := []string{"systemd-run", "--scope", "--"}
 	if m.mounterPath == "" {

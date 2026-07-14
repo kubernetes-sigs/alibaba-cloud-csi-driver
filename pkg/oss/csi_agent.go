@@ -29,6 +29,9 @@ func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
 		skipGlobalMount: getSkipGlobalMount(true),
 		fusePodManagers: ossfpm.GetAllOSSFusePodManagers(utils.Config{}, m, nil, nil),
 		ossfsPaths:      ossfpm.GetAllFuseMounterPaths(),
+		// csi-agent runs on the same kernel as the workload pod, so the same
+		// node-local recovery prerequisite check applies here.
+		kernelSupportsRecovery: detectKernelRecoverySupport(),
 	}
 	return &CSIAgent{
 		ns:         ns,
