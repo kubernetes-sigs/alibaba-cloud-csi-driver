@@ -32,9 +32,13 @@ func init() {
 }
 
 func NewDriver() *Driver {
-	driver := &Driver{}
+	rawMounter := mount.New("")
+	driver := &Driver{
+		overlay: server.NewOverlayManager(rawMounter),
+	}
 	driver.Mounter = mounter.NewForMounter(
-		&extendedMounter{driver: driver, Interface: mount.New("")},
+		&extendedMounter{driver: driver, Interface: rawMounter},
+		interceptors.NewOverlayInterceptor(driver.overlay),
 		interceptors.AlinasSecretInterceptor,
 	)
 	return driver
@@ -43,6 +47,7 @@ func NewDriver() *Driver {
 type Driver struct {
 	mounter.Mounter
 	targets       sync.Map
+	overlay       *server.OverlayManager
 	ResetFlagPath string
 }
 
@@ -55,14 +60,26 @@ func (h *Driver) Fstypes() []string {
 }
 
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
+	// When overlay is enabled, the interceptor chain handles:
+	//   1. NFS mount to Target (= lower dir)
+	//   2. Overlay mount from lower to OverlayMerged (= original target)
+	nfsTarget := req.Target
+	overlayMerged := ""
+	if req.Overlay {
+		nfsTarget = server.OverlayLowerDir(req.VolumeID)
+		overlayMerged = req.Target
+	}
+
 	return h.ExtendedMount(ctx, &mounter.MountOperation{
-		Source:      req.Source,
-		Target:      req.Target,
-		FsType:      req.Fstype,
-		Options:     req.Options,
-		Secrets:     req.Secrets,
-		MetricsPath: req.MetricsPath,
-		VolumeID:    req.VolumeID,
+		Source:        req.Source,
+		Target:        nfsTarget,
+		FsType:        req.Fstype,
+		Options:       req.Options,
+		Secrets:       req.Secrets,
+		MetricsPath:   req.MetricsPath,
+		VolumeID:      req.VolumeID,
+		Overlay:       req.Overlay,
+		OverlayMerged: overlayMerged,
 	})
 }
 
@@ -85,6 +102,9 @@ func (h *Driver) resetFlagPath() string {
 }
 
 func (h *Driver) Terminate() {
+	// First unmount all overlay mounts (must happen before NFS cleanup)
+	h.overlay.TerminateOverlays()
+
 	if !server.CleanupNASMountsOnExit() {
 		return
 	}

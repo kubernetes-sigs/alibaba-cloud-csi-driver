@@ -109,6 +109,9 @@ type Options struct {
 	FuseType      string `json:"fuseType"`
 	ReadOnly      bool   `json:"readOnly"`
 
+	// overlay options
+	Overlay bool `json:"overlay"`
+
 	// pod template
 	DnsPolicy corev1.DNSPolicy `json:"dnsPolicy"`
 }

@@ -37,6 +37,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -102,6 +103,8 @@ type Options struct {
 	SysConfigs    []utilsio.SysConfig
 	AkID          string
 	AkSecret      string
+	// overlay options
+	Overlay bool `json:"overlay"`
 }
 
 // RunvNasOptions struct definition
@@ -252,6 +255,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			cnfsName = value
 		case "mountprotocol":
 			opt.MountProtocol = strings.TrimSpace(value)
+		case "overlay":
+			opt.Overlay, _ = strconv.ParseBool(value)
 		}
 	}
 	opt.AkID = req.Secrets[akIDKey]
@@ -479,6 +484,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Errorf(codes.InvalidArgument, "cannot connect to nas host %s: %v", opt.Server, err)
 		}
 		defer conn.Close()
+	}
+
+	// Only Sandbox and Rund support overlay
+	if opt.Overlay {
+		if err := utils.ValidateOverlayRequirements(readOnly, ns.config.AgentMode || utils.GetSkipGlobalMount(false)); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
 	}
 
 	//mount nas client
@@ -737,6 +749,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "failed to unmount %s: %v", targetPath, err)
 	}
 	klog.Infof("NodeUnpublishVolume: unmount volume on %s successfully", targetPath)
+
+	// Best-effort cleanup of overlay lower dir (NFS mount).
+	// In RunD/Sandbox with overlay, mount-proxy-server mounted NFS to a lower dir.
+	// After overlay unmount above, the lower dir mount may still be alive.
+	// VM destruction will reclaim all resources regardless.
+	server.CleanupOverlayLowerDir(req.VolumeId)
 
 	// always try to remove ../alibabacloudcsiplugin.json
 	// TODO: remove csi 2.0 vol_data.json

@@ -89,7 +89,7 @@ func NewServers(endpoint string, m metadata.MetadataProvider, serviceType utils.
 			nodeName:        nodeName,
 			clientset:       clientset,
 			cnfsGetter:      cnfsGetter,
-			skipGlobalMount: getSkipGlobalMount(false),
+			skipGlobalMount: utils.GetSkipGlobalMount(false),
 			rawMounter:      mountutils.NewWithoutSystemd(""),
 			fusePodManagers: fusePodManagers,
 			GenericNodeServer: common.GenericNodeServer{

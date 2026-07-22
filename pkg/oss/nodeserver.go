@@ -30,6 +30,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -165,6 +166,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return ns.publishDirectVolume(ctx, req, opts)
 	}
 
+	// Only Sandbox and Rund support overlay
+	if opts.Overlay {
+		if err = utils.ValidateOverlayRequirements(opts.ReadOnly, runtimeType == RuntimeTypeRunD || ns.skipGlobalMount); err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+	}
+
 	mountSource := fmt.Sprintf("%s:%s", opts.Bucket, opts.Path)
 	needRotateToken := needRotateToken(opts.FuseType, authCfg.Secrets)
 
@@ -256,6 +264,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			Options:     mountOptions,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
+			VolumeID:    req.VolumeId, // Required for overlay: mount-proxy-server uses VolumeID to compute overlay dir paths
+			Overlay:     opts.Overlay,
 		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -343,6 +353,13 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", targetPath, err)
 	}
 	klog.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", targetPath)
+
+	// Best-effort cleanup of overlay lower dir (FUSE mount).
+	// In RunD/Sandbox with overlay, mount-proxy-server mounted FUSE to a lower dir.
+	// After overlay unmount above, the lower dir mount may still be alive.
+	// VM destruction will reclaim all resources regardless.
+	server.CleanupOverlayLowerDir(req.VolumeId)
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

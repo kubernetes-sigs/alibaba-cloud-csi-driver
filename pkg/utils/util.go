@@ -687,7 +687,51 @@ func parseUdevadmInfoSerial(out string) string {
 	return ""
 }
 
-// Get NVME device name by diskID;
+// GetSkipGlobalMount reads skip-global-mount setting from environment.
+// Priority: SKIP_GLOBAL_MOUNT > OSS_SKIP_GLOBAL_MOUNT > defaultVal.
+//
+// This function serves as a universal indicator of whether the CSI process is running
+// inside a VM (like Sandbox/RunD) rather than on a host node (RunC):
+//
+// Features that require Sandbox environment can use this function to determine.
+func GetSkipGlobalMount(defaultVal bool) bool {
+	for _, env := range []string{"SKIP_GLOBAL_MOUNT", "OSS_SKIP_GLOBAL_MOUNT"} {
+		value := os.Getenv(env)
+		if value == "" {
+			continue
+		}
+		parsed, err := strconv.ParseBool(value)
+		if err != nil {
+			klog.Warningf("Invalid value for %s: %q, using default %v", env, value, defaultVal)
+			return defaultVal
+		}
+		if parsed != defaultVal {
+			klog.Infof("%s=%v overrides default %v", env, parsed, defaultVal)
+		}
+		return parsed
+	}
+	return defaultVal
+}
+
+// ValidateOverlayRequirements checks that overlay prerequisites are met.
+// Callers should only invoke this when overlay is enabled.
+//
+// Requirements:
+//   - readOnly: the underlying volume must be read-only (overlay provides the writable upper layer).
+//   - inVM: the CSI process must be running inside a VM (RunD or Sandbox). In RunC, the mount path
+//     goes through global mount + bind mount on the host, which is incompatible with overlay
+//     (overlay needs mount-proxy-server inside the VM to manage lower/upper/merged dirs together).
+func ValidateOverlayRequirements(readOnly, inVM bool) error {
+	if !readOnly {
+		return fmt.Errorf("overlay requires the volume to be read-only")
+	}
+	if !inVM {
+		return fmt.Errorf("overlay is only supported in RunD/Sandbox (requires mount-proxy-server inside VM)")
+	}
+	return nil
+}
+
+// GetNvmeDeviceByVolumeID gets NVME device name by diskID.
 // /dev/nvme0n1 0: means device index, 1: means namespace for nvme device;
 // udevadm info --query=all --name=/dev/nvme0n1 | grep ID_SERIAL_SHORT | awk -F= '{print $2}'
 // bp1bcfmvsobfauvxb3ow

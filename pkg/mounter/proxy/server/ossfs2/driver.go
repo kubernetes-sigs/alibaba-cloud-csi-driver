@@ -32,19 +32,23 @@ type Driver struct {
 	pids           *sync.Map
 	monitorManager *server.MountMonitorManager
 	wg             sync.WaitGroup
+	overlay        *server.OverlayManager
 }
 
 func NewDriver() *Driver {
+	rawMounter := mount.NewWithoutSystemd("")
 	driver := &Driver{
 		pids:           new(sync.Map),
 		monitorManager: server.NewMountMonitorManager(),
+		overlay:        server.NewOverlayManager(rawMounter),
 	}
 	m := &extendedMounter{
 		driver:    driver,
-		Interface: mount.NewWithoutSystemd(""),
+		Interface: rawMounter,
 	}
 	driver.Mounter = mounter.NewForMounter(
 		m,
+		interceptors.NewOverlayInterceptor(driver.overlay),
 		interceptors.Ossfs2SecretInterceptor,
 		interceptors.OssfsMonitorInterceptor,
 	)
@@ -60,14 +64,26 @@ func (h *Driver) Fstypes() []string {
 }
 
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
+	// When overlay is enabled, the interceptor chain handles:
+	//   1. FUSE mount to Target (= lower dir)
+	//   2. Overlay mount from lower to OverlayMerged (= original target)
+	fuseTarget := req.Target
+	overlayMerged := ""
+	if req.Overlay {
+		fuseTarget = server.OverlayLowerDir(req.VolumeID)
+		overlayMerged = req.Target
+	}
+
 	return h.ExtendedMount(ctx, &mounter.MountOperation{
-		Source:      req.Source,
-		Target:      req.Target,
-		FsType:      req.Fstype,
-		Options:     req.Options,
-		Secrets:     req.Secrets,
-		MetricsPath: req.MetricsPath,
-		VolumeID:    req.VolumeID,
+		Source:        req.Source,
+		Target:        fuseTarget,
+		FsType:        req.Fstype,
+		Options:       req.Options,
+		Secrets:       req.Secrets,
+		MetricsPath:   req.MetricsPath,
+		VolumeID:      req.VolumeID,
+		Overlay:       req.Overlay,
+		OverlayMerged: overlayMerged,
 	})
 }
 
@@ -80,6 +96,9 @@ func (h *Driver) ApplyOptionDefaults(options []string) []string {
 }
 
 func (h *Driver) Terminate() {
+	// First unmount all overlay mounts (must happen before FUSE cleanup)
+	h.overlay.TerminateOverlays()
+
 	// Stop all mount monitoring
 	h.monitorManager.StopAllMonitoring()
 

@@ -149,6 +149,7 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		Options:  combinedOptions,
 		Secrets:  secrets,
 		VolumeID: volumeId,
+		Overlay:  opt.Overlay,
 	})
 	if err == nil {
 		return nil

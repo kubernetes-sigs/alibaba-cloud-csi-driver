@@ -237,6 +237,8 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support %v, %v, %v",
 					v, k, corev1.DNSClusterFirst, corev1.DNSClusterFirstWithHostNet, corev1.DNSDefault).Error())
 			}
+		case "overlay":
+			opts.Overlay, _ = strconv.ParseBool(value)
 		case "runtimeclass":
 			runtimeClassValue = value
 		// deprecated:
@@ -702,22 +704,6 @@ func getDirectAssignedValue(runtimeClass string) bool {
 		klog.Warningf("invalid runtimeClass value: %q, only %s and %s are allowed", runtimeClass, utils.RuncRunTimeTag, utils.RundRunTimeTag)
 		return false
 	}
-}
-
-func getSkipGlobalMount(defaultVal bool) bool {
-	value := os.Getenv("OSS_SKIP_GLOBAL_MOUNT")
-	if value == "" {
-		return defaultVal
-	}
-	parsed, err := strconv.ParseBool(value)
-	if err != nil {
-		klog.Warningf("Invalid value for OSS_SKIP_GLOBAL_MOUNT: %q, using default %v", value, defaultVal)
-		return defaultVal
-	}
-	if parsed != defaultVal {
-		klog.Infof("OSS_SKIP_GLOBAL_MOUNT=%v overrides default %v", parsed, defaultVal)
-	}
-	return parsed
 }
 
 func needRotateToken(fuseType string, secrets map[string]string) (needRotate bool) {
