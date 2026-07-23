@@ -72,7 +72,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	fuseTarget := req.Target
 	overlayMerged := ""
 	if req.Overlay {
-		fuseTarget = server.OverlayLowerDir(req.VolumeID)
+		fuseTarget = server.OverlayLowerDir(req.Target)
 		overlayMerged = req.Target
 	}
 

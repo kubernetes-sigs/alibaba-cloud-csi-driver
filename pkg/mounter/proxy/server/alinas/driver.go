@@ -66,7 +66,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	nfsTarget := req.Target
 	overlayMerged := ""
 	if req.Overlay {
-		nfsTarget = server.OverlayLowerDir(req.VolumeID)
+		nfsTarget = server.OverlayLowerDir(req.Target)
 		overlayMerged = req.Target
 	}
 

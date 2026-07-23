@@ -754,7 +754,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	// In RunD/Sandbox with overlay, mount-proxy-server mounted NFS to a lower dir.
 	// After overlay unmount above, the lower dir mount may still be alive.
 	// VM destruction will reclaim all resources regardless.
-	server.CleanupOverlayLowerDir(req.VolumeId)
+	server.CleanupOverlayLowerDir(targetPath)
 
 	// always try to remove ../alibabacloudcsiplugin.json
 	// TODO: remove csi 2.0 vol_data.json

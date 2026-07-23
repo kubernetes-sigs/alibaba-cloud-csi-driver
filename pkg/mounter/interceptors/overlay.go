@@ -55,7 +55,7 @@ func NewOverlayInterceptor(manager *server.OverlayManager) mounter.MountIntercep
 		}
 
 		// Overlay mount: lower=op.Target, merged=op.OverlayMerged
-		if err := manager.MountOverlay(op.VolumeID, op.OverlayMerged); err != nil {
+		if err := manager.MountOverlay(op.OverlayMerged); err != nil {
 			// Clean up the underlying mount on overlay failure
 			klog.ErrorS(err, "Overlay mount failed, cleaning up underlying mount", "lower", op.Target, "merged", op.OverlayMerged)
 			if uerr := mountutils.CleanupMountPoint(op.Target, raw, false); uerr != nil {

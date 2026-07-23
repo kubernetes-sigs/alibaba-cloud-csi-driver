@@ -358,7 +358,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	// In RunD/Sandbox with overlay, mount-proxy-server mounted FUSE to a lower dir.
 	// After overlay unmount above, the lower dir mount may still be alive.
 	// VM destruction will reclaim all resources regardless.
-	server.CleanupOverlayLowerDir(req.VolumeId)
+	server.CleanupOverlayLowerDir(targetPath)
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

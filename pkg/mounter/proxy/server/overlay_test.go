@@ -7,9 +7,9 @@ import (
 )
 
 func TestOverlayDirs(t *testing.T) {
-	volumeID := "pvc-12345"
+	target := "/run/csi/mount-root/oss/abc123"
 
-	lower, upper, work := overlayDirs(volumeID)
+	lower, upper, work := overlayDirs(target)
 
 	// All should be under the same parent directory
 	assert.Contains(t, lower, overlayBaseDir)
@@ -21,19 +21,19 @@ func TestOverlayDirs(t *testing.T) {
 	assert.Contains(t, upper, "/upper")
 	assert.Contains(t, work, "/work")
 
-	// Same volumeID should produce the same paths
-	lower2, _, _ := overlayDirs(volumeID)
+	// Same target should produce the same paths (deterministic)
+	lower2, _, _ := overlayDirs(target)
 	assert.Equal(t, lower, lower2)
 
-	// Different volumeID should produce different paths
-	otherLower, _, _ := overlayDirs("pvc-other")
+	// Different target should produce different paths (isolation)
+	otherLower, _, _ := overlayDirs("/run/csi/mount-root/oss/other")
 	assert.NotEqual(t, lower, otherLower)
 }
 
 func TestOverlayLowerDir(t *testing.T) {
-	volumeID := "pvc-12345"
+	target := "/run/csi/mount-root/oss/abc123"
 
-	lower := OverlayLowerDir(volumeID)
-	expectedLower, _, _ := overlayDirs(volumeID)
+	lower := OverlayLowerDir(target)
+	expectedLower, _, _ := overlayDirs(target)
 	assert.Equal(t, expectedLower, lower)
 }
