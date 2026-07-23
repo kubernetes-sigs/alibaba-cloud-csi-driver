@@ -2,6 +2,8 @@ package interceptors
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
@@ -39,6 +41,11 @@ func NewOverlayInterceptor(manager *server.OverlayManager) mounter.MountIntercep
 		notMnt, err := raw.IsLikelyNotMountPoint(op.OverlayMerged)
 		if err == nil && !notMnt {
 			return handler(ctx, op)
+		}
+
+		// Ensure lower dir exists before mount (NFS mount requires target dir to exist)
+		if err := os.MkdirAll(op.Target, 0755); err != nil {
+			return fmt.Errorf("failed to create overlay lower dir %s: %w", op.Target, err)
 		}
 
 		// First mount: underlying FUSE/NFS mount to op.Target (= lower dir)
