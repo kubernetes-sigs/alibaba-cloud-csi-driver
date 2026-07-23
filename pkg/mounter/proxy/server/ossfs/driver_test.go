@@ -35,7 +35,7 @@ func TestApplyOptionDefaults(t *testing.T) {
 		caFile := filepath.Join(tmpDir, "ca.crt")
 		require.NoError(t, os.WriteFile(caFile, []byte("fake-ca"), 0644))
 
-		t.Setenv("SSL_CERT_FILE", caFile)
+		t.Setenv("AGENT_IDENTITY_CERT_FILE", caFile)
 		d := &Driver{}
 		options := []string{"url=oss.aliyuncs.com"}
 		result := d.ApplyOptionDefaults(options)
@@ -50,7 +50,7 @@ func TestApplyOptionDefaults(t *testing.T) {
 		caFile := filepath.Join(tmpDir, "ca.crt")
 		require.NoError(t, os.WriteFile(caFile, []byte("fake-ca"), 0000))
 
-		t.Setenv("SSL_CERT_FILE", caFile)
+		t.Setenv("AGENT_IDENTITY_CERT_FILE", caFile)
 		d := &Driver{}
 		options := []string{"url=oss.aliyuncs.com"}
 		result := d.ApplyOptionDefaults(options)

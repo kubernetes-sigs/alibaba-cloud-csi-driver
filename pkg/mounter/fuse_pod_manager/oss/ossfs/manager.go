@@ -16,6 +16,7 @@ import (
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -97,6 +98,12 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *ossfpm.Options, onNode bool) error {
 		}
 		if o.SandboxCredProviderName == "" {
 			return fmt.Errorf("missing sandboxCredProviderName in volume attributes")
+		}
+		if agentidentity.GetEndpoint() == "" {
+			return fmt.Errorf("AGENT_IDENTITY_ENDPOINT is not set")
+		}
+		if agentidentity.GetTokenDir() == "" {
+			return fmt.Errorf("AGENT_IDENTITY_TOKEN_DIR is not set")
 		}
 	default:
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
@@ -334,8 +341,9 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	case ossfpm.AuthTypeAgentIdentity:
-		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_endpoint=%s", ossfpm.GetAgentIdentityEndpoint()))
-		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_token_file=%s", ossfpm.GetAgentIdentityTokenFilePath(o.SandboxId)))
+		// Env vars are validated in PrecheckAuthConfig.
+		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_endpoint=%s", agentidentity.GetEndpoint()))
+		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_token_file=%s", agentidentity.GetTokenFilePath(o.SandboxId)))
 		mountOptions = append(mountOptions, fmt.Sprintf("agent_identity_cred_provider=%s", o.SandboxCredProviderName))
 		// agent_identity_ca_file is not added here — it is optional and only appended
 		// by ApplyOptionDefaults if the file is readable. See AgentIdentityConfig for details.
