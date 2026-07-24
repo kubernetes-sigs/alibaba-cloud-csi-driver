@@ -2,16 +2,21 @@ package disk
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"structs"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
@@ -73,6 +78,7 @@ func fallocate(path string, size int64) (int, error) {
 
 	err = unix.Fallocate(fd, 0, 0, size)
 	if err != nil {
+		_ = unix.Close(fd)
 		return 0, fmt.Errorf("failed to allocate space for %q: %w", path, err)
 	}
 	return fd, nil
@@ -119,31 +125,91 @@ func allocCacheFile(logger klog.Logger, path string, size int64) (string, int, e
 	copy(conf.Info.File_name[:], path)
 	err = unix.IoctlLoopConfigure(loop, &conf) // Since Linux kernel 5.8
 	if err != nil {
+		loggedClose(logger, loop)
 		return "", 0, fmt.Errorf("failed to configure loop device %s: %w", loopPath, err)
 	}
 	return loopPath, loop, nil
 }
 
-func dmIoctl(fd int, action uintptr, volumeID string, flags uint32) syscall.Errno {
+// dmDevice is a thin wrapper around the device-mapper ioctls for a single named
+// device. It is the seam that lets the cache control logic (flush, reconcile,
+// setup) be unit tested without a real kernel: the higher-level operations are
+// free functions built on these primitives, which carry no policy of their own.
+type dmDevice interface {
+	close()
+	// tableStatus reads the active table. flags==0 returns the runtime INFO
+	// status (e.g. the cache dirty-block count); DM_STATUS_TABLE_FLAG returns the
+	// constructor table (devices as major:minor plus ctr args, reusable for
+	// reload). It returns the single target's length in 512b sectors and its
+	// status string. A missing device yields an error wrapping unix.ENXIO.
+	tableStatus(flags uint32) (size uint64, status string, err error)
+	// tableLoad loads a new table for the single cache target and resumes the
+	// device (a live table swap when the device already exists).
+	tableLoad(size uint64, args string) error
+	create() error
+	// remove deletes the device. An already-absent device is not an error
+	// (ENXIO is treated as success), so remove is idempotent.
+	remove() error
+}
+
+// dmIoctlDevice is the real dmDevice, holding an open /dev/mapper/control fd.
+type dmIoctlDevice struct {
+	logger klog.Logger
+	fd     int
+	name   string
+}
+
+func openDmDevice(logger klog.Logger, volumeID string) (*dmIoctlDevice, error) {
+	fd, err := unix.Open("/dev/mapper/control", unix.O_RDWR|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open /dev/mapper/control: %w", err)
+	}
+	return &dmIoctlDevice{logger: logger, fd: fd, name: dataCacheDeviceName(volumeID)}, nil
+}
+
+func (d *dmIoctlDevice) close() { loggedClose(d.logger, d.fd) }
+
+// ctl issues a bare DmIoctl (no payload) for the device.
+func (d *dmIoctlDevice) ctl(action uintptr, flags uint32) syscall.Errno {
 	dm := unix.DmIoctl{
 		Version:    [3]uint32{4, 0, 0},
 		Data_size:  unix.SizeofDmIoctl,
 		Data_start: unix.SizeofDmIoctl,
 		Flags:      flags,
 	}
-	copy(dm.Name[:], volumeID)
-	_, _, err := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), action, uintptr(unsafe.Pointer(&dm)))
-	return err
+	copy(dm.Name[:], d.name)
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(d.fd), action, uintptr(unsafe.Pointer(&dm)))
+	return errno
 }
 
+func (d *dmIoctlDevice) create() error {
+	if errno := d.ctl(unix.DM_DEV_CREATE, 0); errno != 0 {
+		return fmt.Errorf("failed to create device-mapper device %q: %w", d.name, errno)
+	}
+	return nil
+}
+
+func (d *dmIoctlDevice) remove() error {
+	if errno := d.ctl(unix.DM_DEV_REMOVE, 0); errno != 0 && errno != unix.ENXIO {
+		return fmt.Errorf("failed to remove device-mapper device %q: %w", d.name, errno)
+	}
+	return nil
+}
+
+// dmi_t is the ioctl payload for a single-target table load or status: the
+// DmIoctl header and its one DmTargetSpec must be contiguous, followed by the
+// target's arg/status string.
 type dmi_t struct {
 	structs.HostLayout
 	unix.DmIoctl
 	unix.DmTargetSpec
-	Args [3744]byte // to make dmi_t 4k large
+	Args [3744]byte // pads dmi_t to 4k
 }
 
-func updateTable(dmCtrl int, volumeID string, size uint64, args string) error {
+func (d *dmIoctlDevice) tableLoad(size uint64, args string) error {
+	if len(args) > len(dmi_t{}.Args) {
+		return fmt.Errorf("args too long")
+	}
 	dmi := dmi_t{
 		DmIoctl: unix.DmIoctl{
 			Version:      [3]uint32{4, 0, 0},
@@ -152,93 +218,49 @@ func updateTable(dmCtrl int, volumeID string, size uint64, args string) error {
 			Target_count: 1,
 		},
 		DmTargetSpec: unix.DmTargetSpec{
-			Sector_start: 0,
-			Length:       size,
-			Target_type:  [16]byte{'c', 'a', 'c', 'h', 'e'},
+			Length:      size,
+			Target_type: [16]byte{'c', 'a', 'c', 'h', 'e'},
 		},
 	}
-	copy(dmi.Name[:], volumeID)
+	copy(dmi.Name[:], d.name)
 	copy(dmi.Args[:], args)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(dmCtrl), unix.DM_TABLE_LOAD, uintptr(unsafe.Pointer(&dmi)))
-	if errno != 0 {
+	if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(d.fd), unix.DM_TABLE_LOAD, uintptr(unsafe.Pointer(&dmi))); errno != 0 {
 		return fmt.Errorf("failed to load device-mapper table: %w", errno)
 	}
-
-	errno = dmIoctl(dmCtrl, unix.DM_DEV_SUSPEND, volumeID, unix.DM_NOFLUSH_FLAG|unix.DM_SKIP_LOCKFS_FLAG)
-	if errno != 0 {
+	// Resume activates the newly-loaded table. NOFLUSH requeues (rather than
+	// errors) any deferred bios and SKIP_LOCKFS avoids the fs freeze; in-flight
+	// IO is still drained by the suspend, so a live swap is safe.
+	if errno := d.ctl(unix.DM_DEV_SUSPEND, unix.DM_NOFLUSH_FLAG|unix.DM_SKIP_LOCKFS_FLAG); errno != 0 {
 		return fmt.Errorf("failed to resume device-mapper device: %w", errno)
 	}
 	return nil
 }
 
-// size is cloud disk size, in 512b sector
-func setupDmCache(logger klog.Logger, args string, size uint64, volumeID string) error {
-	if len(args) > len(dmi_t{}.Args) {
-		return fmt.Errorf("args too long")
-	}
-
-	dmCtrl, err := unix.Open("/dev/mapper/control", unix.O_RDWR|unix.O_CLOEXEC, 0)
-	if err != nil {
-		return fmt.Errorf("failed to open /dev/mapper/control: %w", err)
-	}
-	defer loggedClose(logger, dmCtrl)
-
-	errno := dmIoctl(dmCtrl, unix.DM_DEV_CREATE, volumeID, 0)
-	if errno != 0 {
-		return fmt.Errorf("failed to create device-mapper device: %w", errno)
-	}
-
-	err = updateTable(dmCtrl, volumeID, size, args)
-	if err != nil {
-		errno := dmIoctl(dmCtrl, unix.DM_DEV_REMOVE, volumeID, 0)
-		if errno != 0 {
-			return fmt.Errorf("%w, cleanup also failed: %v, need manual cleanup", err, errno)
-		}
-		return err
-	}
-	logger.V(2).Info("setup dm-cache", "args", args, "size", size)
-	return nil
-}
-
-// size is cloud disk size, in 512b sector
-func resizeDmCache(logger klog.Logger, size uint64, volumeID string) error {
-	dmCtrl, err := unix.Open("/dev/mapper/control", unix.O_RDWR|unix.O_CLOEXEC, 0)
-	if err != nil {
-		return fmt.Errorf("failed to open /dev/mapper/control: %w", err)
-	}
-	defer loggedClose(logger, dmCtrl)
-
-	// Get current active table for args
+func (d *dmIoctlDevice) tableStatus(flags uint32) (size uint64, status string, err error) {
 	dmi := dmi_t{
 		DmIoctl: unix.DmIoctl{
 			Version:    [3]uint32{4, 0, 0},
 			Data_size:  uint32(unsafe.Sizeof(dmi_t{})),
 			Data_start: unix.SizeofDmIoctl,
-			Flags:      unix.DM_STATUS_TABLE_FLAG,
+			Flags:      flags,
 		},
 	}
-	copy(dmi.Name[:], volumeID)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(dmCtrl), unix.DM_TABLE_STATUS, uintptr(unsafe.Pointer(&dmi)))
-	if errno != 0 {
-		return fmt.Errorf("failed to get current table: %w", errno)
+	copy(dmi.Name[:], d.name)
+	if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(d.fd), unix.DM_TABLE_STATUS, uintptr(unsafe.Pointer(&dmi))); errno != 0 {
+		return 0, "", fmt.Errorf("failed to get current table: %w", errno)
 	}
-
 	if dmi.Flags&unix.DM_ACTIVE_PRESENT_FLAG == 0 {
-		return fmt.Errorf("device-mapper device is not active")
+		return 0, "", fmt.Errorf("device-mapper device is not active")
 	}
 	if dmi.Target_count != 1 {
-		return fmt.Errorf("device-mapper device has %d targets", dmi.Target_count)
+		return 0, "", fmt.Errorf("device-mapper device has %d targets", dmi.Target_count)
 	}
-	var args string
-	nullIdx := bytes.IndexByte(dmi.Args[:], 0)
-	if nullIdx == -1 {
-		args = string(dmi.Args[:])
+	if nullIdx := bytes.IndexByte(dmi.Args[:], 0); nullIdx == -1 {
+		status = string(dmi.Args[:])
 	} else {
-		args = string(dmi.Args[:nullIdx])
+		status = string(dmi.Args[:nullIdx])
 	}
-
-	logger.V(2).Info("resize dm-cache", "args", args, "size", size, "oldSize", dmi.Length)
-	return updateTable(dmCtrl, volumeID, size, args)
+	return dmi.Length, status, nil
 }
 
 const DataCachePath = "/var/alibaba-cloud-csi/data-cache"
@@ -249,30 +271,85 @@ func cacheFilePath(volumeID string) (meta, data string) {
 	return meta, data
 }
 
-func dataCacheDevicePath(volumeID string) string {
-	return "/dev/mapper/" + volumeID
+// dataCacheDeviceName namespaces our device-mapper devices so their names can't
+// collide with unrelated dm devices on the node (the name would otherwise be the
+// bare volume ID) and are recognizable as ours in dmsetup/udev.
+func dataCacheDeviceName(volumeID string) string {
+	return "csi-datacache-" + volumeID
 }
 
-func setupDataCache(logger klog.Logger, d *dataCache, device, volumeID string) (string, error) {
+func dataCacheDevicePath(volumeID string) string {
+	return "/dev/mapper/" + dataCacheDeviceName(volumeID)
+}
+
+const (
+	deviceAppearTimeout      = 30 * time.Second
+	deviceAppearPollInterval = 50 * time.Millisecond
+)
+
+// waitForCacheDevice waits for the /dev/mapper node to appear after a table
+// load. The raw device-mapper ioctls resume the device without the udev
+// synchronization dmsetup performs (DM_UDEV_* cookies + dm_udev_wait), so the
+// node is created asynchronously once udev processes the resume uevent.
+// Returning the path before it exists makes the caller's mount fail; worse, the
+// FormatAndMount fallback reads the resulting ENOENT as "unformatted" and would
+// mkfs the device if the node races into existence between its blkid probe and
+// the mkfs, destroying an already-populated disk.
+func waitForCacheDevice(ctx context.Context, path string) error {
+	return wait.PollUntilContextTimeout(ctx, deviceAppearPollInterval, deviceAppearTimeout, true, func(ctx context.Context) (bool, error) {
+		var st unix.Stat_t
+		switch err := unix.Stat(path, &st); err {
+		case nil:
+			return true, nil
+		case unix.ENOENT:
+			return false, nil
+		default:
+			return false, fmt.Errorf("failed to stat %s: %w", path, err)
+		}
+	})
+}
+
+func setupDataCache(ctx context.Context, d *dataCache, device, volumeID string) (string, error) {
+	logger := klog.FromContext(ctx)
 	if d.Size.IsZero() {
 		return device, nil // Not enabled
 	}
-
-	mapperDev := dataCacheDevicePath(volumeID)
-	var st unix.Stat_t
-	if err := unix.Stat(mapperDev, &st); err == nil {
-		return mapperDev, nil // Already setup
-	} else if err != unix.ENOENT {
-		return "", fmt.Errorf("failed to stat %s: %w", mapperDev, err)
+	// Reserve one byte for the NUL terminator: the kernel force-terminates
+	// name[DM_NAME_LEN-1], so a name filling the whole field would be silently
+	// truncated and show up short in dmsetup/udev/dev/mapper.
+	if len(dataCacheDeviceName(volumeID)) >= len(unix.DmIoctl{}.Name) {
+		return "", fmt.Errorf("volume ID %q is too long", volumeID)
 	}
 
-	if len(volumeID) > len(unix.DmIoctl{}.Name) {
-		return "", fmt.Errorf("volume ID %q is too long", volumeID)
+	mapperDev := dataCacheDevicePath(volumeID)
+	dev, err := openDmDevice(logger, volumeID)
+	if err != nil {
+		return "", err
+	}
+	defer dev.close()
+
+	var st unix.Stat_t
+	if err := unix.Stat(mapperDev, &st); err == nil {
+		if err := reconcileTable(logger, dev, d.Mode); err != nil {
+			return "", err
+		}
+		return mapperDev, nil
+	} else if err != unix.ENOENT {
+		return "", fmt.Errorf("failed to stat %s: %w", mapperDev, err)
 	}
 
 	size := d.Size.Value()
 	meta, data := cacheFilePath(volumeID)
 
+	// Invariant: never truncate or delete an existing .meta/.data while it may
+	// hold un-flushed writeback data. allocCacheFile opens without O_TRUNC and
+	// only fallocate()s, so existing bytes survive. After a reboot (device gone,
+	// files persist) this lets the dm-cache constructor re-open the superblock
+	// instead of reformatting, so the recorded dirty blocks are written back to
+	// the origin on the next teardown (after an unclean crash the superblock
+	// lacks the CLEAN_SHUTDOWN flag and the kernel conservatively treats every
+	// cached block as dirty). Zeroing/recreating the meta file here would
+	// silently discard that data.
 	data, dataFd, err := allocCacheFile(logger, data, size)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -281,7 +358,7 @@ func setupDataCache(logger klog.Logger, d *dataCache, device, volumeID string) (
 		}
 		return "", fmt.Errorf("failed to allocate cache file: %v", err)
 	}
-	defer loggedClose(logger, dataFd) // be sure to close these FDs after setupDmCache, or loop device will be removed
+	defer loggedClose(logger, dataFd) // be sure to close these FDs after the table load, or the loop device will be removed
 
 	meta, metaFd, err := allocCacheFile(logger, meta, 16<<20) // TODO: determine the real size requirement
 	if err != nil {
@@ -289,51 +366,238 @@ func setupDataCache(logger klog.Logger, d *dataCache, device, volumeID string) (
 	}
 	defer loggedClose(logger, metaFd)
 
-	args := fmt.Sprintf("%s %s %s 512 2 metadata2 %s mq 2 migration_threshold 4096", meta, data, device, d.Mode)
-	dSize := getBlockDeviceCapacity(device)
-	return mapperDev, setupDmCache(logger, args, uint64(dSize/512), volumeID)
+	if err := dev.create(); err != nil {
+		return "", err
+	}
+	args := meta + " " + data + " " + device + " " + cacheArgsTail(d.Mode)
+	size, err = getBlockDeviceCapacity(device)
+	if err != nil {
+		return "", fmt.Errorf("failed to get capacity of %s: %w", device, err)
+	}
+	if err := dev.tableLoad(uint64(size/512), args); err != nil {
+		if rmErr := dev.remove(); rmErr != nil {
+			return "", fmt.Errorf("%w, cleanup also failed: %v, need manual cleanup", err, rmErr)
+		}
+		return "", err
+	}
+	if err := waitForCacheDevice(ctx, mapperDev); err != nil {
+		return "", err
+	}
+	logger.V(2).Info("setup dm-cache", "args", args, "size", size)
+	return mapperDev, nil
 }
 
-func teardownDmCache(logger klog.Logger, volumeID string) error {
-	dmCtrl, err := unix.Open("/dev/mapper/control", unix.O_RDWR|unix.O_CLOEXEC, 0)
-	if err != nil {
-		return fmt.Errorf("failed to open /dev/mapper/control: %w", err)
-	}
-	defer loggedClose(logger, dmCtrl)
+type cacheStatus struct {
+	dirty     uint64
+	writeback bool
+	policy    string
+}
 
-	dm := unix.DmIoctl{
-		Version:    [3]uint32{4, 0, 0},
-		Data_size:  unix.SizeofDmIoctl,
-		Data_start: unix.SizeofDmIoctl,
+// parseCacheStatus extracts the dirty-block count, io mode and policy name from
+// a dm-cache INFO status line, whose format is (see kernel
+// Documentation/admin-guide/device-mapper/cache.rst):
+//
+//	<meta blk sz> <#used meta>/<#total meta> <cache blk sz> <#used>/<#total>
+//	<#read hits> <#read miss> <#write hits> <#write miss> <#demotions>
+//	<#promotions> <#dirty> <#features> <features>* <#core args> <core args>*
+//	<policy name> <#policy args> <policy args>* <cache metadata mode>
+//
+// #dirty is field index 10 (0-based); the feature list (containing the io mode
+// "writeback"/"writethrough"/"passthrough") and the core-args list must be
+// skipped to reach the policy name.
+func parseCacheStatus(status string) (cacheStatus, error) {
+	var s cacheStatus
+	f := strings.Fields(status)
+	if len(f) < 12 {
+		return s, fmt.Errorf("unexpected dm-cache status: %q", status)
 	}
-	copy(dm.Name[:], volumeID)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(dmCtrl), unix.DM_DEV_REMOVE, uintptr(unsafe.Pointer(&dm)))
-	if errno != 0 {
-		if errno == unix.ENXIO {
-			logger.V(2).Info("dm-cache already removed")
+	var err error
+	if s.dirty, err = strconv.ParseUint(f[10], 10, 64); err != nil {
+		return s, fmt.Errorf("failed to parse dirty count from %q: %w", status, err)
+	}
+
+	nFeat, err := strconv.Atoi(f[11])
+	if err != nil || 12+nFeat >= len(f) { // need at least the <#core args> field after the features
+		return s, fmt.Errorf("failed to parse features from %q: %w", status, err)
+	}
+	for _, feat := range f[12 : 12+nFeat] {
+		if feat == string(DataCacheWriteback) {
+			s.writeback = true
+		}
+	}
+
+	coreIdx := 12 + nFeat // <#core args>
+	nCore, err := strconv.Atoi(f[coreIdx])
+	if err != nil || coreIdx+1+nCore >= len(f) {
+		return s, fmt.Errorf("failed to parse core args from %q: %w", status, err)
+	}
+	s.policy = f[coreIdx+1+nCore]
+	return s, nil
+}
+
+const cleanerPolicy = "cleaner"
+
+// flushPollInterval is how often flushToClean re-checks the dirty count while
+// waiting for the cleaner policy to drain.
+const flushPollInterval = 500 * time.Millisecond
+
+// cacheArgsTail is the dm-cache table beyond the three device fields, for normal
+// operation (mq policy) in the given mode.
+func cacheArgsTail(mode DataCacheMode) string {
+	return fmt.Sprintf("512 2 metadata2 %s mq 2 migration_threshold 4096", mode)
+}
+
+// cleanerArgsTail is the table tail for the cleaner policy, which forces
+// writethrough and writes back every dirty block. Matches lvm2's
+// cache_add_target_line (cleaner => writethrough, no policy args).
+func cleanerArgsTail() string {
+	return "512 2 metadata2 writethrough " + cleanerPolicy + " 0"
+}
+
+// splitCacheTable splits a dm-cache constructor table into its device prefix
+// ("<meta> <data> <origin>", as major:minor) and the remaining tail (block
+// size, features, policy, policy args). Reloads keep the prefix verbatim and
+// only vary the tail, so we always hand the kernel back the exact device string
+// it gave us.
+func splitCacheTable(table string) (devices, tail string, err error) {
+	f := strings.SplitN(table, " ", 4)
+	if len(f) < 4 {
+		return "", "", fmt.Errorf("unexpected dm-cache table: %q", table)
+	}
+	return f[0] + " " + f[1] + " " + f[2], f[3], nil
+}
+
+// switchToCleaner reloads the table with the cleaner policy, keeping the current
+// devices, so the cache writes back all dirty blocks.
+func switchToCleaner(d dmDevice) error {
+	size, table, err := d.tableStatus(unix.DM_STATUS_TABLE_FLAG)
+	if err != nil {
+		return err
+	}
+	devices, _, err := splitCacheTable(table)
+	if err != nil {
+		return err
+	}
+	return d.tableLoad(size, devices+" "+cleanerArgsTail())
+}
+
+// reconcileTable brings an already-existing cache's table in line with what a
+// fresh setup would create for the requested mode, healing any drift (a
+// half-finished teardown left in cleaner policy, or a stale mode/params).
+func reconcileTable(logger klog.Logger, d dmDevice, mode DataCacheMode) error {
+	size, table, err := d.tableStatus(unix.DM_STATUS_TABLE_FLAG)
+	if err != nil {
+		return err
+	}
+	devices, tail, err := splitCacheTable(table)
+	if err != nil {
+		return err
+	}
+	want := cacheArgsTail(mode)
+	if tail == want {
+		return nil
+	}
+	logger.V(2).Info("reconciling dm-cache table", "from", tail, "to", want)
+	return d.tableLoad(size, devices+" "+want)
+}
+
+// flushToClean drives a dm-cache to a fully-flushed state before teardown.
+//
+// It switches the active table to the "cleaner" policy, which also forces
+// writethrough mode, then polls until the dirty count reaches zero. The switch
+// is unconditional for a writeback cache, even when it currently reads clean:
+// the forced writethrough mode ensures any write still arriving during teardown
+// reaches the origin (or fails) instead of landing in the cache where the
+// imminent remove would drop it. Writethrough also stops new dirty blocks from
+// accumulating, so the drain is guaranteed to converge.
+//
+// This mirrors lvm2's lv_cache_wait_for_clean, including its termination
+// condition dirty==0 && (cleaner || !writeback): a plain writethrough cache is
+// already clean, while a writeback cache is only done once switched to cleaner
+// AND drained. That distinction makes the function idempotent: a retry after a
+// timeout observes the cache already in cleaner mode (still writethrough) and
+// keeps waiting for the remaining dirty blocks instead of removing prematurely.
+func flushToClean(ctx context.Context, logger klog.Logger, d dmDevice) error {
+	for {
+		_, info, err := d.tableStatus(0)
+		if err != nil {
+			return err
+		}
+		st, err := parseCacheStatus(info)
+		if err != nil {
+			return err
+		}
+
+		cleaner := st.policy == cleanerPolicy
+		if st.dirty == 0 && (cleaner || !st.writeback) {
+			logger.V(2).Info("dm-cache flushed", "policy", st.policy, "writeback", st.writeback)
 			return nil
 		}
-		return fmt.Errorf("failed to remove device-mapper device: %w", errno)
+
+		// Switch to the cleaner policy if not already there. Once switched, the
+		// next status read reports cleaner and we fall through to polling; a
+		// retried teardown likewise finds it already in cleaner and just polls.
+		if !cleaner {
+			if err := switchToCleaner(d); err != nil {
+				return fmt.Errorf("failed to switch to cleaner policy: %w", err)
+			}
+			logger.V(2).Info("switched dm-cache to cleaner policy, waiting for flush", "dirty", st.dirty)
+			continue
+		}
+
+		logger.V(4).Info("flushing dm-cache", "dirty", st.dirty)
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("flush of dm-cache aborted with %d dirty blocks: %w", st.dirty, ctx.Err())
+		case <-time.After(flushPollInterval):
+		}
 	}
-	logger.V(2).Info("teardown dm-cache")
-	return nil
 }
 
 func clean(path string) error {
-	err := os.RemoveAll(path)
+	err := os.Remove(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	return err
 }
 
-func teardownDataCache(logger klog.Logger, volumeID string) error {
-	err := teardownDmCache(logger, volumeID)
+func teardownDataCache(ctx context.Context, volumeID string) error {
+	logger := klog.FromContext(ctx)
+	d, err := openDmDevice(logger, volumeID)
 	if err != nil {
 		return err
 	}
-	// Note: loop device has LO_FLAGS_AUTOCLEAR set, so it is auto removed after teardownDmCache.
+	defer d.close()
+
+	if err := flushToClean(ctx, logger, d); errors.Is(err, unix.ENXIO) {
+		logger.V(2).Info("dm-cache not present, no flush needed")
+	} else if err != nil {
+		return err
+	} else if err := d.remove(); err != nil {
+		return err
+	} else {
+		logger.V(2).Info("teardown dm-cache")
+	}
+	// Note: loop device has LO_FLAGS_AUTOCLEAR set, so it is auto removed after removing the dm device.
 
 	meta, data := cacheFilePath(volumeID)
 	return errors.Join(clean(meta), clean(data))
+}
+
+// resizeDmCache grows the cache target to a new size (in 512b sectors) after the
+// origin device has been expanded.
+func resizeDmCache(logger klog.Logger, size uint64, volumeID string) error {
+	d, err := openDmDevice(logger, volumeID)
+	if err != nil {
+		return err
+	}
+	defer d.close()
+
+	oldSize, table, err := d.tableStatus(unix.DM_STATUS_TABLE_FLAG)
+	if err != nil {
+		return err
+	}
+	logger.V(2).Info("resize dm-cache", "table", table, "size", size, "oldSize", oldSize)
+	return d.tableLoad(size, table)
 }

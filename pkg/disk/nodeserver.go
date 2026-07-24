@@ -629,7 +629,7 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 	if err := getDataCacheOpts(volumeContext, &d); err != nil {
 		return err
 	}
-	device, err := setupDataCache(logger, &d, device, volumeId)
+	device, err := setupDataCache(ctx, &d, device, volumeId)
 	if err != nil {
 		return err
 	}
@@ -756,7 +756,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	}
 
 	// Teardown DataCache
-	if cacheErr := teardownDataCache(logger, req.VolumeId); cacheErr != nil {
+	if cacheErr := teardownDataCache(ctx, req.VolumeId); cacheErr != nil {
 		return nil, status.Errorf(codes.Internal, "teardown DataCache for %s: %v", req.VolumeId, cacheErr)
 	}
 
@@ -1005,7 +1005,10 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 		logger.V(2).Info("Successful expand partition", "root", rootPath, "partition", index)
 	}
 
-	deviceCapacity := getBlockDeviceCapacity(rootPath)
+	deviceCapacity, err := getBlockDeviceCapacity(rootPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get device capacity: %v", err)
+	}
 
 	logger.V(2).Info("Expand filesystem start", "volumePath", volumePath)
 	// still try resize even if the deviceCapacity is not as large as requested, better than not.

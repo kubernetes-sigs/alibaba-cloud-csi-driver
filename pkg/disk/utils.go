@@ -790,19 +790,17 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 	return nil
 }
 
-func getBlockDeviceCapacity(devicePath string) int64 {
-
+func getBlockDeviceCapacity(devicePath string) (int64, error) {
 	file, err := os.Open(devicePath)
 	if err != nil {
-		klog.Errorf("getBlockDeviceCapacity:: failed to open devicePath: %v", devicePath)
-		return 0
+		return 0, fmt.Errorf("failed to open %s: %w", devicePath, err)
 	}
+	defer file.Close()
 	pos, err := file.Seek(0, io.SeekEnd)
 	if err != nil {
-		klog.Errorf("getBlockDeviceCapacity:: failed to read devicePath: %v", devicePath)
-		return 0
+		return 0, fmt.Errorf("failed to seek %s: %w", devicePath, err)
 	}
-	return pos
+	return pos, nil
 }
 
 func appendDiskTypes(resp *ecs20140526.DescribeAvailableResourceResponse, zoneID string, types []string) []string {
