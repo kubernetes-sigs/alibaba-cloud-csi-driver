@@ -187,7 +187,7 @@ func Setup(ctx context.Context, ctrl *DmControl, d *Opts, device, volumeID strin
 	}
 	defer loggedClose(logger, dataFd) // be sure to close these FDs after the table load, or the loop device will be removed
 
-	meta, metaFd, err := allocCacheFile(logger, meta, 16<<20) // TODO: determine the real size requirement
+	meta, metaFd, err := allocCacheFile(logger, meta, metaSize(size))
 	if err != nil {
 		return "", fmt.Errorf("failed to allocate meta file: %v", err)
 	}
@@ -268,17 +268,44 @@ const cleanerPolicy = "cleaner"
 // waiting for the cleaner policy to drain.
 const flushPollInterval = 500 * time.Millisecond
 
+// cacheBlockSectors is the dm-cache data block size in 512b sectors (256 KiB).
+// It appears verbatim in the table and also drives the metadata sizing, so keep
+// the two in sync via this constant.
+const cacheBlockSectors = 512
+
 // cacheArgsTail is the dm-cache table beyond the three device fields, for normal
 // operation (mq policy) in the given mode.
 func cacheArgsTail(mode Mode) string {
-	return fmt.Sprintf("512 2 metadata2 %s mq 2 migration_threshold 4096", mode)
+	return fmt.Sprintf("%d 2 metadata2 %s mq 2 migration_threshold 4096", cacheBlockSectors, mode)
+}
+
+// metaSize returns the metadata device size in bytes for a cache holding
+// dataSize bytes of data.
+// An undersized metadata device can pass table load and then fail later,
+// dropping the cache into read-only mode.
+//
+// The formula mirrors lvm2's _cache_min_metadata_size and
+// thin-provisioning-tools' src/cache/metadata_size.rs: 4 MiB transaction
+// overhead plus 44 bytes per block (lvm2's conservative 16-byte mapping +
+// max 20-byte hint + 8-byte key), capped at the kernel's metadata maximum.
+func metaSize(dataSize int64) int64 {
+	const (
+		transactionOverhead = 4 << 20                         // DM_TRANSACTION_OVERHEAD
+		bytesPerBlock       = 16 + (4 + 16) + 8               // mapping + max hint width + key
+		maxSize             = (255 * ((1 << 14) - 64)) * 4096 // kernel DM_SM_METADATA_MAX_BLOCKS * 4 KiB block
+	)
+	blockBytes := int64(cacheBlockSectors) * 512
+	nrBlocks := (dataSize + blockBytes - 1) / blockBytes
+	sz := int64(transactionOverhead) + nrBlocks*bytesPerBlock
+	sz = (sz + (4<<10 - 1)) &^ (4<<10 - 1) // round up to the kernel's 4 KiB metadata block
+	return min(sz, maxSize)
 }
 
 // cleanerArgsTail is the table tail for the cleaner policy, which forces
 // writethrough and writes back every dirty block. Matches lvm2's
 // cache_add_target_line (cleaner => writethrough, no policy args).
 func cleanerArgsTail() string {
-	return "512 2 metadata2 writethrough " + cleanerPolicy + " 0"
+	return fmt.Sprintf("%d 2 metadata2 writethrough %s 0", cacheBlockSectors, cleanerPolicy)
 }
 
 // splitCacheTable splits a dm-cache constructor table into its device prefix

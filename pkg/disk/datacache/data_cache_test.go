@@ -138,6 +138,30 @@ func TestSplitCacheTable(t *testing.T) {
 	assert.Error(t, err, "expected error for too-few fields")
 }
 
+func TestMetaSize(t *testing.T) {
+	const gib = 1 << 30
+	const mib = 1 << 20
+	const kib = 1 << 10
+	cases := []struct {
+		name     string
+		dataSize int64
+		want     int64
+	}{
+		// The 4 MiB transaction overhead dominates a tiny cache; the few
+		// per-block bytes then round up to the next 4 KiB.
+		{"tiny", 1 * mib, 4*mib + 4096},         // 4 MiB + 4 blocks * 44 -> next 4 KiB
+		{"1GiB", 1 * gib, 4*mib + 176*kib},      // 4 MiB + 4096 blocks * 44, already 4 KiB-aligned
+		{"100GiB", 100 * gib, 21*mib + 192*kib}, // 4 MiB + 409600 blocks * 44
+		// Well past the point where the formula exceeds the kernel cap.
+		{"huge", 1 << 50, 17045913600}, // ~16 GiB
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, metaSize(c.dataSize))
+		})
+	}
+}
+
 // fakeDm is an in-memory dmDevice for deterministic tests of the flush/reconcile
 // control flow, with no kernel, root, or loop devices involved.
 //
