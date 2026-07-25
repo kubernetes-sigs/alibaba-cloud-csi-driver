@@ -1,4 +1,4 @@
-package disk
+package datacache
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 	"testing"
 	"unsafe"
 
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
@@ -101,18 +102,19 @@ func TestDataCacheWritebackFlush(t *testing.T) {
 	const originSize = 128 << 20 // 128 MiB origin
 	const blockSize = 512 * 512  // dm-cache 512-sector (256 KiB) cache block
 
-	originDev, cacheDev := setupTestCache(t, logger, ctx, volumeID, originSize, DataCacheWriteback)
+	ctrl := testDmControl(t)
+	originDev, cacheDev := setupTestCache(t, ctrl, logger, ctx, volumeID, originSize, Writeback)
 
 	golden := dirtyCache(t, cacheDev, originSize, blockSize)
 
 	// Confirm the writes left dirty blocks in the cache, otherwise teardown's
 	// flush path would be a no-op and the test would prove nothing.
-	dirty := readCacheStatus(t, volumeID).dirty
+	dirty := readCacheStatus(t, ctrl, volumeID).dirty
 	t.Logf("dirty blocks in cache before teardown: %d", dirty)
 	require.NotZero(t, dirty, "no dirty blocks before teardown; cannot exercise the flush path")
 
 	// Teardown triggers the writeback flush.
-	require.NoError(t, teardownDataCache(ctx, volumeID))
+	require.NoError(t, Teardown(ctx, ctrl, volumeID))
 
 	// Drop the block device's buffer cache so the reads below reflect what was
 	// actually written back to the backing store.
@@ -140,15 +142,16 @@ func TestDataCacheCleanWritebackSwitch(t *testing.T) {
 	const volumeID = "d-testdatacache02"
 	const originSize = 128 << 20
 
-	setupTestCache(t, logger, ctx, volumeID, originSize, DataCacheWriteback)
+	ctrl := testDmControl(t)
+	setupTestCache(t, ctrl, logger, ctx, volumeID, originSize, Writeback)
 
 	// No writes: the cache is clean. Confirm it starts in writeback mode.
-	require.True(t, readCacheStatus(t, volumeID).writeback, "cache did not start in writeback mode")
+	require.True(t, readCacheStatus(t, ctrl, volumeID).writeback, "cache did not start in writeback mode")
 
 	// Run only the policy switch (not full teardown) so we can inspect the mode
 	// afterwards. It must have switched away from writeback even with 0 dirty.
-	require.NoError(t, flushVolume(t, ctx, volumeID))
-	st := readCacheStatus(t, volumeID)
+	require.NoError(t, flushVolume(t, ctx, ctrl, volumeID))
+	st := readCacheStatus(t, ctrl, volumeID)
 	require.Equal(t, cleanerPolicy, st.policy, "clean writeback cache was not switched to cleaner")
 	require.False(t, st.writeback, "clean writeback cache was not switched to writethrough")
 	t.Logf("clean writeback cache switched to policy %q, writethrough", st.policy)
@@ -170,21 +173,22 @@ func TestDataCacheStageReconcilesPolicy(t *testing.T) {
 	const volumeID = "d-testdatacache04"
 	const originSize = 128 << 20
 
-	originDev, _ := setupTestCache(t, logger, ctx, volumeID, originSize, DataCacheWriteback)
+	ctrl := testDmControl(t)
+	originDev, _ := setupTestCache(t, ctrl, logger, ctx, volumeID, originSize, Writeback)
 
 	// Leave the cache in cleaner mode, as an aborted teardown would.
-	require.NoError(t, flushVolume(t, ctx, volumeID))
-	require.Equal(t, cleanerPolicy, readCacheStatus(t, volumeID).policy, "precondition failed: cache not in cleaner policy")
+	require.NoError(t, flushVolume(t, ctx, ctrl, volumeID))
+	require.Equal(t, cleanerPolicy, readCacheStatus(t, ctrl, volumeID).policy, "precondition failed: cache not in cleaner policy")
 
 	// A new StageVolume re-runs setupDataCache with the requested mode. It must
 	// reconcile the policy back to normal writeback/mq.
-	d := &dataCache{
+	d := &Opts{
 		Size: *resource.NewQuantity(64<<20, resource.BinarySI),
-		Mode: DataCacheWriteback,
+		Mode: Writeback,
 	}
-	_, err := setupDataCache(ctx, d, originDev, volumeID)
+	_, err := Setup(ctx, ctrl, d, originDev, volumeID)
 	require.NoError(t, err, "setupDataCache (restage)")
-	st := readCacheStatus(t, volumeID)
+	st := readCacheStatus(t, ctrl, volumeID)
 	assert.True(t, st.writeback, "restage did not restore writeback")
 	assert.NotEqual(t, cleanerPolicy, st.policy, "restage did not restore mq policy")
 	t.Logf("restage reconciled cleaner cache back to writeback/mq")
@@ -211,10 +215,11 @@ func TestDataCacheResize(t *testing.T) {
 	defer func() { _ = unix.Close(originLoopFd) }()
 	require.NoError(t, os.MkdirAll(DataCachePath, 0700), "mkdir cache path")
 
-	d := &dataCache{Size: *resource.NewQuantity(64<<20, resource.BinarySI), Mode: DataCacheWriteback}
-	cacheDev, err := setupDataCache(ctx, d, originDev, volumeID)
+	ctrl := testDmControl(t)
+	d := &Opts{Size: *resource.NewQuantity(64<<20, resource.BinarySI), Mode: Writeback}
+	cacheDev, err := Setup(ctx, ctrl, d, originDev, volumeID)
 	require.NoError(t, err, "setupDataCache")
-	t.Cleanup(func() { _ = teardownDataCache(ctx, volumeID) })
+	t.Cleanup(func() { _ = Teardown(ctx, ctrl, volumeID) })
 	require.Equal(t, int64(originSize), deviceCapacity(t, cacheDev), "initial size")
 
 	// Grow the origin: expand the backing file and refresh the loop device, as
@@ -222,9 +227,11 @@ func TestDataCacheResize(t *testing.T) {
 	require.NoError(t, os.Truncate(originFile, newSize), "grow origin file")
 	require.NoError(t, unix.IoctlSetInt(originLoopFd, unix.LOOP_SET_CAPACITY, 0), "LOOP_SET_CAPACITY")
 
-	require.NoError(t, resizeDmCache(logger, newSize/512, volumeID))
+	cached, err := Resize(logger, ctrl, volumeID, newSize/512)
+	require.NoError(t, err)
+	require.True(t, cached, "expected volume to be cache-backed")
 	require.Equal(t, int64(newSize), deviceCapacity(t, cacheDev), "size after resize")
-	st := readCacheStatus(t, volumeID)
+	st := readCacheStatus(t, ctrl, volumeID)
 	assert.NotEqual(t, cleanerPolicy, st.policy, "resize changed policy")
 	assert.True(t, st.writeback, "resize changed mode")
 	t.Logf("resize grew cache to %d sectors, policy preserved", newSize/512)
@@ -233,15 +240,26 @@ func TestDataCacheResize(t *testing.T) {
 // deviceCapacity returns the size of a block device in bytes.
 func deviceCapacity(t *testing.T, dev string) int64 {
 	t.Helper()
-	sz, err := getBlockDeviceCapacity(dev)
+	sz, err := utilsio.GetBlockDeviceCapacity(dev)
 	require.NoError(t, err, "get capacity of %s", dev)
 	return sz
+}
+
+// testDmControl opens the device-mapper control node for a test. These tests
+// gate on requireDataCacheSupport (root + dm-cache), so it must succeed.
+func testDmControl(t *testing.T) *DmControl {
+	t.Helper()
+	ctrl, err := OpenDmControl()
+	require.NoError(t, err, "open dm control")
+	require.NotNil(t, ctrl, "device-mapper unavailable")
+	t.Cleanup(func() { _ = ctrl.close() })
+	return ctrl
 }
 
 // setupTestCache creates a loop-backed origin device and a writeback/writethrough
 // dm-cache over it via the production setupDataCache path, registering teardown.
 // It returns the origin device path and the cache (dm) device path.
-func setupTestCache(t *testing.T, logger klog.Logger, ctx context.Context, volumeID string, originSize int64, mode DataCacheMode) (originDev, cacheDev string) {
+func setupTestCache(t *testing.T, ctrl *DmControl, logger klog.Logger, ctx context.Context, volumeID string, originSize int64, mode Mode) (originDev, cacheDev string) {
 	t.Helper()
 	const cacheSize = 64 << 20
 
@@ -254,26 +272,24 @@ func setupTestCache(t *testing.T, logger klog.Logger, ctx context.Context, volum
 	// Cache files live under DataCachePath, keyed by volumeID.
 	require.NoError(t, os.MkdirAll(DataCachePath, 0700), "mkdir cache path")
 
-	d := &dataCache{
+	d := &Opts{
 		Size: *resource.NewQuantity(cacheSize, resource.BinarySI),
 		Mode: mode,
 	}
-	cacheDev, err = setupDataCache(ctx, d, originDev, volumeID)
+	cacheDev, err = Setup(ctx, ctrl, d, originDev, volumeID)
 	require.NoError(t, err, "setupDataCache")
-	require.Equal(t, dataCacheDevicePath(volumeID), cacheDev)
+	require.Equal(t, DevicePath(volumeID), cacheDev)
 	t.Cleanup(func() {
 		// Best-effort teardown in case the test fails before its own teardown.
-		_ = teardownDataCache(ctx, volumeID)
+		_ = Teardown(ctx, ctrl, volumeID)
 	})
 	return originDev, cacheDev
 }
 
 // readCacheStatus returns the parsed dm-cache status for the volume.
-func readCacheStatus(t *testing.T, volumeID string) cacheStatus {
+func readCacheStatus(t *testing.T, ctrl *DmControl, volumeID string) cacheStatus {
 	t.Helper()
-	d, err := openDmDevice(klog.Background(), volumeID)
-	require.NoError(t, err, "open dm device")
-	defer d.close()
+	d := ctrl.device(klog.Background(), volumeID)
 	_, info, err := d.tableStatus(0)
 	require.NoError(t, err, "query dm-cache status")
 	st, err := parseCacheStatus(info)
@@ -282,13 +298,11 @@ func readCacheStatus(t *testing.T, volumeID string) cacheStatus {
 }
 
 // flushVolume runs the flush path (switch-to-cleaner + drain) for the volume,
-// as teardown does, opening the device itself.
-func flushVolume(t *testing.T, ctx context.Context, volumeID string) error {
+// as teardown does.
+func flushVolume(t *testing.T, ctx context.Context, ctrl *DmControl, volumeID string) error {
 	t.Helper()
-	d, err := openDmDevice(klog.FromContext(ctx), volumeID)
-	require.NoError(t, err, "open dm device")
-	defer d.close()
-	return flushToClean(ctx, klog.FromContext(ctx), d)
+	logger := klog.FromContext(ctx)
+	return flushToClean(ctx, logger, ctrl.device(logger, volumeID))
 }
 
 // dirtyCache writes whole cache blocks through the cache device with O_DIRECT,

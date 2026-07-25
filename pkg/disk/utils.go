@@ -48,6 +48,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/datacache"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
@@ -586,7 +587,7 @@ func getDiskVolumeOptions(
 	}
 	diskVolArgs.RequestGB = requestGB
 
-	err = getDataCacheOpts(volOptions, &diskVolArgs.DataCache)
+	err = datacache.GetOpts(volOptions, &diskVolArgs.DataCache)
 	if err != nil {
 		return nil, err
 	}
@@ -788,19 +789,6 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 		return fmt.Errorf("devicePath(%s) is used as DataDisk for kubelet, cannot used for Volume", devicePath)
 	}
 	return nil
-}
-
-func getBlockDeviceCapacity(devicePath string) (int64, error) {
-	file, err := os.Open(devicePath)
-	if err != nil {
-		return 0, fmt.Errorf("failed to open %s: %w", devicePath, err)
-	}
-	defer file.Close()
-	pos, err := file.Seek(0, io.SeekEnd)
-	if err != nil {
-		return 0, fmt.Errorf("failed to seek %s: %w", devicePath, err)
-	}
-	return pos, nil
 }
 
 func appendDiskTypes(resp *ecs20140526.DescribeAvailableResourceResponse, zoneID string, types []string) []string {

@@ -37,6 +37,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/datacache"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -87,7 +88,7 @@ type diskVolumeArgs struct {
 	ProvisionedIops  int64
 	BurstingEnabled  bool
 	RequestGB        int64
-	DataCache        dataCache
+	DataCache        datacache.Opts
 }
 
 var delVolumeSnap sync.Map

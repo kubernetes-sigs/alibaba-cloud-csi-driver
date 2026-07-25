@@ -36,6 +36,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/datacache"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/sfdisk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -68,6 +69,7 @@ type nodeServer struct {
 	clientSet    *kubernetes.Clientset
 	ad           DiskAttachDetach
 	locks        *utils.VolumeLocks
+	dmControl    *datacache.DmControl // nil if device-mapper is unavailable on this node
 	common.GenericNodeServer
 }
 
@@ -205,6 +207,14 @@ func NewNodeServer(ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadat
 		klog.Fatalf("failed to list devices: %v", err)
 	}
 
+	dmControl, err := datacache.OpenDmControl()
+	if err != nil {
+		klog.Fatalf("failed to open device-mapper control: %v", err)
+	}
+	if dmControl == nil {
+		klog.Info("device-mapper unavailable, data cache disabled")
+	}
+
 	waiter, batcher := newBatcher(true)
 	return &nodeServer{
 		metadata:     m,
@@ -229,7 +239,8 @@ func NewNodeServer(ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadat
 			dev:    DefaultDeviceManager,
 			devMap: devMap,
 		},
-		locks: utils.NewVolumeLocks(),
+		locks:     utils.NewVolumeLocks(),
+		dmControl: dmControl,
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: GlobalConfigVar.NodeID,
 		},
@@ -401,7 +412,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Errorf(codes.Internal, "get device name from mount %s: %v", sourcePath, err)
 		}
 	}
-	if realDevice != "tmpfs" && realDevice != dataCacheDevicePath(req.VolumeId) {
+	if realDevice != "tmpfs" && realDevice != datacache.DevicePath(req.VolumeId) {
 		matched := false
 		if realDevice != "" {
 			realMajor, realMinor, err := DefaultDeviceManager.DevTmpFS.DevFor(realDevice)
@@ -625,11 +636,11 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 
 	// Setup DataCache
 	volumeId := req.GetVolumeId()
-	var d dataCache
-	if err := getDataCacheOpts(volumeContext, &d); err != nil {
+	var d datacache.Opts
+	if err := datacache.GetOpts(volumeContext, &d); err != nil {
 		return err
 	}
-	device, err := setupDataCache(ctx, &d, device, volumeId)
+	device, err := datacache.Setup(ctx, ns.dmControl, &d, device, volumeId)
 	if err != nil {
 		return err
 	}
@@ -756,7 +767,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	}
 
 	// Teardown DataCache
-	if cacheErr := teardownDataCache(ctx, req.VolumeId); cacheErr != nil {
+	if cacheErr := datacache.Teardown(ctx, ns.dmControl, req.VolumeId); cacheErr != nil {
 		return nil, status.Errorf(codes.Internal, "teardown DataCache for %s: %v", req.VolumeId, cacheErr)
 	}
 
@@ -946,25 +957,17 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("starting", "req", req)
 
-	if req.VolumeCapability != nil && req.VolumeCapability.GetBlock() != nil {
-		logger.V(2).Info("skipping expand for block volume")
-		return &csi.NodeExpandVolumeResponse{}, nil
-	}
-
-	volumePath := req.GetVolumePath()
-	if strings.Contains(volumePath, BLOCKVOLUMEPREFIX) {
-		logger.V(2).Info("Block volume not expand FS", "volumePath", volumePath)
-		return &csi.NodeExpandVolumeResponse{}, nil
-	}
-
-	// volume resize in rund type will transfer to guest os
-	isRund, err := checkRundVolumeExpand(req)
-	if isRund && err == nil {
-		logger.V(2).Info("Rund volume ExpandFS successful", "volumePath", volumePath)
-		return &csi.NodeExpandVolumeResponse{}, nil
-	} else if isRund && err != nil {
-		logger.Error(err, "Rund volume ExpandFS failed", "volumePath", volumePath)
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	// Block volumes have no filesystem to grow, but localExpandVolume still
+	// resizes any dm-cache target. Rund transfers the fs resize into the guest.
+	if req.GetVolumeCapability().GetBlock() == nil {
+		isRund, err := checkRundVolumeExpand(req)
+		if isRund && err == nil {
+			logger.V(2).Info("Rund volume ExpandFS successful", "volumePath", req.GetVolumePath())
+			return &csi.NodeExpandVolumeResponse{}, nil
+		} else if isRund && err != nil {
+			logger.Error(err, "Rund volume ExpandFS failed", "volumePath", req.GetVolumePath())
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 	}
 
 	return ns.localExpandVolume(ctx, req)
@@ -976,22 +979,34 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 	diskID := req.GetVolumeId()
 	logger := klog.FromContext(ctx)
 
-	devicePath, err := ns.ad.GetVolumeDeviceName(logger, diskID)
+	var devicePath string
+	cached, err := datacache.Resize(logger, ns.dmControl, diskID, uint64((requestBytes-1)/512+1))
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, status.Errorf(codes.NotFound, "can't get devicePath for: %s", diskID)
-		}
-		return nil, status.Errorf(codes.Internal, "get device name: %v", err)
-	}
-	logger = logger.WithValues("device", devicePath)
-	ctx = klog.NewContext(ctx, logger)
-
-	err = resizeDmCache(logger, uint64((requestBytes-1)/512+1), diskID)
-	if err == nil {
-		devicePath = dataCacheDevicePath(diskID)
-	} else if !errors.Is(err, unix.ENXIO) {
 		return nil, status.Errorf(codes.Internal, "resize dm-cache error: %v", err)
 	}
+	if cached {
+		devicePath = datacache.DevicePath(diskID)
+	}
+
+	// Block volumes have no filesystem or partition to grow; resizing the
+	// dm-cache target above (if any) is the only node-side work needed.
+	if req.GetVolumeCapability().GetBlock() != nil {
+		logger.V(2).Info("skipping fs expand for block volume")
+		return &csi.NodeExpandVolumeResponse{}, nil
+	}
+
+	if devicePath == "" {
+		devicePath, err = ns.ad.GetVolumeDeviceName(logger, diskID)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return nil, status.Errorf(codes.NotFound, "can't get devicePath for: %s", diskID)
+			}
+			return nil, status.Errorf(codes.Internal, "get device name: %v", err)
+		}
+	}
+
+	logger = logger.WithValues("device", devicePath)
+	ctx = klog.NewContext(ctx, logger)
 
 	rootPath, index, err := DefaultDeviceManager.GetDeviceRootAndPartitionIndex(devicePath)
 	if err != nil {
@@ -1005,7 +1020,7 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 		logger.V(2).Info("Successful expand partition", "root", rootPath, "partition", index)
 	}
 
-	deviceCapacity, err := getBlockDeviceCapacity(rootPath)
+	deviceCapacity, err := utilsio.GetBlockDeviceCapacity(rootPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get device capacity: %v", err)
 	}

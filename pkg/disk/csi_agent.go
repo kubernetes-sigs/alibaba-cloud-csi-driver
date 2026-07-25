@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/datacache"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -29,6 +30,14 @@ func NewCSIAgent() *CSIAgent {
 	}
 	GlobalConfigVar.MetricEnable = true
 
+	dmControl, err := datacache.OpenDmControl()
+	if err != nil {
+		klog.Fatalf("failed to open device-mapper control: %v", err)
+	}
+	if dmControl == nil {
+		klog.Info("device-mapper unavailable, data cache disabled")
+	}
+
 	return &CSIAgent{
 		ns: &nodeServer{
 			mounter:     utils.NewMounter(),
@@ -36,6 +45,7 @@ func NewCSIAgent() *CSIAgent {
 			unixMounter: mounter.UnixMounter{},
 			podCGroup:   podCgroup,
 			locks:       utils.NewVolumeLocks(),
+			dmControl:   dmControl,
 			ad: DiskAttachDetach{
 				dev:    DefaultDeviceManager,
 				devMap: &devMap{}, // Nobody will add to this map.

@@ -1,4 +1,4 @@
-package disk
+package datacache
 
 import (
 	"context"
@@ -16,11 +16,11 @@ import (
 	"k8s.io/klog/v2/ktesting"
 )
 
-func TestGetDataCacheOpts(t *testing.T) {
+func TestGetOpts(t *testing.T) {
 	tests := []struct {
 		name     string
 		opts     map[string]string
-		wantMode DataCacheMode
+		wantMode Mode
 		wantSize string // empty => zero
 		wantErr  string // substring; empty => no error
 	}{
@@ -30,47 +30,47 @@ func TestGetDataCacheOpts(t *testing.T) {
 		},
 		{
 			name:     "size only defaults to writethrough",
-			opts:     map[string]string{DataCacheSizeKey: "10Gi"},
-			wantMode: DataCacheWritethrough,
+			opts:     map[string]string{sizeKey: "10Gi"},
+			wantMode: Writethrough,
 			wantSize: "10Gi",
 		},
 		{
 			name:     "explicit writeback",
-			opts:     map[string]string{DataCacheSizeKey: "10Gi", DataCacheModeKey: "writeback"},
-			wantMode: DataCacheWriteback,
+			opts:     map[string]string{sizeKey: "10Gi", modeKey: "writeback"},
+			wantMode: Writeback,
 			wantSize: "10Gi",
 		},
 		{
 			name:     "explicit writethrough",
-			opts:     map[string]string{DataCacheSizeKey: "5Gi", DataCacheModeKey: "writethrough"},
-			wantMode: DataCacheWritethrough,
+			opts:     map[string]string{sizeKey: "5Gi", modeKey: "writethrough"},
+			wantMode: Writethrough,
 			wantSize: "5Gi",
 		},
 		{
 			name:    "mode without size is an error",
-			opts:    map[string]string{DataCacheModeKey: "writeback"},
+			opts:    map[string]string{modeKey: "writeback"},
 			wantErr: "must specify non-zero",
 		},
 		{
 			name:    "zero size with mode is an error",
-			opts:    map[string]string{DataCacheModeKey: "writeback", DataCacheSizeKey: "0"},
+			opts:    map[string]string{modeKey: "writeback", sizeKey: "0"},
 			wantErr: "must specify non-zero",
 		},
 		{
 			name:    "invalid size",
-			opts:    map[string]string{DataCacheSizeKey: "not-a-size"},
-			wantErr: "invalid " + DataCacheSizeKey,
+			opts:    map[string]string{sizeKey: "not-a-size"},
+			wantErr: "invalid " + sizeKey,
 		},
 		{
 			name:    "unrecognized mode",
-			opts:    map[string]string{DataCacheSizeKey: "10Gi", DataCacheModeKey: "bogus"},
-			wantErr: "unrecognized " + DataCacheModeKey,
+			opts:    map[string]string{sizeKey: "10Gi", modeKey: "bogus"},
+			wantErr: "unrecognized " + modeKey,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var d dataCache
-			err := getDataCacheOpts(tt.opts, &d)
+			var d Opts
+			err := GetOpts(tt.opts, &d)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				return
@@ -168,9 +168,9 @@ func (f *fakeDm) tail() string {
 	if f.policy == cleanerPolicy {
 		return cleanerArgsTail()
 	}
-	mode := DataCacheWritethrough
+	mode := Writethrough
 	if f.writeback {
-		mode = DataCacheWriteback
+		mode = Writeback
 	}
 	return cacheArgsTail(mode)
 }
@@ -182,7 +182,7 @@ func (f *fakeDm) tableStatus(flags uint32) (uint64, string, error) {
 	if f.absent {
 		return 0, "", fmt.Errorf("get status: %w", unix.ENXIO)
 	}
-	if flags&unix.DM_STATUS_TABLE_FLAG != 0 {
+	if flags&dmStatusTableFlag != 0 {
 		return f.size, "7:0 7:1 7:2 " + f.tail(), nil
 	}
 	mode := "writethrough"
@@ -209,14 +209,13 @@ func (f *fakeDm) tableLoad(size uint64, args string) error {
 		f.writeback = false // cleaner forces writethrough
 	default:
 		f.policy = "mq"
-		f.writeback = strings.Contains(tail, " "+string(DataCacheWriteback)+" ")
+		f.writeback = strings.Contains(tail, " "+string(Writeback)+" ")
 	}
 	return nil
 }
 
 func (f *fakeDm) create() error { f.created++; return nil }
 func (f *fakeDm) remove() error { f.removed++; return nil }
-func (f *fakeDm) close()        {}
 
 func (f *fakeDm) switchedToCleaner() int {
 	n := 0
@@ -331,7 +330,7 @@ func TestReconcileTable(t *testing.T) {
 
 	t.Run("cleaner is reconciled to normal", func(t *testing.T) {
 		f := &fakeDm{policy: cleanerPolicy, writeback: false}
-		require.NoError(t, reconcileTable(logger, f, DataCacheWriteback))
+		require.NoError(t, reconcileTable(logger, f, Writeback))
 		assert.Len(t, f.loads, 1, "expected one reload")
 		assert.Equal(t, "mq", f.policy)
 		assert.True(t, f.writeback, "not reconciled to writeback")
@@ -339,13 +338,13 @@ func TestReconcileTable(t *testing.T) {
 
 	t.Run("matching table is left alone", func(t *testing.T) {
 		f := &fakeDm{policy: "mq", writeback: true}
-		require.NoError(t, reconcileTable(logger, f, DataCacheWriteback))
+		require.NoError(t, reconcileTable(logger, f, Writeback))
 		assert.Empty(t, f.loads, "should not reload a matching table")
 	})
 
 	t.Run("wrong mode is reconciled", func(t *testing.T) {
 		f := &fakeDm{policy: "mq", writeback: false} // writethrough on disk
-		require.NoError(t, reconcileTable(logger, f, DataCacheWriteback))
+		require.NoError(t, reconcileTable(logger, f, Writeback))
 		assert.Len(t, f.loads, 1)
 		assert.True(t, f.writeback, "wrong mode not reconciled")
 	})
@@ -364,7 +363,7 @@ func TestWaitForCacheDevice(t *testing.T) {
 		dir := t.TempDir()
 		synctest.Test(t, func(t *testing.T) {
 			err := waitForCacheDevice(t.Context(), filepath.Join(dir, "nonexistent"))
-			assert.ErrorContains(t, err, "timed out")
+			assert.ErrorIs(t, err, context.DeadlineExceeded)
 		})
 	})
 }
