@@ -382,14 +382,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if sourceNotMounted {
 		device, err := DefaultDeviceManager.GetDeviceByVolumeID(req.GetVolumeId())
-		if err == nil {
-			if err := ns.mountDeviceToGlobal(logger, req.VolumeCapability, req.VolumeContext, device, sourcePath); err != nil {
-				return nil, status.Errorf(codes.Internal, "remount disk to sourcePath %s: %v", sourcePath, err)
-			}
-			logger.V(2).Info("SourcePath not mounted, remounted with device", "source", sourcePath, "device", device)
-		} else {
+		if err != nil {
 			return nil, status.Errorf(codes.Internal, "sourcePath %s is not mounted, and device not found: %v", sourcePath, err)
 		}
+		// Re-establish the staging mount exactly as NodeStageVolume would, so a
+		// cache-backed volume is remounted on its dm-cache device rather than the
+		// raw origin.
+		if err := ns.setupDisk(ctx, device, sourcePath, req); err != nil {
+			return nil, status.Errorf(codes.Internal, "remount disk to sourcePath %s: %v", sourcePath, err)
+		}
+		logger.V(2).Info("SourcePath not mounted, remounted with device", "source", sourcePath, "device", device)
 	}
 
 	// check device name available
@@ -1074,33 +1076,6 @@ func (ns *nodeServer) replaceTmpfs(ctx context.Context, logger klog.Logger, targ
 	err = utilsio.MountRoTmpfs(targetPath)
 	if err != nil {
 		return status.Errorf(codes.Internal, "mount readonly tmpfs at %s: %v", targetPath, err)
-	}
-	return nil
-}
-
-func (ns *nodeServer) mountDeviceToGlobal(logger klog.Logger, capability *csi.VolumeCapability, volumeContext map[string]string, device, sourcePath string) error {
-	mnt := capability.GetMount()
-	options := append(mnt.MountFlags, "shared")
-	fsType := "ext4"
-	if mnt.FsType != "" {
-		fsType = mnt.FsType
-	}
-	mountOptions := collectMountOptions(fsType, options)
-	if err := os.MkdirAll(sourcePath, 0755); err != nil {
-		return fmt.Errorf("create sourcePath %s: %w", sourcePath, err)
-	}
-
-	// Set mkfs options for ext3, ext4
-	mkfsOptions := make([]string, 0)
-	if value, ok := volumeContext[MkfsOptions]; ok {
-		mkfsOptions = strings.Split(value, " ")
-	}
-
-	// do format-mount or mount
-	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
-	if err := utils.FormatAndMount(diskMounter, device, sourcePath, fsType, mkfsOptions, mountOptions, GlobalConfigVar.OmitFilesystemCheck); err != nil {
-		logger.Error(err, "FormatAndMount failed", "device", device, "source", sourcePath, "fsType", fsType, "mkfsOptions", mkfsOptions, "mountOptions", mountOptions)
-		return fmt.Errorf("FormatAndMount %s to %s: %w", device, sourcePath, err)
 	}
 	return nil
 }
