@@ -293,6 +293,44 @@ func TestDataCacheResize(t *testing.T) {
 	t.Logf("resize grew cache to %d sectors, policy preserved", newSize/512)
 }
 
+// TestDataCacheRestageReconcilesSize verifies that if the origin grows while the
+// cache device persists but datacache.Resize never runs (e.g. an offline expand,
+// or a kubelet restart that re-stages without a NodeExpandVolume), a subsequent
+// Setup grows the cache target to the new origin size via reconcileTable rather
+// than leaving the extra capacity invisible.
+func TestDataCacheRestageReconcilesSize(t *testing.T) {
+	requireDataCacheSupport(t)
+	logger, ctx := ktesting.NewTestContext(t)
+
+	const volumeID = "d-testdatacache08"
+	const originSize = 128 << 20
+	const newSize = 256 << 20
+
+	originDev, originFile, originLoopFd := setupTestOrigin(t, logger, originSize)
+
+	ctrl := testDmControl(t)
+	d := &Opts{Size: *resource.NewQuantity(64<<20, resource.BinarySI), Mode: Writeback}
+	cacheDev, err := Setup(ctx, ctrl, d, originDev, volumeID)
+	require.NoError(t, err, "setupDataCache")
+	t.Cleanup(func() { _ = Teardown(ctx, ctrl, volumeID) })
+	require.Equal(t, int64(originSize), deviceCapacity(t, cacheDev), "initial size")
+
+	// Grow the origin without touching the cache device, as an offline/controller
+	// expand would.
+	require.NoError(t, os.Truncate(originFile, newSize), "grow origin file")
+	require.NoError(t, unix.IoctlSetInt(originLoopFd, unix.LOOP_SET_CAPACITY, 0), "LOOP_SET_CAPACITY")
+
+	// Restage: the device already exists, so Setup takes the reconcile fast path.
+	// It must grow the target to the new origin size, not keep the old one.
+	cacheDev, err = Setup(ctx, ctrl, d, originDev, volumeID)
+	require.NoError(t, err, "restage setup")
+	require.Equal(t, int64(newSize), deviceCapacity(t, cacheDev), "restage did not reconcile the grown size")
+	st := readCacheStatus(t, ctrl, volumeID)
+	assert.NotEqual(t, cleanerPolicy, st.policy, "restage changed policy")
+	assert.True(t, st.writeback, "restage changed mode")
+	t.Logf("restage reconciled cache to %d sectors", newSize/512)
+}
+
 // deviceCapacity returns the size of a block device in bytes.
 func deviceCapacity(t *testing.T, dev string) int64 {
 	t.Helper()

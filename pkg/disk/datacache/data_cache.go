@@ -155,19 +155,20 @@ func Setup(ctx context.Context, ctrl *DmControl, d *Opts, device, volumeID strin
 	mapperDev := DevicePath(volumeID)
 	dev := ctrl.device(logger, volumeID)
 
+	originSize, err := utilsio.GetBlockDeviceCapacity(device)
+	if err != nil {
+		return "", fmt.Errorf("failed to get capacity of %s: %w", device, err)
+	}
+	originSectors := uint64(originSize / 512)
+
 	var st unix.Stat_t
 	if err := unix.Stat(mapperDev, &st); err == nil {
-		if err := reconcileTable(logger, dev, d.Mode); err != nil {
+		if err := reconcileTable(logger, dev, d.Mode, originSectors); err != nil {
 			return "", err
 		}
 		return mapperDev, nil
 	} else if err != unix.ENOENT {
 		return "", fmt.Errorf("failed to stat %s: %w", mapperDev, err)
-	}
-
-	originSize, err := utilsio.GetBlockDeviceCapacity(device)
-	if err != nil {
-		return "", fmt.Errorf("failed to get capacity of %s: %w", device, err)
 	}
 
 	cacheSize := d.Size.Value()
@@ -208,7 +209,7 @@ func Setup(ctx context.Context, ctrl *DmControl, d *Opts, device, volumeID strin
 		return "", err
 	}
 	args := meta + " " + data + " " + device + " " + cacheArgsTail(d.Mode)
-	if err := dev.tableLoad(uint64(originSize/512), args); err != nil {
+	if err := dev.tableLoad(originSectors, args); err != nil {
 		return "", err
 	}
 	if err := waitForCacheDevice(ctx, mapperDev); err != nil {
@@ -340,10 +341,14 @@ func switchToCleaner(d dmDevice) error {
 }
 
 // reconcileTable brings an already-existing cache's table in line with what a
-// fresh setup would create for the requested mode, healing any drift (a
-// half-finished teardown left in cleaner policy, or a stale mode/params).
-func reconcileTable(logger klog.Logger, d dmDevice, mode Mode) error {
-	size, table, err := d.tableStatus(dmStatusTableFlag)
+// fresh setup would create for the requested mode and origin size, healing any
+// drift: a half-finished teardown left in cleaner policy, a stale mode/params,
+// or a target length that no longer matches the origin (the origin grew while
+// the cache device persisted, e.g. an offline expand, or a NodeExpandVolume
+// that never reached datacache.Resize). size is the origin length in 512b
+// sectors.
+func reconcileTable(logger klog.Logger, d dmDevice, mode Mode, size uint64) error {
+	oldSize, table, err := d.tableStatus(dmStatusTableFlag)
 	if err != nil {
 		return err
 	}
@@ -352,10 +357,10 @@ func reconcileTable(logger klog.Logger, d dmDevice, mode Mode) error {
 		return err
 	}
 	want := cacheArgsTail(mode)
-	if tail == want {
+	if tail == want && oldSize == size {
 		return nil
 	}
-	logger.V(2).Info("reconciling dm-cache table", "from", tail, "to", want)
+	logger.V(2).Info("reconciling dm-cache table", "from", tail, "to", want, "fromSize", oldSize, "toSize", size)
 	return d.tableLoad(size, devices+" "+want)
 }
 

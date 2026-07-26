@@ -368,25 +368,35 @@ func TestFlushAndRemove_NotActive_RemovesWithoutFlush(t *testing.T) {
 func TestReconcileTable(t *testing.T) {
 	logger, _ := ktesting.NewTestContext(t)
 
+	const size = 1 << 20
+
 	t.Run("cleaner is reconciled to normal", func(t *testing.T) {
-		f := &fakeDm{policy: cleanerPolicy, writeback: false}
-		require.NoError(t, reconcileTable(logger, f, Writeback))
+		f := &fakeDm{policy: cleanerPolicy, writeback: false, size: size}
+		require.NoError(t, reconcileTable(logger, f, Writeback, size))
 		assert.Len(t, f.loads, 1, "expected one reload")
 		assert.Equal(t, "mq", f.policy)
 		assert.True(t, f.writeback, "not reconciled to writeback")
 	})
 
 	t.Run("matching table is left alone", func(t *testing.T) {
-		f := &fakeDm{policy: "mq", writeback: true}
-		require.NoError(t, reconcileTable(logger, f, Writeback))
+		f := &fakeDm{policy: "mq", writeback: true, size: size}
+		require.NoError(t, reconcileTable(logger, f, Writeback, size))
 		assert.Empty(t, f.loads, "should not reload a matching table")
 	})
 
 	t.Run("wrong mode is reconciled", func(t *testing.T) {
-		f := &fakeDm{policy: "mq", writeback: false} // writethrough on disk
-		require.NoError(t, reconcileTable(logger, f, Writeback))
+		f := &fakeDm{policy: "mq", writeback: false, size: size} // writethrough on disk
+		require.NoError(t, reconcileTable(logger, f, Writeback, size))
 		assert.Len(t, f.loads, 1)
 		assert.True(t, f.writeback, "wrong mode not reconciled")
+	})
+
+	t.Run("grown origin is reconciled to the new size", func(t *testing.T) {
+		f := &fakeDm{policy: "mq", writeback: true, size: size}
+		require.NoError(t, reconcileTable(logger, f, Writeback, 2*size))
+		assert.Len(t, f.loads, 1, "expected one reload for the size change")
+		assert.Equal(t, uint64(2*size), f.size, "target not grown to new origin size")
+		assert.True(t, f.writeback, "mode changed by size reconcile")
 	})
 }
 
