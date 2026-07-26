@@ -393,7 +393,7 @@ func TestNodeExpandVolumeBlockNoCache(t *testing.T) {
 	setupNVMeBlockDevice(t, m.SysfsPath)
 	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev, nvmeLink}
 
-	ns := &nodeServer{ad: DiskAttachDetach{dev: m, devMap: &devMap{}}}
+	ns := &nodeServer{ad: DiskAttachDetach{dev: m, devMap: &devMap{}}, locks: utils.NewVolumeLocks()}
 
 	resp, err := ns.NodeExpandVolume(ctx, &csi.NodeExpandVolumeRequest{
 		VolumeId:         "d-mydiskserial",

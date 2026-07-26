@@ -967,6 +967,13 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("starting", "req", req)
 
+	// Serialize with Stage/Unstage on this volume: localExpandVolume reloads the
+	// dm-cache table, which must not race a concurrent teardown or setup.
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
+	}
+	defer ns.locks.Release(req.VolumeId)
+
 	// Block volumes have no filesystem to grow, but localExpandVolume still
 	// resizes any dm-cache target. Rund transfers the fs resize into the guest.
 	if req.GetVolumeCapability().GetBlock() == nil {
