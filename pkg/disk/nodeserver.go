@@ -326,7 +326,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		logger.V(2).Info("start mount in pvm mode", "target", req.TargetPath)
 		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
 		pvName := utils.GetPvNameFormPodMnt(targetPath)
-		returned, err := ns.mountRunDVolumes(logger, req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, true, mountFlags)
+		returned, err := ns.mountRunDVolumes(ctx, req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, true, mountFlags)
 		if err != nil {
 			return nil, err
 		}
@@ -338,7 +338,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// check pod runtime
 	switch runtime {
 	case utils.RunvRunTimeTag:
-		err := ns.mountRunvVolumes(logger, req.VolumeId, sourcePath, req.TargetPath)
+		err := ns.mountRunvVolumes(ctx, req.VolumeId, sourcePath, req.TargetPath)
 		if err != nil {
 			return nil, err
 		}
@@ -347,7 +347,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		logger.V(2).Info("start mount in kata mode", "target", req.TargetPath)
 		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
 		pvName := utils.GetPvNameFormPodMnt(targetPath)
-		returned, err := ns.mountRunDVolumes(logger, req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, false, mountFlags)
+		returned, err := ns.mountRunDVolumes(ctx, req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, false, mountFlags)
 		if err != nil {
 			return nil, err
 		}
@@ -738,6 +738,16 @@ func (ns *nodeServer) unmountTargetPath(logger klog.Logger, targetPath, volumeID
 	return nil
 }
 
+func (ns *nodeServer) teardownStageTarget(ctx context.Context, targetPath, volumeID string) error {
+	if err := ns.unmountTargetPath(klog.FromContext(ctx), targetPath, volumeID); err != nil {
+		return err
+	}
+	if cacheErr := datacache.Teardown(ctx, ns.dmControl, volumeID); cacheErr != nil {
+		return fmt.Errorf("teardown DataCache for %s: %v", volumeID, cacheErr)
+	}
+	return nil
+}
+
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Starting to unmount volume", "target", req.StagingTargetPath)
@@ -747,7 +757,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	}
 	defer ns.locks.Release(req.VolumeId)
 
-	err := ns.unmountTargetPath(logger, req.StagingTargetPath, req.VolumeId)
+	err := ns.teardownStageTarget(ctx, req.StagingTargetPath, req.VolumeId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -767,11 +777,6 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			logger.Error(err, "clear disk bdf info failed")
 			return nil, err
 		}
-	}
-
-	// Teardown DataCache
-	if cacheErr := datacache.Teardown(ctx, ns.dmControl, req.VolumeId); cacheErr != nil {
-		return nil, status.Errorf(codes.Internal, "teardown DataCache for %s: %v", req.VolumeId, cacheErr)
 	}
 
 	// All device related errors are not fatal, just log it
@@ -1051,7 +1056,7 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 	}, nil
 }
 
-func (ns *nodeServer) replaceTmpfs(logger klog.Logger, targetPath, volumeID string) error {
+func (ns *nodeServer) replaceTmpfs(ctx context.Context, logger klog.Logger, targetPath, volumeID string) error {
 	isTmpfs, err := utils.IsDirTmpfs(ns.k8smounter, targetPath)
 	if err != nil {
 		return status.Errorf(codes.Internal, "check %s for tmpfs: %v", targetPath, err)
@@ -1061,7 +1066,7 @@ func (ns *nodeServer) replaceTmpfs(logger klog.Logger, targetPath, volumeID stri
 		return nil
 	}
 
-	err = ns.unmountTargetPath(logger, targetPath, volumeID)
+	err = ns.teardownStageTarget(ctx, targetPath, volumeID)
 	if err != nil {
 		return err
 	}
@@ -1291,10 +1296,11 @@ func (ns *nodeServer) umountRunDVolumes(logger klog.Logger, volumePath string) (
 	return false, nil
 }
 
-func (ns *nodeServer) mountRunvVolumes(logger klog.Logger, volumeId, sourcePath, targetPath string) error {
+func (ns *nodeServer) mountRunvVolumes(ctx context.Context, volumeId, sourcePath, targetPath string) error {
+	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Mount with runv")
 	// umount the stage path, which is mounted in Stage (tmpfs)
-	if err := ns.replaceTmpfs(logger, sourcePath, volumeId); err != nil {
+	if err := ns.replaceTmpfs(ctx, logger, sourcePath, volumeId); err != nil {
 		return status.Errorf(codes.InvalidArgument, "runv: replaceTmpfs %s: %v", sourcePath, err)
 	}
 	deviceName, err := ns.ad.GetRootBlockDevice(logger, volumeId)
@@ -1331,7 +1337,8 @@ func (ns *nodeServer) mountRunvVolumes(logger klog.Logger, volumeId, sourcePath,
 	return nil
 }
 
-func (ns *nodeServer) mountRunDVolumes(logger klog.Logger, volumeId, pvName, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock, pvmMode bool, mountFlags []string) (bool, error) {
+func (ns *nodeServer) mountRunDVolumes(ctx context.Context, volumeId, pvName, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock, pvmMode bool, mountFlags []string) (bool, error) {
+	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Mount in RunD csi 3.0/2.0 protocol")
 	deviceName, err := ns.ad.GetRootBlockDevice(logger, volumeId)
 	if err != nil {
@@ -1342,7 +1349,7 @@ func (ns *nodeServer) mountRunDVolumes(logger klog.Logger, volumeId, pvName, sou
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		logger := logger.WithValues("protocol", "rund3")
 		// umount the stage path, which is mounted in Stage
-		if err := ns.replaceTmpfs(logger, sourcePath, volumeId); err != nil {
+		if err := ns.replaceTmpfs(ctx, logger, sourcePath, volumeId); err != nil {
 			return true, status.Errorf(codes.InvalidArgument, "rund3: replaceTmpfs %s: %v", sourcePath, err)
 		}
 
