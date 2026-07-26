@@ -615,7 +615,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	err = ns.setupDisk(ctx, device, targetPath, req)
 	if err != nil {
-		return nil, status.Error(defaultErrCode, err.Error())
+		// setupDisk may have created node-side state (a dm-cache device, loop
+		// devices, a mount) before failing. Return Aborted so the CO treats the
+		// stage as in-progress and calls NodeUnstageVolume to tear it down.
+		return nil, status.Error(codes.Aborted, err.Error())
 	}
 	return &csi.NodeStageVolumeResponse{}, nil
 }

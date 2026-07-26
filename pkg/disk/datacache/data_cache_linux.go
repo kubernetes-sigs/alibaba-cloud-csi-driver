@@ -201,7 +201,7 @@ func (d *dmIoctlDevice) tableStatus(flags uint32) (size uint64, status string, e
 		return 0, "", fmt.Errorf("failed to get current table: %w", errno)
 	}
 	if dmi.Flags&unix.DM_ACTIVE_PRESENT_FLAG == 0 {
-		return 0, "", fmt.Errorf("device-mapper device is not active")
+		return 0, "", errNotActive
 	}
 	if dmi.Target_count != 1 {
 		return 0, "", fmt.Errorf("device-mapper device has %d targets", dmi.Target_count)

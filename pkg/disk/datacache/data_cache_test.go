@@ -177,6 +177,7 @@ type fakeDm struct {
 	policy    string
 	size      uint64
 	absent    bool // status returns ENXIO
+	notActive bool // status returns errNotActive (created, no table loaded)
 
 	loads   []string
 	created int
@@ -205,6 +206,9 @@ func (f *fakeDm) tableStatus(flags uint32) (uint64, string, error) {
 	}
 	if f.absent {
 		return 0, "", fmt.Errorf("get status: %w", unix.ENXIO)
+	}
+	if f.notActive {
+		return 0, "", errNotActive
 	}
 	if flags&dmStatusTableFlag != 0 {
 		return f.size, "7:0 7:1 7:2 " + f.tail(), nil
@@ -347,6 +351,18 @@ func TestFlushToClean_DeviceAbsentPropagatesENXIO(t *testing.T) {
 
 	assert.ErrorIs(t, flushToClean(ctx, logger, f), unix.ENXIO)
 	assert.Equal(t, 0, f.switchedToCleaner(), "absent device should not switch policy")
+}
+
+// A device Setup created but never loaded a table for (e.g. a crash between
+// create and resume) reports errNotActive. It holds no data, so teardown must
+// remove it without flushing rather than failing.
+func TestFlushAndRemove_NotActive_RemovesWithoutFlush(t *testing.T) {
+	logger, ctx := ktesting.NewTestContext(t)
+	f := &fakeDm{notActive: true}
+
+	require.NoError(t, flushAndRemoveDmCache(ctx, logger, f))
+	assert.Equal(t, 0, f.switchedToCleaner(), "not-active device should not switch policy")
+	assert.Equal(t, 1, f.removed, "not-active device should still be removed")
 }
 
 func TestReconcileTable(t *testing.T) {

@@ -194,6 +194,67 @@ func TestDataCacheStageReconcilesPolicy(t *testing.T) {
 	t.Logf("restage reconciled cleaner cache back to writeback/mq")
 }
 
+// TestDataCacheSetupAdoptsHalfCreatedDevice reproduces a NodeStageVolume that
+// died (or whose process crashed) after DM_DEV_CREATE but before the table load
+// and resume, then verifies the retry recovers instead of wedging. A create-only
+// device has no active table, so the kernel never runs add_disk and no
+// /dev/mapper node appears: Setup's Stat sees ENOENT and falls through to
+// create(), which now returns EBUSY (the namespaced device already exists).
+// Setup must tolerate that, adopt the device, load the table and resume.
+func TestDataCacheSetupAdoptsHalfCreatedDevice(t *testing.T) {
+	requireDataCacheSupport(t)
+	logger, ctx := ktesting.NewTestContext(t)
+
+	const volumeID = "d-testdatacache06"
+	const originSize = 128 << 20
+
+	originDev, _, _ := setupTestOrigin(t, logger, originSize)
+
+	ctrl := testDmControl(t)
+	t.Cleanup(func() { _ = Teardown(ctx, ctrl, volumeID) })
+
+	// Simulate the crash window: create the dm device but load no table.
+	dev := ctrl.device(logger, volumeID)
+	require.NoError(t, dev.create(), "seed a create-only device")
+	var st unix.Stat_t
+	require.ErrorIs(t, unix.Stat(DevicePath(volumeID), &st), unix.ENOENT,
+		"a create-only device must have no /dev/mapper node")
+
+	// The retry must adopt the existing device rather than fail on EBUSY.
+	d := &Opts{Size: *resource.NewQuantity(64<<20, resource.BinarySI), Mode: Writeback}
+	cacheDev, err := Setup(ctx, ctrl, d, originDev, volumeID)
+	require.NoError(t, err, "Setup should adopt the half-created device")
+	require.Equal(t, DevicePath(volumeID), cacheDev)
+	require.Equal(t, int64(originSize), deviceCapacity(t, cacheDev), "adopted device sized to origin")
+	cacheSt := readCacheStatus(t, ctrl, volumeID)
+	assert.True(t, cacheSt.writeback, "adopted device not in writeback")
+	assert.NotEqual(t, cleanerPolicy, cacheSt.policy, "adopted device not in mq policy")
+}
+
+// TestDataCacheTeardownHalfCreatedDevice verifies that tearing down a device
+// left in the create-only state (no active table) removes it without trying to
+// flush — flushToClean's status read reports errNotActive, which teardown treats
+// as "no data to flush". This is the NodeUnstageVolume counterpart to the crash
+// window in TestDataCacheSetupAdoptsHalfCreatedDevice.
+func TestDataCacheTeardownHalfCreatedDevice(t *testing.T) {
+	requireDataCacheSupport(t)
+	logger, ctx := ktesting.NewTestContext(t)
+
+	const volumeID = "d-testdatacache07"
+
+	ctrl := testDmControl(t)
+	dev := ctrl.device(logger, volumeID)
+	require.NoError(t, dev.create(), "seed a create-only device")
+	t.Cleanup(func() { _ = Teardown(ctx, ctrl, volumeID) })
+
+	require.NoError(t, Teardown(ctx, ctrl, volumeID), "teardown of create-only device")
+
+	// The device must be gone: a second status read now reports ENXIO, not
+	// errNotActive.
+	_, _, err := dev.tableStatus(0)
+	assert.ErrorIs(t, err, unix.ENXIO, "device should be removed after teardown")
+}
+
 // TestDataCacheResize verifies resizeDmCache grows the cache target to match a
 // grown origin device via a table reload, preserving the policy. This mirrors
 // NodeExpandVolume: the cloud disk (origin) is expanded first, then the cache
@@ -208,12 +269,7 @@ func TestDataCacheResize(t *testing.T) {
 
 	// Origin file is pre-sized to the grown size but the loop device starts at
 	// originSize, so the cache target is set up at originSize.
-	originFile := filepath.Join(t.TempDir(), "origin.img")
-	require.NoError(t, os.WriteFile(originFile, nil, 0600), "create origin file")
-	originDev, originLoopFd, err := allocCacheFile(logger, originFile, originSize)
-	require.NoError(t, err, "setup origin loop device")
-	defer func() { _ = unix.Close(originLoopFd) }()
-	require.NoError(t, os.MkdirAll(DataCachePath, 0700), "mkdir cache path")
+	originDev, originFile, originLoopFd := setupTestOrigin(t, logger, originSize)
 
 	ctrl := testDmControl(t)
 	d := &Opts{Size: *resource.NewQuantity(64<<20, resource.BinarySI), Mode: Writeback}
@@ -256,6 +312,21 @@ func testDmControl(t *testing.T) *DmControl {
 	return ctrl
 }
 
+// setupTestOrigin creates a loop-backed origin device of originSize (its loop fd
+// closed on cleanup) and ensures DataCachePath exists. It returns the origin
+// device path, its backing file (for callers that grow it) and the loop fd (for
+// callers that refresh its capacity via LOOP_SET_CAPACITY).
+func setupTestOrigin(t *testing.T, logger klog.Logger, originSize int64) (originDev, originFile string, originLoopFd int) {
+	t.Helper()
+	originFile = filepath.Join(t.TempDir(), "origin.img")
+	require.NoError(t, os.WriteFile(originFile, nil, 0600), "create origin file")
+	originDev, originLoopFd, err := allocCacheFile(logger, originFile, originSize)
+	require.NoError(t, err, "setup origin loop device")
+	t.Cleanup(func() { _ = unix.Close(originLoopFd) })
+	require.NoError(t, os.MkdirAll(DataCachePath, 0700), "mkdir cache path")
+	return originDev, originFile, originLoopFd
+}
+
 // setupTestCache creates a loop-backed origin device and a writeback/writethrough
 // dm-cache over it via the production setupDataCache path, registering teardown.
 // It returns the origin device path and the cache (dm) device path.
@@ -263,20 +334,13 @@ func setupTestCache(t *testing.T, ctrl *DmControl, logger klog.Logger, ctx conte
 	t.Helper()
 	const cacheSize = 64 << 20
 
-	originFile := filepath.Join(t.TempDir(), "origin.img")
-	require.NoError(t, os.WriteFile(originFile, nil, 0600), "create origin file")
-	originDev, originLoopFd, err := allocCacheFile(logger, originFile, originSize)
-	require.NoError(t, err, "setup origin loop device")
-	t.Cleanup(func() { _ = unix.Close(originLoopFd) })
-
-	// Cache files live under DataCachePath, keyed by volumeID.
-	require.NoError(t, os.MkdirAll(DataCachePath, 0700), "mkdir cache path")
+	originDev, _, _ = setupTestOrigin(t, logger, originSize)
 
 	d := &Opts{
 		Size: *resource.NewQuantity(cacheSize, resource.BinarySI),
 		Mode: mode,
 	}
-	cacheDev, err = Setup(ctx, ctrl, d, originDev, volumeID)
+	cacheDev, err := Setup(ctx, ctrl, d, originDev, volumeID)
 	require.NoError(t, err, "setupDataCache")
 	require.Equal(t, DevicePath(volumeID), cacheDev)
 	t.Cleanup(func() {

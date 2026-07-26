@@ -165,7 +165,12 @@ func Setup(ctx context.Context, ctrl *DmControl, d *Opts, device, volumeID strin
 		return "", fmt.Errorf("failed to stat %s: %w", mapperDev, err)
 	}
 
-	size := d.Size.Value()
+	originSize, err := utilsio.GetBlockDeviceCapacity(device)
+	if err != nil {
+		return "", fmt.Errorf("failed to get capacity of %s: %w", device, err)
+	}
+
+	cacheSize := d.Size.Value()
 	meta, data := cacheFilePath(volumeID)
 
 	// Invariant: never truncate or delete an existing .meta/.data while it may
@@ -177,7 +182,7 @@ func Setup(ctx context.Context, ctrl *DmControl, d *Opts, device, volumeID strin
 	// lacks the CLEAN_SHUTDOWN flag and the kernel conservatively treats every
 	// cached block as dirty). Zeroing/recreating the meta file here would
 	// silently discard that data.
-	data, dataFd, err := allocCacheFile(logger, data, size)
+	data, dataFd, err := allocCacheFile(logger, data, cacheSize)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			logger.V(1).Info("data cache not exist on node, proceed without cache")
@@ -187,30 +192,29 @@ func Setup(ctx context.Context, ctrl *DmControl, d *Opts, device, volumeID strin
 	}
 	defer loggedClose(logger, dataFd) // be sure to close these FDs after the table load, or the loop device will be removed
 
-	meta, metaFd, err := allocCacheFile(logger, meta, metaSize(size))
+	meta, metaFd, err := allocCacheFile(logger, meta, metaSize(cacheSize))
 	if err != nil {
 		return "", fmt.Errorf("failed to allocate meta file: %v", err)
 	}
 	defer loggedClose(logger, metaFd)
 
-	if err := dev.create(); err != nil {
+	// create is idempotent: EBUSY means our namespaced device already exists,
+	// left by an earlier attempt that died before resume (its /dev/mapper node
+	// is absent, checked above). We adopt it and (re)load the table below, which
+	// atomically replaces any inactive table and releases its stale loop
+	// devices. This is why setup does not clean up a created device on a later
+	// failure: a process crash would defeat any such cleanup anyway.
+	if err := dev.create(); err != nil && !errors.Is(err, unix.EBUSY) {
 		return "", err
 	}
 	args := meta + " " + data + " " + device + " " + cacheArgsTail(d.Mode)
-	size, err = utilsio.GetBlockDeviceCapacity(device)
-	if err != nil {
-		return "", fmt.Errorf("failed to get capacity of %s: %w", device, err)
-	}
-	if err := dev.tableLoad(uint64(size/512), args); err != nil {
-		if rmErr := dev.remove(); rmErr != nil {
-			return "", fmt.Errorf("%w, cleanup also failed: %v, need manual cleanup", err, rmErr)
-		}
+	if err := dev.tableLoad(uint64(originSize/512), args); err != nil {
 		return "", err
 	}
 	if err := waitForCacheDevice(ctx, mapperDev); err != nil {
 		return "", err
 	}
-	logger.V(2).Info("setup dm-cache", "args", args, "size", size)
+	logger.V(2).Info("setup dm-cache", "args", args, "size", originSize)
 	return mapperDev, nil
 }
 
@@ -419,7 +423,8 @@ func clean(path string) error {
 // Teardown flushes any dirty blocks back to the origin, removes the
 // cache device, and deletes the backing files. A nil ctrl (device-mapper
 // unavailable on the node) or a missing device (ENXIO) means there is nothing to
-// remove; the backing files are still cleaned up in case they linger.
+// remove; the backing files are still cleaned up in case they linger. A
+// half-set-up device with no active table is removed without flushing.
 func Teardown(ctx context.Context, ctrl *DmControl, volumeID string) error {
 	logger := klog.FromContext(ctx)
 	if ctrl == nil {
@@ -437,10 +442,16 @@ func Teardown(ctx context.Context, ctrl *DmControl, volumeID string) error {
 	return errors.Join(clean(meta), clean(data))
 }
 
+// errNotActive is returned by tableStatus when the device exists but has no
+// active table. Setup can leave such a device behind if it dies (or its table
+// load fails) between create and resume; it holds no data, so teardown removes
+// it without flushing.
+var errNotActive = errors.New("device-mapper device is not active")
+
 // flushAndRemoveDmCache flushes dirty blocks back to the origin and removes the
 // cache device. It returns an error wrapping ENXIO when the device is absent.
 func flushAndRemoveDmCache(ctx context.Context, logger klog.Logger, d dmDevice) error {
-	if err := flushToClean(ctx, logger, d); err != nil {
+	if err := flushToClean(ctx, logger, d); err != nil && !errors.Is(err, errNotActive) {
 		return err
 	}
 	return d.remove()
