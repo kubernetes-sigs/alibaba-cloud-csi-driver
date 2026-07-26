@@ -111,5 +111,10 @@ func (a *CSIAgent) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpubli
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to cleanup %s: %v", req.TargetPath, err)
 	}
+	// NodePublishVolume set up the data cache (via setupDisk); tear it down
+	// here, its symmetric counterpart.
+	if err := datacache.Teardown(ctx, a.ns.dmControl, req.VolumeId); err != nil {
+		return nil, status.Errorf(codes.Internal, "teardown DataCache for %s: %v", req.VolumeId, err)
+	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
