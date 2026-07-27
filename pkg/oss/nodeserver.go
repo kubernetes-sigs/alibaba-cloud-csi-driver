@@ -166,7 +166,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return ns.publishDirectVolume(ctx, req, opts)
 	}
 
-	// Only Sandbox and Rund support overlay
+	// Overlay requires a dedicated hostPath volume at overlayBaseDir backed by ext4/xfs.
+	// Currently only the Sandbox deployment configures this hostPath; RunD without the
+	// hostPath will fail at mount time with "filesystem not supported as upperdir".
 	if opts.Overlay {
 		if err = utils.ValidateOverlayRequirements(opts.ReadOnly, runtimeType == RuntimeTypeRunD || ns.skipGlobalMount); err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())

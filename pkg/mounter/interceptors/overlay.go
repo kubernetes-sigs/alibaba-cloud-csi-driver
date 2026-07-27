@@ -22,13 +22,14 @@ import (
 //
 // When op.Overlay is false, this interceptor is a no-op passthrough.
 //
-// Token rotation handling:
+// Token rotation: if the merged dir is already mounted, passes through to downstream
+// handlers without attempting a second overlay mount (secret interceptor handles
+// credential update, overlay stays intact).
 //
-//	When the overlay merged dir is already mounted (token rotation case), the interceptor
-//	passes through to downstream handlers (which handle credential updates) without
-//	attempting a second overlay mount. This is critical because the secret interceptor
-//	returns ErrSkipMount (converted to nil by the chain), and calling MountOverlay on
-//	an already-mounted merged dir would fail and tear down the working mount.
+// This interceptor is storage-type agnostic and can be plugged into any driver's
+// interceptor chain. Currently integrated with ossfs and ossfs2.
+// NAS (alinas) is not yet integrated due to additional driver-side complexity
+// (subdir lazy creation with retry, mount-proxy restart preservation).
 func NewOverlayInterceptor(manager *server.OverlayManager) mounter.MountInterceptor {
 	return func(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
 		if !op.Overlay {
