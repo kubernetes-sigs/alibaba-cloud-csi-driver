@@ -28,7 +28,7 @@ type controllerServer struct {
 func NewControllerServer() csi.ControllerServer {
 
 	c := &controllerServer{
-		recorder:         utils.NewEventRecorder(),
+		recorder:         utils.NewEventRecorder(utils.EventComponentController),
 		createdVolumeMap: map[string]*csi.Volume{},
 	}
 

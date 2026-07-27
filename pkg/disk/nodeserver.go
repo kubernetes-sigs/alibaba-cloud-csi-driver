@@ -36,6 +36,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/datacache"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/sfdisk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -51,6 +52,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
@@ -59,6 +61,7 @@ import (
 type nodeServer struct {
 	metadata     metadata.MetadataProvider
 	useLabeler   bool
+	recorder     record.EventRecorder
 	ecsV2        cloud.ECSv2Interface
 	mounter      utils.Mounter
 	kataBMIOType MachineType
@@ -68,6 +71,7 @@ type nodeServer struct {
 	clientSet    *kubernetes.Clientset
 	ad           DiskAttachDetach
 	locks        *utils.VolumeLocks
+	dmControl    *datacache.DmControl // nil if device-mapper is unavailable on this node
 	common.GenericNodeServer
 }
 
@@ -205,10 +209,19 @@ func NewNodeServer(ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadat
 		klog.Fatalf("failed to list devices: %v", err)
 	}
 
+	dmControl, err := datacache.OpenDmControl()
+	if err != nil {
+		klog.Fatalf("failed to open device-mapper control: %v", err)
+	}
+	if dmControl == nil {
+		klog.Info("device-mapper unavailable, data cache disabled")
+	}
+
 	waiter, batcher := newBatcher(true)
 	return &nodeServer{
 		metadata:     m,
 		useLabeler:   useLabeler,
+		recorder:     utils.NewEventRecorder(utils.EventComponentNode),
 		ecsV2:        ecsV2,
 		mounter:      utils.NewMounter(),
 		kataBMIOType: kataBMIOType,
@@ -229,7 +242,8 @@ func NewNodeServer(ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadat
 			dev:    DefaultDeviceManager,
 			devMap: devMap,
 		},
-		locks: utils.NewVolumeLocks(),
+		locks:     utils.NewVolumeLocks(),
+		dmControl: dmControl,
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: GlobalConfigVar.NodeID,
 		},
@@ -315,7 +329,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		logger.V(2).Info("start mount in pvm mode", "target", req.TargetPath)
 		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
 		pvName := utils.GetPvNameFormPodMnt(targetPath)
-		returned, err := ns.mountRunDVolumes(logger, req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, true, mountFlags)
+		returned, err := ns.mountRunDVolumes(ctx, req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, true, mountFlags)
 		if err != nil {
 			return nil, err
 		}
@@ -327,7 +341,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// check pod runtime
 	switch runtime {
 	case utils.RunvRunTimeTag:
-		err := ns.mountRunvVolumes(logger, req.VolumeId, sourcePath, req.TargetPath)
+		err := ns.mountRunvVolumes(ctx, req.VolumeId, sourcePath, req.TargetPath)
 		if err != nil {
 			return nil, err
 		}
@@ -336,7 +350,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		logger.V(2).Info("start mount in kata mode", "target", req.TargetPath)
 		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
 		pvName := utils.GetPvNameFormPodMnt(targetPath)
-		returned, err := ns.mountRunDVolumes(logger, req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, false, mountFlags)
+		returned, err := ns.mountRunDVolumes(ctx, req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, false, mountFlags)
 		if err != nil {
 			return nil, err
 		}
@@ -371,14 +385,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if sourceNotMounted {
 		device, err := DefaultDeviceManager.GetDeviceByVolumeID(req.GetVolumeId())
-		if err == nil {
-			if err := ns.mountDeviceToGlobal(logger, req.VolumeCapability, req.VolumeContext, device, sourcePath); err != nil {
-				return nil, status.Errorf(codes.Internal, "remount disk to sourcePath %s: %v", sourcePath, err)
-			}
-			logger.V(2).Info("SourcePath not mounted, remounted with device", "source", sourcePath, "device", device)
-		} else {
+		if err != nil {
 			return nil, status.Errorf(codes.Internal, "sourcePath %s is not mounted, and device not found: %v", sourcePath, err)
 		}
+		// Re-establish the staging mount exactly as NodeStageVolume would, so a
+		// cache-backed volume is remounted on its dm-cache device rather than the
+		// raw origin.
+		if err := ns.setupDisk(ctx, device, sourcePath, req); err != nil {
+			return nil, status.Errorf(codes.Internal, "remount disk to sourcePath %s: %v", sourcePath, err)
+		}
+		logger.V(2).Info("SourcePath not mounted, remounted with device", "source", sourcePath, "device", device)
 	}
 
 	// check device name available
@@ -401,7 +417,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Errorf(codes.Internal, "get device name from mount %s: %v", sourcePath, err)
 		}
 	}
-	if realDevice != "tmpfs" {
+	if realDevice != "tmpfs" && realDevice != datacache.DevicePath(req.VolumeId) {
 		matched := false
 		if realDevice != "" {
 			realMajor, realMinor, err := DefaultDeviceManager.DevTmpFS.DevFor(realDevice)
@@ -418,6 +434,20 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		if !matched {
 			return nil, status.Errorf(codes.Internal, "real device %s not same with expected %s", realDevice, expectName)
+		}
+		var d datacache.Opts
+		if err := datacache.GetOpts(req.VolumeContext, &d); err != nil {
+			return nil, status.Errorf(codes.Internal, "data cache options: %v", err)
+		}
+		if d.Enabled() {
+			// datacache enabled, but we don't see the cache device
+			ns.recorder.Event(&v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      req.VolumeContext[utils.PodNameKey],
+					Namespace: req.VolumeContext[utils.PodNamespaceKey],
+					UID:       types.UID(req.VolumeContext[utils.PodUIDKey]),
+				},
+			}, v1.EventTypeWarning, "DataCacheFallback", "DataCache enabled but not effective, check cache path exists on node")
 		}
 	}
 
@@ -604,7 +634,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	err = ns.setupDisk(ctx, device, targetPath, req)
 	if err != nil {
-		return nil, status.Error(defaultErrCode, err.Error())
+		// setupDisk may have created node-side state (a dm-cache device, loop
+		// devices, a mount) before failing. Return Aborted so the CO treats the
+		// stage as in-progress and calls NodeUnstageVolume to tear it down.
+		return nil, status.Error(codes.Aborted, err.Error())
 	}
 	return &csi.NodeStageVolumeResponse{}, nil
 }
@@ -621,6 +654,17 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 	omitfsck := false
 	if disable, ok := volumeContext[OmitFilesystemCheck]; ok && disable == "true" {
 		omitfsck = true
+	}
+
+	// Setup DataCache
+	volumeId := req.GetVolumeId()
+	var d datacache.Opts
+	if err := datacache.GetOpts(volumeContext, &d); err != nil {
+		return err
+	}
+	device, err := datacache.Setup(ctx, ns.dmControl, &d, device, volumeId)
+	if err != nil {
+		return err
 	}
 
 	// Block volume not need to format
@@ -654,7 +698,6 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 		mkfsOptions = strings.Split(value, " ")
 	}
 
-	volumeId := req.GetVolumeId()
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if err := utils.FormatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, mountOptions, omitfsck); err != nil {
@@ -714,6 +757,16 @@ func (ns *nodeServer) unmountTargetPath(logger klog.Logger, targetPath, volumeID
 	return nil
 }
 
+func (ns *nodeServer) teardownStageTarget(ctx context.Context, targetPath, volumeID string) error {
+	if err := ns.unmountTargetPath(klog.FromContext(ctx), targetPath, volumeID); err != nil {
+		return err
+	}
+	if cacheErr := datacache.Teardown(ctx, ns.dmControl, volumeID); cacheErr != nil {
+		return fmt.Errorf("teardown DataCache for %s: %v", volumeID, cacheErr)
+	}
+	return nil
+}
+
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Starting to unmount volume", "target", req.StagingTargetPath)
@@ -723,7 +776,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	}
 	defer ns.locks.Release(req.VolumeId)
 
-	err := ns.unmountTargetPath(logger, req.StagingTargetPath, req.VolumeId)
+	err := ns.teardownStageTarget(ctx, req.StagingTargetPath, req.VolumeId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -931,25 +984,24 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("starting", "req", req)
 
-	if req.VolumeCapability != nil && req.VolumeCapability.GetBlock() != nil {
-		logger.V(2).Info("skipping expand for block volume")
-		return &csi.NodeExpandVolumeResponse{}, nil
+	// Serialize with Stage/Unstage on this volume: localExpandVolume reloads the
+	// dm-cache table, which must not race a concurrent teardown or setup.
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
+	defer ns.locks.Release(req.VolumeId)
 
-	volumePath := req.GetVolumePath()
-	if strings.Contains(volumePath, BLOCKVOLUMEPREFIX) {
-		logger.V(2).Info("Block volume not expand FS", "volumePath", volumePath)
-		return &csi.NodeExpandVolumeResponse{}, nil
-	}
-
-	// volume resize in rund type will transfer to guest os
-	isRund, err := checkRundVolumeExpand(req)
-	if isRund && err == nil {
-		logger.V(2).Info("Rund volume ExpandFS successful", "volumePath", volumePath)
-		return &csi.NodeExpandVolumeResponse{}, nil
-	} else if isRund && err != nil {
-		logger.Error(err, "Rund volume ExpandFS failed", "volumePath", volumePath)
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	// Block volumes have no filesystem to grow, but localExpandVolume still
+	// resizes any dm-cache target. Rund transfers the fs resize into the guest.
+	if req.GetVolumeCapability().GetBlock() == nil {
+		isRund, err := checkRundVolumeExpand(req)
+		if isRund && err == nil {
+			logger.V(2).Info("Rund volume ExpandFS successful", "volumePath", req.GetVolumePath())
+			return &csi.NodeExpandVolumeResponse{}, nil
+		} else if isRund && err != nil {
+			logger.Error(err, "Rund volume ExpandFS failed", "volumePath", req.GetVolumePath())
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 	}
 
 	return ns.localExpandVolume(ctx, req)
@@ -961,13 +1013,32 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 	diskID := req.GetVolumeId()
 	logger := klog.FromContext(ctx)
 
-	devicePath, err := ns.ad.GetVolumeDeviceName(logger, diskID)
+	var devicePath string
+	cached, err := datacache.Resize(logger, ns.dmControl, diskID, uint64((requestBytes-1)/512+1))
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, status.Errorf(codes.NotFound, "can't get devicePath for: %s", diskID)
-		}
-		return nil, status.Errorf(codes.Internal, "get device name: %v", err)
+		return nil, status.Errorf(codes.Internal, "resize dm-cache error: %v", err)
 	}
+	if cached {
+		devicePath = datacache.DevicePath(diskID)
+	}
+
+	// Block volumes have no filesystem or partition to grow; resizing the
+	// dm-cache target above (if any) is the only node-side work needed.
+	if req.GetVolumeCapability().GetBlock() != nil {
+		logger.V(2).Info("skipping fs expand for block volume")
+		return &csi.NodeExpandVolumeResponse{}, nil
+	}
+
+	if devicePath == "" {
+		devicePath, err = ns.ad.GetVolumeDeviceName(logger, diskID)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return nil, status.Errorf(codes.NotFound, "can't get devicePath for: %s", diskID)
+			}
+			return nil, status.Errorf(codes.Internal, "get device name: %v", err)
+		}
+	}
+
 	logger = logger.WithValues("device", devicePath)
 	ctx = klog.NewContext(ctx, logger)
 
@@ -983,7 +1054,10 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 		logger.V(2).Info("Successful expand partition", "root", rootPath, "partition", index)
 	}
 
-	deviceCapacity := getBlockDeviceCapacity(rootPath)
+	deviceCapacity, err := utilsio.GetBlockDeviceCapacity(rootPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get device capacity: %v", err)
+	}
 
 	logger.V(2).Info("Expand filesystem start", "volumePath", volumePath)
 	// still try resize even if the deviceCapacity is not as large as requested, better than not.
@@ -1008,7 +1082,7 @@ func (ns *nodeServer) localExpandVolume(ctx context.Context, req *csi.NodeExpand
 	}, nil
 }
 
-func (ns *nodeServer) replaceTmpfs(logger klog.Logger, targetPath, volumeID string) error {
+func (ns *nodeServer) replaceTmpfs(ctx context.Context, logger klog.Logger, targetPath, volumeID string) error {
 	isTmpfs, err := utils.IsDirTmpfs(ns.k8smounter, targetPath)
 	if err != nil {
 		return status.Errorf(codes.Internal, "check %s for tmpfs: %v", targetPath, err)
@@ -1018,7 +1092,7 @@ func (ns *nodeServer) replaceTmpfs(logger klog.Logger, targetPath, volumeID stri
 		return nil
 	}
 
-	err = ns.unmountTargetPath(logger, targetPath, volumeID)
+	err = ns.teardownStageTarget(ctx, targetPath, volumeID)
 	if err != nil {
 		return err
 	}
@@ -1026,33 +1100,6 @@ func (ns *nodeServer) replaceTmpfs(logger klog.Logger, targetPath, volumeID stri
 	err = utilsio.MountRoTmpfs(targetPath)
 	if err != nil {
 		return status.Errorf(codes.Internal, "mount readonly tmpfs at %s: %v", targetPath, err)
-	}
-	return nil
-}
-
-func (ns *nodeServer) mountDeviceToGlobal(logger klog.Logger, capability *csi.VolumeCapability, volumeContext map[string]string, device, sourcePath string) error {
-	mnt := capability.GetMount()
-	options := append(mnt.MountFlags, "shared")
-	fsType := "ext4"
-	if mnt.FsType != "" {
-		fsType = mnt.FsType
-	}
-	mountOptions := collectMountOptions(fsType, options)
-	if err := os.MkdirAll(sourcePath, 0755); err != nil {
-		return fmt.Errorf("create sourcePath %s: %w", sourcePath, err)
-	}
-
-	// Set mkfs options for ext3, ext4
-	mkfsOptions := make([]string, 0)
-	if value, ok := volumeContext[MkfsOptions]; ok {
-		mkfsOptions = strings.Split(value, " ")
-	}
-
-	// do format-mount or mount
-	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
-	if err := utils.FormatAndMount(diskMounter, device, sourcePath, fsType, mkfsOptions, mountOptions, GlobalConfigVar.OmitFilesystemCheck); err != nil {
-		logger.Error(err, "FormatAndMount failed", "device", device, "source", sourcePath, "fsType", fsType, "mkfsOptions", mkfsOptions, "mountOptions", mountOptions)
-		return fmt.Errorf("FormatAndMount %s to %s: %w", device, sourcePath, err)
 	}
 	return nil
 }
@@ -1248,10 +1295,11 @@ func (ns *nodeServer) umountRunDVolumes(logger klog.Logger, volumePath string) (
 	return false, nil
 }
 
-func (ns *nodeServer) mountRunvVolumes(logger klog.Logger, volumeId, sourcePath, targetPath string) error {
+func (ns *nodeServer) mountRunvVolumes(ctx context.Context, volumeId, sourcePath, targetPath string) error {
+	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Mount with runv")
 	// umount the stage path, which is mounted in Stage (tmpfs)
-	if err := ns.replaceTmpfs(logger, sourcePath, volumeId); err != nil {
+	if err := ns.replaceTmpfs(ctx, logger, sourcePath, volumeId); err != nil {
 		return status.Errorf(codes.InvalidArgument, "runv: replaceTmpfs %s: %v", sourcePath, err)
 	}
 	deviceName, err := ns.ad.GetRootBlockDevice(logger, volumeId)
@@ -1288,7 +1336,8 @@ func (ns *nodeServer) mountRunvVolumes(logger klog.Logger, volumeId, sourcePath,
 	return nil
 }
 
-func (ns *nodeServer) mountRunDVolumes(logger klog.Logger, volumeId, pvName, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock, pvmMode bool, mountFlags []string) (bool, error) {
+func (ns *nodeServer) mountRunDVolumes(ctx context.Context, volumeId, pvName, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock, pvmMode bool, mountFlags []string) (bool, error) {
+	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Mount in RunD csi 3.0/2.0 protocol")
 	deviceName, err := ns.ad.GetRootBlockDevice(logger, volumeId)
 	if err != nil {
@@ -1299,7 +1348,7 @@ func (ns *nodeServer) mountRunDVolumes(logger klog.Logger, volumeId, pvName, sou
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		logger := logger.WithValues("protocol", "rund3")
 		// umount the stage path, which is mounted in Stage
-		if err := ns.replaceTmpfs(logger, sourcePath, volumeId); err != nil {
+		if err := ns.replaceTmpfs(ctx, logger, sourcePath, volumeId); err != nil {
 			return true, status.Errorf(codes.InvalidArgument, "rund3: replaceTmpfs %s: %v", sourcePath, err)
 		}
 

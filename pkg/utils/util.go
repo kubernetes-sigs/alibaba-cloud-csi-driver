@@ -92,6 +92,7 @@ const (
 
 	PodNameKey      = "csi.storage.k8s.io/pod.name"
 	PodNamespaceKey = "csi.storage.k8s.io/pod.namespace"
+	PodUIDKey       = "csi.storage.k8s.io/pod.uid"
 )
 
 type ServiceType int
@@ -161,8 +162,17 @@ func CreateEvent(recorder record.EventRecorder, objectRef *v1.ObjectReference, e
 	recorder.Event(objectRef, eventType, reason, err)
 }
 
-// NewEventRecorder is create snapshots event recorder
-func NewEventRecorder() record.EventRecorder {
+// Component names for the EventSource of recorded events.
+const (
+	// EventComponentController is the controller (csi-provisioner) deployment.
+	EventComponentController = "csi-controller-server"
+	// EventComponentNode is the per-node plugin (csi-plugin) daemonset.
+	EventComponentNode = "csi-plugin"
+)
+
+// NewEventRecorder creates an event recorder whose EventSource is component.
+// Use [EventComponentController] or [EventComponentNode].
+func NewEventRecorder(component string) record.EventRecorder {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartLogging(klog.Infof)
 	cfg, err := options.GetRestConfig()
@@ -178,7 +188,7 @@ func NewEventRecorder() record.EventRecorder {
 		}
 		broadcaster.StartRecordingToSink(sink)
 	}
-	source := v1.EventSource{Component: "csi-controller-server"}
+	source := v1.EventSource{Component: component}
 	return broadcaster.NewRecorder(scheme.Scheme, source)
 }
 

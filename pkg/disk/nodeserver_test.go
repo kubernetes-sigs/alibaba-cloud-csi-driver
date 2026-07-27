@@ -381,3 +381,25 @@ func TestNodeGetCapabilities(t *testing.T) {
 		})
 	}
 }
+
+// TestNodeExpandVolumeBlockNoCache verifies that expanding a block volume runs
+// the (no-op) dm-cache resize and returns without attempting any filesystem or
+// partition work. It resolves the device through a fake sysfs and leaves
+// dmControl nil (no device-mapper), so it touches no real disk or /dev/mapper
+// and runs on any platform.
+func TestNodeExpandVolumeBlockNoCache(t *testing.T) {
+	_, ctx := ktesting.NewTestContext(t)
+	m := testingManager(t)
+	setupNVMeBlockDevice(t, m.SysfsPath)
+	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev, nvmeLink}
+
+	ns := &nodeServer{ad: DiskAttachDetach{dev: m, devMap: &devMap{}}, locks: utils.NewVolumeLocks()}
+
+	resp, err := ns.NodeExpandVolume(ctx, &csi.NodeExpandVolumeRequest{
+		VolumeId:         "d-mydiskserial",
+		CapacityRange:    &csi.CapacityRange{RequiredBytes: 256 << 30},
+		VolumeCapability: &csi.VolumeCapability{AccessType: &csi.VolumeCapability_Block{Block: &csi.VolumeCapability_BlockVolume{}}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, &csi.NodeExpandVolumeResponse{}, resp)
+}

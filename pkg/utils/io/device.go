@@ -2,6 +2,8 @@ package io
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -50,4 +52,17 @@ func (RealDevTmpFS) ListDisks() ([]string, error) {
 		}
 	}
 	return disks, nil
+}
+
+func GetBlockDeviceCapacity(devicePath string) (int64, error) {
+	file, err := os.Open(devicePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to open %s: %w", devicePath, err)
+	}
+	defer func() { _ = file.Close() }()
+	pos, err := file.Seek(0, io.SeekEnd)
+	if err != nil {
+		return 0, fmt.Errorf("failed to seek %s: %w", devicePath, err)
+	}
+	return pos, nil
 }

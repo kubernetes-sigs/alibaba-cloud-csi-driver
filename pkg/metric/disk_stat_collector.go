@@ -121,7 +121,7 @@ func getDiskCapacityThreshold() float64 {
 
 // NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
-	recorder := utils.NewEventRecorder()
+	recorder := utils.NewEventRecorder(utils.EventComponentNode)
 	config, err := options.GetRestConfig()
 	if err != nil {
 		return nil, err

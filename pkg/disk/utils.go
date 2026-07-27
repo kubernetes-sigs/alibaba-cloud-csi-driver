@@ -48,6 +48,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/datacache"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
@@ -586,6 +587,11 @@ func getDiskVolumeOptions(
 	}
 	diskVolArgs.RequestGB = requestGB
 
+	err = datacache.GetOpts(volOptions, &diskVolArgs.DataCache)
+	if err != nil {
+		return nil, err
+	}
+
 	return diskVolArgs, nil
 }
 
@@ -783,21 +789,6 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 		return fmt.Errorf("devicePath(%s) is used as DataDisk for kubelet, cannot used for Volume", devicePath)
 	}
 	return nil
-}
-
-func getBlockDeviceCapacity(devicePath string) int64 {
-
-	file, err := os.Open(devicePath)
-	if err != nil {
-		klog.Errorf("getBlockDeviceCapacity:: failed to open devicePath: %v", devicePath)
-		return 0
-	}
-	pos, err := file.Seek(0, io.SeekEnd)
-	if err != nil {
-		klog.Errorf("getBlockDeviceCapacity:: failed to read devicePath: %v", devicePath)
-		return 0
-	}
-	return pos
 }
 
 func appendDiskTypes(resp *ecs20140526.DescribeAvailableResourceResponse, zoneID string, types []string) []string {

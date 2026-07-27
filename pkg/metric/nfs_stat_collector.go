@@ -204,7 +204,7 @@ func NewNfsStatCollector() (Collector, error) {
 	if err != nil {
 		return nil, err
 	}
-	recorder := utils.NewEventRecorder()
+	recorder := utils.NewEventRecorder(utils.EventComponentNode)
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {

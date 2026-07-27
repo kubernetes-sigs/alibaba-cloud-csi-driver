@@ -35,7 +35,7 @@ type groupControllerServer struct {
 // NewGroupControllerServer is to create controller server
 func NewGroupControllerServer() csi.GroupControllerServer {
 	c := &groupControllerServer{
-		recorder: utils.NewEventRecorder(),
+		recorder: utils.NewEventRecorder(utils.EventComponentController),
 	}
 	return c
 }

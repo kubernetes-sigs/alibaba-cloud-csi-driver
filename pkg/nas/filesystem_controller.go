@@ -104,7 +104,7 @@ type filesystemController struct {
 
 func newFilesystemController(config *internal.ControllerConfig) (internal.Controller, error) {
 	return &filesystemController{
-		eventRecorder: utils.NewEventRecorder(),
+		eventRecorder: utils.NewEventRecorder(utils.EventComponentController),
 		config:        config,
 	}, nil
 }

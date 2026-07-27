@@ -638,8 +638,9 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 			RequiredBytes: 20*GBSIZE - 100,
 		},
 		Parameters: map[string]string{
-			"zoneId":     "cn-beijing-i",
-			"diskTags/a": "b",
+			"zoneId":        "cn-beijing-i",
+			"diskTags/a":    "b",
+			"dataCacheSize": "10Gi",
 		},
 	}
 	opts, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{}, "")
@@ -647,6 +648,7 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	assert.Equal(t, "cn-beijing-i", opts.ZoneID)
 	assert.Equal(t, map[string]string{"a": "b"}, opts.DiskTags)
 	assert.Equal(t, int64(20), opts.RequestGB)
+	assert.Equal(t, int64(10<<30), opts.DataCache.Size.Value())
 }
 
 func TestGetDiskVolumeOptionsWithSnapshotID(t *testing.T) {
