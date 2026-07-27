@@ -30,7 +30,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -166,11 +166,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return ns.publishDirectVolume(ctx, req, opts)
 	}
 
-	// Overlay requires a dedicated hostPath volume at overlayBaseDir backed by ext4/xfs.
-	// Currently only the Sandbox deployment configures this hostPath; RunD without the
-	// hostPath will fail at mount time with "filesystem not supported as upperdir".
+	// Overlay requires running inside a VM (Sandbox or RunD) where mount-proxy-server
+	// manages the overlay lifecycle. skipGlobalMount indicates the VM environment.
+	// Additionally, a dedicated hostPath volume at overlayBaseDir is required;
+	// currently only the Sandbox deployment configures this. RunD without the hostPath
+	// will fail at mount time with "filesystem not supported as upperdir".
 	if opts.Overlay {
-		if err = utils.ValidateOverlayRequirements(opts.ReadOnly, runtimeType == RuntimeTypeRunD || ns.skipGlobalMount); err != nil {
+		if err = utils.ValidateOverlayRequirements(opts.ReadOnly, ns.skipGlobalMount); err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 	}
@@ -266,7 +268,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			Options:     mountOptions,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
-			VolumeID:    req.VolumeId, // Required for overlay: mount-proxy-server uses VolumeID to compute overlay dir paths
 			Overlay:     opts.Overlay,
 		})
 		if err != nil {
@@ -360,7 +361,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	// In RunD/Sandbox with overlay, mount-proxy-server mounted FUSE to a lower dir.
 	// After overlay unmount above, the lower dir mount may still be alive.
 	// VM destruction will reclaim all resources regardless.
-	server.CleanupOverlayLowerDir(targetPath)
+	mounterutils.CleanupOverlayLowerDir(targetPath)
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

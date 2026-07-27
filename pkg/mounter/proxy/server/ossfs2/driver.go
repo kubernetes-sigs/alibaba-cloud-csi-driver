@@ -18,6 +18,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -70,7 +71,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	fuseTarget := req.Target
 	overlayMerged := ""
 	if req.Overlay {
-		fuseTarget = server.OverlayLowerDir(req.Target)
+		fuseTarget = mounterutils.OverlayLowerDir(req.Target)
 		overlayMerged = req.Target
 	}
 

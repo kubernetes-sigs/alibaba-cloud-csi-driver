@@ -198,3 +198,32 @@ func TestMergeMountOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestOverlayDirs(t *testing.T) {
+	target := "/run/csi/mount-root/oss/abc123"
+
+	lower, upper, work := OverlayDirs(target)
+
+	assert.Contains(t, lower, OverlayBaseDir)
+	assert.Contains(t, upper, OverlayBaseDir)
+	assert.Contains(t, work, OverlayBaseDir)
+
+	assert.Contains(t, lower, "/lower")
+	assert.Contains(t, upper, "/upper")
+	assert.Contains(t, work, "/work")
+
+	// Deterministic
+	lower2, _, _ := OverlayDirs(target)
+	assert.Equal(t, lower, lower2)
+
+	// Isolation
+	otherLower, _, _ := OverlayDirs("/run/csi/mount-root/oss/other")
+	assert.NotEqual(t, lower, otherLower)
+}
+
+func TestOverlayLowerDir(t *testing.T) {
+	target := "/run/csi/mount-root/oss/abc123"
+	lower := OverlayLowerDir(target)
+	expectedLower, _, _ := OverlayDirs(target)
+	assert.Equal(t, expectedLower, lower)
+}

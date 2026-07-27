@@ -289,6 +289,60 @@ func GetPasswdHashDir(target string) string {
 	return filepath.Join("/tmp", ComputeMountPathHash(target))
 }
 
+// TODO(test-only): Reset to /run/csi-overlay before merging.
+// Production deployment will add a dedicated hostPath volume at /run/csi-overlay.
+const OverlayBaseDir = "/run/cnfs/csi-overlay"
+
+// OverlayDirs computes the lower, upper, and work dir paths for a given overlay target.
+//
+// The key is the merged path (target) exposed to the business container, NOT the volumeID.
+//
+//   - volumeID is unstable: in Sandbox, the volumeID contains a random suffix that changes
+//     across checkpoint clone and deep hibernate resume. Using it would orphan the upper dir
+//     data preserved in the VM filesystem.
+//
+//   - target (merged path) is stable: it is deterministically derived from the container's
+//     mountPath, which is preserved across checkpoint/clone/resume.
+//
+//   - Isolation is guaranteed by target uniqueness: each volume mount has a distinct mountPath,
+//     so each gets a distinct overlay dir. Two mounts of the same PV to different paths are
+//     fully isolated.
+//
+// NOTE: This design relies on VM-level isolation (each Sandbox is a separate VM). In RunC
+// (future), multiple pods on the same host share the filesystem, so target alone cannot
+// provide inter-pod isolation — a per-pod key (e.g. podUID) would be needed. RunC also does
+// not need hostPath for overlay because the upper dir lives directly on the host filesystem,
+// avoiding the overlay-on-overlay problem and the hibernate persistence requirement.
+func OverlayDirs(target string) (lower, upper, work string) {
+	h := sha256.Sum256([]byte(target))
+	base := filepath.Join(OverlayBaseDir, hex.EncodeToString(h[:]))
+	return filepath.Join(base, "lower"), filepath.Join(base, "upper"), filepath.Join(base, "work")
+}
+
+// OverlayLowerDir returns the lower dir path for a given overlay target (merged path).
+func OverlayLowerDir(target string) string {
+	lower, _, _ := OverlayDirs(target)
+	return lower
+}
+
+// CleanupOverlayLowerDir performs best-effort cleanup of the overlay lower dir.
+// After the overlay (merged) is unmounted by NodeUnpublish, the lower dir mount may
+// still be alive. This function attempts to unmount it.
+// targetPath is the merged path (same key used to compute overlay dirs).
+// Safe to call even if the lower dir is not mounted (no-op in that case).
+func CleanupOverlayLowerDir(targetPath string) {
+	lower, _, _ := OverlayDirs(targetPath)
+	m := mountutils.NewWithoutSystemd("")
+	notMnt, err := m.IsLikelyNotMountPoint(lower)
+	if err != nil || notMnt {
+		return
+	}
+	klog.InfoS("Cleaning up overlay lower dir", "path", lower)
+	if err := mountutils.CleanupMountPoint(lower, m, false); err != nil {
+		klog.ErrorS(err, "Best-effort cleanup of overlay lower dir failed", "path", lower)
+	}
+}
+
 func IsNotMountPoint(mounter mountutils.Interface, target string) (notMnt bool, err error) {
 	notMnt, err = mounter.IsLikelyNotMountPoint(target)
 	if err != nil {
