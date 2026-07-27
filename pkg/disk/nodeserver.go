@@ -52,6 +52,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
@@ -60,6 +61,7 @@ import (
 type nodeServer struct {
 	metadata     metadata.MetadataProvider
 	useLabeler   bool
+	recorder     record.EventRecorder
 	ecsV2        cloud.ECSv2Interface
 	mounter      utils.Mounter
 	kataBMIOType MachineType
@@ -219,6 +221,7 @@ func NewNodeServer(ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadat
 	return &nodeServer{
 		metadata:     m,
 		useLabeler:   useLabeler,
+		recorder:     utils.NewEventRecorder(utils.EventComponentNode),
 		ecsV2:        ecsV2,
 		mounter:      utils.NewMounter(),
 		kataBMIOType: kataBMIOType,
@@ -431,6 +434,20 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		if !matched {
 			return nil, status.Errorf(codes.Internal, "real device %s not same with expected %s", realDevice, expectName)
+		}
+		var d datacache.Opts
+		if err := datacache.GetOpts(req.VolumeContext, &d); err != nil {
+			return nil, status.Errorf(codes.Internal, "data cache options: %v", err)
+		}
+		if d.Enabled() {
+			// datacache enabled, but we don't see the cache device
+			ns.recorder.Event(&v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      req.VolumeContext[utils.PodNameKey],
+					Namespace: req.VolumeContext[utils.PodNamespaceKey],
+					UID:       types.UID(req.VolumeContext[utils.PodUIDKey]),
+				},
+			}, v1.EventTypeWarning, "DataCacheFallback", "DataCache enabled but not effective, check cache path exists on node")
 		}
 	}
 

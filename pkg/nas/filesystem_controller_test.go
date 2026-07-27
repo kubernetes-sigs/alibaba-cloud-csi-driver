@@ -380,7 +380,7 @@ func TestCreateVolume_TagResourcesError(t *testing.T) {
 		v1NasInterfaceExpectsDescribeFileSystems(v1Interface, []string{"test.mount.target.domain"}, nil)
 		v1NasInterfaceExpectsDescribeMountTargets(v1Interface, []string{"Active"}, nil)
 	})
-	controller.eventRecorder = utils.NewEventRecorder()
+	controller.eventRecorder = utils.NewEventRecorder(utils.EventComponentController)
 
 	actual, err := controller.CreateVolume(context.Background(), &csi.CreateVolumeRequest{
 		Parameters: map[string]string{

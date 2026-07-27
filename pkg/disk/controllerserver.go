@@ -113,7 +113,7 @@ func newSnapshotStatusWaiter() waitstatus.StatusWaiter[ecs.Snapshot] {
 func NewControllerServer(csiCfg utils.Config, ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadata.MetadataProvider) csi.ControllerServer {
 	waiter, batcher := newBatcher(false)
 	c := &controllerServer{
-		recorder:  utils.NewEventRecorder(),
+		recorder:  utils.NewEventRecorder(utils.EventComponentController),
 		meta:      m,
 		ecs:       ecs,
 		clientSet: GlobalConfigVar.ClientSet,

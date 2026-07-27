@@ -51,7 +51,7 @@ func BdfHealthCheck() {
 		klog.Errorf("Format BDF_CHECK_INTERVAL error: %v", err)
 		return
 	}
-	recorder := utils.NewEventRecorder()
+	recorder := utils.NewEventRecorder(utils.EventComponentNode)
 
 	// BDF_CHECK_UNUSED setting
 	doUnusedCheck := true

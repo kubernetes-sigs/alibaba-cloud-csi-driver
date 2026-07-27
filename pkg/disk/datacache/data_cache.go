@@ -31,6 +31,10 @@ type Opts struct {
 	Mode Mode
 }
 
+func (o *Opts) Enabled() bool {
+	return !o.Size.IsZero()
+}
+
 const (
 	modeKey = "dataCacheMode"
 	sizeKey = "dataCacheSize"
@@ -139,8 +143,8 @@ func waitForCacheDevice(ctx context.Context, path string) error {
 
 func Setup(ctx context.Context, ctrl *DmControl, d *Opts, device, volumeID string) (string, error) {
 	logger := klog.FromContext(ctx)
-	if d.Size.IsZero() {
-		return device, nil // Not enabled
+	if !d.Enabled() {
+		return device, nil
 	}
 	if ctrl == nil {
 		return "", fmt.Errorf("data cache requested but device-mapper is unavailable on this node")
