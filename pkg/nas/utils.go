@@ -32,6 +32,7 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -88,6 +89,7 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		source = fmt.Sprintf("%s:%s", opt.Server, opt.Path)
 	}
 	combinedOptions = append(combinedOptions, opt.Options...)
+	combinedOptions = appendJWTAuthOptions(combinedOptions, opt)
 	if opt.AkID != "" && opt.AkSecret != "" {
 		secrets = map[string]string{
 			akIDKey:     opt.AkID,
@@ -302,6 +304,30 @@ func addTLSMountOptions(baseOptions []string) []string {
 		}
 	}
 	return append(baseOptions, "tls")
+}
+
+func appendJWTAuthOptions(options []string, opt *Options) []string {
+	hasKey := func(k string) bool {
+		for _, o := range options {
+			for _, part := range mounterutils.SplitMountOptions(o) {
+				key, _, _ := strings.Cut(part, "=")
+				if strings.TrimSpace(key) == k {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	appendKV := func(k, v string) {
+		if v == "" || hasKey(k) {
+			return
+		}
+		options = append(options, fmt.Sprintf("%s=%s", k, v))
+	}
+	appendKV("authType", opt.AuthType)
+	appendKV("sandboxId", opt.SandboxId)
+	appendKV("sandboxCredProviderName", opt.SandboxCredProviderName)
+	return options
 }
 
 func createLosetupPv(fullPath string, volSizeBytes int64) error {

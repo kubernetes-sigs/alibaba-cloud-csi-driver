@@ -102,6 +102,9 @@ type Options struct {
 	SysConfigs    []utilsio.SysConfig
 	AkID          string
 	AkSecret      string
+	AuthType                string `json:"authType"`
+	SandboxId               string `json:"sandboxId"`
+	SandboxCredProviderName string `json:"sandboxCredProviderName"`
 }
 
 // RunvNasOptions struct definition
@@ -252,6 +255,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			cnfsName = value
 		case "mountprotocol":
 			opt.MountProtocol = strings.TrimSpace(value)
+		case "authtype":
+			opt.AuthType = strings.TrimSpace(value)
+		case "sandboxid":
+			opt.SandboxId = strings.TrimSpace(value)
+		case "sandboxcredprovidername", "credentialprovidername":
+			opt.SandboxCredProviderName = strings.TrimSpace(value)
 		}
 	}
 	opt.AkID = req.Secrets[akIDKey]

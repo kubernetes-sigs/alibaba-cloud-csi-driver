@@ -257,3 +257,67 @@ func TestDoMount_AccesspointWithAkSkFromMountOptions(t *testing.T) {
 	assert.Equal(t, "test-ak-secret", m.lastOp.Secrets[akSecretKey])
 	assert.Contains(t, m.lastOp.Options, "tls")
 }
+
+func TestDoMount_ForwardsJWTAuthOptionsFromVolumeContext(t *testing.T) {
+	m := &recordingMounter{}
+	opt := &Options{
+		Accesspoint:             "ap-xxx.nas.aliyuncs.com",
+		Path:                    "/",
+		Vers:                    "3",
+		Options:                 []string{"nolock", "tls"},
+		MountProtocol:           MountProtocolNFS,
+		AuthType:                "agent-identity",
+		SandboxId:               "sandbox-abc",
+		SandboxCredProviderName: "nasfs-read-write",
+	}
+	err := doMount(m, opt, "/mnt/target", "vol-123", "pod-uid", false)
+	assert.NoError(t, err)
+
+	assert.Contains(t, m.lastOp.Options, "authType=agent-identity")
+	assert.Contains(t, m.lastOp.Options, "sandboxId=sandbox-abc")
+	assert.Contains(t, m.lastOp.Options, "sandboxCredProviderName=nasfs-read-write")
+}
+
+func TestAppendJWTAuthOptions(t *testing.T) {
+	tests := []struct {
+		name    string
+		options []string
+		opt     *Options
+		want    []string
+	}{
+		{
+			name:    "all empty, nothing appended",
+			options: []string{"nolock", "tls"},
+			opt:     &Options{},
+			want:    []string{"nolock", "tls"},
+		},
+		{
+			name:    "append all jwtauth options",
+			options: []string{"tls"},
+			opt: &Options{
+				AuthType:                "agent-identity",
+				SandboxId:               "sb-1",
+				SandboxCredProviderName: "cp-1",
+			},
+			want: []string{"tls", "authType=agent-identity", "sandboxId=sb-1", "sandboxCredProviderName=cp-1"},
+		},
+		{
+			name:    "do not overwrite key already present in options",
+			options: []string{"authType=jwtauth"},
+			opt:     &Options{AuthType: "agent-identity"},
+			want:    []string{"authType=jwtauth"},
+		},
+		{
+			name:    "do not overwrite key present in comma-joined option",
+			options: []string{"tls,authType=jwtauth"},
+			opt:     &Options{AuthType: "agent-identity"},
+			want:    []string{"tls,authType=jwtauth"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := appendJWTAuthOptions(tt.options, tt.opt)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

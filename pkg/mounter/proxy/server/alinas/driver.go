@@ -14,6 +14,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -36,6 +37,7 @@ func NewDriver() *Driver {
 	driver.Mounter = mounter.NewForMounter(
 		&extendedMounter{driver: driver, Interface: mount.New("")},
 		interceptors.AlinasSecretInterceptor,
+		interceptors.AlinasJWTAuthInterceptor,
 	)
 	return driver
 }
@@ -85,6 +87,10 @@ func (h *Driver) resetFlagPath() string {
 }
 
 func (h *Driver) Terminate() {
+	// Stop all jwtauth credential refreshers regardless of mount cleanup
+	// policy, so no refresh goroutine outlives the driver.
+	jwtauth.StopAll()
+
 	if !server.CleanupNASMountsOnExit() {
 		return
 	}
@@ -235,7 +241,9 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 		op.Options = append(op.Options, "no_atomic_move")
 		op.Options = addAutoFallbackNFSMountOptions(op.Options)
 	}
-	err := m.Mount(op.Source, op.Target, op.FsType, op.Options)
+	// SensitiveOptions (e.g. jwtauth STS credentials) are passed separately so
+	// mount-utils masks them in logs and error messages.
+	err := m.MountSensitive(op.Source, op.Target, op.FsType, op.Options, op.SensitiveOptions)
 	if err == nil {
 		m.driver.targets.Store(op.Target, struct{}{})
 	}
@@ -246,6 +254,8 @@ func (m *extendedMounter) Unmount(target string) error {
 	err := m.Interface.Unmount(target)
 	if err == nil {
 		m.driver.targets.Delete(target)
+		// The mount is gone; stop any jwtauth credential refresher serving it.
+		jwtauth.DefaultManager.StopByTarget(target)
 	}
 	return err
 }

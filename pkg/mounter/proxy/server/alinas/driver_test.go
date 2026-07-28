@@ -6,10 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/mount-utils"
 )
 
@@ -129,6 +132,54 @@ func TestExtendedMounter_UnmountRemovesTarget(t *testing.T) {
 
 	_, loaded = driver.targets.Load("/mnt/nas1")
 	assert.False(t, loaded, "target should be removed after unmount")
+}
+
+func TestExtendedMounter_PassesSensitiveOptions(t *testing.T) {
+	driver := &Driver{}
+	fakeMounter := mount.NewFakeMounter(nil)
+	m := &extendedMounter{driver: driver, Interface: fakeMounter}
+
+	err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
+		Source:           "192.168.1.1:/share",
+		Target:           "/mnt/nas-sens",
+		FsType:           "alinas",
+		Options:          []string{"tls", "vers=3"},
+		SensitiveOptions: []string{"access_key_id=AK", "access_key_secret=SK", "security_token=TOK"},
+	})
+	require.NoError(t, err)
+
+	require.Len(t, fakeMounter.MountPoints, 1)
+	// FakeMounter appends sensitiveOptions to the recorded Opts, proving they
+	// were passed through MountSensitive (and thus masked in real logs).
+	opts := fakeMounter.MountPoints[0].Opts
+	assert.Contains(t, opts, "tls")
+	assert.Contains(t, opts, "access_key_secret=SK")
+	assert.Contains(t, opts, "security_token=TOK")
+}
+
+func TestExtendedMounter_UnmountStopsJWTAuthRefresher(t *testing.T) {
+	driver := &Driver{}
+	fakeMounter := mount.NewFakeMounter(nil)
+	m := &extendedMounter{driver: driver, Interface: fakeMounter}
+
+	const target = "/mnt/nas-jwt"
+	err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
+		Source: "192.168.1.1:/share",
+		Target: target,
+		FsType: "alinas",
+	})
+	require.NoError(t, err)
+
+	// Simulate the refresher registered by AlinasJWTAuthInterceptor.
+	refresher := jwtauth.NewRefresher(jwtauth.Opts{}, jwtauth.NewExecSink(target))
+	require.NoError(t, refresher.StartWith(&jwtauth.STSToken{
+		Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
+	}))
+	jwtauth.DefaultManager.Add(target, refresher)
+
+	require.NoError(t, m.Unmount(target))
+	assert.False(t, jwtauth.DefaultManager.HasTarget(target),
+		"jwtauth refresher should be stopped when the mount is unmounted")
 }
 
 func TestShouldCleanup(t *testing.T) {

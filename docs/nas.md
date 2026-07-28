@@ -85,3 +85,5 @@ deployment-nas-*****-4****    1/1     Running   0          32s
 ## features
 
 **Nas Dynamic:** [dynamic volume](./nas-dynamic.md)
+
+**NAS agent-identity (STS credential) mounting:** [agent-identity](./nas-agent-identity.md)
