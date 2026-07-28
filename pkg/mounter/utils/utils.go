@@ -289,9 +289,7 @@ func GetPasswdHashDir(target string) string {
 	return filepath.Join("/tmp", ComputeMountPathHash(target))
 }
 
-// TODO(test-only): Reset to /run/csi-overlay before merging.
-// Production deployment will add a dedicated hostPath volume at /run/csi-overlay.
-const OverlayBaseDir = "/run/cnfs/csi-overlay"
+const OverlayBaseDir = "/run/csi-overlay"
 
 // OverlayDirs computes the lower, upper, and work dir paths for a given overlay target.
 //
