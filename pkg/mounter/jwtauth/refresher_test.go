@@ -359,6 +359,7 @@ func TestOpts_Validate(t *testing.T) {
 		mut  func(o *Opts)
 		want string
 	}{
+		{"missing sandboxId", func(o *Opts) { o.SandboxId = "" }, "sandboxId"},
 		{"missing provider", func(o *Opts) { o.CredProvider = "" }, "provider"},
 		{"missing token", func(o *Opts) { o.TokenFile = "" }, "token file"},
 		{"missing endpoint", func(o *Opts) { o.Endpoint = "" }, "endpoint"},

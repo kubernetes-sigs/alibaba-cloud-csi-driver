@@ -86,6 +86,9 @@ type Opts struct {
 // Validate checks that all settings required for the credential exchange are
 // present.
 func (o Opts) Validate() error {
+	if o.SandboxId == "" {
+		return fmt.Errorf("sandboxId is required")
+	}
 	if o.CredProvider == "" {
 		return fmt.Errorf("credential provider name is required")
 	}
