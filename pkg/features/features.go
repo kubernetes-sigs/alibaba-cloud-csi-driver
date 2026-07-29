@@ -72,6 +72,20 @@ const (
 	// instance type does not support high density incur no extra call. When disabled,
 	// the behavior is byte-identical to before (no extra API call).
 	DiskHighDensityMode featuregate.Feature = "DiskHighDensityMode"
+
+	// CustomFuseAutoCapacity enables the customfuse controller to read
+	// pv.spec.capacity.storage via K8s API and pass it as $capacity env var
+	// to the FUSE entrypoint.
+	//
+	// Limitation: the CSI ControllerPublishVolume RPC only receives volumeHandle
+	// (req.VolumeId), not the PV name. This feature uses volumeHandle as PV name
+	// for the Get call, which requires volumeHandle == PV metadata.name. If they
+	// differ, the PV lookup will fail and $capacity will not be set — a warning
+	// is logged but the mount proceeds without capacity.
+	//
+	// When volumeAttributes.capacity is set, it takes priority and the API call
+	// is skipped entirely.
+	CustomFuseAutoCapacity featuregate.Feature = "CustomFuseAutoCapacity"
 )
 
 var (
@@ -95,6 +109,10 @@ var (
 		AlinasMountProxy: {Default: false, PreRelease: featuregate.Alpha},
 	}
 
+	defaultCustomFuseFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
+		CustomFuseAutoCapacity: {Default: false, PreRelease: featuregate.Alpha},
+	}
+
 	otherFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		RundCSIProtocol3: {Default: false, PreRelease: featuregate.Alpha},
 	}
@@ -104,5 +122,6 @@ func init() {
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultDiskFeatureGate))
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultOSSFeatureGate))
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultNasFeatureGate))
+	runtime.Must(FunctionalMutableFeatureGate.Add(defaultCustomFuseFeatureGate))
 	runtime.Must(FunctionalMutableFeatureGate.Add(otherFeatureGate))
 }

@@ -37,6 +37,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/customfuse"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -84,8 +85,14 @@ const (
 	TypePluginPOV = "povplugin.csi.alibabacloud.com"
 	// TypePluginBMCPFS BMCPFS type plugin
 	TypePluginBMCPFS = "bmcpfsplugin.csi.alibabacloud.com"
+	// TypePluginCustomFuse custom FUSE type plugin
+	TypePluginCustomFuse = "customfuseplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
+	// defaultMountProxySocket is the default socket path for mount-proxy-server (alinas-mounter).
+	// Used as fallback when AlinasMountProxy feature gate is enabled but --mount-proxy-sock is not set,
+	// and as the unconditional default for BMCPFS which always requires mount proxy.
+	defaultMountProxySocket = "/run/cnfs/alinas-mounter.sock"
 )
 
 var (
@@ -99,6 +106,27 @@ var (
 	driver               = flag.String("driver", TypePluginDISK, "CSI Driver")
 	// Deprecated: rootDir is instead by KUBELET_ROOT_DIR env.
 	rootDir = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
+
+	// Mount proxy socket flags, used in sandbox agent scenarios to specify which
+	// mount-proxy-server instance handles mount operations.
+	// In sandbox agent scenarios there is no ControllerPublish, so PublishContext
+	// is empty by default — these flags provide the socket path directly.
+	//
+	// --mount-proxy-sock: socket path for alinas/cpfs/oss mounts.
+	//   NAS:    flag > feature gate AlinasMountProxy + defaultMountProxySocket > disabled.
+	//   BMCPFS: flag > defaultMountProxySocket (always enabled).
+	//   OSS:    when set, injected into req.PublishContext so the node server
+	//           uses this socket for mount-proxy communication
+	//           (see pkg/oss/nodeserver.go:NodePublishVolume).
+	//           When unset, existing PublishContext value (if any) is used.
+	//
+	// --customfuse-mount-proxy-sock: socket path for customfuse mounts.
+	//   CustomFuse: when set, injected into req.PublishContext so the node server
+	//               uses this socket for mount-proxy communication
+	//               (see pkg/customfuse/nodeserver.go:NodePublishVolume).
+	//               When unset, existing PublishContext value (if any) is used.
+	mountProxySock           = flag.String("mount-proxy-sock", "", "socket path of mount proxy server for alinas/cpfs/oss mounts")
+	customfuseMountProxySock = flag.String("customfuse-mount-proxy-sock", "", "socket path of mount proxy server for customfuse mounts")
 )
 
 func setupFlags() {
@@ -227,6 +255,27 @@ func main() {
 
 	csiCfg := getCSIPluginConfig()
 
+	// NAS mount proxy socket resolution:
+	//   1. --mount-proxy-sock flag set → use flag value (sandbox agent scenario).
+	//   2. AlinasMountProxy feature gate enabled → use defaultMountProxySocket.
+	//   3. Neither → empty string, NAS uses ConnectorMounter instead of ProxyMounter.
+	resolvedNasMountProxySock := *mountProxySock
+	if resolvedNasMountProxySock == "" && features.FunctionalMutableFeatureGate.Enabled(features.AlinasMountProxy) {
+		resolvedNasMountProxySock = defaultMountProxySocket
+	}
+
+	// BMCPFS mount proxy socket resolution:
+	//   BMCPFS always requires mount proxy — flag overrides default, but never empty.
+	bmcpfsMountProxySock := *mountProxySock
+	if bmcpfsMountProxySock == "" {
+		bmcpfsMountProxySock = defaultMountProxySocket
+	}
+
+	// OSS and CustomFuse: raw flag values are passed to their drivers.
+	// They inject the socket into req.PublishContext in NodePublishVolume,
+	// overriding the per-volume socket from ControllerPublishVolume.
+	// When flags are empty, existing PublishContext values are used unchanged.
+
 	ctx, cancelSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancelSignals()
 
@@ -256,9 +305,9 @@ func main() {
 			var driver *common.Servers
 			switch driverName {
 			case TypePluginNAS:
-				driver = nas.NewServers(meta, endpoint, serviceType, csiCfg)
+				driver = nas.NewServers(meta, endpoint, serviceType, csiCfg, resolvedNasMountProxySock)
 			case TypePluginOSS:
-				driver = oss.NewServers(endpoint, meta, serviceType, csiCfg, k8sVersion)
+				driver = oss.NewServers(endpoint, meta, serviceType, csiCfg, k8sVersion, *mountProxySock)
 			case TypePluginDISK:
 				driver = disk.NewServers(meta, ecsClient, endpoint, serviceType, csiCfg, *useLabeler)
 			case TypePluginCPFS:
@@ -270,7 +319,9 @@ func main() {
 			case TypePluginPOV:
 				driver = pov.NewServers(meta, endpoint, serviceType)
 			case TypePluginBMCPFS:
-				driver = bmcpfs.NewServers(meta, endpoint, serviceType)
+				driver = bmcpfs.NewServers(meta, endpoint, serviceType, bmcpfsMountProxySock)
+			case TypePluginCustomFuse:
+				driver = customfuse.NewServers(meta, endpoint, serviceType, csiCfg, k8sVersion, *customfuseMountProxySock)
 			default:
 				klog.Fatalf("CSI start failed, not support driver: %s", driverName)
 			}

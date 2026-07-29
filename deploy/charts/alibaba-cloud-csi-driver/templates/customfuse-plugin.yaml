@@ -1,0 +1,232 @@
+{{- if .Values.csi.customfuse.enabled -}}
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-customfuse-plugin
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: csi-customfuse-plugin
+spec:
+  selector:
+    matchLabels:
+      app: csi-customfuse-plugin
+  template:
+    metadata:
+      labels:
+        app: csi-customfuse-plugin
+    spec:
+      {{- if $.Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range $.Values.imagePullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
+      tolerations:
+        - operator: Exists
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: type
+                operator: NotIn
+                values:
+                - virtual-kubelet
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: csi-customfuse-node
+      priorityClassName: system-node-critical
+      hostNetwork: true
+      hostIPC: true
+      hostPID: true
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: csi-customfuse-plugin
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+          image: {{ include "imageSpec" (list .Values "plugin") }}
+          args:
+            - "--endpoint=unix://csi/customfuseplugin.csi.alibabacloud.com/csi.sock"
+            - "--v=2"
+            - --logging-format={{ .Values.logging.format }}
+            - "--driver=customfuse"
+            - --run-controller-service=false
+            - --run-node-service=true
+{{- if .Values.deploy.featureGates }}
+            - "--feature-gates={{ .Values.deploy.featureGates }}"
+{{- end }}
+{{- if not .Values.deploy.ecs }}
+            - --nodeid=$(KUBE_NODE_NAME)
+{{- end }}
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            {{- include "networkEnv" .Values.deploy | nindent 12 }}
+{{- if .Values.deploy.regionID }}
+            - name: REGION_ID
+              value: {{ .Values.deploy.regionID | quote }}
+{{- end }}
+{{- if .Values.deploy.ecsEndpoint }}
+            - name: ECS_ENDPOINT
+              value: {{ .Values.deploy.ecsEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.stsEndpoint }}
+            - name: STS_ENDPOINT
+              value: {{ .Values.deploy.stsEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.privateCloud }}
+            - name: ALIBABA_CLOUD_HTTP_HEADERS
+              value: |
+                X-Acsproxy-Ascm-Context: {{ .Values.deploy.acsProxyASCMContext }}
+{{- end }}
+{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
+{{- include "kubeletDirEnv" .Values.deploy.kubeletRootDir | nindent 12 }}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          ports:
+            - name: healthz
+              containerPort: 11260
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: {{ print (clean .Values.deploy.kubeletRootDir) "/" | quote }}
+              mountPropagation: "Bidirectional"
+            - name: customfuse-plugin-dir
+              mountPath: /csi/customfuseplugin.csi.alibabacloud.com
+            - name: etc
+              mountPath: /host/etc
+            - name: host-log
+              mountPath: /var/log/
+            - name: container-dir
+              mountPath: /var/lib/container
+              mountPropagation: "Bidirectional"
+            - name: host-dev
+              mountPath: /dev
+              mountPropagation: "HostToContainer"
+            - mountPath: /run/kata-containers/shared/direct-volumes
+              name: kata-direct-volumes
+{{- if .Values.deploy.ack }}
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
+{{- end }}
+            - mountPath: /host/var/run/customfuse
+              name: customfuse-metrics-dir
+            - mountPath: /run/fuse.customfuse
+              name: customfuse-attach-dir
+              mountPropagation: "Bidirectional"
+            - mountPath: /host/run/csi-tool
+              name: run-csi
+            - mountPath: /run/cnfs
+              name: run-cnfs
+            - mountPath: /host/sys/fs/cgroup
+              name: cgroup
+              mountPropagation: "HostToContainer"
+            - mountPath: /etc/csi-plugin/config
+              name: csi-plugin-cm
+        - name: node-driver-registrar
+          image: {{ include "imageSpec" (list .Values "pluginRegistrar") }}
+          args:
+            - --csi-address=/csi/csi.sock
+            - --kubelet-registration-path={{ printf "%s/csi-plugins/customfuseplugin.csi.alibabacloud.com/csi.sock" (clean .Values.deploy.kubeletRootDir) }}
+            - --v=5
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: customfuse-plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+      volumes:
+        - name: customfuse-plugin-dir
+          hostPath:
+            path: {{ printf "%s/csi-plugins/customfuseplugin.csi.alibabacloud.com" (clean .Values.deploy.kubeletRootDir) | quote }}
+            type: DirectoryOrCreate
+        - name: kubelet-dir
+          hostPath:
+            path: {{ (clean .Values.deploy.kubeletRootDir) | quote }}
+            type: Directory
+        - name: customfuse-metrics-dir
+          hostPath:
+            path: /var/run/customfuse
+            type: DirectoryOrCreate
+        - name: customfuse-attach-dir
+          hostPath:
+            path: /run/fuse.customfuse
+            type: DirectoryOrCreate
+        - name: run-csi
+          hostPath:
+            path: /run/csi-tool
+            type: DirectoryOrCreate
+        - name: run-cnfs
+          hostPath:
+            path: /run/cnfs
+            type: DirectoryOrCreate
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+            type: Directory
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-log
+          hostPath:
+            path: /var/log/
+        - name: etc
+          hostPath:
+            path: /etc
+        - name: csi-plugin-cm
+          configMap:
+            name: csi-plugin
+            optional: true
+        - hostPath:
+            path: /run/kata-containers/shared/direct-volumes
+            type: DirectoryOrCreate
+          name: kata-direct-volumes
+{{- if .Values.deploy.ack }}
+        - name: addon-token
+          secret:
+            defaultMode: 420
+            optional: true
+            items:
+            - key: addon.token.config
+              path: token-config
+{{- end }}
+        - name: registration-dir
+          hostPath:
+            path: {{ printf "%s/plugins_registry" (clean .Values.deploy.kubeletRootDir) | quote }}
+            type: DirectoryOrCreate
+        - name: container-dir
+          hostPath:
+            path: /var/lib/container
+            type: DirectoryOrCreate
+{{- end }}

@@ -50,6 +50,12 @@ type nodeServer struct {
 	ossfsPaths      map[string]string
 	common.GenericNodeServer
 	skipGlobalMount bool
+	// mountProxySock is the --mount-proxy-sock flag value.
+	// Set from main.go (csi-plugin) or from csi_agent.go (csi-agent).
+	// In sandbox agent scenario, this field provides the socket path
+	// by injecting into req.PublishContext in NodePublishVolume.
+	// When empty, existing PublishContext values (if any) are used unchanged.
+	mountProxySock string
 }
 
 const (
@@ -132,7 +138,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	socketPath := req.PublishContext[mountProxySocket]
+	// Resolve mount-proxy socket path. ns.mountProxySock is set by csi-plugin
+	// (--mount-proxy-sock flag) or csi-agent (NewCSIAgent), overriding PublishContext.
+	socketPath := mounterutils.ResolveMountProxySocket(req.PublishContext, ns.mountProxySock)
 
 	// Determine runtime type based on directAssigned, socketPath, and skipGlobalMount
 	// See DetermineRuntimeType for the support matrix.
@@ -271,7 +279,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	} // else: runtimeType == RuntimeTypeRunC
 
 	// Note: For RunC, if attachPath is already mounted, ExtendedMount is skipped (only bind mount was done above)
-	attachPath := mounterutils.GetAttachPath(req.VolumeId)
+	attachPath := mounterutils.GetAttachPath(req.VolumeId, false)
 	notMntAttach, err := mounterutils.IsNotMountPoint(ns.rawMounter, attachPath)
 	if err != nil {
 		return nil, err
@@ -363,7 +371,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 	}
 	defer ns.locks.Release(req.VolumeId)
 
-	attachPath := mounterutils.GetAttachPath(req.VolumeId)
+	attachPath := mounterutils.GetAttachPath(req.VolumeId, false)
 	err := mountutils.CleanupMountPoint(attachPath, ns.rawMounter, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", attachPath, err)

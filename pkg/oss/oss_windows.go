@@ -8,7 +8,7 @@ import (
 	k8sver "k8s.io/apimachinery/pkg/util/version"
 )
 
-func NewServers(endpoint string, meta *metadata.Metadata, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version) *common.Servers {
+func NewServers(endpoint string, meta *metadata.Metadata, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version, mountProxySock string) *common.Servers {
 	panic("OSS driver is not supported on Windows")
 }
 

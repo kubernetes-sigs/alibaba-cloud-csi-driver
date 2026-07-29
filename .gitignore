@@ -5,6 +5,7 @@
 .qwen/
 .local/
 .DS_Store
+.claude
 diskplugin.csi.alibabacloud.com
 nasplugin.csi.alibabacloud.com
 ossplugin.csi.alibabacloud.com

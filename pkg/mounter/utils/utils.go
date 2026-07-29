@@ -27,8 +27,9 @@ import (
 )
 
 const (
-	OssFsType  = "ossfs"
-	OssFs2Type = "ossfs2"
+	OssFsType      = "ossfs"
+	OssFs2Type     = "ossfs2"
+	CustomFuseType = "customfuse"
 )
 
 // keys for STS token
@@ -39,7 +40,26 @@ const (
 	KeySecurityToken   = "SecurityToken"
 )
 
+// MountProxySocketKey is the PublishContext key for the mount-proxy socket path.
+// Note: the typo "Porxy" is intentional — it matches the existing wire format.
+const MountProxySocketKey = "mountPorxySocket"
+
 const LegacyFusePodNamespace = "kube-system" // deprecated
+
+// ResolveMountProxySocket returns the mount-proxy socket path.
+// overrideSock is the nodeServer.mountProxySock field, set by:
+//   - csi-plugin: --mount-proxy-sock / --customfuse-mount-proxy-sock flag
+//   - csi-agent: NewCSIAgent constructor
+//
+// Priority: overrideSock (if non-empty) > publishContext[MountProxySocketKey].
+// In sandbox agent scenarios there is no ControllerPublish, so publishContext
+// is empty and overrideSock provides the socket path directly.
+func ResolveMountProxySocket(publishContext map[string]string, overrideSock string) string {
+	if overrideSock != "" {
+		return overrideSock
+	}
+	return publishContext[MountProxySocketKey]
+}
 
 // fuseAttachBaseDir is the base directory for fuse attach paths.
 // Default is "/run", but can be overridden for testing.
@@ -206,24 +226,30 @@ func GetArn(provider, accountId, roleName string) (oidcProviderArn, roleArn stri
 	return
 }
 
-func GetMountProxySocketPath(volumeId string) string {
-	volSha := sha256.Sum256([]byte(volumeId))
-	return filepath.Join(GetFuseAttachDir(), hex.EncodeToString(volSha[:]), "mounter.sock")
-}
-
-func GetFuseAttachDir() string {
+// GetFuseAttachDir returns the attach directory for fuse volumes.
+//
+// When customfuse=false, returns /run/fuse.ossfs.
+// When customfuse=true, returns /run/fuse.customfuse.
+func GetFuseAttachDir(customfuse bool) string {
 	// Notes: as OSS driver used /run/fuse.ossfs/* mount dir before,
 	// and NodeUnstageVolume request do not contain fuseType info for unmount,
 	// so all kinds of fuseTypes share this unified mount dir.
 	// A volumeId should only belong to one kind of fuseType, and mounted ONCE.
 	fuseType := OssFsType
-	baseDir := GetFuseAttachBaseDir()
-	return filepath.Join(baseDir, fmt.Sprintf("fuse.%s", fuseType))
+	if customfuse {
+		fuseType = CustomFuseType
+	}
+	return filepath.Join(GetFuseAttachBaseDir(), fmt.Sprintf("fuse.%s", fuseType))
 }
 
-func GetAttachPath(volumeId string) string {
+func GetMountProxySocketPath(volumeId string, customfuse bool) string {
 	volSha := sha256.Sum256([]byte(volumeId))
-	return filepath.Join(GetFuseAttachDir(), hex.EncodeToString(volSha[:]), "globalmount")
+	return filepath.Join(GetFuseAttachDir(customfuse), hex.EncodeToString(volSha[:]), "mounter.sock")
+}
+
+func GetAttachPath(volumeId string, customfuse bool) string {
+	volSha := sha256.Sum256([]byte(volumeId))
+	return filepath.Join(GetFuseAttachDir(customfuse), hex.EncodeToString(volSha[:]), "globalmount")
 }
 
 func GetCredentialsSecretName(fuseType string) string {
