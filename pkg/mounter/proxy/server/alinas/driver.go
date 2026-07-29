@@ -163,6 +163,10 @@ func setupDefaultConfigs() {
 	for _, name := range []string{"cpfs", "alinas"} {
 		srcDir := filepath.Join(defaultConfigDir, name)
 		dstDir := filepath.Join(configDir, name)
+		// The alinas config is always overwritten with the default shipped in
+		// the image so that config updates from a new image take effect on
+		// restart. cpfs keeps the copy-if-absent behavior.
+		overwrite := name == "alinas"
 		if err := filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -179,11 +183,13 @@ func setupDefaultConfigs() {
 
 			dstPath := filepath.Join(dstDir, relPath)
 
-			if _, err := os.Stat(dstPath); err == nil {
-				// File already exists, skip
-				return nil
-			} else if !os.IsNotExist(err) {
-				return err
+			if !overwrite {
+				if _, err := os.Stat(dstPath); err == nil {
+					// File already exists, skip
+					return nil
+				} else if !os.IsNotExist(err) {
+					return err
+				}
 			}
 
 			klog.InfoS("Copying default config file", "path", dstPath)
