@@ -113,6 +113,12 @@ func splitAlinasSTSOptions(flatOptions []string, cred *jwtauth.STSToken) (option
 			continue
 		}
 		switch key {
+		case optAuthType:
+			// authType is an agent-identity marker consumed by this interceptor.
+			// Unlike the OSS FUSE entrypoint, the alinas mount goes straight to
+			// mount.nfs, which rejects unknown options ("an incorrect mount
+			// option was specified"). Strip it so it never reaches mount.nfs.
+			continue
 		case optAlinasAccessKeyID, optAlinasAccessKeySecret, optAlinasSecurityToken:
 			continue
 		case optAlinasTLS:

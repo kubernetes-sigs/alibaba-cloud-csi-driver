@@ -133,6 +133,10 @@ func TestAlinasJWTAuthInterceptor_EndToEnd(t *testing.T) {
 		_, ok := seenOptions[k]
 		assert.False(t, ok, "expected %s to be removed", k)
 	}
+	// authType must be stripped for alinas: the mount goes straight to
+	// mount.nfs, which rejects unknown options.
+	_, hasAuthType := seenOptions[optAuthType]
+	assert.False(t, hasAuthType, "expected authType to be stripped for alinas mount")
 	// Preserved, non-credential options.
 	assert.Equal(t, "3", seenOptions["vers"])
 	_, hasRo := seenOptions["ro"]
