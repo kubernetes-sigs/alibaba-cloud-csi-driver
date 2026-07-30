@@ -21,10 +21,15 @@ package bmcpfs
 import (
 	"context"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	k8smount "k8s.io/mount-utils"
 )
 
@@ -160,4 +165,130 @@ func TestNodePublishVolume_GLeaseEnable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewNodeServer(t *testing.T) {
+	cases := []struct {
+		name           string
+		detachDelayEnv string
+		detachDelay    time.Duration
+		err            string
+	}{
+		{
+			name: "default",
+		},
+		{
+			name:           "detach_delay",
+			detachDelayEnv: "10m",
+			detachDelay:    10 * time.Minute,
+		},
+		{
+			name:           "detach_delay_invalid",
+			detachDelayEnv: "invalid",
+			err:            "invalid duration",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("BMCPFS_DETACH_DELAY", tc.detachDelayEnv)
+			ns, err := newNodeServer(&metadata.FakeProvider{})
+			if tc.err != "" {
+				assert.ErrorContains(t, err, tc.err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, ns)
+				assert.Equal(t, tc.detachDelay, ns.detachDelay)
+			}
+		})
+	}
+}
+
+func (ns *nodeServer) hasUnstageEntry(volumeID string) bool {
+	_, ok := ns.unstageStartTime.Load(volumeID)
+	return ok
+}
+
+// drainUnstage models kubelet retrying NodeUnstageVolume until it succeeds.
+// Each call is capped, so success only lands once detachDelay has elapsed.
+func drainUnstage(t *testing.T, ns *nodeServer, volumeID string) {
+	t.Helper()
+	req := &csi.NodeUnstageVolumeRequest{VolumeId: volumeID}
+	for {
+		_, err := ns.NodeUnstageVolume(t.Context(), req)
+		if err == nil {
+			return
+		}
+		assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
+	}
+}
+
+func TestNodeGetCapabilities_StageUnstage(t *testing.T) {
+	ns := &nodeServer{}
+	resp, err := ns.NodeGetCapabilities(t.Context(), &csi.NodeGetCapabilitiesRequest{})
+	assert.NoError(t, err)
+	assert.Len(t, resp.Capabilities, 1)
+	assert.Equal(t, csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+		resp.Capabilities[0].GetRpc().GetType())
+}
+
+// detachDelay unset: NodeUnstageVolume returns immediately and records nothing.
+func TestNodeUnstageVolume_NoDelay(t *testing.T) {
+	ns := &nodeServer{}
+	_, err := ns.NodeUnstageVolume(t.Context(), &csi.NodeUnstageVolumeRequest{VolumeId: "vol-1"})
+	assert.NoError(t, err)
+	assert.False(t, ns.hasUnstageEntry("vol-1"))
+}
+
+// When the remaining delay is shorter than the per-call cap, the call waits only
+// that long and succeeds directly (no error, entry cleared).
+func TestNodeUnstageVolume_ShortDelaySucceeds(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ns := &nodeServer{detachDelay: 500 * time.Millisecond}
+		start := time.Now()
+		_, err := ns.NodeUnstageVolume(t.Context(), &csi.NodeUnstageVolumeRequest{VolumeId: "vol-1"})
+		assert.NoError(t, err)
+		assert.Equal(t, 500*time.Millisecond, time.Since(start))
+		assert.False(t, ns.hasUnstageEntry("vol-1"))
+	})
+}
+
+const testDetachDelay = 10 * time.Minute
+
+// Across kubelet retries the detach completes exactly detachDelay after the
+// first call, regardless of how many capped calls it takes.
+func TestNodeUnstageVolume_RetryLoopCompletesAtDeadline(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ns := &nodeServer{detachDelay: testDetachDelay}
+		start := time.Now()
+		drainUnstage(t, ns, "vol-1")
+		assert.Equal(t, testDetachDelay, time.Since(start))
+		assert.False(t, ns.hasUnstageEntry("vol-1"), "entry cleared once the delay elapses")
+	})
+}
+
+// A returning pod calls NodeStageVolume, which drops any leftover startTime so
+// the subsequent detach waits a full fresh delay instead of resuming the old
+// (already-elapsed) deadline.
+func TestNodeStageVolume_ResetsDelayForReuse(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ns := &nodeServer{detachDelay: testDetachDelay}
+		req := &csi.NodeUnstageVolumeRequest{VolumeId: "vol-1"}
+
+		// First detach: one capped call leaves a startTime behind.
+		start := time.Now()
+		_, err := ns.NodeUnstageVolume(t.Context(), req)
+		assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
+		assert.True(t, ns.hasUnstageEntry("vol-1"))
+
+		// Volume is reused before the delay elapsed.
+		_, err = ns.NodeStageVolume(t.Context(), &csi.NodeStageVolumeRequest{VolumeId: "vol-1"})
+		assert.NoError(t, err)
+		assert.False(t, ns.hasUnstageEntry("vol-1"))
+		assert.Less(t, time.Since(start), testDetachDelay)
+
+		// The next detach must run a full fresh delay from now.
+		restart := time.Now()
+		drainUnstage(t, ns, "vol-1")
+		assert.Equal(t, testDetachDelay, time.Since(restart))
+	})
 }
