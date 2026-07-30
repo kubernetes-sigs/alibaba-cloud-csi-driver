@@ -105,9 +105,10 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
 	fakeOssfs := NewFuseOssfs(utils.Config{}, fakeMeta)
 	tests := []struct {
-		name    string
-		opts    *ossfpm.Options
-		wantErr bool
+		name     string
+		opts     *ossfpm.Options
+		wantErr  bool
+		setupEnv func(t *testing.T)
 	}{
 		{
 			name: "empty aksk",
@@ -276,7 +277,24 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 				SandboxCredProviderName: "aliyun-one",
 				FuseType:                mounterutils.OssFsType,
 			},
+			setupEnv: func(t *testing.T) {
+				t.Setenv("AGENT_IDENTITY_ENDPOINT", "https://a-endpoint-for-agent-identity.aliyuncs.com")
+				t.Setenv("AGENT_IDENTITY_TOKEN_DIR", "/a/path/to/agent-token")
+			},
 			wantErr: false,
+		},
+		{
+			name: "agent-identity: env not set",
+			opts: &ossfpm.Options{
+				URL:                     "1.1.1.1",
+				Bucket:                  "aliyun",
+				Path:                    "/path",
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxId:               "sandbox-123",
+				SandboxCredProviderName: "aliyun-one",
+				FuseType:                mounterutils.OssFsType,
+			},
+			wantErr: true,
 		},
 		{
 			name: "conflict between SecurityToken and SecretRef",
@@ -336,6 +354,9 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.setupEnv != nil {
+				tt.setupEnv(t)
+			}
 			// Enable RundCSIProtocol3 for the specific test case
 			if tt.name == "success with RundCSIProtocol3 enabled" {
 				err := features.FunctionalMutableFeatureGate.Set(fmt.Sprintf("%s=true", features.RundCSIProtocol3))
@@ -506,6 +527,7 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		region        string
 		expected      []string
 		expectedError bool
+		setupEnv      func(t *testing.T)
 	}{
 		{
 			name: "Basic Options",
@@ -712,9 +734,13 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			},
 			expected: []string{
 				"url=oss://bucket",
-				"agent_identity_endpoint=https://credential-provider.ack-agent-identity.svc:8443/",
-				"agent_identity_token_file=/var/opt/sandbox/agent-token/sandbox-123.token",
+				"agent_identity_endpoint=https://a-endpoint-for-agent-identity.aliyuncs.com",
+				"agent_identity_token_file=/a/path/to/agent-token/sandbox-123.token",
 				"agent_identity_cred_provider=aliyun-one",
+			},
+			setupEnv: func(t *testing.T) {
+				t.Setenv("AGENT_IDENTITY_ENDPOINT", "https://a-endpoint-for-agent-identity.aliyuncs.com")
+				t.Setenv("AGENT_IDENTITY_TOKEN_DIR", "/a/path/to/agent-token")
 			},
 		},
 		{
@@ -734,6 +760,9 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.setupEnv != nil {
+				tt.setupEnv(t)
+			}
 			t.Setenv("REGION_ID", tt.region)
 			fakeMeta := metadata.NewMetadata()
 			fakeOssfs := NewFuseOssfs(utils.Config{}, fakeMeta)
@@ -750,6 +779,7 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 		region      string
 		opts        *ossfpm.Options
 		wantOptions []string
+		setupEnv    func(t *testing.T)
 	}{
 		{
 			name: "public",
@@ -830,9 +860,13 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 				SandboxCredProviderName: "aliyun-one",
 			},
 			wantOptions: []string{
-				"agent_identity_endpoint=https://credential-provider.ack-agent-identity.svc:8443/",
-				"agent_identity_token_file=/var/opt/sandbox/agent-token/sandbox-123.token",
+				"agent_identity_endpoint=https://a-endpoint-for-agent-identity.aliyuncs.com",
+				"agent_identity_token_file=/a/path/to/agent-token/sandbox-123.token",
 				"agent_identity_cred_provider=aliyun-one",
+			},
+			setupEnv: func(t *testing.T) {
+				t.Setenv("AGENT_IDENTITY_ENDPOINT", "https://a-endpoint-for-agent-identity.aliyuncs.com")
+				t.Setenv("AGENT_IDENTITY_TOKEN_DIR", "/a/path/to/agent-token")
 			},
 		},
 		{
@@ -853,6 +887,9 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.setupEnv != nil {
+				tt.setupEnv(t)
+			}
 			fakeOssfs := &fuseOssfs{}
 			opts := fakeOssfs.getAuthOptions(tt.opts, tt.region)
 			assert.Equal(t, tt.wantOptions, opts)

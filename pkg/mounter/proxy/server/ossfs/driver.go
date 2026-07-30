@@ -19,6 +19,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -82,12 +83,11 @@ func (h *Driver) ApplyOptionDefaults(options []string) []string {
 	// --- Append rules: existing user options take precedence ---
 	var appends []string
 
-	// agent_identity_ca_file: only appended if the file is readable.
-	// Uses server.GetAgentIdentityCAFilePath() which prefers SSL_CERT_FILE env var,
-	// falling back to AgentIdentityCAFilePath when unset.
-	caPath := server.GetAgentIdentityCAFilePath()
-	if unix.Access(caPath, unix.R_OK) == nil {
-		appends = append(appends, fmt.Sprintf("agent_identity_ca_file=%s", caPath))
+	// agent_identity_ca_file: only appended if configured and the file is readable.
+	if caPath := agentidentity.GetCAFilePath(); caPath != "" {
+		if unix.Access(caPath, unix.R_OK) == nil {
+			appends = append(appends, fmt.Sprintf("agent_identity_ca_file=%s", caPath))
+		}
 	}
 
 	if len(appends) > 0 {
