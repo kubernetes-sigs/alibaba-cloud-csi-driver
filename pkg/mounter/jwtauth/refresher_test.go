@@ -375,39 +375,6 @@ func TestOpts_Validate(t *testing.T) {
 	}
 }
 
-func TestGetEndpoint(t *testing.T) {
-	t.Run("env override", func(t *testing.T) {
-		t.Setenv(envEndpoint, "https://custom:9443/")
-		assert.Equal(t, "https://custom:9443/", GetEndpoint())
-	})
-	t.Run("default", func(t *testing.T) {
-		t.Setenv(envEndpoint, "")
-		assert.Equal(t, defaultEndpoint, GetEndpoint())
-	})
-}
-
-func TestGetCertFilePath(t *testing.T) {
-	t.Run("env override", func(t *testing.T) {
-		t.Setenv(envCertFile, "/custom/ca.crt")
-		assert.Equal(t, "/custom/ca.crt", GetCertFilePath())
-	})
-	t.Run("default", func(t *testing.T) {
-		t.Setenv(envCertFile, "")
-		assert.Equal(t, defaultCertFile, GetCertFilePath())
-	})
-}
-
-func TestGetTokenFilePath(t *testing.T) {
-	t.Run("default dir", func(t *testing.T) {
-		t.Setenv(envTokenDir, "")
-		assert.Equal(t, "/var/opt/sandbox/agent-token/sb-1.token", GetTokenFilePath("sb-1"))
-	})
-	t.Run("env dir override", func(t *testing.T) {
-		t.Setenv(envTokenDir, "/custom/tokens")
-		assert.Equal(t, "/custom/tokens/sb-1.token", GetTokenFilePath("sb-1"))
-	})
-}
-
 // generateTestCA returns a self-signed CA certificate encoded as PEM.
 func generateTestCA(t *testing.T) []byte {
 	t.Helper()

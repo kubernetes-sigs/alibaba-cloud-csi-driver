@@ -15,6 +15,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,6 +88,8 @@ func TestJWTAuthInterceptor_NilOp(t *testing.T) {
 }
 
 func TestResolveJWTAuthOpts_Defaults(t *testing.T) {
+	t.Setenv("AGENT_IDENTITY_ENDPOINT", "https://cred:8443/")
+	t.Setenv("AGENT_IDENTITY_TOKEN_DIR", "/var/run/agent-token")
 	idx := map[string]string{
 		optAuthType:                "jwtauth",
 		optSandboxId:               "sb-123",
@@ -95,8 +98,8 @@ func TestResolveJWTAuthOpts_Defaults(t *testing.T) {
 	opts := resolveJWTAuthOpts(idx)
 	assert.Equal(t, "sb-123", opts.SandboxId)
 	assert.Equal(t, "my-cred", opts.CredProvider)
-	assert.Equal(t, jwtauth.GetTokenFilePath("sb-123"), opts.TokenFile)
-	assert.Equal(t, jwtauth.GetEndpoint(), opts.Endpoint)
+	assert.Equal(t, agentidentity.GetTokenFilePath("sb-123"), opts.TokenFile)
+	assert.Equal(t, agentidentity.GetEndpoint(), opts.Endpoint)
 }
 
 func TestResolveJWTAuthOpts_ExplicitOverrides(t *testing.T) {

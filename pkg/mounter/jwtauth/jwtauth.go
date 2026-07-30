@@ -15,7 +15,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -23,56 +22,7 @@ const (
 	httpTimeout            = 10 * time.Second
 	apiActionGetCredential = "GetResourceCredential"
 	credentialTypeSTSToken = "stsToken"
-
-	// envEndpoint overrides the credential provider endpoint.
-	envEndpoint = "AGENT_IDENTITY_ENDPOINT"
-	// envCertFile overrides the CA bundle used to verify the endpoint.
-	envCertFile = "AGENT_IDENTITY_CERT_FILE"
-	// envTokenDir overrides the directory holding the per-sandbox token files.
-	envTokenDir = "AGENT_IDENTITY_TOKEN_DIR"
-
-	// defaultEndpoint is the in-cluster credential provider endpoint used when
-	// AGENT_IDENTITY_ENDPOINT is unset and no explicit mount option provides
-	// one.
-	defaultEndpoint = "https://credential-provider.ack-agent-identity.svc:8443/"
-	// defaultCertFile is the CA bundle used when AGENT_IDENTITY_CERT_FILE is
-	// unset.
-	defaultCertFile = "/etc/ssl/certs/agent-identity/ca.crt"
-	// defaultTokenDir is the sandbox token directory used when
-	// AGENT_IDENTITY_TOKEN_DIR is unset.
-	defaultTokenDir = "/var/opt/sandbox/agent-token/"
 )
-
-// GetEndpoint resolves the credential provider endpoint. It prefers the
-// AGENT_IDENTITY_ENDPOINT environment variable, falling back to
-// defaultEndpoint.
-func GetEndpoint() string {
-	if ep := os.Getenv(envEndpoint); ep != "" {
-		return ep
-	}
-	return defaultEndpoint
-}
-
-// GetCertFilePath resolves the CA bundle used to verify the credential
-// endpoint. It prefers the AGENT_IDENTITY_CERT_FILE environment variable,
-// falling back to defaultCertFile.
-func GetCertFilePath() string {
-	if p := os.Getenv(envCertFile); p != "" {
-		return p
-	}
-	return defaultCertFile
-}
-
-// GetTokenFilePath returns the path of the sandbox token file for the given
-// sandbox. The parent directory is taken from the AGENT_IDENTITY_TOKEN_DIR
-// environment variable, falling back to defaultTokenDir.
-func GetTokenFilePath(sandboxId string) string {
-	dir := os.Getenv(envTokenDir)
-	if dir == "" {
-		dir = defaultTokenDir
-	}
-	return filepath.Join(dir, sandboxId+".token")
-}
 
 // Opts is the resolved configuration for a jwtauth mount.
 type Opts struct {

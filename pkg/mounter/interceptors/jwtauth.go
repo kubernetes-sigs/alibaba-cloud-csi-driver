@@ -13,6 +13,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"k8s.io/klog/v2"
 )
 
@@ -151,16 +152,16 @@ func resolveJWTAuthOpts(idx map[string]string) jwtauth.Opts {
 		SandboxId:    idx[optSandboxId],
 	}
 	if opts.Endpoint == "" {
-		opts.Endpoint = jwtauth.GetEndpoint()
+		opts.Endpoint = agentidentity.GetEndpoint()
 	}
 	if opts.TokenFile == "" && opts.SandboxId != "" {
-		opts.TokenFile = jwtauth.GetTokenFilePath(opts.SandboxId)
+		opts.TokenFile = agentidentity.GetTokenFilePath(opts.SandboxId)
 	}
 	if opts.CredProvider == "" {
 		opts.CredProvider = idx[optSandboxCredProviderName]
 	}
 	if opts.CAFile == "" {
-		if caPath := jwtauth.GetCertFilePath(); unix.Access(caPath, unix.R_OK) == nil {
+		if caPath := agentidentity.GetCAFilePath(); caPath != "" && unix.Access(caPath, unix.R_OK) == nil {
 			opts.CAFile = caPath
 		}
 	}
