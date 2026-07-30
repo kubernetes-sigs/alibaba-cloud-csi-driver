@@ -537,7 +537,7 @@ spec:
             - --leader-election=true
             - --kube-api-qps=50
             - --kube-api-burst=100
-            - --worker-threads=32
+            - --worker-threads=256
             - --timeout=30s
           ports:
             - containerPort: 8121
