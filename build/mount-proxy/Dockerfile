@@ -107,9 +107,9 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 FROM alinux-install AS alinas
 
 ARG TARGETPLATFORM
-ARG ALINAS_UTILS_VERSION=2.4-0.20260721112941.f65c1a.generic
-ARG EFC_VERSION=2.4-20260715152610.afea64.3351f8b.release
-ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/efc-release/2.4
+ARG ALINAS_UTILS_VERSION=2.4-0.20260729113142.374faa.generic
+ARG EFC_VERSION=2.4-20260728201806.f77dd6.28e8ed2.release
+ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.4
 
 RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
     echo 'install_weak_deps=False' >> /etc/yum.conf; \
@@ -146,9 +146,9 @@ ARG OSSFS_VERSION=v1.91.11.ack.1
 ARG OSSFS2_VERSION=v2.0.8.ack.1
 ARG OSSFS_RPM_URL
 ARG OSSFS2_RPM_URL
-ARG ALINAS_UTILS_VERSION=2.4-0.20260721112941.f65c1a.generic
-ARG EFC_VERSION=2.4-20260715152610.afea64.3351f8b.release
-ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/efc-release/2.4
+ARG ALINAS_UTILS_VERSION=2.4-0.20260729113142.374faa.generic
+ARG EFC_VERSION=2.4-20260728201806.f77dd6.28e8ed2.release
+ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.4
 
 RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
     echo 'install_weak_deps=False' >> /etc/yum.conf; \
