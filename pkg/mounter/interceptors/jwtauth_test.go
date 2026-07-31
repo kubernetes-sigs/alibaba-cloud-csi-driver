@@ -213,6 +213,122 @@ func TestJWTAuthInterceptor_EndToEnd(t *testing.T) {
 	}, 3*time.Second, 20*time.Millisecond, "refresher should be deregistered after exit")
 }
 
+func TestJWTAuthInterceptor_RefresherStartError(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+
+	called := false
+	op := &mounter.MountOperation{
+		VolumeID: "vol-start-err",
+		Target:   "/mnt/start-err",
+		Options: []string{
+			"authType=jwtauth",
+			"sandboxId=sb-1",
+			"sandboxCredProviderName=cp",
+			"jwtauth_endpoint=" + srv.URL,
+			"jwtauth_token_file=" + tokenPath,
+		},
+	}
+	err := JWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		called = true
+		return nil
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "start jwtauth credential refresher")
+	assert.False(t, called, "mount must not proceed when the refresher cannot start")
+	assert.False(t, jwtauth.DefaultManager.HasTarget("/mnt/start-err"))
+}
+
+func TestJWTAuthInterceptor_NilMountResultStopsRefresher(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
+	srv := newSTSServer(t, "ak", "sk", "st", time.Now().Add(time.Hour))
+
+	var credDir string
+	op := &mounter.MountOperation{
+		VolumeID: "vol-nil-result",
+		Target:   "/mnt/nil-result",
+		Options: []string{
+			"authType=jwtauth",
+			"sandboxId=sb-1",
+			"sandboxCredProviderName=cp",
+			"jwtauth_endpoint=" + srv.URL,
+			"jwtauth_token_file=" + tokenPath,
+		},
+	}
+	err := JWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		credDir = mounterutils.IndexMountOptions(o.Options)[optCredentialDir]
+		// Handler succeeds but leaves op.MountResult nil.
+		return nil
+	})
+	require.NoError(t, err)
+
+	// Without a mount result to bind to, the refresher must be stopped and the
+	// credential directory removed.
+	assert.False(t, jwtauth.DefaultManager.HasTarget("/mnt/nil-result"))
+	_, statErr := os.Stat(credDir)
+	assert.True(t, os.IsNotExist(statErr), "credential dir should be removed")
+}
+
+func TestJWTAuthInterceptor_WrongMountResultTypeStopsRefresher(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
+	srv := newSTSServer(t, "ak", "sk", "st", time.Now().Add(time.Hour))
+
+	var credDir string
+	op := &mounter.MountOperation{
+		VolumeID: "vol-bad-result",
+		Target:   "/mnt/bad-result",
+		Options: []string{
+			"authType=jwtauth",
+			"sandboxId=sb-1",
+			"sandboxCredProviderName=cp",
+			"jwtauth_endpoint=" + srv.URL,
+			"jwtauth_token_file=" + tokenPath,
+		},
+	}
+	err := JWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		credDir = mounterutils.IndexMountOptions(o.Options)[optCredentialDir]
+		o.MountResult = "not an OssfsMountResult"
+		return nil
+	})
+	require.NoError(t, err)
+
+	assert.False(t, jwtauth.DefaultManager.HasTarget("/mnt/bad-result"))
+	_, statErr := os.Stat(credDir)
+	assert.True(t, os.IsNotExist(statErr), "credential dir should be removed")
+}
+
+func TestResolveJWTAuthOpts_CAFile(t *testing.T) {
+	t.Run("readable CA file from env is used", func(t *testing.T) {
+		caPath := filepath.Join(t.TempDir(), "ca.crt")
+		require.NoError(t, os.WriteFile(caPath, []byte("pem"), 0600))
+		t.Setenv("AGENT_IDENTITY_CERT_FILE", caPath)
+		opts := resolveJWTAuthOpts(map[string]string{optSandboxId: "sb-1"})
+		assert.Equal(t, caPath, opts.CAFile)
+	})
+
+	t.Run("unreadable CA file from env is ignored", func(t *testing.T) {
+		t.Setenv("AGENT_IDENTITY_CERT_FILE", filepath.Join(t.TempDir(), "missing.crt"))
+		opts := resolveJWTAuthOpts(map[string]string{optSandboxId: "sb-1"})
+		assert.Empty(t, opts.CAFile)
+	})
+
+	t.Run("explicit CA file option wins over env", func(t *testing.T) {
+		t.Setenv("AGENT_IDENTITY_CERT_FILE", "/env/ca.crt")
+		opts := resolveJWTAuthOpts(map[string]string{
+			optSandboxId:     "sb-1",
+			optJWTAuthCAFile: "/explicit/ca.crt",
+		})
+		assert.Equal(t, "/explicit/ca.crt", opts.CAFile)
+	})
+}
+
 func TestJWTAuthInterceptor_HandlerErrorCleansUp(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")

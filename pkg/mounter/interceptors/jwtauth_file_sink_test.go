@@ -46,6 +46,19 @@ func TestJWTAuthFileSink_ApplyRejectsIncompleteCredential(t *testing.T) {
 	assert.Contains(t, err.Error(), "rotate credential files")
 }
 
+func TestJWTAuthFileSink_ApplyFailsWhenDirNotCreatable(t *testing.T) {
+	// Parent path is a regular file, so MkdirAll must fail.
+	blocker := filepath.Join(t.TempDir(), "blocker")
+	require.NoError(t, os.WriteFile(blocker, []byte("x"), 0600))
+
+	sink := newJWTAuthFileSink(filepath.Join(blocker, "creds"))
+	err := sink.Apply(&jwtauth.STSToken{
+		AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "st", Expiration: "exp",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "create credential dir")
+}
+
 func TestJWTAuthFileSink_CleanupRemovesEverything(t *testing.T) {
 	outputDir := filepath.Join(t.TempDir(), "creds")
 	sink := newJWTAuthFileSink(outputDir)

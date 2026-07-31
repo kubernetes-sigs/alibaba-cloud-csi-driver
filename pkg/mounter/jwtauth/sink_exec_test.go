@@ -58,4 +58,11 @@ func TestExecSink_Apply(t *testing.T) {
 		sink := NewExecSink("/mnt/nas")
 		sink.Cleanup() // must not panic
 	})
+
+	t.Run("default runner executes a real command", func(t *testing.T) {
+		sink := NewExecSink("/mnt/nas")
+		out, err := sink.runCommand(context.Background(), "echo", "ok")
+		require.NoError(t, err)
+		assert.Equal(t, "ok\n", string(out))
+	})
 }

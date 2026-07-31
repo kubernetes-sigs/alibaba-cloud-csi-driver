@@ -80,3 +80,13 @@ func TestManager_StopAll(t *testing.T) {
 	// Empty manager StopAll returns immediately.
 	m.StopAll(time.Millisecond)
 }
+
+func TestPackageStopAll(t *testing.T) {
+	r, sink := newStartedTestRefresher(t)
+	DefaultManager.Add("/mnt/pkg-stopall", r)
+
+	StopAll()
+
+	assert.Equal(t, 1, sink.cleaned)
+	assert.False(t, DefaultManager.HasTarget("/mnt/pkg-stopall"))
+}

@@ -375,6 +375,138 @@ func TestOpts_Validate(t *testing.T) {
 	}
 }
 
+func TestRefresher_StartErrors(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
+
+	t.Run("bad CA file fails before any fetch", func(t *testing.T) {
+		sink := &fakeSink{}
+		r := NewRefresher(Opts{
+			TokenFile: tokenPath, Endpoint: "https://localhost:0",
+			CredProvider: "cp", SandboxId: "sb",
+			CAFile: filepath.Join(tmpDir, "missing-ca.crt"),
+		}, sink)
+		err := r.Start(context.Background())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "build http client")
+		assert.Equal(t, 0, sink.appliedCount())
+	})
+
+	t.Run("sink apply failure surfaces", func(t *testing.T) {
+		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewEncoder(w).Encode(credentialResponse{
+				RequestID: "r1",
+				STSToken: &STSToken{
+					AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "st",
+					Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
+				},
+			})
+		})
+		refresher, sink := newTestRefresher(tokenPath, srv.URL)
+		sink.err = assert.AnError
+		err := refresher.Start(context.Background())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "apply initial credentials")
+	})
+}
+
+func TestRefresher_StartWithBadCAFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
+	sink := &fakeSink{}
+	r := NewRefresher(Opts{
+		TokenFile: tokenPath, Endpoint: "https://localhost:0",
+		CredProvider: "cp", SandboxId: "sb",
+		CAFile: filepath.Join(tmpDir, "missing-ca.crt"),
+	}, sink)
+	err := r.StartWith(&STSToken{Expiration: time.Now().Add(time.Hour).Format(time.RFC3339)})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "build http client")
+}
+
+func TestRefresher_StopIdempotent(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
+	refresher, _ := newTestRefresher(tokenPath, "http://localhost:0")
+	require.NoError(t, refresher.StartWith(&STSToken{
+		Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
+	}))
+
+	refresher.Stop()
+	// Second Stop must not panic on the already-closed stop channel.
+	refresher.Stop()
+}
+
+func TestRefresher_FetchWithRetryStopped(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
+
+	t.Run("stopped before first attempt", func(t *testing.T) {
+		refresher, _ := newTestRefresher(tokenPath, "http://localhost:0")
+		refresher.client = &http.Client{Timeout: time.Second}
+		close(refresher.stopCh)
+		_, err := refresher.fetchWithRetry()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "stopped")
+	})
+
+	t.Run("stopped during backoff after a failed attempt", func(t *testing.T) {
+		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		})
+		refresher, _ := newTestRefresher(tokenPath, srv.URL)
+		refresher.client = &http.Client{Timeout: time.Second}
+
+		result := make(chan error, 1)
+		go func() {
+			_, err := refresher.fetchWithRetry()
+			result <- err
+		}()
+		// Let the first attempt fail, then stop while the loop is backing off.
+		time.Sleep(100 * time.Millisecond)
+		close(refresher.stopCh)
+
+		select {
+		case err := <-result:
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "stopped")
+		case <-time.After(3 * time.Second):
+			t.Fatal("fetchWithRetry did not return after stop")
+		}
+	})
+}
+
+func TestRefresher_RefreshLoopContinuesOnApplyError(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
+
+	var callCount atomic.Int32
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		callCount.Add(1)
+		_ = json.NewEncoder(w).Encode(credentialResponse{
+			RequestID: "r1",
+			STSToken: &STSToken{
+				AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "st",
+				Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
+			},
+		})
+	})
+
+	refresher, sink := newTestRefresher(tokenPath, srv.URL)
+	sink.err = assert.AnError
+	refresher.refreshMargin = 30 * time.Millisecond
+
+	// Invalid expiration forces sleep = refreshMargin, so rotations happen fast.
+	require.NoError(t, refresher.StartWith(&STSToken{Expiration: "not-a-date"}))
+	defer refresher.Stop()
+
+	// Apply keeps failing but the loop must keep fetching (continue path).
+	assert.Eventually(t, func() bool {
+		return callCount.Load() >= 2
+	}, 3*time.Second, 20*time.Millisecond, "refresh loop should continue after apply errors")
+	assert.Equal(t, 0, sink.appliedCount())
+}
+
 // generateTestCA returns a self-signed CA certificate encoded as PEM.
 func generateTestCA(t *testing.T) []byte {
 	t.Helper()

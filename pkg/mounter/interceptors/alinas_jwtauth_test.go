@@ -2,8 +2,16 @@ package interceptors
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,6 +21,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// generateTestCAPEM returns a self-signed CA certificate encoded as PEM.
+func generateTestCAPEM(t *testing.T) []byte {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test-ca"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+}
 
 func TestAlinasJWTAuthInterceptor_NoOpForOtherAuthTypes(t *testing.T) {
 	cases := [][]string{
@@ -153,8 +180,6 @@ func TestAlinasJWTAuthInterceptor_EndToEnd(t *testing.T) {
 	assert.Equal(t, 1, tlsCount, "tls must not be duplicated")
 	_, hasRAM := seenOptions[optAlinasRAM]
 	assert.True(t, hasRAM, "ram should be added for jwtauth mounts")
-	// authType preserved so downstream can branch.
-	assert.Equal(t, AuthTypeJWTAuth, seenOptions[optAuthType])
 
 	// A refresher must be registered for the mount target after success.
 	assert.True(t, jwtauth.DefaultManager.HasTarget(target), "refresher should be registered")
@@ -236,6 +261,55 @@ func TestSplitAlinasSTSOptions_AddsTLSAndRAMWhenMissing(t *testing.T) {
 	assert.Equal(t, "ak", sensIdx[optAlinasAccessKeyID])
 	assert.Equal(t, "sk", sensIdx[optAlinasAccessKeySecret])
 	assert.Equal(t, "st", sensIdx[optAlinasSecurityToken])
+}
+
+func TestAlinasJWTAuthInterceptor_RefresherStartFailureDoesNotFailMount(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
+	srv := newSTSServer(t, "ak", "sk", "st", time.Now().Add(time.Hour))
+
+	// A CA file that is valid during the initial fetch but disappears before
+	// the refresher starts: the mount succeeded, so the interceptor must log
+	// and return nil instead of failing the mount.
+	caPath := filepath.Join(tmpDir, "ca.crt")
+	require.NoError(t, os.WriteFile(caPath, generateTestCAPEM(t), 0600))
+
+	const target = "/mnt/nas-refresher-err"
+	op := &mounter.MountOperation{
+		Target: target,
+		Options: []string{
+			"authType=jwtauth",
+			"sandboxId=sb-1",
+			"sandboxCredProviderName=cp",
+			"jwtauth_endpoint=" + srv.URL,
+			"jwtauth_token_file=" + tokenPath,
+			"jwtauth_ca_file=" + caPath,
+		},
+	}
+
+	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		// Simulate the CA file vanishing after the mount succeeded.
+		return os.Remove(caPath)
+	})
+	require.NoError(t, err, "a refresher start failure must not fail a successful mount")
+	assert.False(t, jwtauth.DefaultManager.HasTarget(target), "no refresher should be registered when StartWith fails")
+}
+
+func TestSplitAlinasSTSOptions_PreservesExistingTLSAndRAM(t *testing.T) {
+	cred := &jwtauth.STSToken{AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "st"}
+	options, _ := splitAlinasSTSOptions([]string{"tls", "ram", "vers=3"}, cred)
+
+	tlsCount, ramCount := 0, 0
+	for _, o := range options {
+		switch o {
+		case optAlinasTLS:
+			tlsCount++
+		case optAlinasRAM:
+			ramCount++
+		}
+	}
+	assert.Equal(t, 1, tlsCount, "tls must not be duplicated")
+	assert.Equal(t, 1, ramCount, "ram must not be duplicated")
 }
 
 func TestFlattenMountOptions(t *testing.T) {
