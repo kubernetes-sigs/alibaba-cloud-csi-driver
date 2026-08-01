@@ -16,12 +16,14 @@ type iReportNodesStatusResponseBody interface {
 }
 
 type ReportNodesStatusResponseBody struct {
-	// Error Message
+	// The error message.
 	//
 	// example:
 	//
 	// Resource not found
 	ErrorMessage *string `json:"ErrorMessage,omitempty" xml:"ErrorMessage,omitempty"`
+	// The request ID.
+	//
 	// example:
 	//
 	// B0699629-14FC-51E7-B49E-AAD83F6FEB60

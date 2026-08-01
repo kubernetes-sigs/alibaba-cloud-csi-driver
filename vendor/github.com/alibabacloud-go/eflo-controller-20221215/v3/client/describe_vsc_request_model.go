@@ -14,7 +14,7 @@ type iDescribeVscRequest interface {
 }
 
 type DescribeVscRequest struct {
-	// The VSC ID.
+	// The ID of the Vsc.
 	//
 	// This parameter is required.
 	//
