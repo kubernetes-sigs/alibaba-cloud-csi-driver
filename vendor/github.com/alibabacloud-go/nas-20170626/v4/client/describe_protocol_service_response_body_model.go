@@ -24,7 +24,7 @@ type DescribeProtocolServiceResponseBody struct {
 	//
 	// aBcdeg==
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The information about protocol services.
+	// The information about protocol service list.
 	ProtocolServices []*DescribeProtocolServiceResponseBodyProtocolServices `json:"ProtocolServices,omitempty" xml:"ProtocolServices,omitempty" type:"Repeated"`
 	// The request ID.
 	//
@@ -101,7 +101,7 @@ type DescribeProtocolServiceResponseBodyProtocolServices struct {
 	//
 	// example:
 	//
-	// test
+	// 此协议服务的描述
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// The ID of the file system.
 	//
@@ -193,10 +193,14 @@ type DescribeProtocolServiceResponseBodyProtocolServices struct {
 	//
 	// Running
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The VSW ID associated with the protocol service.
+	//
 	// example:
 	//
 	// vsw-123xxx
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The VPC ID associated with the protocol service.
+	//
 	// example:
 	//
 	// vpc-123xxx

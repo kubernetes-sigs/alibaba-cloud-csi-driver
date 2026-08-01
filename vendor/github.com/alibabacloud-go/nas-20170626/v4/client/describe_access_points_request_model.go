@@ -22,17 +22,17 @@ type iDescribeAccessPointsRequest interface {
 }
 
 type DescribeAccessPointsRequest struct {
-	// The name of the permission group.
+	// The permission group name.
 	//
-	// This parameter is required for a General-purpose File Storage NAS (NAS) file system.
+	// This parameter is required if the file system is a General-purpose NAS file system.
 	//
-	// The default permission group for virtual private clouds (VPCs) is named DEFAULT_VPC_GROUP_NAME.
+	// Default permission group: DEFAULT_VPC_GROUP_NAME (the default VPC permission group).
 	//
 	// example:
 	//
 	// DEFAULT_VPC_GROUP_NAME
 	AccessGroup *string `json:"AccessGroup,omitempty" xml:"AccessGroup,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// example:
 	//
@@ -46,13 +46,14 @@ type DescribeAccessPointsRequest struct {
 	//
 	// 10
 	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	// The query token. Set the value to the NextToken value returned in the previous API call.
 	//
 	// example:
 	//
 	// MTY4NzcxOTcwMjAzMDk2Nzc0MyM4MDM4****
-	NextToken *string                           `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	Tag       []*DescribeAccessPointsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The list of access point tags.
+	Tag []*DescribeAccessPointsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 }
 
 func (s DescribeAccessPointsRequest) String() string {
@@ -122,10 +123,34 @@ func (s *DescribeAccessPointsRequest) Validate() error {
 }
 
 type DescribeAccessPointsRequestTag struct {
+	// The tag key.
+	//
+	// Limits:
+	//
+	// - Valid values of N: 1 to 20.
+	//
+	// - The tag key can be up to 128 characters in length.
+	//
+	// - The tag key cannot start with aliyun or acs:.
+	//
+	// - The tag key cannot contain http:// or https://.
+	//
 	// example:
 	//
 	// TestKey
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The tag value.
+	//
+	// Limits:
+	//
+	// - Valid values of N: 1 to 20.
+	//
+	// - The tag value can be up to 128 characters in length.
+	//
+	// - The tag value cannot start with aliyun or acs:.
+	//
+	// - The tag value cannot contain http:// or https://.
+	//
 	// example:
 	//
 	// TestValue

@@ -40,7 +40,7 @@ type DescribeMountedClientsRequest struct {
 	//
 	// example:
 	//
-	// 109c****66
+	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The domain name of the mount target.
 	//
