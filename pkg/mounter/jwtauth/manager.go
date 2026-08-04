@@ -123,8 +123,15 @@ func (m *Manager) StopAll(timeout time.Duration) {
 	}
 }
 
+// defaultStopAllTimeout bounds the package-level StopAll. Refreshers are
+// stopped concurrently and each Refresher.Stop is itself bounded by
+// stopWaitTimeout, so this must be at least stopWaitTimeout (plus a small
+// margin) for the bound to actually hold; a smaller value would return early
+// and let refresh goroutines linger past the reported timeout.
+const defaultStopAllTimeout = stopWaitTimeout + 2*time.Second
+
 // StopAll stops all refreshers tracked by the DefaultManager. Intended to be
 // called from a driver's Terminate.
 func StopAll() {
-	DefaultManager.StopAll(2 * time.Second)
+	DefaultManager.StopAll(defaultStopAllTimeout)
 }

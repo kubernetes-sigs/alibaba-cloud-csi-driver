@@ -259,7 +259,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.AuthType = strings.TrimSpace(value)
 		case "sandboxid":
 			opt.SandboxId = strings.TrimSpace(value)
-		case "sandboxcredprovidername", "credentialprovidername":
+		case "sandboxcredentialprovidername":
 			opt.SandboxCredProviderName = strings.TrimSpace(value)
 		}
 	}
