@@ -86,22 +86,22 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 
 // Options struct definition
 type Options struct {
-	Server        string   `json:"server"`
-	Accesspoint   string   `json:"accesspoint"`
-	Path          string   `json:"path"`
-	Vers          string   `json:"vers"`
-	Mode          string   `json:"mode"`
-	ModeType      string   `json:"modeType"`
-	Options       []string `json:"options"`
-	MountType     string   `json:"mountType"`
-	LoopImageSize int      `json:"loopImageSize"`
-	LoopLock      string   `json:"loopLock"`
-	MountProtocol string   `json:"mountProtocol"`
-	ClientType    string   `json:"clientType"`
-	FSType        string   `json:"fsType"`
-	SysConfigs    []utilsio.SysConfig
-	AkID          string
-	AkSecret      string
+	Server                  string   `json:"server"`
+	Accesspoint             string   `json:"accesspoint"`
+	Path                    string   `json:"path"`
+	Vers                    string   `json:"vers"`
+	Mode                    string   `json:"mode"`
+	ModeType                string   `json:"modeType"`
+	Options                 []string `json:"options"`
+	MountType               string   `json:"mountType"`
+	LoopImageSize           int      `json:"loopImageSize"`
+	LoopLock                string   `json:"loopLock"`
+	MountProtocol           string   `json:"mountProtocol"`
+	ClientType              string   `json:"clientType"`
+	FSType                  string   `json:"fsType"`
+	SysConfigs              []utilsio.SysConfig
+	AkID                    string
+	AkSecret                string
 	AuthType                string `json:"authType"`
 	SandboxId               string `json:"sandboxId"`
 	SandboxCredProviderName string `json:"sandboxCredProviderName"`
