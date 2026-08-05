@@ -238,7 +238,11 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 					v, k, corev1.DNSClusterFirst, corev1.DNSClusterFirstWithHostNet, corev1.DNSDefault).Error())
 			}
 		case "overlay":
-			opts.Overlay, _ = strconv.ParseBool(value)
+			if v, err := strconv.ParseBool(value); err != nil {
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, expect a boolean", value, k).Error())
+			} else {
+				opts.Overlay = v
+			}
 		case "runtimeclass":
 			runtimeClassValue = value
 		// deprecated:

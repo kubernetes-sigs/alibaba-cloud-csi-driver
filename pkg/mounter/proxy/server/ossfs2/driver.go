@@ -18,7 +18,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
-	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -65,26 +64,15 @@ func (h *Driver) Fstypes() []string {
 }
 
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
-	// When overlay is enabled, the interceptor chain handles:
-	//   1. FUSE mount to Target (= lower dir)
-	//   2. Overlay mount from lower to OverlayMerged (= original target)
-	fuseTarget := req.Target
-	overlayMerged := ""
-	if req.Overlay {
-		fuseTarget = mounterutils.OverlayLowerDir(req.Target)
-		overlayMerged = req.Target
-	}
-
 	return h.ExtendedMount(ctx, &mounter.MountOperation{
-		Source:        req.Source,
-		Target:        fuseTarget,
-		FsType:        req.Fstype,
-		Options:       req.Options,
-		Secrets:       req.Secrets,
-		MetricsPath:   req.MetricsPath,
-		VolumeID:      req.VolumeID,
-		Overlay:       req.Overlay,
-		OverlayMerged: overlayMerged,
+		Source:      req.Source,
+		Target:      req.Target,
+		FsType:      req.Fstype,
+		Options:     req.Options,
+		Secrets:     req.Secrets,
+		MetricsPath: req.MetricsPath,
+		VolumeID:    req.VolumeID,
+		Overlay:     req.Overlay,
 	})
 }
 

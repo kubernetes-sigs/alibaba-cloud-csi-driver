@@ -29,11 +29,6 @@ type MountOperation struct {
 	MetricsPath string
 	VolumeID    string
 	Overlay     bool
-	// OverlayMerged is the original Target (merged dir for overlay) when Overlay=true.
-	// When Overlay is enabled, the caller sets Target to the lower dir (FUSE/NFS mount point)
-	// and OverlayMerged to the final merged path exposed to the business container.
-	// The overlay interceptor uses this to mount overlay after the underlying mount succeeds.
-	OverlayMerged string
 
 	MountResult any
 }

@@ -370,6 +370,48 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 	}
 }
 
+// An overlay merged mount is a kernel mount that stays alive after the lower FUSE dies,
+// so an already-mounted overlay target must still be forwarded to the mounter, where the
+// overlay interceptor probes the lower dir and recovers it. Returning early here is what
+// broke mount-proxy crash recovery.
+func TestNodePublishVolume_OverlayRepublish_DoesNotEarlyReturn(t *testing.T) {
+	baseDir := t.TempDir()
+	targetPath := filepath.Join(baseDir, "target")
+	require.NoError(t, os.MkdirAll(targetPath, 0o755))
+
+	fakeMounter := mountutils.NewFakeMounter([]mountutils.MountPoint{createMountPoint(targetPath)})
+	ns := setupTestNodeServer(t, fakeMounter, true)
+
+	req := &csi.NodePublishVolumeRequest{
+		VolumeId:   "test-volume-id",
+		TargetPath: targetPath,
+		Readonly:   true,
+		VolumeContext: map[string]string{
+			"bucket":   "test-bucket",
+			"url":      "https://oss-cn-beijing.aliyuncs.com",
+			"path":     "/test",
+			"fuseType": "ossfs",
+			"overlay":  "true",
+		},
+		PublishContext: map[string]string{
+			mountProxySocket: filepath.Join(baseDir, "nonexistent-mounter.sock"),
+		},
+		VolumeCapability: &csi.VolumeCapability{
+			AccessType: &csi.VolumeCapability_Mount{
+				Mount: &csi.VolumeCapability_MountVolume{FsType: "ossfs"},
+			},
+		},
+		Secrets: map[string]string{
+			"akId":     "test-akid",
+			"akSecret": "test-aksecret",
+		},
+	}
+
+	_, err := ns.NodePublishVolume(context.Background(), req)
+	require.Error(t, err, "overlay republish must reach the mounter, not return early as already mounted")
+	assert.NotContains(t, err.Error(), "InvalidArgument", "should fail on the proxy dial, not on validation")
+}
+
 // TestNodePublishVolume_TokenRotation tests token rotation scenarios specifically
 func TestNodePublishVolume_TokenRotation(t *testing.T) {
 	tests := []struct {

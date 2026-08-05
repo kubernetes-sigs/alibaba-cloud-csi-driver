@@ -289,7 +289,15 @@ func GetPasswdHashDir(target string) string {
 	return filepath.Join("/tmp", ComputeMountPathHash(target))
 }
 
-const OverlayBaseDir = "/run/csi-overlay"
+// OverlayBaseDir is the base directory for overlay lower/upper/work dirs.
+// Defaults to /run/csi-overlay; override via CSI_OVERLAY_BASE_DIR env var
+// (e.g. point to a temp dir in unit tests to avoid writing to /run).
+var OverlayBaseDir = func() string {
+	if dir := os.Getenv("CSI_OVERLAY_BASE_DIR"); dir != "" {
+		return dir
+	}
+	return "/run/csi-overlay"
+}()
 
 // OverlayDirs computes the lower, upper, and work dir paths for a given overlay target.
 //
