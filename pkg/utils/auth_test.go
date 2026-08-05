@@ -19,9 +19,11 @@ package utils
 import (
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetAccessControl(t *testing.T) {
@@ -339,4 +341,48 @@ func TestResolveSymlinks(t *testing.T) {
 	got, err = resolveSymlinks(filepath.Join(regularFile, "leaf"))
 	assert.Error(t, err)
 	assert.Empty(t, got)
+}
+
+// A mount point whose filesystem is dead must not fail validation: both
+// NodePublishVolume and NodeUnpublishVolume resolve the target path first, so the
+// driver could neither re-establish nor clean up such a mount.
+func TestResolveSymlinks_DeadMountPoint(t *testing.T) {
+	// Resolve the temp dir up front: on macOS /var is a symlink to /private/var.
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	dead := filepath.Join(base, "deadmount")
+	require.NoError(t, os.MkdirAll(dead, 0o755))
+
+	orig := evalSymlinks
+	defer func() { evalSymlinks = orig }()
+	failWith := func(target string, errno syscall.Errno) {
+		evalSymlinks = func(path string) (string, error) {
+			if path == target {
+				return "", &os.PathError{Op: "lstat", Path: path, Err: errno}
+			}
+			return orig(path)
+		}
+	}
+
+	// Dead leaf: resolve the healthy parent and re-append the base name.
+	failWith(dead, syscall.ENOTCONN)
+	got, err := resolveSymlinks(dead)
+	assert.NoError(t, err)
+	assert.Equal(t, dead, got)
+
+	// A mount point is always the leaf, so an ENOTCONN ancestor is not tolerated:
+	// its contents are unreadable and the suffix could hide a symlink.
+	failWith(dead, syscall.ENOTCONN)
+	got, err = resolveSymlinks(filepath.Join(dead, "leaf"))
+	assert.Error(t, err)
+	assert.Empty(t, got)
+
+	// Errors IsCorruptedMnt would accept but that are not the crashed-daemon case
+	// stay hard failures.
+	for _, errno := range []syscall.Errno{syscall.ESTALE, syscall.EACCES, syscall.EIO, syscall.EPERM} {
+		failWith(dead, errno)
+		got, err = resolveSymlinks(dead)
+		assert.Error(t, err, "errno %v must not be resolved around", errno)
+		assert.Empty(t, got)
+	}
 }

@@ -17,11 +17,13 @@ limitations under the License.
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
@@ -96,17 +98,49 @@ func isUnderPATH(resolved string) (string, bool) {
 	return "", false
 }
 
-// resolveSymlinks resolves symlinks for cleaned, tolerating non-existent
-// trailing components. It first tries to resolve the full path. Only when
-// that fails because the path does not exist yet does it recursively resolve
-// the parent directory, then re-append the missing trailing component, so the
-// result is the resolved deepest existing ancestor joined with the full
-// non-existent suffix. Symlinks in any existing ancestor directory are still
-// followed and cannot be used to bypass the sensitive-path checks. Any
-// resolution error other than non-existence is returned as-is, and an error
-// is also returned if no ancestor up to the root can be resolved.
+// evalSymlinks is a package variable so tests can simulate a mount point whose
+// filesystem is dead; that state cannot be created from a unit test.
+var evalSymlinks = filepath.EvalSymlinks
+
+// resolveSymlinks resolves symlinks for cleaned.
+//
+// A mount point whose filesystem is dead answers every lookup with ENOTCONN, which
+// would otherwise fail validation and stop the caller from ever unmounting it. Such a
+// component can only be the path we were asked about: mount(2) resolves symlinks
+// before mounting, so a mount point is always the leaf and always a directory.
+// Resolve its parent instead, which is an ordinary directory, and re-append the base
+// name. Ancestors go through resolveExistingAncestor untouched, so an ENOTCONN there
+// stays a hard error and no unverifiable suffix is ever re-appended.
+//
+// Only ENOTCONN is treated this way. That is narrower than mount-utils
+// IsCorruptedMnt, which also covers EACCES, EIO and ESTALE; ESTALE in particular means
+// the object may have been replaced, so it is not the crashed-daemon case.
 func resolveSymlinks(cleaned string) (string, error) {
-	resolved, err := filepath.EvalSymlinks(cleaned)
+	resolved, err := evalSymlinks(cleaned)
+	if err == nil {
+		return resolved, nil
+	}
+	if errors.Is(err, syscall.ENOTCONN) {
+		resolvedParent, perr := resolveExistingAncestor(filepath.Dir(cleaned))
+		if perr != nil {
+			return "", perr
+		}
+		return filepath.Join(resolvedParent, filepath.Base(cleaned)), nil
+	}
+	return resolveExistingAncestor(cleaned)
+}
+
+// resolveExistingAncestor resolves symlinks for cleaned, tolerating non-existent
+// trailing components. It first tries to resolve the full path. Only when that fails
+// because the path does not exist yet does it recursively resolve the parent
+// directory, then re-append the missing trailing component, so the result is the
+// resolved deepest existing ancestor joined with the full non-existent suffix.
+// Symlinks in any existing ancestor directory are still followed and cannot be used to
+// bypass the sensitive-path checks. Any resolution error other than non-existence is
+// returned as-is, and an error is also returned if no ancestor up to the root can be
+// resolved.
+func resolveExistingAncestor(cleaned string) (string, error) {
+	resolved, err := evalSymlinks(cleaned)
 	if err == nil {
 		return resolved, nil
 	}
@@ -118,7 +152,7 @@ func resolveSymlinks(cleaned string) (string, error) {
 		// Reached the root without resolving any ancestor.
 		return "", fmt.Errorf("cannot resolve any ancestor of %s: %w", cleaned, err)
 	}
-	resolvedParent, err := resolveSymlinks(parent)
+	resolvedParent, err := resolveExistingAncestor(parent)
 	if err != nil {
 		return "", err
 	}
