@@ -2,9 +2,12 @@ package utils
 
 import (
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/sys/unix"
+	mountutils "k8s.io/mount-utils"
 )
 
 func Test_GetRoleSessionName(t *testing.T) {
@@ -195,6 +198,119 @@ func TestMergeMountOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := MergeMountOptions(tt.base, tt.additional)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestOverlayDirs(t *testing.T) {
+	target := "/run/csi/mount-root/oss/abc123"
+
+	lower, upper, work := OverlayDirs(target)
+
+	assert.Contains(t, lower, OverlayBaseDir)
+	assert.Contains(t, upper, OverlayBaseDir)
+	assert.Contains(t, work, OverlayBaseDir)
+
+	assert.Contains(t, lower, "/lower")
+	assert.Contains(t, upper, "/upper")
+	assert.Contains(t, work, "/work")
+
+	// Deterministic
+	lower2, _, _ := OverlayDirs(target)
+	assert.Equal(t, lower, lower2)
+
+	// Isolation
+	otherLower, _, _ := OverlayDirs("/run/csi/mount-root/oss/other")
+	assert.NotEqual(t, lower, otherLower)
+}
+
+func TestOverlayLowerDir(t *testing.T) {
+	target := "/run/csi/mount-root/oss/abc123"
+	lower := OverlayLowerDir(target)
+	expectedLower, _, _ := OverlayDirs(target)
+	assert.Equal(t, expectedLower, lower)
+}
+
+func TestIsNotLiveMountPoint(t *testing.T) {
+	target := "/mnt/live-probe"
+
+	tests := []struct {
+		name          string
+		mountPoints   []mountutils.MountPoint
+		statfsErr     error
+		wantNotLive   bool
+		wantErr       bool
+		wantUnmounted bool
+	}{
+		{
+			name:        "live mount",
+			mountPoints: []mountutils.MountPoint{{Path: target, Device: "ossfs", Type: "fuse.ossfs"}},
+		},
+		{
+			// The case stat cannot see: the mount is still listed and stat is answered
+			// from the cached root inode, but the daemon is gone.
+			name:          "mounted but unserviced",
+			mountPoints:   []mountutils.MountPoint{{Path: target, Device: "ossfs", Type: "fuse.ossfs"}},
+			statfsErr:     syscall.ENOTCONN,
+			wantNotLive:   true,
+			wantUnmounted: true,
+		},
+		{
+			// Strictly additive: an unexpected probe error must not fail the publish,
+			// so the mount is reported as it was before the probe existed.
+			name:        "statfs fails for an unrelated reason",
+			mountPoints: []mountutils.MountPoint{{Path: target, Device: "ossfs", Type: "fuse.ossfs"}},
+			statfsErr:   syscall.ENOMEM,
+			wantNotLive: false,
+		},
+		{
+			// Not a mount point at all, so statfs is never consulted
+			name:        "not mounted",
+			statfsErr:   syscall.ENOTCONN,
+			wantNotLive: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// IsNotMountPoint mkdirs a missing target, so use one that exists
+			dir := t.TempDir()
+			mps := make([]mountutils.MountPoint, 0, len(tt.mountPoints))
+			for _, mp := range tt.mountPoints {
+				mp.Path = dir
+				mps = append(mps, mp)
+			}
+			fake := mountutils.NewFakeMounter(mps)
+
+			orig := statfs
+			statfs = func(path string, st *unix.Statfs_t) error {
+				if tt.statfsErr != nil {
+					return tt.statfsErr
+				}
+				return orig(path, st)
+			}
+			defer func() { statfs = orig }()
+
+			notLive, err := IsNotLiveMountPoint(fake, dir)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantNotLive, notLive)
+			}
+
+			mps, _ = fake.List()
+			stillMounted := false
+			for _, mp := range mps {
+				if mp.Path == dir {
+					stillMounted = true
+				}
+			}
+			if tt.wantUnmounted {
+				assert.False(t, stillMounted, "an unserviced mount must be unmounted so the caller can mount again")
+			} else if len(tt.mountPoints) > 0 && !tt.wantErr {
+				assert.True(t, stillMounted, "a live mount must be left alone")
+			}
 		})
 	}
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
+
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -151,7 +152,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Check if targetPath is already mounted (used to determine if token rotation is needed)
 	// Note: For RunC, targetPath may not be mounted even if attachPath is mounted (bind mount not done yet)
-	notMntTarget, err := mounterutils.IsNotMountPoint(ns.rawMounter, targetPath)
+	// Liveness, not just presence: a crashed FUSE daemon leaves a mount that the kernel
+	// still answers stat for from the cached root inode, which would look like "already
+	// mounted" and skip the remount that repairs it.
+	notMntTarget, err := mounterutils.IsNotLiveMountPoint(ns.rawMounter, targetPath)
 	if err != nil {
 		return nil, err
 	}
@@ -165,23 +169,40 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return ns.publishDirectVolume(ctx, req, opts)
 	}
 
+	// Overlay requires running inside a VM (Sandbox or RunD) where mount-proxy-server
+	// manages the overlay lifecycle. skipGlobalMount indicates the VM environment.
+	// Additionally, a dedicated hostPath volume at overlayBaseDir is required;
+	// currently only the Sandbox deployment configures this. RunD without the hostPath
+	// will fail at mount time with "filesystem not supported as upperdir".
+	if opts.Overlay {
+		if err = utils.ValidateOverlayRequirements(opts.ReadOnly, ns.skipGlobalMount); err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+	}
+
 	mountSource := fmt.Sprintf("%s:%s", opts.Bucket, opts.Path)
 	needRotateToken := needRotateToken(opts.FuseType, authCfg.Secrets)
+
+	// The mount request must be sent when the target is not mounted, when a token needs
+	// rotating, or whenever overlay is in play: merged is a kernel mount that outlives the
+	// underlying FUSE, so it never reports ENOTCONN the way a plain FUSE target does and
+	// "already mounted" says nothing about health. Forwarding lets the overlay interceptor
+	// probe the lower dir and re-mount it when the FUSE died (e.g. mount-proxy crash).
+	forwardToMounter := notMntTarget || needRotateToken || opts.Overlay
 
 	var ossfsMounter mounter.Mounter
 	var mountOptions []string
 
 	// New mounter in MicroVM scenario
 	if runtimeType == RuntimeTypeMicroVM {
-		if !notMntTarget {
-			if !needRotateToken {
-				// case 1: mount point exists, no token rotation
-				klog.Infof("NodePublishVolume: %s already mounted", targetPath)
-				return &csi.NodePublishVolumeResponse{}, nil
-			}
-		} else {
-			// case 2-1: mount point not exists
-			// For new mounts, perform validation and prepare mount options.
+		if !forwardToMounter {
+			// case 1: mounted, no token rotation, no overlay — nothing to do
+			klog.Infof("NodePublishVolume: %s already mounted", targetPath)
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+		if notMntTarget || opts.Overlay {
+			// case 2-1: new mount, or an overlay republish that may re-mount the lower
+			// dir and therefore needs the full option set
 			if err = checkOssOptions(opts, ns.fusePodManagers[opts.FuseType]); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
@@ -213,15 +234,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// New mounter in RunC and RunD scenario
 	// RunC and RunD share the same mounter and the related preparation logic
 	if runtimeType == RuntimeTypeRunD || runtimeType == RuntimeTypeRunC {
-		if !notMntTarget {
-			if !needRotateToken {
-				// case 1: mount point exists, no token rotation
-				klog.Infof("NodePublishVolume: %s already mounted", targetPath)
-				return &csi.NodePublishVolumeResponse{}, nil
-			}
-		} else {
-			// case 2-1: mount point not exists
-			// For new mounts, perform validation and prepare mount options.
+		if !forwardToMounter {
+			// case 1: mounted, no token rotation, no overlay — nothing to do
+			klog.Infof("NodePublishVolume: %s already mounted", targetPath)
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+		if notMntTarget || opts.Overlay {
+			// case 2-1: new mount, or an overlay republish that may re-mount the lower
+			// dir and therefore needs the full option set
 			if err = checkOssOptions(opts, ns.fusePodManagers[opts.FuseType]); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
@@ -256,14 +276,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			Options:     mountOptions,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
+			Overlay:     opts.Overlay,
 		})
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		if !notMntTarget {
-			// For the scenario where targetPath is already mounted, if token rotation is not needed,
-			// it would have exited early. Therefore, this log is reasonable.
-			klog.Infof("NodePublishVolume(csi-agent): successfully rotated token for %s on %s", mountSource, targetPath)
+			// Republish: a token rotation, or an overlay recovery
+			klog.Infof("NodePublishVolume(csi-agent): successfully republished %s on %s", mountSource, targetPath)
 		} else {
 			klog.Infof("NodePublishVolume(csi-agent): successfully mounted %s on %s", mountSource, targetPath)
 		}
@@ -343,6 +363,13 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", targetPath, err)
 	}
 	klog.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", targetPath)
+
+	// Best-effort cleanup of overlay lower dir (FUSE mount).
+	// In RunD/Sandbox with overlay, mount-proxy-server mounted FUSE to a lower dir.
+	// After overlay unmount above, the lower dir mount may still be alive.
+	// VM destruction will reclaim all resources regardless.
+	mounterutils.CleanupOverlayLowerDir(targetPath)
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

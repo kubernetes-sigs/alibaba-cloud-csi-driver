@@ -51,6 +51,12 @@ type MountRequest struct {
 	Secrets     map[string]string `json:"secrets,omitempty"`
 	MetricsPath string            `json:"metricsPath,omitempty"`
 	VolumeID    string            `json:"volumeID,omitempty"`
+	// Overlay instructs mount-proxy-server to set up an overlayfs on top of the
+	// FUSE/NFS mount. When true, mount-proxy-server mounts the filesystem to an
+	// internal lower dir, then creates an overlay with a writable upper layer and
+	// exposes the merged view at Target.
+	// Forward-compatible: old mount-proxy-server versions ignore unknown JSON fields.
+	Overlay bool `json:"overlay,omitempty"`
 }
 
 func ReadMsg(r io.Reader, msg any) error {

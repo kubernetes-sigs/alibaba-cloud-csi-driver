@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -287,6 +288,110 @@ func GetPasswdFileName(fuseType string) string {
 
 func GetPasswdHashDir(target string) string {
 	return filepath.Join("/tmp", ComputeMountPathHash(target))
+}
+
+// OverlayBaseDir is the base directory for overlay lower/upper/work dirs.
+// Defaults to /run/csi-overlay; override via CSI_OVERLAY_BASE_DIR env var
+// (e.g. point to a temp dir in unit tests to avoid writing to /run).
+var OverlayBaseDir = func() string {
+	if dir := os.Getenv("CSI_OVERLAY_BASE_DIR"); dir != "" {
+		return dir
+	}
+	return "/run/csi-overlay"
+}()
+
+// OverlayDirs computes the lower, upper, and work dir paths for a given overlay target.
+//
+// The key is the merged path (target) exposed to the business container, NOT the volumeID.
+//
+//   - volumeID is unstable: in Sandbox, the volumeID contains a random suffix that changes
+//     across checkpoint clone and deep hibernate resume. Using it would orphan the upper dir
+//     data preserved in the VM filesystem.
+//
+//   - target (merged path) is stable: it is deterministically derived from the container's
+//     mountPath, which is preserved across checkpoint/clone/resume.
+//
+//   - Isolation is guaranteed by target uniqueness: each volume mount has a distinct mountPath,
+//     so each gets a distinct overlay dir. Two mounts of the same PV to different paths are
+//     fully isolated.
+//
+// NOTE: This design relies on VM-level isolation (each Sandbox is a separate VM). In RunC
+// (future), multiple pods on the same host share the filesystem, so target alone cannot
+// provide inter-pod isolation — a per-pod key (e.g. podUID) would be needed. RunC also does
+// not need hostPath for overlay because the upper dir lives directly on the host filesystem,
+// avoiding the overlay-on-overlay problem and the hibernate persistence requirement.
+func OverlayDirs(target string) (lower, upper, work string) {
+	h := sha256.Sum256([]byte(target))
+	base := filepath.Join(OverlayBaseDir, hex.EncodeToString(h[:]))
+	return filepath.Join(base, "lower"), filepath.Join(base, "upper"), filepath.Join(base, "work")
+}
+
+// OverlayLowerDir returns the lower dir path for a given overlay target (merged path).
+func OverlayLowerDir(target string) string {
+	lower, _, _ := OverlayDirs(target)
+	return lower
+}
+
+// CleanupOverlayLowerDir performs best-effort cleanup of the overlay lower dir.
+// After the overlay (merged) is unmounted by NodeUnpublish, the lower dir mount may
+// still be alive. This function attempts to unmount it.
+// targetPath is the merged path (same key used to compute overlay dirs).
+// Safe to call even if the lower dir is not mounted (no-op in that case).
+func CleanupOverlayLowerDir(targetPath string) {
+	lower, _, _ := OverlayDirs(targetPath)
+	m := mountutils.NewWithoutSystemd("")
+	notMnt, err := m.IsLikelyNotMountPoint(lower)
+	if err != nil || notMnt {
+		return
+	}
+	klog.InfoS("Cleaning up overlay lower dir", "path", lower)
+	if err := mountutils.CleanupMountPoint(lower, m, false); err != nil {
+		klog.ErrorS(err, "Best-effort cleanup of overlay lower dir failed", "path", lower)
+	}
+}
+
+// statfs is a package variable so tests can simulate a mount whose daemon is gone.
+var statfs = unix.Statfs
+
+// IsNotLiveMountPoint reports whether target needs a (re)mount: it is not a mount
+// point at all, or it is one whose filesystem no longer answers.
+//
+// IsNotMountPoint decides on stat alone, which is not enough for FUSE. When the
+// daemon dies the connection is aborted, yet the kernel can still answer stat for
+// the mount root from the cached inode, so the mount looks healthy and the caller
+// skips the remount that would repair it. statfs is not cached and always reaches
+// the daemon, so it is what actually settles liveness.
+//
+// A mount that is present but unserviced is unmounted before returning true, so the
+// caller can mount again without stacking a second filesystem on the same path.
+//
+// This is strictly additive: it never reports a failure that IsNotMountPoint would not
+// have reported. An unexpected statfs error is logged and the mount is left alone,
+// because this runs on the normal publish path and a probe must not be able to break a
+// mount that works.
+//
+// Note the probe blocks if the daemon is gone but the connection is still open,
+// which is what fd-passing recovery deliberately arranges. Callers that support that
+// mode must skip this check.
+func IsNotLiveMountPoint(mounter mountutils.Interface, target string) (bool, error) {
+	notMnt, err := IsNotMountPoint(mounter, target)
+	if err != nil || notMnt {
+		return notMnt, err
+	}
+
+	var st unix.Statfs_t
+	if serr := statfs(target, &st); serr != nil {
+		if !mountutils.IsCorruptedMnt(serr) {
+			klog.Warningf("Cannot probe mountpoint %s, assuming it is alive: %v", target, serr)
+			return false, nil
+		}
+		klog.Warningf("Umount unserviced mountpoint %s", target)
+		if uerr := mounter.Unmount(target); uerr != nil {
+			return false, status.Errorf(codes.Internal, "umount unserviced mountpoint %s: %v", target, uerr)
+		}
+		return true, nil
+	}
+	return false, nil
 }
 
 func IsNotMountPoint(mounter mountutils.Interface, target string) (notMnt bool, err error) {

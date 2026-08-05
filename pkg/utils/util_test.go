@@ -122,6 +122,125 @@ func TestIsDirTmpfs(t *testing.T) {
 	assert.True(t, isTmpfs)
 }
 
+func TestGetSkipGlobalMount(t *testing.T) {
+	tests := []struct {
+		name               string
+		skipGlobalMount    string
+		ossSkipGlobalMount string
+		defaultVal         bool
+		want               bool
+	}{
+		{
+			name:       "no env set, default false",
+			defaultVal: false,
+			want:       false,
+		},
+		{
+			name:       "no env set, default true",
+			defaultVal: true,
+			want:       true,
+		},
+		{
+			name:               "SKIP_GLOBAL_MOUNT takes priority over OSS_SKIP_GLOBAL_MOUNT",
+			skipGlobalMount:    "true",
+			ossSkipGlobalMount: "false",
+			defaultVal:         false,
+			want:               true,
+		},
+		{
+			name:               "OSS_SKIP_GLOBAL_MOUNT used when SKIP_GLOBAL_MOUNT is empty",
+			ossSkipGlobalMount: "true",
+			defaultVal:         false,
+			want:               true,
+		},
+		{
+			name:            "SKIP_GLOBAL_MOUNT=false overrides default true",
+			skipGlobalMount: "false",
+			defaultVal:      true,
+			want:            false,
+		},
+		{
+			name:               "OSS_SKIP_GLOBAL_MOUNT=0 parsed as false",
+			ossSkipGlobalMount: "0",
+			defaultVal:         true,
+			want:               false,
+		},
+		{
+			name:            "invalid SKIP_GLOBAL_MOUNT falls back to default",
+			skipGlobalMount: "invalid",
+			defaultVal:      true,
+			want:            true,
+		},
+		{
+			name:               "invalid OSS_SKIP_GLOBAL_MOUNT falls back to default",
+			ossSkipGlobalMount: "yes",
+			defaultVal:         false,
+			want:               false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.skipGlobalMount != "" {
+				t.Setenv("SKIP_GLOBAL_MOUNT", tt.skipGlobalMount)
+			}
+			if tt.ossSkipGlobalMount != "" {
+				t.Setenv("OSS_SKIP_GLOBAL_MOUNT", tt.ossSkipGlobalMount)
+			}
+			got := GetSkipGlobalMount(tt.defaultVal)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestValidateOverlayRequirements(t *testing.T) {
+	tests := []struct {
+		name        string
+		readOnly    bool
+		inVM        bool
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:     "readOnly + inVM - ok",
+			readOnly: true,
+			inVM:     true,
+			wantErr:  false,
+		},
+		{
+			name:        "not readOnly - error",
+			readOnly:    false,
+			inVM:        true,
+			wantErr:     true,
+			errContains: "read-only",
+		},
+		{
+			name:        "not inVM - error",
+			readOnly:    true,
+			inVM:        false,
+			wantErr:     true,
+			errContains: "RunD/Sandbox",
+		},
+		{
+			name:        "not readOnly and not inVM - readOnly checked first",
+			readOnly:    false,
+			inVM:        false,
+			wantErr:     true,
+			errContains: "read-only",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateOverlayRequirements(tt.readOnly, tt.inVM)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestIsDirTmpfsFalse(t *testing.T) {
 	mounter := k8smount.NewFakeMounter([]k8smount.MountPoint{
 		{

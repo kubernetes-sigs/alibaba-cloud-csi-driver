@@ -35,18 +35,22 @@ type Driver struct {
 	pids           sync.Map
 	monitorManager *server.MountMonitorManager
 	wg             sync.WaitGroup
+	overlay        *server.OverlayManager
 }
 
 func NewDriver() *Driver {
+	rawMounter := mount.NewWithoutSystemd("")
 	driver := &Driver{
 		monitorManager: server.NewMountMonitorManager(),
+		overlay:        server.NewOverlayManager(rawMounter),
 	}
 	m := &extendedMounter{
 		driver:    driver,
-		Interface: mount.NewWithoutSystemd(""),
+		Interface: rawMounter,
 	}
 	driver.Mounter = mounter.NewForMounter(
 		m,
+		interceptors.NewOverlayInterceptor(driver.overlay),
 		interceptors.OssfsSecretInterceptor,
 		interceptors.OssfsMonitorInterceptor,
 	)
@@ -70,6 +74,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		Secrets:     req.Secrets,
 		MetricsPath: req.MetricsPath,
 		VolumeID:    req.VolumeID,
+		Overlay:     req.Overlay,
 	})
 }
 
@@ -101,6 +106,9 @@ func (h *Driver) ApplyOptionDefaults(options []string) []string {
 }
 
 func (h *Driver) Terminate() {
+	// First unmount all overlay mounts (must happen before FUSE cleanup)
+	h.overlay.TerminateOverlays()
+
 	// Stop all mount monitoring
 	h.monitorManager.StopAllMonitoring()
 

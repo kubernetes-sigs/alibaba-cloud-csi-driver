@@ -28,6 +28,7 @@ type MountOperation struct {
 	Secrets     map[string]string
 	MetricsPath string
 	VolumeID    string
+	Overlay     bool
 
 	MountResult any
 }
