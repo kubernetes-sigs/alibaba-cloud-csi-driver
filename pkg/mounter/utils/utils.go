@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -347,6 +348,50 @@ func CleanupOverlayLowerDir(targetPath string) {
 	if err := mountutils.CleanupMountPoint(lower, m, false); err != nil {
 		klog.ErrorS(err, "Best-effort cleanup of overlay lower dir failed", "path", lower)
 	}
+}
+
+// statfs is a package variable so tests can simulate a mount whose daemon is gone.
+var statfs = unix.Statfs
+
+// IsNotLiveMountPoint reports whether target needs a (re)mount: it is not a mount
+// point at all, or it is one whose filesystem no longer answers.
+//
+// IsNotMountPoint decides on stat alone, which is not enough for FUSE. When the
+// daemon dies the connection is aborted, yet the kernel can still answer stat for
+// the mount root from the cached inode, so the mount looks healthy and the caller
+// skips the remount that would repair it. statfs is not cached and always reaches
+// the daemon, so it is what actually settles liveness.
+//
+// A mount that is present but unserviced is unmounted before returning true, so the
+// caller can mount again without stacking a second filesystem on the same path.
+//
+// This is strictly additive: it never reports a failure that IsNotMountPoint would not
+// have reported. An unexpected statfs error is logged and the mount is left alone,
+// because this runs on the normal publish path and a probe must not be able to break a
+// mount that works.
+//
+// Note the probe blocks if the daemon is gone but the connection is still open,
+// which is what fd-passing recovery deliberately arranges. Callers that support that
+// mode must skip this check.
+func IsNotLiveMountPoint(mounter mountutils.Interface, target string) (bool, error) {
+	notMnt, err := IsNotMountPoint(mounter, target)
+	if err != nil || notMnt {
+		return notMnt, err
+	}
+
+	var st unix.Statfs_t
+	if serr := statfs(target, &st); serr != nil {
+		if !mountutils.IsCorruptedMnt(serr) {
+			klog.Warningf("Cannot probe mountpoint %s, assuming it is alive: %v", target, serr)
+			return false, nil
+		}
+		klog.Warningf("Umount unserviced mountpoint %s", target)
+		if uerr := mounter.Unmount(target); uerr != nil {
+			return false, status.Errorf(codes.Internal, "umount unserviced mountpoint %s: %v", target, uerr)
+		}
+		return true, nil
+	}
+	return false, nil
 }
 
 func IsNotMountPoint(mounter mountutils.Interface, target string) (notMnt bool, err error) {

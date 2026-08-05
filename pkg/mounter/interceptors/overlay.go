@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/klog/v2"
@@ -18,52 +16,6 @@ import (
 // keeping the interceptors package generic and free of reverse dependencies.
 type overlayMounter interface {
 	MountOverlay(mergedDir string) error
-}
-
-// lowerState classifies the overlay's lower mount.
-type lowerState int
-
-const (
-	// lowerAlive: mounted and the daemon still answers.
-	lowerAlive lowerState = iota
-	// lowerStale: gone, dead, or never mounted. Guaranteed to be unmounted on return,
-	// so the caller can rebuild it.
-	lowerStale
-	// lowerUnknown: could not tell. Nothing was touched.
-	lowerUnknown
-)
-
-// statfs is a package variable so tests can simulate a dead FUSE mount.
-var statfs = unix.Statfs
-
-// classifyLower inspects the lower mount of an overlay.
-//
-// IsNotMountPoint covers "missing" and "corrupted", and unmounts the latter. A mount
-// that passes it may still be dead: the kernel answers stat from the cached root
-// inode once the FUSE connection is aborted, which made a crashed ossfs look healthy.
-// statfs is not cached and always reaches the daemon, so it is what actually decides.
-func classifyLower(lowerDir string) (lowerState, error) {
-	notMnt, err := mounterutils.IsNotMountPoint(raw, lowerDir)
-	if err != nil {
-		return lowerUnknown, err
-	}
-	if notMnt {
-		return lowerStale, nil
-	}
-
-	var st unix.Statfs_t
-	if err := statfs(lowerDir, &st); err != nil {
-		if !mountutils.IsCorruptedMnt(err) {
-			return lowerUnknown, err
-		}
-		// Mounted but not serviced. Drop it so the caller can mount again; the
-		// overlay above still pins the superblock, so this umount is allowed.
-		if uerr := raw.Unmount(lowerDir); uerr != nil {
-			return lowerUnknown, uerr
-		}
-		return lowerStale, nil
-	}
-	return lowerAlive, nil
 }
 
 // NewOverlayInterceptor turns a plain FUSE/NFS mount into an overlay: it rewrites
@@ -85,7 +37,7 @@ func NewOverlayInterceptor(manager overlayMounter) mounter.MountInterceptor {
 
 		// merged already mounted: either a republish over a healthy overlay, or a stale
 		// overlay whose lower FUSE died. Presence of the lower proves nothing — see
-		// classifyLower for what actually decides liveness.
+		// IsNotLiveMountPoint for what actually decides liveness.
 		//
 		// TODO(fd-passing): with fd-passing the FUSE connection outlives the daemon, so
 		// probing a dead lower hangs in D state (see SafeIsNotMountPoint on the
@@ -95,15 +47,15 @@ func NewOverlayInterceptor(manager overlayMounter) mounter.MountInterceptor {
 		// valid while ossfs is restarted, leaving nothing for this interceptor to do.
 		notMnt, err := raw.IsLikelyNotMountPoint(mergedDir)
 		if err == nil && !notMnt {
-			state, lerr := classifyLower(lowerDir)
-			switch state {
-			case lowerUnknown:
+			notLive, lerr := mounterutils.IsNotLiveMountPoint(raw, lowerDir)
+			switch {
+			case lerr != nil:
 				// Don't umount on an unclear state, it can only make things worse
 				klog.ErrorS(lerr, "Cannot determine lower mount health, skipping overlay recovery",
 					"lower", lowerDir, "merged", mergedDir)
 				op.Target = lowerDir
 				return handler(ctx, op)
-			case lowerAlive:
+			case !notLive:
 				// Healthy: pass through so the secret interceptor can rotate credentials
 				op.Target = lowerDir
 				return handler(ctx, op)

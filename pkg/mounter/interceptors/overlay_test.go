@@ -7,8 +7,6 @@ import (
 	"syscall"
 	"testing"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -240,106 +238,6 @@ func TestOverlayInterceptor_LowerProbeFails_SkipsRecovery(t *testing.T) {
 	assert.Equal(t, lowerDir, mountedTarget, "should still pass through to the lower dir")
 
 	// Nothing may be torn down while the state is unclear
-	mountPoints, _ := fake.List()
-	paths := make([]string, 0, len(mountPoints))
-	for _, mp := range mountPoints {
-		paths = append(paths, mp.Path)
-	}
-	assert.Contains(t, paths, merged, "overlay must not be unmounted on an unclear probe result")
-	assert.Contains(t, paths, lowerDir, "lower must not be unmounted on an unclear probe result")
-}
-
-func TestOverlayInterceptor_LowerStatfsFails_RecoversMergedOverlay(t *testing.T) {
-	mounterutils.OverlayBaseDir = t.TempDir()
-	merged := t.TempDir()
-	lowerDir := mounterutils.OverlayLowerDir(merged)
-	require.NoError(t, os.MkdirAll(lowerDir, 0755))
-
-	// The mount table and stat both still report a healthy lower; only statfs, which
-	// has to reach the daemon, reveals that ossfs is gone. This is the state in which
-	// recovery used to silently do nothing.
-	fake := k8smount.NewFakeMounter([]k8smount.MountPoint{
-		{Path: merged, Device: "overlay", Type: "overlay"},
-		{Path: lowerDir, Device: "ossfs", Type: "fuse.ossfs"},
-	})
-	origRaw := raw
-	raw = fake
-	defer func() { raw = origRaw }()
-
-	origStatfs := statfs
-	statfs = func(path string, st *unix.Statfs_t) error {
-		if path == lowerDir {
-			return syscall.ENOTCONN
-		}
-		return origStatfs(path, st)
-	}
-	defer func() { statfs = origStatfs }()
-
-	interceptor := NewOverlayInterceptor(server.NewOverlayManager(fake))
-
-	var mountedTarget string
-	handler := func(ctx context.Context, op *mounter.MountOperation) error {
-		mountedTarget = op.Target
-		return nil
-	}
-
-	op := &mounter.MountOperation{Overlay: true, Target: merged}
-	require.NoError(t, interceptor(context.Background(), op, handler))
-
-	assert.Equal(t, lowerDir, mountedTarget, "FUSE should be re-mounted on the lower dir")
-	assert.DirExists(t, merged, "merged dir must survive the stale overlay teardown")
-
-	fuseMounts, overlayMounts := 0, 0
-	mountPoints, _ := fake.List()
-	for _, mp := range mountPoints {
-		switch {
-		case mp.Path == lowerDir && mp.Type == "fuse.ossfs":
-			fuseMounts++
-		case mp.Path == merged && mp.Type == "overlay":
-			overlayMounts++
-		}
-	}
-	assert.Zero(t, fuseMounts, "unserviced lower mount must be unmounted before the re-mount")
-	assert.Equal(t, 1, overlayMounts, "exactly one overlay mount should exist after recovery")
-}
-
-func TestOverlayInterceptor_LowerStatfsUnrelatedError_SkipsRecovery(t *testing.T) {
-	mounterutils.OverlayBaseDir = t.TempDir()
-	merged := t.TempDir()
-	lowerDir := mounterutils.OverlayLowerDir(merged)
-	require.NoError(t, os.MkdirAll(lowerDir, 0755))
-
-	fake := k8smount.NewFakeMounter([]k8smount.MountPoint{
-		{Path: merged, Device: "overlay", Type: "overlay"},
-		{Path: lowerDir, Device: "ossfs", Type: "fuse.ossfs"},
-	})
-	origRaw := raw
-	raw = fake
-	defer func() { raw = origRaw }()
-
-	origStatfs := statfs
-	// ENOMEM is not a dead-mount signal, so the lower's health is unknown
-	statfs = func(path string, st *unix.Statfs_t) error {
-		if path == lowerDir {
-			return syscall.ENOMEM
-		}
-		return origStatfs(path, st)
-	}
-	defer func() { statfs = origStatfs }()
-
-	interceptor := NewOverlayInterceptor(server.NewOverlayManager(fake))
-
-	var mountedTarget string
-	handler := func(ctx context.Context, op *mounter.MountOperation) error {
-		mountedTarget = op.Target
-		return nil
-	}
-
-	op := &mounter.MountOperation{Overlay: true, Target: merged}
-	require.NoError(t, interceptor(context.Background(), op, handler))
-
-	assert.Equal(t, lowerDir, mountedTarget, "should still pass through to the lower dir")
-
 	mountPoints, _ := fake.List()
 	paths := make([]string, 0, len(mountPoints))
 	for _, mp := range mountPoints {

@@ -152,7 +152,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Check if targetPath is already mounted (used to determine if token rotation is needed)
 	// Note: For RunC, targetPath may not be mounted even if attachPath is mounted (bind mount not done yet)
-	notMntTarget, err := mounterutils.IsNotMountPoint(ns.rawMounter, targetPath)
+	// Liveness, not just presence: a crashed FUSE daemon leaves a mount that the kernel
+	// still answers stat for from the cached root inode, which would look like "already
+	// mounted" and skip the remount that repairs it.
+	notMntTarget, err := mounterutils.IsNotLiveMountPoint(ns.rawMounter, targetPath)
 	if err != nil {
 		return nil, err
 	}
