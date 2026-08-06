@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAlinasCertRefreshSink_Apply(t *testing.T) {
+func TestAlinasCertRefreshSinkApply(t *testing.T) {
 	cred := &jwtauth.STSToken{
 		AccessKeyID:     "AKID",
 		AccessKeySecret: "AKSECRET",
@@ -72,7 +72,7 @@ func TestAlinasCertRefreshSink_Apply(t *testing.T) {
 		assert.Contains(t, err.Error(), "/mnt/nas")
 	})
 
-	t.Run("cleanup is a no-op", func(t *testing.T) {
+	t.Run("cleanup does nothing", func(t *testing.T) {
 		sink := newAlinasCertRefreshSink("/mnt/nas")
 		sink.Cleanup() // must not panic
 	})

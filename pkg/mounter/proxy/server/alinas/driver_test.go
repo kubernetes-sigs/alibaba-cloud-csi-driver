@@ -134,7 +134,7 @@ func TestExtendedMounter_UnmountRemovesTarget(t *testing.T) {
 	assert.False(t, loaded, "target should be removed after unmount")
 }
 
-func TestExtendedMounter_PassesSensitiveOptions(t *testing.T) {
+func TestExtendedMounterPassesSensitiveOptions(t *testing.T) {
 	driver := &Driver{}
 	fakeMounter := mount.NewFakeMounter(nil)
 	m := &extendedMounter{driver: driver, Interface: fakeMounter}
@@ -157,7 +157,7 @@ func TestExtendedMounter_PassesSensitiveOptions(t *testing.T) {
 	assert.Contains(t, opts, "security_token=TOK")
 }
 
-func TestExtendedMounter_UnmountStopsJWTAuthRefresher(t *testing.T) {
+func TestExtendedMounterUnmountStopsJWTAuthRefresher(t *testing.T) {
 	driver := &Driver{}
 	fakeMounter := mount.NewFakeMounter(nil)
 	m := &extendedMounter{driver: driver, Interface: fakeMounter}

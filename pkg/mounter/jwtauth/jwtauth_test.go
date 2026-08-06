@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFetchSTSToken_Success(t *testing.T) {
+func TestFetchSTSTokenSuccess(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 
@@ -35,7 +35,7 @@ func TestFetchSTSToken_Success(t *testing.T) {
 	assert.Equal(t, "st", cred.SecurityToken)
 }
 
-func TestFetchSTSToken_BadCAFile(t *testing.T) {
+func TestFetchSTSTokenBadCAFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 
@@ -51,7 +51,7 @@ func TestFetchSTSToken_BadCAFile(t *testing.T) {
 	assert.Contains(t, err.Error(), "build http client")
 }
 
-func TestExchangeSTSToken_Errors(t *testing.T) {
+func TestExchangeSTSTokenErrors(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 	client := &http.Client{Timeout: time.Second}
@@ -97,7 +97,7 @@ func TestExchangeSTSToken_Errors(t *testing.T) {
 	})
 }
 
-func TestReadTokenFile_Success(t *testing.T) {
+func TestReadTokenFileSuccess(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok-abc", "cli-xyz")
 	tok, err := readTokenFile(tokenPath)

@@ -25,7 +25,7 @@ func newStartedTestRefresher(t *testing.T) (*Refresher, *fakeSink) {
 	return r, sink
 }
 
-func TestManager_StopByTarget(t *testing.T) {
+func TestManagerStopByTarget(t *testing.T) {
 	m := NewManager()
 	r1, s1 := newStartedTestRefresher(t)
 	r2, s2 := newStartedTestRefresher(t)
@@ -49,7 +49,7 @@ func TestManager_StopByTarget(t *testing.T) {
 	m.StopAll(time.Second)
 }
 
-func TestManager_StopRefresherIdempotent(t *testing.T) {
+func TestManagerStopRefresherIdempotent(t *testing.T) {
 	m := NewManager()
 	r, sink := newStartedTestRefresher(t)
 	m.Add("/mnt/a", r)
@@ -63,7 +63,7 @@ func TestManager_StopRefresherIdempotent(t *testing.T) {
 	assert.Equal(t, 1, sink.cleaned)
 }
 
-func TestManager_StopAll(t *testing.T) {
+func TestManagerStopAll(t *testing.T) {
 	m := NewManager()
 	r1, s1 := newStartedTestRefresher(t)
 	r2, s2 := newStartedTestRefresher(t)

@@ -258,7 +258,7 @@ func TestDoMount_AccesspointWithAkSkFromMountOptions(t *testing.T) {
 	assert.Contains(t, m.lastOp.Options, "tls")
 }
 
-func TestDoMount_ForwardsJWTAuthOptionsFromVolumeContext(t *testing.T) {
+func TestDoMountForwardsJWTAuthOptionsFromVolumeContext(t *testing.T) {
 	m := &recordingMounter{}
 	opt := &Options{
 		Accesspoint:             "ap-xxx.nas.aliyuncs.com",
