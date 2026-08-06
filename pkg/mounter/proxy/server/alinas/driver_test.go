@@ -170,8 +170,9 @@ func TestExtendedMounter_UnmountStopsJWTAuthRefresher(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Simulate the refresher registered by AlinasJWTAuthInterceptor.
-	refresher := jwtauth.NewRefresher(jwtauth.Opts{}, jwtauth.NewExecSink(target))
+	// Simulate the refresher registered by AlinasJWTAuthInterceptor. The sink
+	// is irrelevant here: this test only covers the unmount -> stop wiring.
+	refresher := jwtauth.NewRefresher(jwtauth.Opts{}, noopCredentialSink{})
 	require.NoError(t, refresher.StartWith(&jwtauth.STSToken{
 		Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
 	}))
@@ -181,6 +182,12 @@ func TestExtendedMounter_UnmountStopsJWTAuthRefresher(t *testing.T) {
 	assert.False(t, jwtauth.DefaultManager.HasTarget(target),
 		"jwtauth refresher should be stopped when the mount is unmounted")
 }
+
+type noopCredentialSink struct{}
+
+func (noopCredentialSink) Apply(*jwtauth.STSToken) error { return nil }
+
+func (noopCredentialSink) Cleanup() {}
 
 func TestShouldCleanup(t *testing.T) {
 	tmpDir := t.TempDir()

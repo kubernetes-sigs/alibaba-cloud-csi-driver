@@ -31,9 +31,9 @@ const (
 // sandbox jwtauth token for an STS token in memory and injects the resolved
 // credential into op.SensitiveOptions (never op.Options, so the secret is
 // masked in mount logs and error messages). After a successful mount it
-// starts a jwtauth.Refresher with an ExecSink that pushes each rotated
-// credential to the live mount via alinas-tls-cert-refresh; the refresher is
-// stopped on unmount (Manager.StopByTarget) or driver Terminate
+// starts a jwtauth.Refresher with the alinas cert-refresh sink that pushes
+// each rotated credential to the live mount via alinas-tls-cert-refresh; the
+// refresher is stopped on unmount (Manager.StopByTarget) or driver Terminate
 // (jwtauth.StopAll). Nothing is written to disk.
 //
 // For any other authType (including the empty default) it is a no-op.
@@ -74,7 +74,7 @@ func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, h
 	// Mount succeeded: keep the credential fresh for the mount lifetime. The
 	// STS triple was consumed by the mount itself, so the refresher only
 	// pushes subsequent rotations via alinas-tls-cert-refresh.
-	refresher := jwtauth.NewRefresher(opts, jwtauth.NewExecSink(op.Target))
+	refresher := jwtauth.NewRefresher(opts, newAlinasCertRefreshSink(op.Target))
 	if err := refresher.StartWith(cred); err != nil {
 		// The mount itself succeeded; do not mask that. The credential will
 		// not be refreshed, so surface this loudly.
