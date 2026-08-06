@@ -22,7 +22,7 @@ local nodePool = {
         cis_enabled: false,
         login_as_non_root: false,
         platform: "AliyunLinux",
-        image_id: std.extVar("os_image_alinux3_container"),
+        image_id: std.extVar("os_image_alinux3"),
         image_type: "AliyunLinux3ContainerOptimized"
     },
     kubernetes_config: {
@@ -30,7 +30,7 @@ local nodePool = {
         cms_enabled: false,
         unschedulable: false,
         runtime: "containerd",
-        runtime_version: "2.1.5",
+        runtime_version: "2.1.9",
     },
     management: {
         enable: false
@@ -41,7 +41,7 @@ local nodePool = {
 {
     name: clusterName,
     cluster_type: "ManagedKubernetes",
-    kubernetes_version: "1.34.3-aliyun.1",
+    kubernetes_version: "1.36.2-aliyun.1",
     region_id: std.extVar("region"),
     snat_entry: true,
     cloud_monitor_flags: false,
@@ -101,8 +101,6 @@ local nodePool = {
                 instance_types: [
                     "ecs.mn4.xlarge",
                 ],
-                image_id: std.extVar("os_image_alinux3"),
-                image_type: "AliyunLinux3"
             }
         },
         nodePool {
@@ -115,7 +113,7 @@ local nodePool = {
                     "ecs.g8y.xlarge",
                 ],
                 image_id: std.extVar("os_image_alinux3_arm64"),
-                image_type: "AliyunLinux3Arm64",
+                image_type: "AliyunLinux3ContainerOptimizedArm64",
                 data_disks: [ // add an EED data disk to ensure the zone supports EED
                     {
                         category: "elastic_ephemeral_disk_standard",
