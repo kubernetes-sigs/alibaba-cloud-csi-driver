@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +22,31 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// writeTokenFile writes a credential provider sandbox token file.
+func writeTokenFile(t *testing.T, dir, accessToken, sandboxClientID string) string {
+	t.Helper()
+	tokenPath := filepath.Join(dir, "token.json")
+	content := fmt.Sprintf(
+		`{"requestId":"req-1","accessToken":%q,"sandboxClientId":%q,"accessTokenExpiration":%q}`,
+		accessToken, sandboxClientID, time.Now().Add(time.Hour).Format(time.RFC3339),
+	)
+	require.NoError(t, os.WriteFile(tokenPath, []byte(content), 0600))
+	return tokenPath
+}
+
+// newSTSServer returns an httptest server answering the credential exchange
+// with the given STS triple and expiration.
+func newSTSServer(t *testing.T, ak, sk, token string, expiration time.Time) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w,
+			`{"requestId":"r1","stsToken":{"accessKeyId":%q,"accessKeySecret":%q,"securityToken":%q,"expiration":%q}}`,
+			ak, sk, token, expiration.Format(time.RFC3339))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
 
 // generateTestCAPEM returns a self-signed CA certificate encoded as PEM.
 func generateTestCAPEM(t *testing.T) []byte {
@@ -41,7 +67,7 @@ func generateTestCAPEM(t *testing.T) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 }
 
-func TestAlinasJWTAuthInterceptor_NoOpForOtherAuthTypes(t *testing.T) {
+func TestAlinasJWTAuthInterceptorNoOpForOtherAuthTypes(t *testing.T) {
 	cases := [][]string{
 		nil,
 		{"vers=3"},
@@ -61,7 +87,7 @@ func TestAlinasJWTAuthInterceptor_NoOpForOtherAuthTypes(t *testing.T) {
 	}
 }
 
-func TestAlinasJWTAuthInterceptor_NilOp(t *testing.T) {
+func TestAlinasJWTAuthInterceptorNilOp(t *testing.T) {
 	called := false
 	err := AlinasJWTAuthInterceptor(context.Background(), nil, func(ctx context.Context, o *mounter.MountOperation) error {
 		called = true
@@ -71,7 +97,7 @@ func TestAlinasJWTAuthInterceptor_NilOp(t *testing.T) {
 	assert.True(t, called)
 }
 
-func TestAlinasJWTAuthInterceptor_ConfigError(t *testing.T) {
+func TestAlinasJWTAuthInterceptorConfigError(t *testing.T) {
 	// authType set but missing credProvider -> validate fails,
 	// handler must not run.
 	called := false
@@ -85,7 +111,7 @@ func TestAlinasJWTAuthInterceptor_ConfigError(t *testing.T) {
 	assert.False(t, called)
 }
 
-func TestAlinasJWTAuthInterceptor_FetchFailFast(t *testing.T) {
+func TestAlinasJWTAuthInterceptorFetchFailFast(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 
@@ -114,7 +140,7 @@ func TestAlinasJWTAuthInterceptor_FetchFailFast(t *testing.T) {
 	assert.False(t, called, "mount must not proceed when STS acquisition fails")
 }
 
-func TestAlinasJWTAuthInterceptor_EndToEnd(t *testing.T) {
+func TestAlinasJWTAuthInterceptorEndToEnd(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 	srv := newSTSServer(t, "AKID", "AKSECRET", "STOKEN", time.Now().Add(time.Hour))
@@ -155,14 +181,14 @@ func TestAlinasJWTAuthInterceptor_EndToEnd(t *testing.T) {
 		assert.False(t, ok, "expected %s to be absent from plain options", k)
 	}
 	// Infra-only jwtauth options removed.
-	for _, k := range []string{optSandboxId, optSandboxCredProviderName,
-		optJWTAuthEndpoint, optJWTAuthTokenFile} {
+	for _, k := range []string{jwtauth.OptSandboxId, jwtauth.OptSandboxCredProviderName,
+		jwtauth.OptEndpoint, jwtauth.OptTokenFile} {
 		_, ok := seenOptions[k]
 		assert.False(t, ok, "expected %s to be removed", k)
 	}
 	// authType must be stripped for alinas: the mount goes straight to
 	// mount.nfs, which rejects unknown options.
-	_, hasAuthType := seenOptions[optAuthType]
+	_, hasAuthType := seenOptions[jwtauth.OptAuthType]
 	assert.False(t, hasAuthType, "expected authType to be stripped for alinas mount")
 	// Preserved, non-credential options.
 	assert.Equal(t, "3", seenOptions["vers"])
@@ -188,7 +214,7 @@ func TestAlinasJWTAuthInterceptor_EndToEnd(t *testing.T) {
 	assert.False(t, jwtauth.DefaultManager.HasTarget(target))
 }
 
-func TestAlinasJWTAuthInterceptor_AgentIdentityTriggers(t *testing.T) {
+func TestAlinasJWTAuthInterceptorAgentIdentityTriggers(t *testing.T) {
 	// authType=agent-identity (the canonical OSS-aligned value) must trigger
 	// the same STS flow as the legacy jwtauth alias.
 	tmpDir := t.TempDir()
@@ -222,7 +248,7 @@ func TestAlinasJWTAuthInterceptor_AgentIdentityTriggers(t *testing.T) {
 	assert.True(t, jwtauth.DefaultManager.HasTarget(target), "refresher should be registered for agent-identity mounts")
 }
 
-func TestAlinasJWTAuthInterceptor_HandlerErrorStartsNoRefresher(t *testing.T) {
+func TestAlinasJWTAuthInterceptorHandlerErrorStartsNoRefresher(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 	srv := newSTSServer(t, "ak", "sk", "st", time.Now().Add(time.Hour))
@@ -247,7 +273,7 @@ func TestAlinasJWTAuthInterceptor_HandlerErrorStartsNoRefresher(t *testing.T) {
 	assert.False(t, jwtauth.DefaultManager.HasTarget(target), "no refresher must be started when the mount fails")
 }
 
-func TestSplitAlinasSTSOptions_AddsTLSAndRAMWhenMissing(t *testing.T) {
+func TestSplitAlinasSTSOptionsAddsTLSAndRAMWhenMissing(t *testing.T) {
 	cred := &jwtauth.STSToken{AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "st"}
 	options, sensitive := splitAlinasSTSOptions([]string{"vers=3"}, cred)
 
@@ -263,7 +289,7 @@ func TestSplitAlinasSTSOptions_AddsTLSAndRAMWhenMissing(t *testing.T) {
 	assert.Equal(t, "st", sensIdx[optAlinasSecurityToken])
 }
 
-func TestAlinasJWTAuthInterceptor_RefresherStartFailureDoesNotFailMount(t *testing.T) {
+func TestAlinasJWTAuthInterceptorRefresherStartFailureDoesNotFailMount(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 	srv := newSTSServer(t, "ak", "sk", "st", time.Now().Add(time.Hour))
@@ -295,7 +321,7 @@ func TestAlinasJWTAuthInterceptor_RefresherStartFailureDoesNotFailMount(t *testi
 	assert.False(t, jwtauth.DefaultManager.HasTarget(target), "no refresher should be registered when StartWith fails")
 }
 
-func TestSplitAlinasSTSOptions_PreservesExistingTLSAndRAM(t *testing.T) {
+func TestSplitAlinasSTSOptionsPreservesExistingTLSAndRAM(t *testing.T) {
 	cred := &jwtauth.STSToken{AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "st"}
 	options, _ := splitAlinasSTSOptions([]string{"tls", "ram", "vers=3"}, cred)
 

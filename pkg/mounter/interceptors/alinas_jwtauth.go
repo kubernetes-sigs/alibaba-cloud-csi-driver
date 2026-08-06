@@ -26,15 +26,15 @@ const (
 
 // AlinasJWTAuthInterceptor provisions scoped STS credentials for alinas mounts.
 //
-// Unlike JWTAuthInterceptor (customfuse), the alinas client consumes the
-// STS credential directly as mount options, so this interceptor exchanges the
-// sandbox jwtauth token for an STS token in memory and injects the resolved
-// credential into op.SensitiveOptions (never op.Options, so the secret is
-// masked in mount logs and error messages). After a successful mount it
-// starts a jwtauth.Refresher with the alinas cert-refresh sink that pushes
-// each rotated credential to the live mount via alinas-tls-cert-refresh; the
-// refresher is stopped on unmount (Manager.StopByTarget) or driver Terminate
-// (jwtauth.StopAll). Nothing is written to disk.
+// The alinas client consumes the STS credential directly as mount options, so
+// this interceptor exchanges the sandbox jwtauth token for an STS token in
+// memory and injects the resolved credential into op.SensitiveOptions (never
+// op.Options, so the secret is masked in mount logs and error messages). After
+// a successful mount it starts a jwtauth.Refresher with the alinas cert-refresh
+// sink that pushes each rotated credential to the live mount via
+// alinas-tls-cert-refresh; the refresher is stopped on unmount
+// (Manager.StopByTarget) or driver Terminate (jwtauth.StopAll). Nothing is
+// written to disk.
 //
 // For any other authType (including the empty default) it is a no-op.
 func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
@@ -45,11 +45,11 @@ func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, h
 	// (e.g. "tls,vers=3,authType=jwtauth"), so flatten before indexing.
 	flat := flattenMountOptions(op.Options)
 	idx := mounterutils.IndexMountOptions(flat)
-	if !isJWTAuth(idx[optAuthType]) {
+	if !jwtauth.IsAgentIdentity(idx[jwtauth.OptAuthType]) {
 		return handler(ctx, op)
 	}
 
-	opts := resolveJWTAuthOpts(idx)
+	opts := jwtauth.ResolveOpts(idx)
 	if err := opts.Validate(); err != nil {
 		return fmt.Errorf("jwtauth config error: %w", err)
 	}
@@ -109,11 +109,11 @@ func splitAlinasSTSOptions(flatOptions []string, cred *jwtauth.STSToken) (option
 	hasRAM := false
 	for _, opt := range flatOptions {
 		key, _, _ := strings.Cut(opt, "=")
-		if _, infra := jwtAuthInfraOptionKeys[key]; infra {
+		if _, infra := jwtauth.InfraOptionKeys[key]; infra {
 			continue
 		}
 		switch key {
-		case optAuthType:
+		case jwtauth.OptAuthType:
 			// authType is an agent-identity marker consumed by this interceptor.
 			// Unlike the OSS FUSE entrypoint, the alinas mount goes straight to
 			// mount.nfs, which rejects unknown options ("an incorrect mount

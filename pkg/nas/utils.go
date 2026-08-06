@@ -32,6 +32,7 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
@@ -324,9 +325,9 @@ func appendJWTAuthOptions(options []string, opt *Options) []string {
 		}
 		options = append(options, fmt.Sprintf("%s=%s", k, v))
 	}
-	appendKV("authType", opt.AuthType)
-	appendKV("sandboxId", opt.SandboxId)
-	appendKV("sandboxCredProviderName", opt.SandboxCredProviderName)
+	appendKV(jwtauth.OptAuthType, opt.AuthType)
+	appendKV(jwtauth.OptSandboxId, opt.SandboxId)
+	appendKV(jwtauth.OptSandboxCredProviderName, opt.SandboxCredProviderName)
 	return options
 }
 
