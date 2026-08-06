@@ -58,7 +58,7 @@ func (s *alinasCertRefreshSink) Apply(cred *jwtauth.STSToken) error {
 	ctx, cancel := context.WithTimeout(context.Background(), alinasCertRefreshTimeout)
 	defer cancel()
 
-	// SECURITY: never log these arguments - they contain the credential.
+	// SECURITY: never log these arguments; they contain the credential.
 	args := []string{
 		"--mount-point", s.mountPoint,
 		"--ak", cred.AccessKeyID,

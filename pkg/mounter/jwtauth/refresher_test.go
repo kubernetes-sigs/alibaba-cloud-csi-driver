@@ -54,7 +54,7 @@ func newTestRefresher(tokenPath, endpoint string) (*Refresher, *fakeSink) {
 	}, sink), sink
 }
 
-func TestRefresher_SuccessfulFetchAndApply(t *testing.T) {
+func TestRefresherSuccessfulFetchAndApply(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "test-token", "client-123")
 
@@ -99,7 +99,7 @@ func TestRefresher_SuccessfulFetchAndApply(t *testing.T) {
 	assert.NotEmpty(t, got.Expiration)
 }
 
-func TestRefresher_TokenFileErrors(t *testing.T) {
+func TestRefresherTokenFileErrors(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	tests := []struct {
@@ -128,7 +128,7 @@ func TestRefresher_TokenFileErrors(t *testing.T) {
 	}
 }
 
-func TestRefresher_EndpointErrors(t *testing.T) {
+func TestRefresherEndpointErrors(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -143,7 +143,7 @@ func TestRefresher_EndpointErrors(t *testing.T) {
 	assert.Contains(t, err.Error(), "500")
 }
 
-func TestRefresher_NilSTSToken(t *testing.T) {
+func TestRefresherNilSTSToken(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -157,7 +157,7 @@ func TestRefresher_NilSTSToken(t *testing.T) {
 	assert.Contains(t, err.Error(), "nil stsToken")
 }
 
-func TestRefresher_StopDuringRefresh(t *testing.T) {
+func TestRefresherStopDuringRefresh(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -170,28 +170,84 @@ func TestRefresher_StopDuringRefresh(t *testing.T) {
 				AccessKeyID:     "ak",
 				AccessKeySecret: "sk",
 				SecurityToken:   "st",
-				Expiration:      time.Now().Add(2 * time.Second).Format(time.RFC3339),
+				// Already at expiry, so every computed sleep clamps to minSleep
+				// and the loop keeps rotating for as long as it is running.
+				Expiration: time.Now().Format(time.RFC3339),
 			},
 		}
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
 	refresher, _ := newTestRefresher(tokenPath, srv.URL)
-	refresher.refreshMargin = 1 * time.Second
+	refresher.minSleep = 20 * time.Millisecond
 
-	err := refresher.Start(context.Background())
-	require.NoError(t, err)
-	assert.Equal(t, int32(1), callCount.Load())
+	require.NoError(t, refresher.Start(context.Background()))
+	assert.Equal(t, int32(1), callCount.Load(), "Start performs the initial fetch")
+
+	// Wait until the loop has actually rotated at least once. Without this the
+	// assertions below would hold even if Stop did nothing, because a loop that
+	// never fires also never increments the counter.
+	require.Eventually(t, func() bool {
+		return callCount.Load() >= 2
+	}, 3*time.Second, 10*time.Millisecond, "refresh loop should be rotating before we stop it")
 
 	refresher.Stop()
 
-	time.Sleep(100 * time.Millisecond)
-	finalCount := callCount.Load()
-	time.Sleep(200 * time.Millisecond)
-	assert.Equal(t, finalCount, callCount.Load())
+	// The loop is gone, so the counter must be frozen from here on. Wait for
+	// several refresh periods to give a still-running loop room to prove itself.
+	stoppedAt := callCount.Load()
+	time.Sleep(10 * refresher.minSleep)
+	assert.Equal(t, stoppedAt, callCount.Load(), "no fetch may happen after Stop returns")
 }
 
-func TestRefresher_CleanupDelegatesToSink(t *testing.T) {
+// TestRefresherRotatesOnComputedSchedule covers the scheduling path that
+// production actually takes: a valid expiration far enough out that
+// calcSleepDuration returns the computed interval rather than the minSleep
+// floor or the parse-failure margin.
+//
+// Expirations are RFC3339, which has second granularity, so the interval has to
+// be whole seconds. A sub-second offset is truncated away and would silently
+// fall back to the floor. 2s is used because truncation shortens it by at most
+// 1s, so the computed interval stays comfortably above minSleep.
+func TestRefresherRotatesOnComputedSchedule(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
+
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(credentialResponse{
+			RequestID: "r1",
+			STSToken: &STSToken{
+				AccessKeyID: "ak2", AccessKeySecret: "sk2", SecurityToken: "st2",
+				Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
+			},
+		})
+	})
+
+	refresher, sink := newTestRefresher(tokenPath, srv.URL)
+	refresher.refreshMargin = 0
+	refresher.minSleep = 10 * time.Millisecond
+
+	initial := &STSToken{
+		AccessKeyID: "ak1", AccessKeySecret: "sk1", SecurityToken: "st1",
+		Expiration: time.Now().Add(2 * time.Second).Format(time.RFC3339),
+	}
+	require.Greater(t, refresher.calcSleepDuration(initial.Expiration), refresher.minSleep,
+		"the computed interval, not the floor, must drive this test")
+
+	require.NoError(t, refresher.StartWith(initial))
+	defer refresher.Stop()
+
+	require.Eventually(t, func() bool {
+		return sink.appliedCount() >= 1
+	}, 5*time.Second, 20*time.Millisecond, "credential should be rotated once the computed interval elapses")
+
+	sink.mu.Lock()
+	got := sink.applied[0]
+	sink.mu.Unlock()
+	assert.Equal(t, "ak2", got.AccessKeyID)
+}
+
+func TestRefresherCleanupDelegatesToSink(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -251,7 +307,7 @@ func (s *fakeSink) cleanedCount() int {
 	return s.cleaned
 }
 
-func TestRefresher_StartWithSkipsInitialApply(t *testing.T) {
+func TestRefresherStartWithSkipsInitialApply(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -285,7 +341,7 @@ func TestRefresher_StartWithSkipsInitialApply(t *testing.T) {
 	assert.Equal(t, 0, sink.appliedCount())
 }
 
-func TestRefresher_StartWithAppliesRotations(t *testing.T) {
+func TestRefresherStartWithAppliesRotations(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -307,13 +363,13 @@ func TestRefresher_StartWithAppliesRotations(t *testing.T) {
 		SandboxId:    "sb",
 	}, sink)
 
-	// Expired initial credential forces the first rotation after
-	// minSleepDuration; shrink the margin so calcSleepDuration clamps to it.
+	// An already-expired initial credential clamps the next refresh to
+	// minSleep, so shrink minSleep to make that first rotation happen fast.
 	initial := &STSToken{
 		AccessKeyID: "ak1", AccessKeySecret: "sk1", SecurityToken: "st1",
-		Expiration: "not-a-date", // parse failure -> sleep = refreshMargin
+		Expiration: time.Now().Format(time.RFC3339),
 	}
-	refresher.refreshMargin = 50 * time.Millisecond
+	refresher.minSleep = 50 * time.Millisecond
 	require.NoError(t, refresher.StartWith(initial))
 	defer refresher.Stop()
 
@@ -327,8 +383,8 @@ func TestRefresher_StartWithAppliesRotations(t *testing.T) {
 	assert.Equal(t, "ak2", got.AccessKeyID)
 }
 
-func TestRefresher_CalcSleepDuration(t *testing.T) {
-	r := &Refresher{refreshMargin: 5 * time.Minute}
+func TestRefresherCalcSleepDuration(t *testing.T) {
+	r := &Refresher{refreshMargin: 5 * time.Minute, minSleep: defaultMinSleep}
 
 	t.Run("normal expiration", func(t *testing.T) {
 		exp := time.Now().Add(30 * time.Minute).Format(time.RFC3339)
@@ -337,18 +393,23 @@ func TestRefresher_CalcSleepDuration(t *testing.T) {
 	})
 	t.Run("near expiration clamps to min", func(t *testing.T) {
 		exp := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
-		assert.Equal(t, minSleepDuration, r.calcSleepDuration(exp))
+		assert.Equal(t, defaultMinSleep, r.calcSleepDuration(exp))
 	})
 	t.Run("past expiration clamps to min", func(t *testing.T) {
 		exp := time.Now().Add(-10 * time.Minute).Format(time.RFC3339)
-		assert.Equal(t, minSleepDuration, r.calcSleepDuration(exp))
+		assert.Equal(t, defaultMinSleep, r.calcSleepDuration(exp))
 	})
 	t.Run("invalid format uses margin", func(t *testing.T) {
 		assert.Equal(t, 5*time.Minute, r.calcSleepDuration("not-a-date"))
 	})
+	t.Run("NewRefresher applies the default floor", func(t *testing.T) {
+		defaulted := NewRefresher(Opts{}, &fakeSink{})
+		assert.Equal(t, defaultMinSleep, defaulted.minSleep)
+		assert.Equal(t, defaultRefreshMargin, defaulted.refreshMargin)
+	})
 }
 
-func TestOpts_Validate(t *testing.T) {
+func TestOptsValidate(t *testing.T) {
 	valid := Opts{
 		SandboxId: "sb", CredProvider: "cp", TokenFile: "/tok", Endpoint: "https://x",
 	}
@@ -375,7 +436,7 @@ func TestOpts_Validate(t *testing.T) {
 	}
 }
 
-func TestRefresher_StartErrors(t *testing.T) {
+func TestRefresherStartErrors(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -410,7 +471,7 @@ func TestRefresher_StartErrors(t *testing.T) {
 	})
 }
 
-func TestRefresher_StartWithBadCAFile(t *testing.T) {
+func TestRefresherStartWithBadCAFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 	sink := &fakeSink{}
@@ -424,7 +485,7 @@ func TestRefresher_StartWithBadCAFile(t *testing.T) {
 	assert.Contains(t, err.Error(), "build http client")
 }
 
-func TestRefresher_StopIdempotent(t *testing.T) {
+func TestRefresherStopIdempotent(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 	refresher, _ := newTestRefresher(tokenPath, "http://localhost:0")
@@ -437,7 +498,7 @@ func TestRefresher_StopIdempotent(t *testing.T) {
 	refresher.Stop()
 }
 
-func TestRefresher_FetchWithRetryStopped(t *testing.T) {
+func TestRefresherFetchWithRetryStopped(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -476,7 +537,7 @@ func TestRefresher_FetchWithRetryStopped(t *testing.T) {
 	})
 }
 
-func TestRefresher_RefreshLoopContinuesOnApplyError(t *testing.T) {
+func TestRefresherRefreshLoopContinuesOnApplyError(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -526,7 +587,7 @@ func generateTestCA(t *testing.T) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 }
 
-func TestBuildHTTPClient_TLS(t *testing.T) {
+func TestBuildHTTPClientTLS(t *testing.T) {
 	t.Run("no CA uses system root pool", func(t *testing.T) {
 		client, err := buildHTTPClient("")
 		require.NoError(t, err)

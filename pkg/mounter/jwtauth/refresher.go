@@ -12,7 +12,7 @@ import (
 
 const (
 	defaultRefreshMargin = 5 * time.Minute
-	minSleepDuration     = 30 * time.Second
+	defaultMinSleep      = 30 * time.Second
 	maxRetryBackoff      = 30 * time.Second
 	initialRetryBackoff  = 1 * time.Second
 	maxFetchRetries      = 5
@@ -26,6 +26,11 @@ type Refresher struct {
 	opts          Opts
 	sink          CredentialSink
 	refreshMargin time.Duration
+	// minSleep floors the interval between two refreshes so an already-expired
+	// or near-expiry credential cannot turn the loop into a busy loop. It is a
+	// field rather than a constant so tests can drive the loop through its real
+	// scheduling path instead of only through the parse-failure branch.
+	minSleep time.Duration
 
 	mu     sync.Mutex
 	stopCh chan struct{}
@@ -38,6 +43,7 @@ func NewRefresher(opts Opts, sink CredentialSink) *Refresher {
 		opts:          opts,
 		sink:          sink,
 		refreshMargin: defaultRefreshMargin,
+		minSleep:      defaultMinSleep,
 		stopCh:        make(chan struct{}),
 		done:          make(chan struct{}),
 	}
@@ -175,8 +181,8 @@ func (r *Refresher) calcSleepDuration(expiration string) time.Duration {
 		return r.refreshMargin
 	}
 	until := time.Until(expTime) - r.refreshMargin
-	if until < minSleepDuration {
-		return minSleepDuration
+	if until < r.minSleep {
+		return r.minSleep
 	}
 	return until
 }
