@@ -42,13 +42,13 @@ type ListDiagnosticResultsRequest struct {
 	//
 	// example:
 	//
-	// a3f2224a5ec7224116c4f5246120abe4
+	// a3f2224a5ec7224116c4f5246120****
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	// The resource group ID.
 	//
 	// example:
 	//
-	// rg-acfmywpvugkh7kq
+	// rg-acfmywpvugk****
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 }
 

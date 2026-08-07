@@ -200,9 +200,9 @@ func NewRetryCondition(condition map[string]interface{}) *RetryCondition {
 		backoffOption := condition["backoff"].(map[string]interface{})
 		backoff, _ = BackoffPolicyFactory(backoffOption)
 	}
-	maxAttempts, ok := condition["maxAttempts"].(int)
-	if !ok {
-		maxAttempts = MAX_ATTEMPTS
+	maxAttempts := MAX_ATTEMPTS
+	if v, ok := condition["maxAttempts"].(int); ok && v > 0 {
+		maxAttempts = v
 	}
 
 	exception, ok := condition["exception"].([]string)
@@ -229,9 +229,17 @@ func NewRetryCondition(condition map[string]interface{}) *RetryCondition {
 	}
 }
 
+func effectiveMaxAttempts(maxAttempts int) int {
+	if maxAttempts <= 0 {
+		return MAX_ATTEMPTS
+	}
+	return maxAttempts
+}
+
 // RetryOptions holds the retry options
 type RetryOptions struct {
 	Retryable        bool
+	MaxAttempts      int
 	RetryCondition   []*RetryCondition
 	NoRetryCondition []*RetryCondition
 }
@@ -249,8 +257,14 @@ func NewRetryOptions(options map[string]interface{}) *RetryOptions {
 		noRetryConditions = append(noRetryConditions, condition)
 	}
 
+	maxAttempts := MAX_ATTEMPTS
+	if v, ok := options["maxAttempts"].(int); ok && v > 0 {
+		maxAttempts = v
+	}
+
 	return &RetryOptions{
 		Retryable:        options["retryable"].(bool),
+		MaxAttempts:      maxAttempts,
 		RetryCondition:   retryConditions,
 		NoRetryCondition: noRetryConditions,
 	}
@@ -288,7 +302,7 @@ func ShouldRetry(options *RetryOptions, ctx *RetryPolicyContext) bool {
 		for _, condition := range conditions {
 			for _, exc := range condition.Exception {
 				if exc == StringValue(baseErr.GetName()) {
-					if retriesAttempted >= condition.MaxAttempts {
+					if retriesAttempted >= effectiveMaxAttempts(condition.MaxAttempts) {
 						return false
 					}
 					return true
@@ -296,7 +310,7 @@ func ShouldRetry(options *RetryOptions, ctx *RetryPolicyContext) bool {
 			}
 			for _, code := range condition.ErrorCode {
 				if code == StringValue(baseErr.GetCode()) {
-					if retriesAttempted >= condition.MaxAttempts {
+					if retriesAttempted >= effectiveMaxAttempts(condition.MaxAttempts) {
 						return false
 					}
 					return true
@@ -305,7 +319,7 @@ func ShouldRetry(options *RetryOptions, ctx *RetryPolicyContext) bool {
 		}
 	}
 
-	return false
+	return retriesAttempted < effectiveMaxAttempts(options.MaxAttempts)
 }
 
 // getBackoffDelay calculates backoff delay

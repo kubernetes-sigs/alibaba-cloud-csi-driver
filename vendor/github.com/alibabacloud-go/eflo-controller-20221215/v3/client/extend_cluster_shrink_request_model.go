@@ -24,29 +24,29 @@ type iExtendClusterShrinkRequest interface {
 }
 
 type ExtendClusterShrinkRequest struct {
-  // Cluster ID
+  // The cluster ID.
   // 
   // example:
   // 
   // i15b480fbd2fcdbc2869cd80
   ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-  // Whether to allow skipping failed node tasks, default value is False
+  // Specifies whether to skip failed nodes. Default value: False.
   // 
   // example:
   // 
   // False
   IgnoreFailedNodeTasks *bool `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
-  // IP allocation combination policy: Each policy can only choose one type, and multiple policies can be combined
+  // The combined IP allocation policy. Each policy can use only one policy type, and multiple policies can be combined.
   IpAllocationPolicyShrink *string `json:"IpAllocationPolicy,omitempty" xml:"IpAllocationPolicy,omitempty"`
-  // Node Groups
+  // The node groups.
   NodeGroupsShrink *string `json:"NodeGroups,omitempty" xml:"NodeGroups,omitempty"`
-  // VSwitch availability zone ID
+  // The zone ID of the vSwitch.
   // 
   // example:
   // 
   // cn-shanghai-b
   VSwitchZoneId *string `json:"VSwitchZoneId,omitempty" xml:"VSwitchZoneId,omitempty"`
-  // List of cluster subnets
+  // The list of cluster subnets.
   VpdSubnetsShrink *string `json:"VpdSubnets,omitempty" xml:"VpdSubnets,omitempty"`
 }
 
