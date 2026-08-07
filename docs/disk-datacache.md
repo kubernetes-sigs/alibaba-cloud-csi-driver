@@ -52,6 +52,8 @@ For latency-insensitive or write-once workloads the cache adds little benefit.
   devices, and the `dm-cache` kernel target available.
 - The node plugin must host-mount `/var/alibaba-cloud-csi` (this is configured
   by the Helm chart by default). The cache `.data`/`.meta` files live here.
+- You must mount the intended local disk at `/var/alibaba-cloud-csi/data-cache/`
+  on each node that will use data caching.
 - The node must have enough free local disk space for `dataCacheSize` per
   cache-backed volume scheduled to it.
 

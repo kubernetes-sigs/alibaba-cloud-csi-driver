@@ -18,25 +18,6 @@ provisioning, attaching, mounting, resizing and snapshotting.
 > [Alibaba Cloud CSI Driver](https://www.alibabacloud.com/help/en/ack/product-overview/csi-plugin).
 > Manual deployment of the driver in your ACK cluster is not officially supported by Alibaba Cloud.
 
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Supported Storage](#supported-storage)
-- [Feature Matrix](#feature-matrix)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-- [Documentation](#documentation)
-- [Development](#development)
-  - [Repository Layout](#repository-layout)
-  - [Building](#building)
-  - [Testing](#testing)
-- [Community, Discussion, Contribution, and Support](#community-discussion-contribution-and-support)
-- [Security](#security)
-- [License](#license)
-
 ## Overview
 
 Alibaba Cloud CSI plugins implement an interface between CSI-enabled Container
@@ -93,43 +74,8 @@ deployment via Helm requires Kubernetes 1.26+.
 
 ### Installation
 
-The recommended way to run the driver is through
-[Alibaba Cloud Container Service for Kubernetes (ACK)](https://www.alibabacloud.com/product/kubernetes),
-where the CSI drivers are deployed and managed automatically as add-ons.
-
-For manual deployment on self-managed clusters, install the drivers with Helm:
-
-```shell
-helm repo add alibaba-cloud-csi-driver https://kubernetes-sigs.github.io/alibaba-cloud-csi-driver
-helm repo update
-
-# Self-built cluster on ECS
-helm upgrade --install alibaba-cloud-csi-driver alibaba-cloud-csi-driver/alibaba-cloud-csi-driver \
-  --values values-ecs.yaml --namespace kube-system
-```
-
-See the full [Installation Guide](./docs/install.md) for RAM setup,
-configuration presets, and verification steps.
-
-## Documentation
-
-| Topic | Description |
-|-------|-------------|
-| [Installation](./docs/install.md)                       | Deploy and configure the drivers |
-| [Cloud Disk](./docs/disk.md)                            | Cloud disk provisioning and mounting |
-| [Disk — Raw Block Volume](./docs/disk-block.md)         | Use a disk as a raw block device |
-| [Disk — Volume Expansion](./docs/disk-resizer.md)       | Online disk resizing |
-| [Disk — Snapshot & Restore](./docs/disk-snapshot-restore.md) | Create and restore disk snapshots |
-| [Disk — Local Data Cache](./docs/disk-datacache.md)     | Accelerate a cloud disk with a local disk (dm-cache) |
-| [NAS](./docs/nas.md)                                    | NAS volume provisioning and mounting |
-| [NAS — Dynamic Provisioning](./docs/nas-dynamic.md)     | Subpath/filesystem provisioning |
-| [NAS — Volume Expansion](./docs/nas-expansion.md)       | NAS quota expansion |
-| [OSS](./docs/oss.md)                                    | Mount OSS buckets |
-| [BMCPFS](./docs/bmcpfs-helm-readme.md)                  | Mount a Bare Metal Cloud Parallel File System |
-| [Metrics](./docs/csi-metric.md)                         | CSI metrics |
-| [FlexVolume → CSI Migration](./docs/migrate)            | Migrate from FlexVolume |
-
-Runnable manifests for each feature live under [`examples/`](./examples).
+See the [Installation Guide](./docs/install.md) for deployment options,
+RAM setup, configuration presets, and verification steps.
 
 ## Development
 
