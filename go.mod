@@ -16,7 +16,7 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
 	github.com/aliyun/credentials-go v1.4.10
 	github.com/container-storage-interface/spec v1.11.0
-	github.com/containerd/ttrpc v1.2.3
+	github.com/containerd/ttrpc v1.2.9
 	github.com/go-logr/logr v1.4.3
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/mock v1.6.0
@@ -57,6 +57,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
+	github.com/containerd/log v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
