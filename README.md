@@ -53,6 +53,7 @@ deployment via Helm requires Kubernetes 1.26+.
 | Disk   | `diskplugin.csi.alibabacloud.com`    | Block  | RWO          | Yes                  | [Cloud Disk](./docs/disk.md) |
 | NAS    | `nasplugin.csi.alibabacloud.com`     | File   | RWX / RWO    | Yes                  | [NAS](./docs/nas.md)    |
 | OSS    | `ossplugin.csi.alibabacloud.com`     | Object | RWX / RWO    | No (bucket mount)    | [OSS](./docs/oss.md)    |
+| BMCPFS | `bmcpfsplugin.csi.alibabacloud.com`  | File   | RWX / RWO    | No (static only)     | [BMCPFS](./docs/bmcpfs-helm-readme.md) |
 
 - **Cloud Disk** is block storage that can only be used by one workload at a
   time (`ReadWriteOnce`) and attached to a single node at a time. It supports
@@ -63,6 +64,11 @@ deployment via Helm requires Kubernetes 1.26+.
   through the NAS CSI plugin.
 - **OSS** mounts object-storage buckets into pods. It does not provision buckets
   but can be mounted from multiple nodes (`ReadWriteMany`).
+- **BMCPFS** mounts a Bare Metal Cloud Parallel File System — a high-performance
+  parallel file system optimized for high-I/O workloads, mountable from many
+  nodes simultaneously (`ReadWriteMany`). It supports **static provisioning
+  only**: the file system must be pre-created in Alibaba Cloud. Both VSC (high
+  performance, Lingjun) and VPC networking are supported.
 
 > **CPFS CSI Plugin — Removed:** use the NAS CSI plugin for CPFS 2.0.
 
@@ -120,6 +126,7 @@ configuration presets, and verification steps.
 | [NAS — Dynamic Provisioning](./docs/nas-dynamic.md)     | Subpath/filesystem provisioning |
 | [NAS — Volume Expansion](./docs/nas-expansion.md)       | NAS quota expansion |
 | [OSS](./docs/oss.md)                                    | Mount OSS buckets |
+| [BMCPFS](./docs/bmcpfs-helm-readme.md)                  | Mount a Bare Metal Cloud Parallel File System |
 | [Metrics](./docs/csi-metric.md)                         | CSI metrics |
 | [FlexVolume → CSI Migration](./docs/migrate)            | Migrate from FlexVolume |
 
@@ -136,6 +143,7 @@ Runnable manifests for each feature live under [`examples/`](./examples).
 │   ├── disk/     # Cloud Disk CSI driver (incl. datacache/)
 │   ├── nas/      # NAS CSI driver
 │   ├── oss/      # OSS CSI driver
+│   ├── bmcpfs/   # BMCPFS (Bare Metal Cloud Parallel File System) CSI driver
 │   ├── cloud/    # Alibaba Cloud OpenAPI clients
 │   ├── mounter/  # Mount helpers and fuse pod managers
 │   └── ...       # Shared utilities, metrics, options, etc.

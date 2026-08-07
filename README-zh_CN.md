@@ -49,6 +49,7 @@ Kubernetes 1.26 以上。
 | 云盘 | `diskplugin.csi.alibabacloud.com`    | 块存储 | RWO         | 支持               | [云盘](./docs/disk.md) |
 | NAS  | `nasplugin.csi.alibabacloud.com`     | 文件   | RWX / RWO   | 支持               | [NAS](./docs/nas.md)   |
 | OSS  | `ossplugin.csi.alibabacloud.com`     | 对象   | RWX / RWO   | 不支持（Bucket 挂载） | [OSS](./docs/oss.md)  |
+| BMCPFS | `bmcpfsplugin.csi.alibabacloud.com` | 文件  | RWX / RWO   | 不支持（仅静态）    | [BMCPFS](./docs/bmcpfs-helm-readme-zh.md) |
 
 - **云盘** 是块存储类型，只能同时被一个负载使用（`ReadWriteOnce`），且同一时间只能
   挂载到一个节点。支持快照、扩容、拓扑感知调度、裸块设备，以及
@@ -57,6 +58,10 @@ Kubernetes 1.26 以上。
   （`ReadWriteMany`）。CPFS 2.0 现已由 NAS CSI 插件提供支持。
 - **OSS** 将对象存储 Bucket 挂载到 Pod 中。不支持动态创建 Bucket，但可被多个节点
   同时挂载（`ReadWriteMany`）。
+- **BMCPFS** 用于挂载并行文件系统（Bare Metal Cloud Parallel File System）——一种
+  面向高 I/O 负载优化的高性能并行文件系统，可同时被多个节点挂载（`ReadWriteMany`）。
+  仅支持**静态挂载**：需预先在阿里云创建好文件系统。支持 VSC（高性能，灵骏）与 VPC
+  两种网络。
 
 > **CPFS CSI 插件——已删除：** 挂载 CPFS 2.0 请使用 NAS CSI 插件。
 
@@ -110,6 +115,7 @@ helm upgrade --install alibaba-cloud-csi-driver alibaba-cloud-csi-driver/alibaba
 | [NAS——动态创建](./docs/nas-dynamic.md)                  | 子目录/文件系统动态创建 |
 | [NAS——扩容](./docs/nas-expansion.md)                    | NAS 配额扩容 |
 | [OSS](./docs/oss.md)                                    | 挂载 OSS Bucket |
+| [BMCPFS](./docs/bmcpfs-helm-readme-zh.md)               | 挂载并行文件系统（Bare Metal CPFS） |
 | [监控指标](./docs/csi-metric.md)                        | CSI 监控指标 |
 | [FlexVolume → CSI 迁移](./docs/migrate)                 | 从 FlexVolume 迁移 |
 
@@ -126,6 +132,7 @@ helm upgrade --install alibaba-cloud-csi-driver alibaba-cloud-csi-driver/alibaba
 │   ├── disk/     # 云盘 CSI 驱动（含 datacache/）
 │   ├── nas/      # NAS CSI 驱动
 │   ├── oss/      # OSS CSI 驱动
+│   ├── bmcpfs/   # BMCPFS（并行文件系统）CSI 驱动
 │   ├── cloud/    # 阿里云 OpenAPI 客户端
 │   ├── mounter/  # 挂载辅助与 fuse pod 管理
 │   └── ...       # 共享工具、监控、配置项等
