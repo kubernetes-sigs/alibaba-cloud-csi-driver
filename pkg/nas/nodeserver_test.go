@@ -354,5 +354,5 @@ func TestParseVolumeContextPreexistingKeys(t *testing.T) {
 	assert.Equal(t, "cnfs-1", cnfsName)
 
 	_, _, err = parseVolumeContext(map[string]string{"loopImageSize": "not-a-number"})
-	assert.Error(t, err, "an unparseable loopImageSize must be rejected")
+	assert.Error(t, err, "an unparsable loopImageSize must be rejected")
 }

@@ -41,7 +41,7 @@ func GetCAFilePath() string {
 // It reads the value from the AGENT_IDENTITY_TOKEN_REFRESH_MARGIN environment
 // variable, which takes a Go duration such as "20m" or "90s".
 //
-// A missing, unparseable or non-positive value falls back to
+// A missing, unparsable or non-positive value falls back to
 // DefaultTokenRefreshMargin: a misconfigured margin must not stop volumes from
 // mounting, so it is reported and ignored. Note that a margin larger than the
 // credential lifetime leaves no room to wait, and the renewal then runs at the

@@ -81,7 +81,7 @@ type credentialResponse struct {
 // buildHTTPClient builds the HTTP client used to exchange the jwtauth token
 // for STS credentials. This is a security-sensitive channel (it carries
 // AK/SK), so TLS verification is never disabled: when a CA file is configured
-// it must be readable and parseable, otherwise it fails; when no CA file is
+// it must be readable and parsable, otherwise it fails; when no CA file is
 // configured the system root pool is used (tls.Config.RootCAs == nil).
 func buildHTTPClient(caFile string) (*http.Client, error) {
 	tlsConfig := &tls.Config{}
