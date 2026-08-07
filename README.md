@@ -1,23 +1,59 @@
-# Alibaba Cloud Kubernetes CSI Plugin
+# Alibaba Cloud Kubernetes CSI Driver
+
 [![GoReportCard Widget]][GoReportCardResult]
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
+[![Releases](https://img.shields.io/github/v/release/kubernetes-sigs/alibaba-cloud-csi-driver?include_prereleases)](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/kubernetes-sigs/alibaba-cloud-csi-driver)](./go.mod)
 
 English | [简体中文](./README-zh_CN.md)
 
-WARNING: Deploying this driver to your ACK cluster manually is not recommended. Instead users should use ACK Add-ons to automatically deploy and manage the [Alibaba Cloud CSI Driver](https://www.alibabacloud.com/help/en/ack/product-overview/csi-plugin).
+The Alibaba Cloud CSI Driver implements the [Container Storage Interface (CSI)](https://github.com/container-storage-interface/spec)
+specification, allowing Container Orchestrators (COs) such as Kubernetes to
+manage the full lifecycle of Alibaba Cloud storage volumes — dynamic
+provisioning, attaching, mounting, resizing and snapshotting.
 
-DISCLAIMER: Manual deployment of the driver in your ACK cluster is not officially supported by Alibaba Cloud.
+> [!WARNING]
+> Deploying this driver to your ACK cluster manually is **not recommended**.
+> Instead, users should use ACK Add-ons to automatically deploy and manage the
+> [Alibaba Cloud CSI Driver](https://www.alibabacloud.com/help/en/ack/product-overview/csi-plugin).
+> Manual deployment of the driver in your ACK cluster is not officially supported by Alibaba Cloud.
 
+## Overview
 
-## Introduction
-Alibaba Cloud CSI plugins implement an interface between CSI enabled Container
-Orchestrator and Alibaba Cloud Storage. It allows dynamically provision Disk
-volumes and attach it to workloads.
+Alibaba Cloud CSI plugins implement an interface between CSI-enabled Container
+Orchestrators and Alibaba Cloud Storage. They allow you to dynamically provision
+storage volumes and attach them to your workloads.
 
-Current implementation of CSI plugins has been tested in Kubernetes environment (requires Kubernetes 1.14+).
+The current implementation has been tested against Kubernetes 1.14+; manual
+deployment via Helm requires Kubernetes 1.26+.
 
-Current Support: ***Cloud Disk, NAS, CPFS, OSS***;
+## Supported Storage
 
-## Features in Development
+| Driver | CSI Name                             | Type   | Access Modes | Dynamic Provisioning | Documentation           |
+|--------|--------------------------------------|--------|--------------|----------------------|-------------------------|
+| Disk   | `diskplugin.csi.alibabacloud.com`    | Block  | RWO          | Yes                  | [Cloud Disk](./docs/disk.md) |
+| NAS    | `nasplugin.csi.alibabacloud.com`     | File   | RWX / RWO    | Yes                  | [NAS](./docs/nas.md)    |
+| OSS    | `ossplugin.csi.alibabacloud.com`     | Object | RWX / RWO    | No (bucket mount)    | [OSS](./docs/oss.md)    |
+| BMCPFS | `bmcpfsplugin.csi.alibabacloud.com`  | File   | RWX / RWO    | No (static only)     | [BMCPFS](./docs/bmcpfs-helm-readme.md) |
+
+- **Cloud Disk** is block storage that can only be used by one workload at a
+  time (`ReadWriteOnce`) and attached to a single node at a time. It supports
+  snapshots, expansion, topology-aware scheduling, raw block volumes, and
+  [local-disk data caching](./docs/disk-datacache.md) for acceleration.
+- **NAS** is a shared network file system compatible with NFS/SMB, mountable
+  from many nodes simultaneously (`ReadWriteMany`). CPFS 2.0 is now served
+  through the NAS CSI plugin.
+- **OSS** mounts object-storage buckets into pods. It does not provision buckets
+  but can be mounted from multiple nodes (`ReadWriteMany`).
+- **BMCPFS** mounts a Bare Metal Cloud Parallel File System — a high-performance
+  parallel file system optimized for high-I/O workloads, mountable from many
+  nodes simultaneously (`ReadWriteMany`). It supports **static provisioning
+  only**: the file system must be pre-created in Alibaba Cloud. Both VSC (high
+  performance, Lingjun) and VPC networking are supported.
+
+> **CPFS CSI Plugin — Removed:** use the NAS CSI plugin for CPFS 2.0.
+
+## Feature Matrix
 
 | Feature         | Stage | Min Kubernetes Version | Min Driver Version |
 |-----------------|-------|------------------------|--------------------|
@@ -25,53 +61,70 @@ Current Support: ***Cloud Disk, NAS, CPFS, OSS***;
 | Resize (Expand) | GA    | 1.16                   | v1.0.5             |
 | Snapshots       | GA    | 1.20                   | v1.1.2             |
 
+## Getting Started
 
-### Cloud Disk CSI Plugin
+### Prerequisites
 
-Disk CSI Plugin support Cloud disk provision and attachment. And Cloud disk is type of block storage, can only used as ReadWriteOnce mode. Only be attached to one node at the same time.
+- `kubectl` configured to communicate with the cluster
+- Helm 3
+- RAM permissions for the driver to invoke Alibaba Cloud OpenAPIs on your behalf
+  (see the [example policies](./docs/ram-policies))
+- Individual drivers may have additional requirements; consult their
+  [documentation](./docs/)
 
-More detail information please refer to [Cloud Disk](./docs/disk.md).
+### Installation
 
+See the [Installation Guide](./docs/install.md) for deployment options,
+RAM setup, configuration presets, and verification steps.
 
-### NAS CSI Plugin
+## Development
 
-NAS CSI Plugin can support NAS volume provision and mount. Alibaba Cloud Network Attached Storage (NAS) storage is type of network storage which compatible with multiple standard protocols, such as NFS and SMB, and can be mount by multi nodes at the same time.
+### Building
 
-More detail information please refer to [NAS](./docs/nas.md).
+Container images are built via:
 
+```shell
+make build
+```
 
-### CPFS CSI Plugin
+### Testing
 
-**Removed: Switch to NAS CSI plugin for CPFS 2.0**
+```shell
+make fmt      # check formatting
+make vet      # go vet
+make lint     # golangci-lint
+make test     # unit tests
 
-### OSS CSI Plugin
+# End-to-end Helm install against a kind cluster
+make check-helm-kind
+```
 
-OSS CSI Plugin support OSS bucket mount, but does not support provision volume. OSS storage is type of object storage and can be mount by multi nodes at the same time.
+## Community, Discussion, Contribution, and Support
 
-More detail information pls refer to [OSS](./docs/oss.md).
+Learn how to engage with the Kubernetes community on the
+[community page](https://kubernetes.io/community/).
 
+You can reach the maintainers of this project at the
+[Cloud Provider SIG](https://github.com/kubernetes/community/tree/master/sig-cloud-provider).
 
-## Community, discussion, contribution, and support
+You can join the DingTalk group (Group ID: **33936810**) to talk with us.
 
-Learn how to engage with the Kubernetes community on the [community page](https://kubernetes.io/community/).
+Please submit issues at [GitHub Issues](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/issues),
+and read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request.
 
-You can reach the maintainers of this project at the [Cloud Provider SIG](https://github.com/kubernetes/community/tree/master/sig-cloud-provider).
+### Code of Conduct
 
-You can join the DingDing Talking (GroupID: 33936810) to talk with us.
+Participation in the Kubernetes community is governed by the
+[Kubernetes Code of Conduct](code-of-conduct.md).
 
-### Code of conduct
+## Security
 
-Participation in the Kubernetes community is governed by the [Kubernetes Code of Conduct](code-of-conduct.md).
+Please report vulnerabilities by email to kubernetes-security@service.aliyun.com.
+See our [SECURITY.md](./SECURITY.md) for details.
 
-Please submit an issue at: [Issues](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/issues)
+## License
 
+This project is licensed under the [Apache License 2.0](./LICENSE).
 
 [GoReportCard Widget]: https://goreportcard.com/badge/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 [GoReportCardResult]: https://goreportcard.com/report/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
-
-## Security
-Please report vulnerabilities by email to kubernetes-security@service.aliyun.com. Also see our [SECURITY.md](./SECURITY.md) file for details.
-
-## Links
-
-- [Installation](./docs/install.md)
