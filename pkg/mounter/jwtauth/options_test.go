@@ -13,10 +13,11 @@ import (
 func TestIsAgentIdentity(t *testing.T) {
 	cases := map[string]bool{
 		"agent-identity": true,
-		"jwtauth":        true,
-		"rrsa":           false,
-		"sts":            false,
-		"":               false,
+		// jwtauth was an alias while the flow was unreleased; it is not accepted.
+		"jwtauth": false,
+		"rrsa":    false,
+		"sts":     false,
+		"":        false,
 	}
 	for authType, want := range cases {
 		assert.Equal(t, want, IsAgentIdentity(authType), "IsAgentIdentity(%q)", authType)
@@ -27,7 +28,7 @@ func TestResolveOptsDefaults(t *testing.T) {
 	t.Setenv("AGENT_IDENTITY_ENDPOINT", "https://cred:8443/")
 	t.Setenv("AGENT_IDENTITY_TOKEN_DIR", "/var/run/agent-token")
 	idx := map[string]string{
-		OptAuthType:                "jwtauth",
+		OptAuthType:                AuthTypeAgentIdentity,
 		OptSandboxId:               "sb-123",
 		OptSandboxCredProviderName: "my-cred",
 	}

@@ -42,7 +42,7 @@ func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, h
 		return handler(ctx, op)
 	}
 	// alinas mount options may arrive as comma-joined compound strings
-	// (e.g. "tls,vers=3,authType=jwtauth"), so flatten before indexing.
+	// (e.g. "tls,vers=3,authType=agent-identity"), so flatten before indexing.
 	flat := flattenMountOptions(op.Options)
 	idx := mounterutils.IndexMountOptions(flat)
 	if !jwtauth.IsAgentIdentity(idx[jwtauth.OptAuthType]) {

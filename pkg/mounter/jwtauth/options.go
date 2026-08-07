@@ -13,13 +13,8 @@ import (
 // authorizes through the credential provider shares this contract; only the
 // delivery of the resulting credential is storage specific (see CredentialSink).
 
-const (
-	// AuthTypeAgentIdentity is the canonical authType selecting this flow.
-	AuthTypeAgentIdentity = "agent-identity"
-
-	// AuthTypeJWTAuth is a backward-compatible alias of AuthTypeAgentIdentity.
-	AuthTypeJWTAuth = "jwtauth"
-)
+// AuthTypeAgentIdentity is the authType selecting this credential flow.
+const AuthTypeAgentIdentity = "agent-identity"
 
 // Mount options carrying the credential provider configuration. All but
 // OptAuthType are infrastructure only: they configure the credential exchange
@@ -47,9 +42,9 @@ var InfraOptionKeys = map[string]struct{}{
 }
 
 // IsAgentIdentity reports whether the given authType selects the
-// agent-identity credential flow, accepting the legacy jwtauth alias.
+// agent-identity credential flow.
 func IsAgentIdentity(authType string) bool {
-	return authType == AuthTypeAgentIdentity || authType == AuthTypeJWTAuth
+	return authType == AuthTypeAgentIdentity
 }
 
 // ResolveOpts extracts the credential provider settings from indexed mount

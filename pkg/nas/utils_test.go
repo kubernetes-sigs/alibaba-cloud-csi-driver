@@ -303,15 +303,15 @@ func TestAppendJWTAuthOptions(t *testing.T) {
 		},
 		{
 			name:    "do not overwrite key already present in options",
-			options: []string{"authType=jwtauth"},
+			options: []string{"authType=preset"},
 			opt:     &Options{AuthType: "agent-identity"},
-			want:    []string{"authType=jwtauth"},
+			want:    []string{"authType=preset"},
 		},
 		{
 			name:    "do not overwrite key present in comma-joined option",
-			options: []string{"tls,authType=jwtauth"},
+			options: []string{"tls,authType=preset"},
 			opt:     &Options{AuthType: "agent-identity"},
-			want:    []string{"tls,authType=jwtauth"},
+			want:    []string{"tls,authType=preset"},
 		},
 	}
 	for _, tt := range tests {

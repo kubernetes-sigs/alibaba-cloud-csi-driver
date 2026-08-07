@@ -72,6 +72,7 @@ func TestAlinasJWTAuthInterceptorNoOpForOtherAuthTypes(t *testing.T) {
 		nil,
 		{"vers=3"},
 		{"authType=rrsa"},
+		{"authType=jwtauth"}, // was an alias once, no longer accepted
 		{"authType="},
 		{"tls,vers=3"}, // compound, no authType
 	}
@@ -101,7 +102,7 @@ func TestAlinasJWTAuthInterceptorConfigError(t *testing.T) {
 	// authType set but missing credProvider -> validate fails,
 	// handler must not run.
 	called := false
-	op := &mounter.MountOperation{Options: []string{"authType=jwtauth"}}
+	op := &mounter.MountOperation{Options: []string{"authType=agent-identity"}}
 	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
 		called = true
 		return nil
@@ -124,7 +125,7 @@ func TestAlinasJWTAuthInterceptorFetchFailFast(t *testing.T) {
 	called := false
 	op := &mounter.MountOperation{
 		Options: []string{
-			"authType=jwtauth",
+			"authType=agent-identity",
 			"sandboxId=sb-1",
 			"sandboxCredProviderName=cp",
 			"jwtauth_endpoint=" + srv.URL,
@@ -151,7 +152,7 @@ func TestAlinasJWTAuthInterceptorEndToEnd(t *testing.T) {
 	op := &mounter.MountOperation{
 		Target: target,
 		Options: []string{
-			"tls,vers=3,authType=jwtauth",
+			"tls,vers=3,authType=agent-identity",
 			"sandboxId=sb-1",
 			"sandboxCredProviderName=cp",
 			"jwtauth_endpoint=" + srv.URL,
@@ -215,8 +216,8 @@ func TestAlinasJWTAuthInterceptorEndToEnd(t *testing.T) {
 }
 
 func TestAlinasJWTAuthInterceptorAgentIdentityTriggers(t *testing.T) {
-	// authType=agent-identity (the canonical OSS-aligned value) must trigger
-	// the same STS flow as the legacy jwtauth alias.
+	// authType=agent-identity is the value OSS uses too, and the only one that
+	// triggers the STS flow.
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 	srv := newSTSServer(t, "AKID", "AKSECRET", "STOKEN", time.Now().Add(time.Hour))
@@ -257,7 +258,7 @@ func TestAlinasJWTAuthInterceptorHandlerErrorStartsNoRefresher(t *testing.T) {
 	op := &mounter.MountOperation{
 		Target: target,
 		Options: []string{
-			"authType=jwtauth",
+			"authType=agent-identity",
 			"sandboxId=sb-1",
 			"sandboxCredProviderName=cp",
 			"jwtauth_endpoint=" + srv.URL,
@@ -304,7 +305,7 @@ func TestAlinasJWTAuthInterceptorRefresherStartFailureDoesNotFailMount(t *testin
 	op := &mounter.MountOperation{
 		Target: target,
 		Options: []string{
-			"authType=jwtauth",
+			"authType=agent-identity",
 			"sandboxId=sb-1",
 			"sandboxCredProviderName=cp",
 			"jwtauth_endpoint=" + srv.URL,
@@ -339,7 +340,7 @@ func TestSplitAlinasSTSOptionsPreservesExistingTLSAndRAM(t *testing.T) {
 }
 
 func TestFlattenMountOptions(t *testing.T) {
-	in := []string{"tls,vers=3", "authType=jwtauth", "", "ro,,nolock"}
+	in := []string{"tls,vers=3", "authType=agent-identity", "", "ro,,nolock"}
 	out := flattenMountOptions(in)
-	assert.Equal(t, []string{"tls", "vers=3", "authType=jwtauth", "ro", "nolock"}, out)
+	assert.Equal(t, []string{"tls", "vers=3", "authType=agent-identity", "ro", "nolock"}, out)
 }

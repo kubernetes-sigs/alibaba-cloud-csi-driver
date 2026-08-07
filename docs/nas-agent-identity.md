@@ -39,11 +39,11 @@ fresh for the lifetime of the mount.
 Set the following options in the PV `volumeAttributes` (or StorageClass
 `parameters` for dynamic provisioning):
 
-> `authType`: set to `agent-identity` (canonical) or `jwtauth` (backward-compatible alias) to enable the credential flow.
+> `authType`: set to `agent-identity` to enable the credential flow.
 >
 > `sandboxId`: required. Identifies the sandbox token file (`<AGENT_IDENTITY_TOKEN_DIR>/<sandboxId>.token`) and derives a unique credential scope.
 >
-> `sandboxCredProviderName` (alias `credentialProviderName`): required. The credential provider name used in the exchange request.
+> `sandboxCredentialProviderName`: required. The credential provider name used in the exchange request.
 
 The interceptor forces `tls` and `ram` mount options for agent-identity mounts.
 
@@ -67,7 +67,7 @@ spec:
       path: "/"
       authType: "agent-identity"
       sandboxId: "<sandbox-id>"
-      sandboxCredProviderName: "<credential-provider-name>"
+      sandboxCredentialProviderName: "<credential-provider-name>"
 ```
 
 No `secretRef` / AccessKey is required: the STS credential is obtained from the
