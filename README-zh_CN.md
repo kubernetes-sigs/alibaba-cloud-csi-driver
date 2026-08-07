@@ -53,7 +53,7 @@ Kubernetes 1.26 以上。
 
 - **云盘** 是块存储类型，只能同时被一个负载使用（`ReadWriteOnce`），且同一时间只能
   挂载到一个节点。支持快照、扩容、拓扑感知调度、裸块设备，以及
-  [本地盘为云盘加速](./docs/disk-datacache-zh.md)。
+  [本地盘为云盘加速](./docs/disk-datacache.md)。
 - **NAS** 是一种兼容 NFS/SMB 的共享网络文件系统，可同时被多个节点挂载
   （`ReadWriteMany`）。CPFS 2.0 现已由 NAS CSI 插件提供支持。
 - **OSS** 将对象存储 Bucket 挂载到 Pod 中。不支持动态创建 Bucket，但可被多个节点
@@ -110,7 +110,7 @@ helm upgrade --install alibaba-cloud-csi-driver alibaba-cloud-csi-driver/alibaba
 | [云盘——裸块设备](./docs/disk-block.md)                  | 将云盘作为裸块设备使用 |
 | [云盘——扩容](./docs/disk-resizer.md)                    | 在线扩容云盘 |
 | [云盘——快照与恢复](./docs/disk-snapshot-restore.md)     | 创建与恢复云盘快照 |
-| [云盘——本地盘加速](./docs/disk-datacache-zh.md)         | 用本地盘为云盘加速（dm-cache） |
+| [云盘——本地盘加速](./docs/disk-datacache.md)            | 用本地盘为云盘加速（dm-cache） |
 | [NAS](./docs/nas.md)                                    | NAS 卷的创建与挂载 |
 | [NAS——动态创建](./docs/nas-dynamic.md)                  | 子目录/文件系统动态创建 |
 | [NAS——扩容](./docs/nas-expansion.md)                    | NAS 配额扩容 |
