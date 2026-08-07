@@ -97,6 +97,7 @@ type SDKError struct {
 	Stack              *string
 	errMsg             *string
 	Description        *string
+	Detail             *string
 	AccessDeniedDetail map[string]interface{}
 }
 
@@ -205,6 +206,9 @@ func NewSDKError(obj map[string]interface{}) *SDKError {
 	if obj["description"] != nil {
 		err.Description = String(obj["description"].(string))
 	}
+	if obj["detail"] != nil {
+		err.Detail = String(obj["detail"].(string))
+	}
 	if detail := obj["accessDeniedDetail"]; detail != nil {
 		r := reflect.ValueOf(detail)
 		if r.Kind().String() == "map" {
@@ -261,11 +265,20 @@ func (err *SDKError) SetErrMsg(msg string) {
 	err.errMsg = String(msg)
 }
 
+func (err *SDKError) GetDetail() *string {
+	return err.Detail
+}
+
 func (err *SDKError) Error() string {
 	if err.errMsg == nil {
-		str := fmt.Sprintf("SDKError:\n   StatusCode: %d\n   Code: %s\n   Message: %s\n   Data: %s\n",
-			IntValue(err.StatusCode), StringValue(err.Code), StringValue(err.Message), StringValue(err.Data))
-		err.SetErrMsg(str)
+		var b strings.Builder
+		fmt.Fprintf(&b, "SDKError:\n   StatusCode: %d\n   Code: %s\n   Message: %s\n",
+			IntValue(err.StatusCode), StringValue(err.Code), StringValue(err.Message))
+		if d := strings.TrimSpace(StringValue(err.Detail)); d != "" {
+			fmt.Fprintf(&b, "   Detail: %s\n", d)
+		}
+		fmt.Fprintf(&b, "   Data: %s\n", StringValue(err.Data))
+		err.SetErrMsg(b.String())
 	}
 	return StringValue(err.errMsg)
 }
@@ -386,7 +399,7 @@ func DoRequest(request *Request, requestRuntime map[string]interface{}) (respons
 		if !defaultClient.ifInit || defaultClient.httpClient.Transport == nil {
 			defaultClient.httpClient.Transport = trans
 		}
-		defaultClient.httpClient.Timeout = time.Duration(IntValue(runtimeObject.ReadTimeout)) * time.Millisecond
+		defaultClient.httpClient.Timeout = time.Duration(IntValue(runtimeObject.ConnectTimeout)+IntValue(runtimeObject.ReadTimeout)) * time.Millisecond
 		defaultClient.ifInit = true
 		defaultClient.Unlock()
 	}
@@ -442,6 +455,7 @@ func DoRequest(request *Request, requestRuntime map[string]interface{}) (respons
 
 func getHttpTransport(req *Request, runtime *RuntimeObject) (*http.Transport, error) {
 	trans := new(http.Transport)
+	trans.ResponseHeaderTimeout = time.Duration(IntValue(runtime.ReadTimeout)) * time.Millisecond
 	httpProxy, err := getHttpProxy(StringValue(req.Protocol), StringValue(req.Domain), runtime)
 	if err != nil {
 		return nil, err
@@ -495,7 +509,7 @@ func getHttpTransport(req *Request, runtime *RuntimeObject) (*http.Transport, er
 					Password: password,
 				}
 			}
-			dialer, err := proxy.SOCKS5(strings.ToLower(StringValue(runtime.Socks5NetWork)), socks5Proxy.String(), auth,
+			dialer, err := proxy.SOCKS5(strings.ToLower(StringValue(runtime.Socks5NetWork)), socks5Proxy.Host, auth,
 				&net.Dialer{
 					Timeout:   time.Duration(IntValue(runtime.ConnectTimeout)) * time.Millisecond,
 					DualStack: true,
@@ -602,7 +616,7 @@ func getSocks5Proxy(runtime *RuntimeObject) (proxy *url.URL, err error) {
 func getLocalAddr(localAddr string) (addr *net.TCPAddr) {
 	if localAddr != "" {
 		addr = &net.TCPAddr{
-			IP: []byte(localAddr),
+			IP: net.ParseIP(localAddr),
 		}
 	}
 	return addr
@@ -610,20 +624,18 @@ func getLocalAddr(localAddr string) (addr *net.TCPAddr) {
 
 func setDialContext(runtime *RuntimeObject) func(cxt context.Context, net, addr string) (c net.Conn, err error) {
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
-		if runtime.LocalAddr != nil && StringValue(runtime.LocalAddr) != "" {
-			netAddr := &net.TCPAddr{
-				IP: []byte(StringValue(runtime.LocalAddr)),
-			}
-			return (&net.Dialer{
-				Timeout:   time.Duration(IntValue(runtime.ConnectTimeout)) * time.Second,
-				DualStack: true,
-				LocalAddr: netAddr,
-			}).DialContext(ctx, network, address)
-		}
-		return (&net.Dialer{
-			Timeout:   time.Duration(IntValue(runtime.ConnectTimeout)) * time.Second,
+		timeout := time.Duration(IntValue(runtime.ConnectTimeout)) * time.Millisecond
+		dialer := &net.Dialer{
+			Timeout: timeout,
+			Resolver: &net.Resolver{
+				PreferGo: false,
+			},
 			DualStack: true,
-		}).DialContext(ctx, network, address)
+		}
+		if runtime.LocalAddr != nil && StringValue(runtime.LocalAddr) != "" {
+			dialer.LocalAddr = getLocalAddr(StringValue(runtime.LocalAddr))
+		}
+		return dialer.DialContext(ctx, network, address)
 	}
 }
 
