@@ -69,26 +69,6 @@ Kubernetes 1.26 以上。
 
 ## 开发
 
-### 代码结构
-
-```
-.
-├── cmd/          # 入口程序（如 csi-agent）
-├── pkg/          # 驱动实现
-│   ├── disk/     # 云盘 CSI 驱动（含 datacache/）
-│   ├── nas/      # NAS CSI 驱动
-│   ├── oss/      # OSS CSI 驱动
-│   ├── bmcpfs/   # BMCPFS（并行文件系统）CSI 驱动
-│   ├── cloud/    # 阿里云 OpenAPI 客户端
-│   ├── mounter/  # 挂载辅助与 fuse pod 管理
-│   └── ...       # 共享工具、监控、配置项等
-├── deploy/       # Helm chart 与部署清单
-├── examples/     # 示例 StorageClass、PVC 与工作负载
-├── docs/         # 用户与开发文档
-├── build/        # 容器镜像构建文件
-└── hack/         # 开发与 CI 脚本
-```
-
 ### 构建
 
 构建容器镜像：

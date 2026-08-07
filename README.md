@@ -79,26 +79,6 @@ RAM setup, configuration presets, and verification steps.
 
 ## Development
 
-### Repository Layout
-
-```
-.
-├── cmd/          # Entry points (e.g. csi-agent)
-├── pkg/          # Driver implementations
-│   ├── disk/     # Cloud Disk CSI driver (incl. datacache/)
-│   ├── nas/      # NAS CSI driver
-│   ├── oss/      # OSS CSI driver
-│   ├── bmcpfs/   # BMCPFS (Bare Metal Cloud Parallel File System) CSI driver
-│   ├── cloud/    # Alibaba Cloud OpenAPI clients
-│   ├── mounter/  # Mount helpers and fuse pod managers
-│   └── ...       # Shared utilities, metrics, options, etc.
-├── deploy/       # Helm chart and deployment manifests
-├── examples/     # Example StorageClasses, PVCs and workloads
-├── docs/         # User and developer documentation
-├── build/        # Container image build files
-└── hack/         # Development and CI scripts
-```
-
 ### Building
 
 Container images are built via:
