@@ -86,22 +86,25 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 
 // Options struct definition
 type Options struct {
-	Server        string   `json:"server"`
-	Accesspoint   string   `json:"accesspoint"`
-	Path          string   `json:"path"`
-	Vers          string   `json:"vers"`
-	Mode          string   `json:"mode"`
-	ModeType      string   `json:"modeType"`
-	Options       []string `json:"options"`
-	MountType     string   `json:"mountType"`
-	LoopImageSize int      `json:"loopImageSize"`
-	LoopLock      string   `json:"loopLock"`
-	MountProtocol string   `json:"mountProtocol"`
-	ClientType    string   `json:"clientType"`
-	FSType        string   `json:"fsType"`
-	SysConfigs    []utilsio.SysConfig
-	AkID          string
-	AkSecret      string
+	Server                  string   `json:"server"`
+	Accesspoint             string   `json:"accesspoint"`
+	Path                    string   `json:"path"`
+	Vers                    string   `json:"vers"`
+	Mode                    string   `json:"mode"`
+	ModeType                string   `json:"modeType"`
+	Options                 []string `json:"options"`
+	MountType               string   `json:"mountType"`
+	LoopImageSize           int      `json:"loopImageSize"`
+	LoopLock                string   `json:"loopLock"`
+	MountProtocol           string   `json:"mountProtocol"`
+	ClientType              string   `json:"clientType"`
+	FSType                  string   `json:"fsType"`
+	SysConfigs              []utilsio.SysConfig
+	AkID                    string
+	AkSecret                string
+	AuthType                string `json:"authType"`
+	SandboxId               string `json:"sandboxId"`
+	SandboxCredProviderName string `json:"sandboxCredProviderName"`
 }
 
 // RunvNasOptions struct definition
@@ -196,21 +199,13 @@ func DetermineClientTypeAndMountProtocol(cnfs *v1beta1.ContainerNetworkFileSyste
 	return nil
 }
 
-func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	mountPath := req.GetTargetPath()
-	if err := validateNodePublishVolumeRequest(req); err != nil {
-		return nil, err
-	}
-
-	if !ns.locks.TryAcquire(req.VolumeId) {
-		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
-	}
-	defer ns.locks.Release(req.VolumeId)
-
-	// parse parameters
+// parseVolumeContext turns the PV volumeAttributes into mount Options, also
+// returning the referenced CNFS name when one is set. Keys are matched
+// case-insensitively.
+func parseVolumeContext(volumeContext map[string]string) (*Options, string, error) {
 	opt := &Options{}
 	var cnfsName string
-	for key, value := range req.VolumeContext {
+	for key, value := range volumeContext {
 		switch strings.ToLower(key) {
 		case "filesystemtype":
 			opt.FSType = value
@@ -219,7 +214,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if opt.ClientType == EFCClient {
 				opt.MountProtocol = MountProtocolEFC
 			}
-			if isCPFS(req.VolumeContext[filesystemTypeKey], req.VolumeContext["server"]) {
+			if isCPFS(volumeContext[filesystemTypeKey], volumeContext["server"]) {
 				opt.FSType = "cpfs"
 			} else {
 				opt.FSType = "standard"
@@ -245,19 +240,52 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		case "loopimagesize":
 			size, err := strconv.Atoi(value)
 			if err != nil {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid loopImageSize: %q", value)
+				return nil, "", status.Errorf(codes.InvalidArgument, "invalid loopImageSize: %q", value)
 			}
 			opt.LoopImageSize = size
 		case "containernetworkfilesystem":
 			cnfsName = value
 		case "mountprotocol":
 			opt.MountProtocol = strings.TrimSpace(value)
+		case "authtype":
+			// Lowercased and taken verbatim otherwise, exactly as OSS does, so the
+			// same volume definition is accepted by both drivers.
+			opt.AuthType = strings.ToLower(value)
+		case "sandboxid":
+			opt.SandboxId = value
+		case "sandboxcredprovidername", "credentialprovidername":
+			// Both spellings are accepted, matching OSS, so an agent-identity
+			// volume definition can move between the drivers unchanged.
+			if opt.SandboxCredProviderName != "" && opt.SandboxCredProviderName != value {
+				// VolumeContext is a map, so which spelling is seen last is not
+				// defined; report the one that ends up being used.
+				klog.Warningf("credential provider name given more than once with different values, using %q", value)
+			}
+			opt.SandboxCredProviderName = value
 		}
+	}
+	return opt, cnfsName, nil
+}
+
+func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	mountPath := req.GetTargetPath()
+	if err := validateNodePublishVolumeRequest(req); err != nil {
+		return nil, err
+	}
+
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
+	}
+	defer ns.locks.Release(req.VolumeId)
+
+	// parse parameters
+	opt, cnfsName, err := parseVolumeContext(req.VolumeContext)
+	if err != nil {
+		return nil, err
 	}
 	opt.AkID = req.Secrets[akIDKey]
 	opt.AkSecret = req.Secrets[akSecretKey]
 
-	var err error
 	opt.SysConfigs, err = utilsio.ParseSysConfigs(req.VolumeContext["sysConfig"], allowSysConfigKey)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())

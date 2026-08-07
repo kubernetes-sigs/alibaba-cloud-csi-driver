@@ -254,3 +254,105 @@ func TestIsValidServer(t *testing.T) {
 		assert.Equal(t, tt.expected, actual)
 	}
 }
+
+func TestParseVolumeContextAgentIdentity(t *testing.T) {
+	t.Run("sandboxCredProviderName, the spelling OSS uses", func(t *testing.T) {
+		opt, _, err := parseVolumeContext(map[string]string{
+			"authType":                "agent-identity",
+			"sandboxId":               "sb-1",
+			"sandboxCredProviderName": "cp-1",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "agent-identity", opt.AuthType)
+		assert.Equal(t, "sb-1", opt.SandboxId)
+		assert.Equal(t, "cp-1", opt.SandboxCredProviderName)
+	})
+
+	t.Run("credentialProviderName is accepted as OSS accepts it", func(t *testing.T) {
+		opt, _, err := parseVolumeContext(map[string]string{
+			"credentialProviderName": "cp-2",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "cp-2", opt.SandboxCredProviderName)
+	})
+
+	t.Run("both spellings with the same value agree", func(t *testing.T) {
+		opt, _, err := parseVolumeContext(map[string]string{
+			"sandboxCredProviderName": "cp-3",
+			"credentialProviderName":  "cp-3",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "cp-3", opt.SandboxCredProviderName)
+	})
+
+	t.Run("conflicting spellings resolve to one of them without failing", func(t *testing.T) {
+		// VolumeContext is a map, so which one wins is not defined; the mount
+		// must not be rejected over it.
+		opt, _, err := parseVolumeContext(map[string]string{
+			"sandboxCredProviderName": "cp-a",
+			"credentialProviderName":  "cp-b",
+		})
+		require.NoError(t, err)
+		assert.Contains(t, []string{"cp-a", "cp-b"}, opt.SandboxCredProviderName)
+	})
+
+	t.Run("authType is lowercased", func(t *testing.T) {
+		opt, _, err := parseVolumeContext(map[string]string{"authType": "Agent-Identity"})
+		require.NoError(t, err)
+		assert.Equal(t, "agent-identity", opt.AuthType)
+	})
+
+	t.Run("values are taken verbatim, as in OSS", func(t *testing.T) {
+		// OSS does not trim either, so surrounding whitespace is not tolerated
+		// by either driver rather than by only one of them.
+		opt, _, err := parseVolumeContext(map[string]string{
+			"authType":                " agent-identity ",
+			"sandboxId":               " sb-5 ",
+			"sandboxCredProviderName": " cp-5 ",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, " agent-identity ", opt.AuthType)
+		assert.Equal(t, " sb-5 ", opt.SandboxId)
+		assert.Equal(t, " cp-5 ", opt.SandboxCredProviderName)
+	})
+
+	t.Run("keys are matched case-insensitively", func(t *testing.T) {
+		opt, _, err := parseVolumeContext(map[string]string{
+			"SANDBOXCREDPROVIDERNAME": "cp-4",
+			"SandboxID":               "sb-4",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "cp-4", opt.SandboxCredProviderName)
+		assert.Equal(t, "sb-4", opt.SandboxId)
+	})
+
+	t.Run("absent options stay empty", func(t *testing.T) {
+		opt, cnfsName, err := parseVolumeContext(map[string]string{"server": "1.1.1.1"})
+		require.NoError(t, err)
+		assert.Empty(t, opt.AuthType)
+		assert.Empty(t, opt.SandboxId)
+		assert.Empty(t, opt.SandboxCredProviderName)
+		assert.Empty(t, cnfsName)
+	})
+}
+
+func TestParseVolumeContextPreexistingKeys(t *testing.T) {
+	opt, cnfsName, err := parseVolumeContext(map[string]string{
+		"server":                     "1.1.1.1",
+		"path":                       "/share",
+		"vers":                       "3",
+		"options":                    "nolock,tls",
+		"loopImageSize":              "2048",
+		"containerNetworkFileSystem": "cnfs-1",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "1.1.1.1", opt.Server)
+	assert.Equal(t, "/share", opt.Path)
+	assert.Equal(t, "3", opt.Vers)
+	assert.Equal(t, []string{"nolock", "tls"}, opt.Options)
+	assert.Equal(t, 2048, opt.LoopImageSize)
+	assert.Equal(t, "cnfs-1", cnfsName)
+
+	_, _, err = parseVolumeContext(map[string]string{"loopImageSize": "not-a-number"})
+	assert.Error(t, err, "an unparsable loopImageSize must be rejected")
+}

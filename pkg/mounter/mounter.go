@@ -29,6 +29,10 @@ type MountOperation struct {
 	MetricsPath string
 	VolumeID    string
 	Overlay     bool
+	// SensitiveOptions are mount options that carry secrets (e.g. STS
+	// credentials). They are passed to the mount via MountSensitive so they
+	// are masked in logs and error messages, and must never be logged.
+	SensitiveOptions []string
 
 	MountResult any
 }

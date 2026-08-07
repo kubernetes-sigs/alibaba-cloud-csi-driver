@@ -1,0 +1,346 @@
+package interceptors
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"fmt"
+	"math/big"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// writeTokenFile writes a credential provider sandbox token file.
+func writeTokenFile(t *testing.T, dir, accessToken, sandboxClientID string) string {
+	t.Helper()
+	tokenPath := filepath.Join(dir, "token.json")
+	content := fmt.Sprintf(
+		`{"requestId":"req-1","accessToken":%q,"sandboxClientId":%q,"accessTokenExpiration":%q}`,
+		accessToken, sandboxClientID, time.Now().Add(time.Hour).Format(time.RFC3339),
+	)
+	require.NoError(t, os.WriteFile(tokenPath, []byte(content), 0600))
+	return tokenPath
+}
+
+// newSTSServer returns an httptest server answering the credential exchange
+// with the given STS triple and expiration.
+func newSTSServer(t *testing.T, ak, sk, token string, expiration time.Time) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w,
+			`{"requestId":"r1","stsToken":{"accessKeyId":%q,"accessKeySecret":%q,"securityToken":%q,"expiration":%q}}`,
+			ak, sk, token, expiration.Format(time.RFC3339))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// generateTestCAPEM returns a self-signed CA certificate encoded as PEM.
+func generateTestCAPEM(t *testing.T) []byte {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test-ca"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+}
+
+func TestAlinasJWTAuthInterceptorNoOpForOtherAuthTypes(t *testing.T) {
+	cases := [][]string{
+		nil,
+		{"vers=3"},
+		{"authType=rrsa"},
+		{"authType=jwtauth"}, // was an alias once, no longer accepted
+		{"authType="},
+		{"tls,vers=3"}, // compound, no authType
+	}
+	for _, opts := range cases {
+		called := false
+		op := &mounter.MountOperation{Options: opts}
+		err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+			called = true
+			return nil
+		})
+		require.NoError(t, err)
+		assert.True(t, called, "handler should be invoked for opts %v", opts)
+	}
+}
+
+func TestAlinasJWTAuthInterceptorNilOp(t *testing.T) {
+	called := false
+	err := AlinasJWTAuthInterceptor(context.Background(), nil, func(ctx context.Context, o *mounter.MountOperation) error {
+		called = true
+		return nil
+	})
+	require.NoError(t, err)
+	assert.True(t, called)
+}
+
+func TestAlinasJWTAuthInterceptorConfigError(t *testing.T) {
+	// authType set but missing credProvider -> validate fails,
+	// handler must not run.
+	called := false
+	op := &mounter.MountOperation{Options: []string{"authType=agent-identity"}}
+	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		called = true
+		return nil
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "jwtauth config error")
+	assert.False(t, called)
+}
+
+func TestAlinasJWTAuthInterceptorFetchFailFast(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("boom"))
+	}))
+	defer srv.Close()
+
+	called := false
+	op := &mounter.MountOperation{
+		Options: []string{
+			"authType=agent-identity",
+			"sandboxId=sb-1",
+			"sandboxCredProviderName=cp",
+			"jwtauth_endpoint=" + srv.URL,
+			"jwtauth_token_file=" + tokenPath,
+		},
+	}
+	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		called = true
+		return nil
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "fetch STS token")
+	assert.False(t, called, "mount must not proceed when STS acquisition fails")
+}
+
+func TestAlinasJWTAuthInterceptorEndToEnd(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
+	srv := newSTSServer(t, "AKID", "AKSECRET", "STOKEN", time.Now().Add(time.Hour))
+
+	const target = "/mnt/nas"
+	// Mix compound and single options, plus a stale static credential that must
+	// be stripped and a pre-existing tls that must not be duplicated.
+	op := &mounter.MountOperation{
+		Target: target,
+		Options: []string{
+			"tls,vers=3,authType=agent-identity",
+			"sandboxId=sb-1",
+			"sandboxCredProviderName=cp",
+			"jwtauth_endpoint=" + srv.URL,
+			"jwtauth_token_file=" + tokenPath,
+			"access_key_id=STALE",
+			"ro",
+		},
+	}
+
+	var seenOptions, seenSensitive map[string]string
+	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		seenOptions = mounterutils.IndexMountOptions(o.Options)
+		seenSensitive = mounterutils.IndexMountOptions(o.SensitiveOptions)
+		return nil
+	})
+	require.NoError(t, err)
+	defer jwtauth.DefaultManager.StopByTarget(target)
+
+	// STS triple injected into SensitiveOptions only.
+	assert.Equal(t, "AKID", seenSensitive[optAlinasAccessKeyID])
+	assert.Equal(t, "AKSECRET", seenSensitive[optAlinasAccessKeySecret])
+	assert.Equal(t, "STOKEN", seenSensitive[optAlinasSecurityToken])
+	// Plain options must not carry any credential (stale static AK stripped,
+	// resolved STS never placed there).
+	for _, k := range []string{optAlinasAccessKeyID, optAlinasAccessKeySecret, optAlinasSecurityToken} {
+		_, ok := seenOptions[k]
+		assert.False(t, ok, "expected %s to be absent from plain options", k)
+	}
+	// Infra-only jwtauth options removed.
+	for _, k := range []string{jwtauth.OptSandboxId, jwtauth.OptSandboxCredProviderName,
+		jwtauth.OptEndpoint, jwtauth.OptTokenFile} {
+		_, ok := seenOptions[k]
+		assert.False(t, ok, "expected %s to be removed", k)
+	}
+	// authType must be stripped for alinas: the mount goes straight to
+	// mount.nfs, which rejects unknown options.
+	_, hasAuthType := seenOptions[jwtauth.OptAuthType]
+	assert.False(t, hasAuthType, "expected authType to be stripped for alinas mount")
+	// Preserved, non-credential options.
+	assert.Equal(t, "3", seenOptions["vers"])
+	_, hasRo := seenOptions["ro"]
+	assert.True(t, hasRo)
+	// tls preserved (not duplicated), ram added.
+	_, hasTLS := seenOptions[optAlinasTLS]
+	assert.True(t, hasTLS)
+	tlsCount := 0
+	for _, o := range op.Options {
+		if o == optAlinasTLS {
+			tlsCount++
+		}
+	}
+	assert.Equal(t, 1, tlsCount, "tls must not be duplicated")
+	_, hasRAM := seenOptions[optAlinasRAM]
+	assert.True(t, hasRAM, "ram should be added for jwtauth mounts")
+
+	// A refresher must be registered for the mount target after success.
+	assert.True(t, jwtauth.DefaultManager.HasTarget(target), "refresher should be registered")
+	// Stopping by target (as the driver's Unmount does) deregisters it.
+	jwtauth.DefaultManager.StopByTarget(target)
+	assert.False(t, jwtauth.DefaultManager.HasTarget(target))
+}
+
+func TestAlinasJWTAuthInterceptorAgentIdentityTriggers(t *testing.T) {
+	// authType=agent-identity is the value OSS uses too, and the only one that
+	// triggers the STS flow.
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
+	srv := newSTSServer(t, "AKID", "AKSECRET", "STOKEN", time.Now().Add(time.Hour))
+
+	const target = "/mnt/nas-agent-identity"
+	op := &mounter.MountOperation{
+		Target: target,
+		Options: []string{
+			"vers=3",
+			"authType=agent-identity",
+			"sandboxId=sb-1",
+			"sandboxCredProviderName=cp",
+			"jwtauth_endpoint=" + srv.URL,
+			"jwtauth_token_file=" + tokenPath,
+		},
+	}
+
+	var seenSensitive map[string]string
+	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		seenSensitive = mounterutils.IndexMountOptions(o.SensitiveOptions)
+		return nil
+	})
+	require.NoError(t, err)
+	defer jwtauth.DefaultManager.StopByTarget(target)
+
+	assert.Equal(t, "AKID", seenSensitive[optAlinasAccessKeyID])
+	assert.Equal(t, "AKSECRET", seenSensitive[optAlinasAccessKeySecret])
+	assert.Equal(t, "STOKEN", seenSensitive[optAlinasSecurityToken])
+	assert.True(t, jwtauth.DefaultManager.HasTarget(target), "refresher should be registered for agent-identity mounts")
+}
+
+func TestAlinasJWTAuthInterceptorHandlerErrorStartsNoRefresher(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
+	srv := newSTSServer(t, "ak", "sk", "st", time.Now().Add(time.Hour))
+
+	const target = "/mnt/nas-err"
+	op := &mounter.MountOperation{
+		Target: target,
+		Options: []string{
+			"authType=agent-identity",
+			"sandboxId=sb-1",
+			"sandboxCredProviderName=cp",
+			"jwtauth_endpoint=" + srv.URL,
+			"jwtauth_token_file=" + tokenPath,
+		},
+	}
+
+	handlerErr := assert.AnError
+	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		return handlerErr
+	})
+	require.ErrorIs(t, err, handlerErr)
+	assert.False(t, jwtauth.DefaultManager.HasTarget(target), "no refresher must be started when the mount fails")
+}
+
+func TestSplitAlinasSTSOptionsAddsTLSAndRAMWhenMissing(t *testing.T) {
+	cred := &jwtauth.STSToken{AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "st"}
+	options, sensitive := splitAlinasSTSOptions([]string{"vers=3"}, cred)
+
+	optIdx := mounterutils.IndexMountOptions(options)
+	_, hasTLS := optIdx[optAlinasTLS]
+	assert.True(t, hasTLS, "tls should be added when absent")
+	_, hasRAM := optIdx[optAlinasRAM]
+	assert.True(t, hasRAM, "ram should be added when absent")
+
+	sensIdx := mounterutils.IndexMountOptions(sensitive)
+	assert.Equal(t, "ak", sensIdx[optAlinasAccessKeyID])
+	assert.Equal(t, "sk", sensIdx[optAlinasAccessKeySecret])
+	assert.Equal(t, "st", sensIdx[optAlinasSecurityToken])
+}
+
+func TestAlinasJWTAuthInterceptorRefresherStartFailureDoesNotFailMount(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
+	srv := newSTSServer(t, "ak", "sk", "st", time.Now().Add(time.Hour))
+
+	// A CA file that is valid during the initial fetch but disappears before
+	// the refresher starts: the mount succeeded, so the interceptor must log
+	// and return nil instead of failing the mount.
+	caPath := filepath.Join(tmpDir, "ca.crt")
+	require.NoError(t, os.WriteFile(caPath, generateTestCAPEM(t), 0600))
+
+	const target = "/mnt/nas-refresher-err"
+	op := &mounter.MountOperation{
+		Target: target,
+		Options: []string{
+			"authType=agent-identity",
+			"sandboxId=sb-1",
+			"sandboxCredProviderName=cp",
+			"jwtauth_endpoint=" + srv.URL,
+			"jwtauth_token_file=" + tokenPath,
+			"jwtauth_ca_file=" + caPath,
+		},
+	}
+
+	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		// Simulate the CA file vanishing after the mount succeeded.
+		return os.Remove(caPath)
+	})
+	require.NoError(t, err, "a refresher start failure must not fail a successful mount")
+	assert.False(t, jwtauth.DefaultManager.HasTarget(target), "no refresher should be registered when StartWith fails")
+}
+
+func TestSplitAlinasSTSOptionsPreservesExistingTLSAndRAM(t *testing.T) {
+	cred := &jwtauth.STSToken{AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "st"}
+	options, _ := splitAlinasSTSOptions([]string{"tls", "ram", "vers=3"}, cred)
+
+	tlsCount, ramCount := 0, 0
+	for _, o := range options {
+		switch o {
+		case optAlinasTLS:
+			tlsCount++
+		case optAlinasRAM:
+			ramCount++
+		}
+	}
+	assert.Equal(t, 1, tlsCount, "tls must not be duplicated")
+	assert.Equal(t, 1, ramCount, "ram must not be duplicated")
+}
+
+func TestFlattenMountOptions(t *testing.T) {
+	in := []string{"tls,vers=3", "authType=agent-identity", "", "ro,,nolock"}
+	out := flattenMountOptions(in)
+	assert.Equal(t, []string{"tls", "vers=3", "authType=agent-identity", "ro", "nolock"}, out)
+}
