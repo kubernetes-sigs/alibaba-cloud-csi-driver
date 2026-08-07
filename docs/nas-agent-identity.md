@@ -43,7 +43,7 @@ Set the following options in the PV `volumeAttributes` (or StorageClass
 >
 > `sandboxId`: required. Identifies the sandbox token file (`<AGENT_IDENTITY_TOKEN_DIR>/<sandboxId>.token`) and derives a unique credential scope.
 >
-> `sandboxCredentialProviderName`: required. The credential provider name used in the exchange request.
+> `sandboxCredProviderName` (or `credentialProviderName`, as in OSS): required. The credential provider name used in the exchange request.
 
 The interceptor forces `tls` and `ram` mount options for agent-identity mounts.
 
@@ -67,7 +67,7 @@ spec:
       path: "/"
       authType: "agent-identity"
       sandboxId: "<sandbox-id>"
-      sandboxCredentialProviderName: "<credential-provider-name>"
+      sandboxCredProviderName: "<credential-provider-name>"
 ```
 
 No `secretRef` / AccessKey is required: the STS credential is obtained from the
