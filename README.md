@@ -70,7 +70,7 @@ deployment via Helm requires Kubernetes 1.26+.
 - RAM permissions for the driver to invoke Alibaba Cloud OpenAPIs on your behalf
   (see the [example policies](./docs/ram-policies))
 - Individual drivers may have additional requirements; consult their
-  [documentation](#documentation)
+  [documentation](./docs/)
 
 ### Installation
 

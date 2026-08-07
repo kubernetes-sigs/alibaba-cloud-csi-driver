@@ -17,25 +17,6 @@
 > flexvolume 迁移场景除外，请按照 [迁移文档](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/use-csi-compatible-controller-to-migrate-from-flexvolume-to-csi) 进行迁移。
 > ACK 官方不支持在集群中手动部署该驱动程序。
 
----
-
-## 目录
-
-- [插件介绍](#插件介绍)
-- [支持的存储](#支持的存储)
-- [版本说明](#版本说明)
-- [快速开始](#快速开始)
-  - [前置条件](#前置条件)
-  - [安装](#安装)
-- [文档](#文档)
-- [开发](#开发)
-  - [代码结构](#代码结构)
-  - [构建](#构建)
-  - [测试](#测试)
-- [社区、贡献、讨论、支持](#社区贡献讨论支持)
-- [安全](#安全)
-- [许可证](#许可证)
-
 ## 插件介绍
 
 阿里云 CSI 插件实现了在 Kubernetes 中对阿里云云存储卷的生命周期管理，支持动态创建、
@@ -80,45 +61,11 @@ Kubernetes 1.26 以上。
 - 已配置 `kubectl` 可访问集群
 - Helm 3
 - 授予驱动调用阿里云 OpenAPI 的 RAM 权限（参考 [示例策略](./docs/ram-policies)）
-- 各驱动可能有额外要求，请参考对应的 [文档](#文档)
+- 各驱动可能有额外要求，请参考对应的 [文档](./docs/)
 
 ### 安装
 
-推荐通过 [阿里云容器服务 Kubernetes 版 (ACK)](https://www.alibabacloud.com/product/kubernetes)
-运行本驱动，此时 CSI 驱动会作为组件自动部署和管理。
-
-如需在自建集群手动部署，可使用 Helm：
-
-```shell
-helm repo add alibaba-cloud-csi-driver https://kubernetes-sigs.github.io/alibaba-cloud-csi-driver
-helm repo update
-
-# ECS 上的自建集群
-helm upgrade --install alibaba-cloud-csi-driver alibaba-cloud-csi-driver/alibaba-cloud-csi-driver \
-  --values values-ecs.yaml --namespace kube-system
-```
-
-完整的 RAM 配置、配置预设和验证步骤请参考 [安装文档](./docs/install.md)。
-
-## 文档
-
-| 主题 | 说明 |
-|------|------|
-| [安装](./docs/install.md)                               | 部署与配置驱动 |
-| [云盘](./docs/disk.md)                                  | 云盘的创建与挂载 |
-| [云盘——裸块设备](./docs/disk-block.md)                  | 将云盘作为裸块设备使用 |
-| [云盘——扩容](./docs/disk-resizer.md)                    | 在线扩容云盘 |
-| [云盘——快照与恢复](./docs/disk-snapshot-restore.md)     | 创建与恢复云盘快照 |
-| [云盘——本地盘加速](./docs/disk-datacache.md)            | 用本地盘为云盘加速（dm-cache） |
-| [NAS](./docs/nas.md)                                    | NAS 卷的创建与挂载 |
-| [NAS——动态创建](./docs/nas-dynamic.md)                  | 子目录/文件系统动态创建 |
-| [NAS——扩容](./docs/nas-expansion.md)                    | NAS 配额扩容 |
-| [OSS](./docs/oss.md)                                    | 挂载 OSS Bucket |
-| [BMCPFS](./docs/bmcpfs-helm-readme-zh.md)               | 挂载并行文件系统（Bare Metal CPFS） |
-| [监控指标](./docs/csi-metric.md)                        | CSI 监控指标 |
-| [FlexVolume → CSI 迁移](./docs/migrate)                 | 从 FlexVolume 迁移 |
-
-各功能可直接运行的示例清单位于 [`examples/`](./examples) 目录。
+部署方式、RAM 配置、配置预设和验证步骤请参考 [安装文档](./docs/install.md)。
 
 ## 开发
 
