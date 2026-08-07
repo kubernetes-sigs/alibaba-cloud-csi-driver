@@ -40,7 +40,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// VolumeAs determines the mounting target path in OSS
+// VolumeAs determines the mounting target path in OSS.
+// Values are lowercase because callers normalize input with strings.ToLower before comparison.
 type VolumeAsType string
 
 const (
@@ -50,6 +51,8 @@ const (
 	VolumeAsSharePath VolumeAsType = "sharepath"
 	// VolumeAsSubpath means mount on the subpath of `path` which is automatically generated
 	VolumeAsSubpath VolumeAsType = "subpath"
+	// VolumeAsBucketSpace means use volumeId as BucketSpace name (for AgenticBucket mode)
+	VolumeAsBucketSpace VolumeAsType = "bucketspace"
 )
 
 const (
@@ -57,6 +60,13 @@ const (
 	// For compatibility with standard naming conventions, we also support customers configuring `accessKeyID` and `accessKeySecret`
 	AkID     = "akId"
 	AkSecret = "akSecret"
+)
+
+// volumeAttribute / StorageClass parameter keys for AgenticBucket
+const (
+	volKeyAgenticBucket = "agenticBucket"
+	volKeyBucketSpace   = "bucketSpace"
+	volKeyPath          = "path"
 )
 
 // parseCredentialsFromSecret retrieves credentials from the `Secret` field in request.
@@ -154,9 +164,10 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 
 	// credentials
 	accessKey, tokenSecret := parseCredentialsFromSecret(secrets)
+	parsedPath, _ := parseVolumeAsOptions(volOptions, reqName)
 	opts := &ossfpm.Options{
 		UseSharedPath: true,
-		Path:          parsePathOptions(volOptions, reqName),
+		Path:          parsedPath,
 		AccessKey:     accessKey,
 		TokenSecret:   tokenSecret,
 	}
@@ -171,6 +182,12 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 		switch key {
 		case "bucket":
 			opts.Bucket = value
+		case "agenticbucket":
+			opts.AgenticBucket = value
+		case "bucketspace":
+			opts.BucketSpace = value
+		case "bucketspaceprefix":
+			opts.BucketSpacePrefix = value
 		case "url":
 			opts.URL = value
 		case "otheropts":
@@ -323,13 +340,18 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 	return opts, nil
 }
 
-// parsePathOptions parses path-related options from volOptions.
-// It only handles:
+// parseVolumeAsOptions parses volumeAs-related options from volOptions.
+// It handles:
 // - path: base OSS path (default "/")
 // - volumeAs=subpath: append reqName to base path (for CreateVolume)
-func parsePathOptions(volOptions map[string]string, reqName string) string {
+// - volumeAs=bucketspace: use reqName as BucketSpace name (for CreateVolume)
+//
+// Returns (parsedPath, parsedBucketSpace).
+// parsedBucketSpace is non-empty only when volumeAs=bucketspace.
+func parseVolumeAsOptions(volOptions map[string]string, reqName string) (string, string) {
 	parsedPath := "/"
-	var volumeAsSubpath bool
+	var parsedBucketSpace string
+	var volumeAsSubpath, volumeAsBucketSpace bool
 	for k, v := range volOptions {
 		key := strings.TrimSpace(strings.ToLower(k))
 		value := strings.TrimSpace(v)
@@ -345,15 +367,48 @@ func parsePathOptions(volOptions map[string]string, reqName string) string {
 				// do nothing
 			case VolumeAsSubpath:
 				volumeAsSubpath = true
+			case VolumeAsBucketSpace:
+				volumeAsBucketSpace = true
 			default:
-				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support direct and subpath", v, k).Error())
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support direct, subpath, and bucketspace", v, k).Error())
 			}
 		}
 	}
 	if volumeAsSubpath {
 		parsedPath = path.Join(parsedPath, reqName)
 	}
-	return parsedPath
+	if volumeAsBucketSpace {
+		parsedBucketSpace = reqName
+	}
+	return parsedPath, parsedBucketSpace
+}
+
+// buildVolumeContext processes StorageClass parameters for CreateVolume:
+//   - resolves path and volumeAs (subpath / bucketspace)
+//   - validates agenticBucket / bucketSpace field consistency
+func buildVolumeContext(params map[string]string, reqName string) (map[string]string, error) {
+	parsedPath, parsedBucketSpace := parseVolumeAsOptions(params, reqName)
+
+	// TODO: volumeAs=bucketspace is not yet supported because the CSI external-provisioner
+	// generates volumeId in UUID format (e.g. pvc-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+	// which exceeds the BucketSpace naming length limit (63 chars) when used as a prefix.
+	// Remove this block once OSS relaxes the naming length constraint, and implement
+	// the prefix-to-full-name resolution here (requires accountId + region).
+	if parsedBucketSpace != "" {
+		return nil, fmt.Errorf("volumeAs=bucketspace is not yet supported for dynamic provisioning (BucketSpace naming length constraint)")
+	}
+
+	// Validate sharepath/subpath mode with agenticBucket
+	if params[volKeyAgenticBucket] != "" && params[volKeyBucketSpace] == "" {
+		return nil, fmt.Errorf("%s is required when %s is specified in StorageClass parameters", volKeyBucketSpace, volKeyAgenticBucket)
+	}
+
+	volumeContext := make(map[string]string, len(params)+2)
+	for k, v := range params {
+		volumeContext[k] = v
+	}
+	volumeContext[volKeyPath] = parsedPath
+	return volumeContext, nil
 }
 
 func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts *ossfpm.Options, m metadata.MetadataProvider) error {
@@ -496,17 +551,70 @@ func setFsType(vc map[string]string) {
 	}
 }
 
+// resolveAgenticBucketOptions validates and resolves AgenticBucket/BucketSpace options.
+// It must be called after parseOptions and before using opts.MountBucket().
+func resolveAgenticBucketOptions(opts *ossfpm.Options, m metadata.MetadataProvider) error {
+	if err := validateAgenticBucketOptions(opts); err != nil {
+		return err
+	}
+	if opts.BucketSpacePrefix != "" {
+		resolved, err := resolveBucketSpacePrefix(opts, m)
+		if err != nil {
+			return err
+		}
+		opts.BucketSpace = resolved
+	}
+	return nil
+}
+
+// validateAgenticBucketOptions validates the mutual exclusion and required-field
+// rules for AgenticBucket/BucketSpace vs Bucket.
+func validateAgenticBucketOptions(opts *ossfpm.Options) error {
+	if (opts.AgenticBucket != "" || opts.BucketSpace != "" || opts.BucketSpacePrefix != "") && opts.Bucket != "" {
+		return WrapOssError(ParamError, "agenticBucket/bucketSpace/bucketSpacePrefix and bucket are mutually exclusive")
+	}
+	if opts.BucketSpace != "" && opts.BucketSpacePrefix != "" {
+		return WrapOssError(ParamError, "bucketSpace and bucketSpacePrefix are mutually exclusive")
+	}
+	if opts.AgenticBucket != "" && opts.BucketSpace == "" && opts.BucketSpacePrefix == "" {
+		return WrapOssError(ParamError, "bucketSpace or bucketSpacePrefix is required when agenticBucket is specified")
+	}
+	if (opts.BucketSpace != "" || opts.BucketSpacePrefix != "") && opts.AgenticBucket == "" {
+		return WrapOssError(ParamError, "agenticBucket is required when bucketSpace or bucketSpacePrefix is specified")
+	}
+	return nil
+}
+
+// resolveBucketSpacePrefix resolves a BucketSpace prefix into the full BucketSpace name
+// by appending accountId, region, and the -bs-apsr suffix.
+// Format: {prefix}-{accountId}-{region}-bs-apsr
+func resolveBucketSpacePrefix(opts *ossfpm.Options, m metadata.MetadataProvider) (string, error) {
+	accountId, err := m.Get(metadata.AccountID)
+	if err != nil || accountId == "" {
+		return "", WrapOssError(ParamError, "cannot resolve bucketSpacePrefix: accountId unavailable (set ALIBABA_CLOUD_ACCOUNT_ID env or ensure IMDS/ack-cluster-profile is accessible)")
+	}
+
+	region := ossfpm.ResolveRegion(opts, m)
+	if region == "" {
+		return "", WrapOssError(ParamError, "cannot resolve bucketSpacePrefix: region unavailable (set region in volumeAttributes or REGION_ID env)")
+	}
+
+	fullName := fmt.Sprintf("%s-%s-%s-bs-apsr", opts.BucketSpacePrefix, accountId, region)
+	klog.V(2).Infof("Resolved bucketSpacePrefix %q to full BucketSpace name %q", opts.BucketSpacePrefix, fullName)
+	return fullName, nil
+}
+
 // Check oss options
 func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
 	if fpm == nil {
 		return WrapOssError(ParamError, "Unsupported fuseType %s", opt.FuseType)
 	}
-	// common
-	if opt.URL == "" || opt.Bucket == "" {
+	// common: either Bucket or BucketSpace must be set
+	if opt.URL == "" || opt.MountBucket() == "" {
 		return WrapOssError(ParamError, "Url/Bucket empty")
 	}
 
-	err := validateEndpoint(opt.URL, opt.Bucket)
+	err := validateEndpoint(opt.URL, opt.MountBucket())
 	if err != nil {
 		return WrapOssError(UrlError, "url is invalid, %v", err)
 	}

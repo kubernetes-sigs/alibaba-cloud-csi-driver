@@ -447,6 +447,26 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 				"metrics_top=5",
 			},
 		},
+		{
+			name: "agenticBucket with BucketSpace",
+			opts: &ossfpm.Options{
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
+				AgenticBucket: "my-agentic-xxx-ab-apsr",
+				BucketSpace:   "my-space-xxx-bs-apsr",
+				Path:          "/data",
+				URL:           "oss://test-endpoint/",
+			},
+			expected: []string{
+				"oss_endpoint=oss://test-endpoint/",
+				"oss_bucket=my-space-xxx-bs-apsr",
+				"oss_bucket_prefix=/data",
+				"auto_create_bucket=true",
+				"agentic_bucket=my-agentic-xxx-ab-apsr",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

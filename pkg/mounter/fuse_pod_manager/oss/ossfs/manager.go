@@ -155,7 +155,7 @@ func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvide
 		// fixed credentials
 		if o.AkID != "" && o.AkSecret != "" {
 			authCfg.Secrets = map[string]string{
-				mounterutils.GetPasswdFileName(f.Name()): fmt.Sprintf("%s:%s:%s", o.Bucket, o.AkID, o.AkSecret),
+				mounterutils.GetPasswdFileName(f.Name()): fmt.Sprintf("%s:%s:%s", o.MountBucket(), o.AkID, o.AkSecret),
 			}
 			return authCfg, nil
 		}
@@ -313,6 +313,14 @@ func (f *fuseOssfs) MakeMountOptions(o *ossfpm.Options, m metadata.MetadataProvi
 		}
 		mountOptions = append(mountOptions, "sigv4")
 		mountOptions = append(mountOptions, fmt.Sprintf("region=%s", region))
+	}
+
+	// AgenticBucket / BucketSpace support
+	if o.AgenticBucket != "" {
+		mountOptions = append(mountOptions,
+			"auto_create_bucket",
+			fmt.Sprintf("agentic_bucket=%s", o.AgenticBucket),
+		)
 	}
 
 	authOptions := f.getAuthOptions(o, region)

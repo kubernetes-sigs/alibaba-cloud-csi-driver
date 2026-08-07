@@ -15,4 +15,5 @@ build/Dockerfile
 /alibaba-cloud-csi-driver
 .devcontainer/
 .agents/skills/debug-csi/.local/
+.omo/
 bin
