@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -402,10 +403,23 @@ func TestRefresherCalcSleepDuration(t *testing.T) {
 	t.Run("invalid format uses margin", func(t *testing.T) {
 		assert.Equal(t, 5*time.Minute, r.calcSleepDuration("not-a-date"))
 	})
-	t.Run("NewRefresher applies the default floor", func(t *testing.T) {
+	t.Run("NewRefresher applies the default floor and the configured margin", func(t *testing.T) {
 		defaulted := NewRefresher(Opts{}, &fakeSink{})
 		assert.Equal(t, defaultMinSleep, defaulted.minSleep)
-		assert.Equal(t, defaultRefreshMargin, defaulted.refreshMargin)
+		assert.Equal(t, agentidentity.DefaultTokenRefreshMargin, defaulted.refreshMargin)
+	})
+	t.Run("NewRefresher honours the margin from the environment", func(t *testing.T) {
+		t.Setenv("AGENT_IDENTITY_TOKEN_REFRESH_MARGIN", "90s")
+		assert.Equal(t, 90*time.Second, NewRefresher(Opts{}, &fakeSink{}).refreshMargin)
+	})
+	t.Run("the configured margin moves the next refresh", func(t *testing.T) {
+		// The knob is only useful if it reaches the schedule, so assert the
+		// interval a refresher built from the environment actually computes.
+		t.Setenv("AGENT_IDENTITY_TOKEN_REFRESH_MARGIN", "10m")
+		configured := NewRefresher(Opts{}, &fakeSink{})
+		exp := time.Now().Add(time.Hour).Format(time.RFC3339)
+		assert.InDelta(t, 50*time.Minute, configured.calcSleepDuration(exp), float64(5*time.Second),
+			"an hour of validity minus a 10m margin should leave about 50m")
 	})
 }
 

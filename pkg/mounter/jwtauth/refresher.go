@@ -7,24 +7,27 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"k8s.io/klog/v2"
 )
 
 const (
-	defaultRefreshMargin = 5 * time.Minute
-	defaultMinSleep      = 30 * time.Second
-	maxRetryBackoff      = 30 * time.Second
-	initialRetryBackoff  = 1 * time.Second
-	maxFetchRetries      = 5
-	stopWaitTimeout      = 15 * time.Second
+	defaultMinSleep     = 30 * time.Second
+	maxRetryBackoff     = 30 * time.Second
+	initialRetryBackoff = 1 * time.Second
+	maxFetchRetries     = 5
+	stopWaitTimeout     = 15 * time.Second
 )
 
 // Refresher fetches scoped STS credentials for a jwtauth mount and keeps them
 // fresh for the lifetime of the mount, delivering each credential through the
 // configured CredentialSink.
 type Refresher struct {
-	opts          Opts
-	sink          CredentialSink
+	opts Opts
+	sink CredentialSink
+	// refreshMargin is how long before expiry the credential is renewed. It is
+	// resolved from the environment per refresher, so an operator can tune it
+	// without a rebuild.
 	refreshMargin time.Duration
 	// minSleep floors the interval between two refreshes so an already-expired
 	// or near-expiry credential cannot turn the loop into a busy loop. It is a
@@ -42,7 +45,7 @@ func NewRefresher(opts Opts, sink CredentialSink) *Refresher {
 	return &Refresher{
 		opts:          opts,
 		sink:          sink,
-		refreshMargin: defaultRefreshMargin,
+		refreshMargin: agentidentity.GetTokenRefreshMargin(),
 		minSleep:      defaultMinSleep,
 		stopCh:        make(chan struct{}),
 		done:          make(chan struct{}),

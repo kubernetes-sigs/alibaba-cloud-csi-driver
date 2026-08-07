@@ -32,6 +32,9 @@ fresh for the lifetime of the mount.
     (required to auto-resolve the token file).
   * `AGENT_IDENTITY_CERT_FILE` — CA file for the TLS channel (optional; the
     system root pool is used when unset).
+  * `AGENT_IDENTITY_TOKEN_REFRESH_MARGIN` — how long before expiry a credential
+    is renewed, as a Go duration such as `20m` or `90s` (optional; defaults to
+    `20m`). A value that is not a positive duration is reported and ignored.
 * `aliyun-alinas-utils` providing `alinas-tls-cert-refresh` on the node.
 
 ## Volume context options
