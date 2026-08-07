@@ -77,7 +77,6 @@ Kubernetes 1.26 以上。
 
 ### 前置条件
 
-- Kubernetes 版本 >= 1.26
 - 已配置 `kubectl` 可访问集群
 - Helm 3
 - 授予驱动调用阿里云 OpenAPI 的 RAM 权限（参考 [示例策略](./docs/ram-policies)）

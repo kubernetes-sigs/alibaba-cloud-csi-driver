@@ -84,7 +84,6 @@ deployment via Helm requires Kubernetes 1.26+.
 
 ### Prerequisites
 
-- Kubernetes version >= 1.26
 - `kubectl` configured to communicate with the cluster
 - Helm 3
 - RAM permissions for the driver to invoke Alibaba Cloud OpenAPIs on your behalf
