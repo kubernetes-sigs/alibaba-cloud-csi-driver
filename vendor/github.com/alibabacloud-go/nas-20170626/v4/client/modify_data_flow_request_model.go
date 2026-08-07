@@ -24,17 +24,17 @@ type iModifyDataFlowRequest interface {
 }
 
 type ModifyDataFlowRequest struct {
-	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
+	// Ensures the idempotency of the request. Generate a parameter value from your client to ensure that the value is unique across different requests.
 	//
-	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](https://help.aliyun.com/document_detail/25693.html)
+	// ClientToken supports only ASCII characters and cannot exceed 64 characters in length. For more information, see [How to ensure idempotency](https://help.aliyun.com/document_detail/25693.html).
 	//
-	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The value of RequestId may be different for each API request.
+	// > If you do not specify this parameter, the system automatically uses the RequestId of the API request as the ClientToken. The RequestId may differ for each API request.
 	//
 	// example:
 	//
 	// 123e4567-e89b-12d3-a456-42665544****
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// The ID of the dataflow.
+	// The data flow ID.
 	//
 	// This parameter is required.
 	//
@@ -42,39 +42,39 @@ type ModifyDataFlowRequest struct {
 	//
 	// df-194433a5be31****
 	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// The description of the dataflow.
+	// The description of the data flow.
 	//
 	// Limits:
 	//
-	// 	- The description must be 2 to 128 characters in length.
+	// - The description must be 2 to 128 characters in length.
 	//
-	// 	- The description must start with a letter but cannot start with http:// or https://.
+	// - The description must start with a letter and cannot start with http:// or https://.
 	//
-	// 	- The description can contain letters, digits, colons (:), underscores (_), and hyphens (-).
+	// - The description can contain digits, colons (:), underscores (_), and hyphens (-).
 	//
 	// example:
 	//
-	// test
+	// Bucket01数据流动
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Specifies whether to perform a dry run.
+	// Specifies whether to perform a dry run for this request.
 	//
-	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no file system is created and no fee is incurred.
+	// A dry run checks parameter validity and resource availability without actually creating the instance or incurring charges.
 	//
 	// Valid values:
 	//
-	// 	- true: performs a dry run. The system checks the required parameters, request syntax, limits, and available NAS resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the FileSystemId parameter.
+	// - true: Sends a check request without creating the instance. The check items include whether required parameters are specified, the request format, business limitations, and NAS inventory. If the check fails, the corresponding error is returned. If the check passes, HTTP status code 200 is returned, but FileSystemId is empty.
 	//
-	// 	- false (default): performs a dry run and sends the request. If the request passes the dry run, a file system is created.
+	// - false (default): Sends a normal request. After the check passes, the instance is directly created.
 	//
 	// example:
 	//
 	// false
 	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
-	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-125487\\*\\*\\*\\*.
+	// - CPFS: The ID must start with `cpfs-`, such as cpfs-125487\\*\\*\\*\\*.
 	//
-	// 	- The IDs of CPFS for Lingjun file systems must start with `bmcpfs-`. Example: bmcpfs-0015\\*\\*\\*\\*.
+	// - CPFS for Lingjun: The ID must start with `bmcpfs-`, such as bmcpfs-0015\\*\\*\\*\\*.
 	//
 	// This parameter is required.
 	//
@@ -82,15 +82,17 @@ type ModifyDataFlowRequest struct {
 	//
 	// cpfs-099394bd928c****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The maximum data flow throughput. Unit: MB/s. Valid values:
+	// The maximum transmission bandwidth of the data flow. Unit: MB/s.
 	//
-	// 	- 600
+	// Valid values:
 	//
-	// 	- 1200
+	// - 600
 	//
-	// 	- 1500
+	// - 1200
 	//
-	// >  The data flow throughput must be less than the I/O throughput of the file system. This parameter is required for CPFS file systems.
+	// - 1500
+	//
+	// > The transmission bandwidth of the data flow must be less than the I/O bandwidth of the file system. This parameter is required when the file system type is CPFS.
 	//
 	// example:
 	//

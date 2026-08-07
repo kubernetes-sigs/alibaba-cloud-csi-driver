@@ -20,9 +20,9 @@ type iDescribeAccessPointsResponseBody interface {
 }
 
 type DescribeAccessPointsResponseBody struct {
-	// The information about the access point.
+	// The access point information.
 	AccessPoints []*DescribeAccessPointsResponseBodyAccessPoints `json:"AccessPoints,omitempty" xml:"AccessPoints,omitempty" type:"Repeated"`
-	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	// The query token. Set the value to the NextToken value returned in the previous API call.
 	//
 	// example:
 	//
@@ -102,25 +102,25 @@ func (s *DescribeAccessPointsResponseBody) Validate() error {
 }
 
 type DescribeAccessPointsResponseBodyAccessPoints struct {
-	// The Alibaba Cloud Resource Name (ARN) of the access point.
+	// The access point ARN.
 	//
 	// example:
 	//
 	// acs:nas:cn-hangzhou:178321033379****:accesspoint/ap-ie15yd****
 	ARN *string `json:"ARN,omitempty" xml:"ARN,omitempty"`
-	// The name of the permission group.
+	// The permission group name.
 	//
 	// example:
 	//
 	// test
 	AccessGroup *string `json:"AccessGroup,omitempty" xml:"AccessGroup,omitempty"`
-	// The ID of the access point.
+	// The access point ID.
 	//
 	// example:
 	//
-	// ap-ie15yd****
+	// ap-ie15y*****
 	AccessPointId *string `json:"AccessPointId,omitempty" xml:"AccessPointId,omitempty"`
-	// The name of the access point.
+	// The access point name.
 	//
 	// example:
 	//
@@ -138,25 +138,25 @@ type DescribeAccessPointsResponseBodyAccessPoints struct {
 	//
 	// ap-ie15ydanoz.001014****-w****.cn-hangzhou.nas.aliyuncs.com
 	DomainName *string `json:"DomainName,omitempty" xml:"DomainName,omitempty"`
-	// Indicates whether the Resource Access Management (RAM) policy is enabled.
+	// Indicates whether the RAM policy is enabled.
 	//
 	// example:
 	//
 	// false
 	EnabledRam *bool `json:"EnabledRam,omitempty" xml:"EnabledRam,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// example:
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The time when the access point was modified.
+	// The time when the access point was last modified.
 	//
 	// example:
 	//
 	// 1709619668276167
 	ModifyTime *string `json:"ModifyTime,omitempty" xml:"ModifyTime,omitempty"`
-	// The Portable Operating System Interface for UNIX (POSIX) user.
+	// The POSIX user.
 	PosixUser *DescribeAccessPointsResponseBodyAccessPointsPosixUser `json:"PosixUser,omitempty" xml:"PosixUser,omitempty" type:"Struct"`
 	// The root directory.
 	//
@@ -164,41 +164,42 @@ type DescribeAccessPointsResponseBodyAccessPoints struct {
 	//
 	// /
 	RootPath *string `json:"RootPath,omitempty" xml:"RootPath,omitempty"`
-	// The permissions on the root directory.
+	// The root directory permissions.
 	RootPathPermission *DescribeAccessPointsResponseBodyAccessPointsRootPathPermission `json:"RootPathPermission,omitempty" xml:"RootPathPermission,omitempty" type:"Struct"`
-	// The status of the root directory.
+	// The current root directory status.
 	//
 	// Valid values:
 	//
-	// 	- 0: The rootpath status is unknown.
+	// - 0: The root path status is unknown.
 	//
-	// 	- 1: The rootpath does not exist and may be deleted.
+	// - 1: The root path does not exist. It may have been deleted by the user.
 	//
-	// 	- 2: The rootpath is normal.
+	// - 2: The root path status is normal.
 	//
 	// example:
 	//
 	// 2
 	RootPathStatus *string `json:"RootPathStatus,omitempty" xml:"RootPathStatus,omitempty"`
-	// The status of the access point.
+	// The current access point status.
 	//
 	// Valid values:
 	//
-	// 	- Active: The access point is available.
+	// - Active: available.
 	//
-	// 	- Inactive: The access point is unavailable.
+	// - Inactive: unavailable.
 	//
-	// 	- Pending: The access point is being created.
+	// - Pending: being created.
 	//
-	// 	- Deleting: The access point is being deleted.
+	// - Deleting: being deleted.
 	//
-	// >  You can mount a file system only if the access point is in the Active state.
+	// > You can mount a file system only when the status is Active.
 	//
 	// example:
 	//
 	// Active
-	Status *string                                             `json:"Status,omitempty" xml:"Status,omitempty"`
-	Tags   []*DescribeAccessPointsResponseBodyAccessPointsTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The list of access point tags.
+	Tags []*DescribeAccessPointsResponseBodyAccessPointsTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 	// The vSwitch ID.
 	//
 	// example:
@@ -398,15 +399,15 @@ func (s *DescribeAccessPointsResponseBodyAccessPoints) Validate() error {
 }
 
 type DescribeAccessPointsResponseBodyAccessPointsPosixUser struct {
-	// The ID of the POSIX user group.
+	// The POSIX group ID.
 	//
 	// example:
 	//
 	// 12
 	PosixGroupId *int32 `json:"PosixGroupId,omitempty" xml:"PosixGroupId,omitempty"`
-	// The IDs of the secondary user groups.
+	// The secondary group ID.
 	PosixSecondaryGroupIds []*int32 `json:"PosixSecondaryGroupIds,omitempty" xml:"PosixSecondaryGroupIds,omitempty" type:"Repeated"`
-	// The ID of the POSIX user.
+	// The POSIX user ID.
 	//
 	// example:
 	//
@@ -454,13 +455,13 @@ func (s *DescribeAccessPointsResponseBodyAccessPointsPosixUser) Validate() error
 }
 
 type DescribeAccessPointsResponseBodyAccessPointsRootPathPermission struct {
-	// The ID of the owner group.
+	// The file group ID of the owner.
 	//
 	// example:
 	//
 	// 12
 	OwnerGroupId *int64 `json:"OwnerGroupId,omitempty" xml:"OwnerGroupId,omitempty"`
-	// The owner ID.
+	// The user ID of the owner.
 	//
 	// example:
 	//
@@ -514,10 +515,14 @@ func (s *DescribeAccessPointsResponseBodyAccessPointsRootPathPermission) Validat
 }
 
 type DescribeAccessPointsResponseBodyAccessPointsTags struct {
+	// The tag key.
+	//
 	// example:
 	//
 	// TestKey
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The tag value.
+	//
 	// example:
 	//
 	// TestValue

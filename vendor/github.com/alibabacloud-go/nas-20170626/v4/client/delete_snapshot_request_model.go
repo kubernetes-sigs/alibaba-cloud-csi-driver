@@ -14,7 +14,7 @@ type iDeleteSnapshotRequest interface {
 }
 
 type DeleteSnapshotRequest struct {
-	// The snapshot ID.
+	// The snapshot ID. Set this parameter to the snapshot ID obtained after a snapshot is successfully created for an Advanced Extreme NAS file system.
 	//
 	// This parameter is required.
 	//

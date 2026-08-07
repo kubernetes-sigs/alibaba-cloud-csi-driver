@@ -30,47 +30,47 @@ type iCreateMountTargetRequest interface {
 type CreateMountTargetRequest struct {
 	// The name of the permission group.
 	//
-	// This parameter is required if you create a mount target for a General-purpose NAS file system or an Extreme NAS file system.
+	// This parameter is required if the file system is a General-purpose NAS or Extreme NAS file system.
 	//
-	// The default permission group for virtual private clouds (VPCs) is named DEFAULT_VPC_GROUP_NAME.
+	// Default permission group: DEFAULT_VPC_GROUP_NAME (the default permission group for VPCs).
 	//
 	// example:
 	//
 	// vpc-test
 	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	// Specifies whether to perform a dry run to check for existing mount targets. This parameter is valid only for CPFS file systems.
+	// Specifies whether to check for existing mount targets. Only CPFS file systems are supported.
 	//
-	// If you set this parameter to true, the system checks whether the request parameters are valid and whether the requested resources are available. In this case, no mount target is created and no fee is incurred.
+	// A dry run checks parameter validity and inventory without actually creating a mount target or incurring fees.
 	//
-	// 	- true: performs a dry run but does not create a mount target. In the dry run, the system checks the request format, service limits, available CPFS resources, and whether the required parameters are specified. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code `200` is returned. No value is returned for the `MountTargetDomain` parameter.
+	// - true: sends a dry run request without creating a mount target. The check items include required parameters, request format, business limits, and CPFS inventory. If the check fails, the corresponding error is returned. If the check passes, `200 HttpCode` is returned, but `MountTargetDomain` is empty.
 	//
-	// 	- false (default): sends the request. If the request passes the dry run, a mount target is created.
+	// - false (default): sends a normal request. After the check passes, a mount target is created.
 	//
 	// example:
 	//
 	// false
 	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
-	// Specifies whether to create an IPv6 domain name for the mount target.
+	// Specifies whether to create an IPv6 mount target.
 	//
 	// Valid values:
 	//
-	// 	- true: An IPv6 domain name is created for the mount target.
+	// - true: creates an IPv6 mount target.
 	//
-	// 	- false (default): No IPv6 domain name is created for the mount target.
+	// - false (default): does not create an IPv6 mount target.
 	//
-	// > Only Extreme NAS file systems that reside in the Chinese mainland support IPv6. If you want to create an IPv6 domain name for the mount target, you must enable IPv6 for the file system.
+	// > IPv6 is supported only by Extreme NAS file systems in all regions in the Chinese mainland. The file system must have IPv6 enabled.
 	//
 	// example:
 	//
 	// true
 	EnableIpv6 *bool `json:"EnableIpv6,omitempty" xml:"EnableIpv6,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
-	// 	- Sample ID of a General-purpose NAS file system: 31a8e4\\*\\*\\*\\*.
+	// - General-purpose NAS: 31a8e4\\*\\*\\*\\*.
 	//
-	// 	- The IDs of Extreme NAS file systems must start with `extreme-`, for example, extreme-0015\\*\\*\\*\\*.
+	// - Extreme NAS: The ID must start with `extreme-`, such as extreme-0015\\*\\*\\*\\*.
 	//
-	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-125487\\*\\*\\*\\*.
+	// - Cloud Parallel File Storage (CPFS): The ID must start with `cpfs-`, such as cpfs-125487\\*\\*\\*\\*.
 	//
 	// This parameter is required.
 	//
@@ -78,7 +78,7 @@ type CreateMountTargetRequest struct {
 	//
 	// 174494****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The network type of the mount target. Valid value: **Vpc**.
+	// The network type of the mount target. Set the value to **Vpc**, which indicates a virtual private cloud (VPC).
 	//
 	// This parameter is required.
 	//
@@ -86,23 +86,31 @@ type CreateMountTargetRequest struct {
 	//
 	// Vpc
 	NetworkType *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
-	// The ID of the security group.
+	// The security group ID.
 	//
 	// example:
 	//
 	// sg-bp1fg655nh68xyz9****
 	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
-	// The ID of the vSwitch.
+	// The vSwitch ID.
 	//
-	// This parameter is valid and required if the mount target resides in a VPC. Example: If you set the NetworkType parameter to VPC, you must specify the VSwitchId parameter.
+	// This parameter is required and valid only when the network type is VPC.
+	//
+	// For example:
+	//
+	// If NetworkType is set to VPC, VSwitchId is required.
 	//
 	// example:
 	//
 	// vsw-2zevmwkwyztjuoffg****
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// The ID of the VPC.
+	// The VPC ID.
 	//
-	// This parameter is valid and required if the mount target resides in a VPC. Example: If you set the NetworkType parameter to VPC, you must specify the VpcId parameter.
+	// This parameter is required and valid only when the network type is VPC.
+	//
+	// For example:
+	//
+	// If NetworkType is set to VPC, VpcId is required.
 	//
 	// example:
 	//
