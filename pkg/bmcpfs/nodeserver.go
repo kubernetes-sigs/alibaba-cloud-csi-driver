@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -47,11 +48,28 @@ type nodeServer struct {
 
 	detachDelay      time.Duration
 	unstageStartTime sync.Map // map[volumeID]time.Time
+	// credsRoot is where per-volume EFC credential files live; a field so
+	// tests can redirect it away from the /run/cnfs hostPath.
+	credsRoot string
 }
 
 const (
 	defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
 	metricsPathPrefix             = "/run/cnfs/efc/"
+
+	// EFC mount options managed by this driver. The credential file options
+	// are always generated from the driver-managed credentials directory and
+	// stripped from user-supplied mount options.
+	optionKeyAKFile  = "g_unas_AKFile"
+	optionKeySTSFile = "g_unas_STSFile"
+
+	// Access point mount option naming: the test-phase EFC client consumes
+	// g_unas_Accesspoint, GA clients accept accesspoint. Switched via the
+	// BMCPFS_AP_OPTION_STYLE env ("legacy" default, "ga").
+	apOptionKeyLegacy = "g_unas_Accesspoint"
+	apOptionKeyGA     = "accesspoint"
+	apOptionStyleEnv  = "BMCPFS_AP_OPTION_STYLE"
+	apOptionStyleGA   = "ga"
 )
 
 func newNodeServer(meta metadata.MetadataProvider) (*nodeServer, error) {
@@ -102,6 +120,7 @@ func newNodeServer(meta metadata.MetadataProvider) (*nodeServer, error) {
 		locks:             utils.NewVolumeLocks(),
 		mounter:           mounter,
 		detachDelay:       detachDelay,
+		credsRoot:         defaultCredentialsRoot,
 	}, nil
 }
 
@@ -126,6 +145,9 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	if ns.detachDelay == 0 {
+		if err := ns.cleanupCredentials(req.VolumeId); err != nil {
+			return nil, status.Errorf(codes.Internal, "cleanup credentials: %v", err)
+		}
 		return &csi.NodeUnstageVolumeResponse{}, nil
 	}
 	actual, _ := ns.unstageStartTime.LoadOrStore(req.VolumeId, time.Now())
@@ -140,6 +162,12 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return nil, status.Errorf(codes.DeadlineExceeded, "delaying detach for possible reuse: %v", ctx.Err())
 	}
 	ns.unstageStartTime.Delete(req.VolumeId)
+	// All publishes for this volume on the node are gone; drop its EFC
+	// credential files. Only done on the success path so a returning pod
+	// within the detach delay keeps its credentials.
+	if err := ns.cleanupCredentials(req.VolumeId); err != nil {
+		return nil, status.Errorf(codes.Internal, "cleanup credentials: %v", err)
+	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
@@ -162,6 +190,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 	if !notMounted {
+		// Republish (CSIDriver requiresRepublish): the mount point must not be
+		// touched, only volume contents may change. Refresh the STS credential
+		// file from the latest secrets so external rotation propagates.
+		if err := ns.refreshCredentialsOnRepublish(req); err != nil {
+			return nil, err
+		}
 		klog.InfoS("NodePublishVolume: target path is already mounted", "targetPath", req.TargetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
@@ -188,6 +222,46 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		source = fmt.Sprintf("%s:%s", source, path)
 	}
 	klog.InfoS("Mounting mount target", "targetPath", req.TargetPath, "source", source)
+
+	// Credential file options are driver-managed; never accept user-supplied
+	// paths for them.
+	mountOptions, stripped := stripMountOptionKeys(mountOptions, optionKeyAKFile, optionKeySTSFile)
+	if len(stripped) > 0 {
+		klog.InfoS("NodePublishVolume: stripped driver-managed credential options from mount options", "volumeId", req.VolumeId, "keys", stripped)
+	}
+
+	accessPointID := req.VolumeContext[_accessPointID]
+	mode, err := detectAuthMode(req.Secrets)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid secret for RAM auth: %v", err)
+	}
+	if mode != authModeNone && accessPointID == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "RAM auth requires %q in volume attributes", _accessPointID)
+	}
+	if accessPointID != "" {
+		mountOptions = append(mountOptions, accessPointMountOption(accessPointID))
+	}
+	switch mode {
+	case authModeAK, authModeSTS:
+		credsDir, err := credentialsDirForVolume(ns.credsRoot, req.VolumeId)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		if mode == authModeAK {
+			akPath, err := writeAKFile(credsDir, req.Secrets)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "write AK credentials: %v", err)
+			}
+			mountOptions = append(mountOptions, optionKeyAKFile+"="+akPath)
+		} else {
+			stsPath, _, err := writeSTSFile(credsDir, req.Secrets)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "write STS credentials: %v", err)
+			}
+			mountOptions = append(mountOptions, optionKeySTSFile+"="+stsPath)
+		}
+		klog.V(2).InfoS("NodePublishVolume: prepared RAM auth credentials", "volumeId", req.VolumeId, "authMode", mode.String(), "accessPoint", accessPointID)
+	}
 
 	// Default g_lease_Enable=false unless user explicitly specified it
 	// it turns on write caching for both data and metadata (backend support required), reducing read/write latency for small files. The risk is that it may increase the possibility of abnormal data loss in extreme cases.
@@ -227,4 +301,106 @@ func hasMountOption(options []string, key string) bool {
 	return slices.ContainsFunc(options, func(opt string) bool {
 		return opt == key || strings.HasPrefix(opt, prefix)
 	})
+}
+
+// accessPointMountOption renders the EFC access point option for the given
+// AP ID, in the legacy (test phase) or GA naming depending on
+// BMCPFS_AP_OPTION_STYLE.
+func accessPointMountOption(accessPointID string) string {
+	if os.Getenv(apOptionStyleEnv) == apOptionStyleGA {
+		return apOptionKeyGA + "=" + accessPointID
+	}
+	return apOptionKeyLegacy + "=" + accessPointID
+}
+
+// stripMountOptionKeys removes options whose key matches any of the given
+// keys, handling comma-joined compound entries. It returns the filtered
+// options and the list of stripped keys.
+func stripMountOptionKeys(options []string, keys ...string) (kept []string, stripped []string) {
+	banned := make(map[string]struct{}, len(keys))
+	for _, k := range keys {
+		banned[k] = struct{}{}
+	}
+	for _, opt := range options {
+		parts := strings.Split(opt, ",")
+		keptParts := parts[:0]
+		for _, part := range parts {
+			key, _, _ := strings.Cut(part, "=")
+			if _, ok := banned[key]; ok {
+				stripped = append(stripped, key)
+				continue
+			}
+			keptParts = append(keptParts, part)
+		}
+		if len(keptParts) > 0 {
+			kept = append(kept, strings.Join(keptParts, ","))
+		}
+	}
+	return kept, stripped
+}
+
+// refreshCredentialsOnRepublish handles the already-mounted NodePublishVolume
+// path. The auth mode was fixed at the first publish and is recorded by which
+// credential file exists; only STS-mode volumes are refreshed, so external
+// Secret rotation propagates without touching the mount. Shape changes of the
+// secret after mount are warned and ignored (a remount is required).
+func (ns *nodeServer) refreshCredentialsOnRepublish(req *csi.NodePublishVolumeRequest) error {
+	credsDir, err := credentialsDirForVolume(ns.credsRoot, req.VolumeId)
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	stsExists := fileExists(filepath.Join(credsDir, stsFileName))
+	akExists := fileExists(filepath.Join(credsDir, akFileName))
+
+	mode, err := detectAuthMode(req.Secrets)
+	if err != nil {
+		if stsExists {
+			// The rotation source is broken; surface it so kubelet retries and
+			// operators see the event before the mounted credential expires.
+			return status.Errorf(codes.InvalidArgument, "invalid secret on republish: %v", err)
+		}
+		klog.ErrorS(err, "NodePublishVolume: ignoring invalid secret on republish of a non-STS volume", "volumeId", req.VolumeId)
+		return nil
+	}
+
+	switch {
+	case stsExists:
+		if mode != authModeSTS {
+			klog.InfoS("NodePublishVolume: secret shape changed after mount, ignoring; recreate the pod to apply", "volumeId", req.VolumeId, "mountedMode", authModeSTS.String(), "secretMode", mode.String())
+			return nil
+		}
+		_, changed, err := writeSTSFile(credsDir, req.Secrets)
+		if err != nil {
+			return status.Errorf(codes.Internal, "refresh STS credentials: %v", err)
+		}
+		if changed {
+			klog.V(2).InfoS("NodePublishVolume: refreshed STS credentials", "volumeId", req.VolumeId)
+		}
+	case akExists:
+		if mode != authModeAK {
+			klog.InfoS("NodePublishVolume: secret shape changed after mount, ignoring; recreate the pod to apply", "volumeId", req.VolumeId, "mountedMode", authModeAK.String(), "secretMode", mode.String())
+		}
+		// AK does not support hot update.
+	default:
+		if mode != authModeNone {
+			klog.InfoS("NodePublishVolume: secret appeared after an unauthenticated mount, ignoring; recreate the pod to apply", "volumeId", req.VolumeId, "secretMode", mode.String())
+		}
+	}
+	return nil
+}
+
+// cleanupCredentials removes the per-volume EFC credential directory.
+func (ns *nodeServer) cleanupCredentials(volumeID string) error {
+	credsDir, err := credentialsDirForVolume(ns.credsRoot, volumeID)
+	if err != nil {
+		// Publish would never have created a directory for such an ID.
+		klog.ErrorS(err, "NodeUnstageVolume: skip credentials cleanup", "volumeId", volumeID)
+		return nil
+	}
+	return os.RemoveAll(credsDir)
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
