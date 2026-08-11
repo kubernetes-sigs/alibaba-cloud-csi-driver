@@ -47,8 +47,10 @@ func NewCSIAgent() *CSIAgent {
 			locks:       utils.NewVolumeLocks(),
 			dmControl:   dmControl,
 			ad: DiskAttachDetach{
-				dev:    DefaultDeviceManager,
-				devMap: &devMap{}, // Nobody will add to this map.
+				repo: &diskRepo{
+					dev:    DefaultDeviceManager,
+					devMap: &devMap{}, // Nobody will add to this map.
+				},
 			},
 		},
 	}
