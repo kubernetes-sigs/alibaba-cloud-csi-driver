@@ -191,8 +191,10 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	if err := os.MkdirAll(filepath.Join(tmpPath, relPath), os.ModePerm); err != nil {
 		return err
 	}
-	if err := cleanupMountpoint(m, tmpPath); err != nil {
-		klog.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
+	// Lazily detach the tmp mount so we don't block on the fstype-specific
+	// umount helper (e.g. umount.alinas may wait several seconds).
+	if err := unix.Unmount(tmpPath, unix.MNT_DETACH); err != nil {
+		klog.Errorf("failed to lazy umount tmp mountpoint %s: %v", tmpPath, err)
 	}
 	return m.ExtendedMount(context.Background(), &mounter.MountOperation{
 		Source:   source,
