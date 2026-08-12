@@ -287,6 +287,19 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	if !kind.supportsVSC() || cs.skipDetach {
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
+
+	// Volumes whose handle carries a "+" suffix (access point and fileset
+	// volumes) share a single CPFS<->VSC attach at the filesystem level.
+	// Detaching on any one volume's unpublish would break sibling volumes
+	// still mounted on the node, so suffixed volumes never detach here; the
+	// attach is reclaimed with the VSC/node lifecycle or manually via the NAS
+	// OpenAPI. Plain filesystem-level handles keep the standard detach.
+	cpfsID, suffix := parseVolumeHandle(req.VolumeId)
+	if suffix != "" {
+		klog.InfoS("ControllerUnpublishVolume: skip detach for shared filesystem-level attach", "nodeId", req.NodeId, "volumeId", req.VolumeId)
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
+	}
+
 	vsc, err := cs.vscManager.GetPrimaryVscOf(ctx, instanceID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get vsc error: %v", err)
@@ -296,12 +309,11 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
-	// If `req.VolumeId` is a combination of `cpfsID` and `fsetID`, Detach will trigger an error.
-	err = cs.attachDetacher.Detach(ctx, req.VolumeId, vsc.VscID)
+	err = cs.attachDetacher.Detach(ctx, cpfsID, vsc.VscID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	klog.InfoS("ControllerUnpublishVolume: detached cpfs from vsc", "node", req.NodeId, "filesystem", req.VolumeId)
+	klog.InfoS("ControllerUnpublishVolume: detached cpfs from vsc", "node", req.NodeId, "filesystem", cpfsID)
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 

@@ -20,6 +20,8 @@ package bmcpfs
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -28,6 +30,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8smount "k8s.io/mount-utils"
@@ -291,4 +294,215 @@ func TestNodeStageVolume_ResetsDelayForReuse(t *testing.T) {
 		drainUnstage(t, ns, "vol-1")
 		assert.Equal(t, testDetachDelay, time.Since(restart))
 	})
+}
+
+func TestAccessPointMountOption(t *testing.T) {
+	t.Run("legacy default", func(t *testing.T) {
+		t.Setenv(apOptionStyleEnv, "")
+		assert.Equal(t, "g_unas_Accesspoint=ap-1", accessPointMountOption("ap-1"))
+	})
+	t.Run("legacy explicit", func(t *testing.T) {
+		t.Setenv(apOptionStyleEnv, "legacy")
+		assert.Equal(t, "g_unas_Accesspoint=ap-1", accessPointMountOption("ap-1"))
+	})
+	t.Run("ga", func(t *testing.T) {
+		t.Setenv(apOptionStyleEnv, "ga")
+		assert.Equal(t, "accesspoint=ap-1", accessPointMountOption("ap-1"))
+	})
+}
+
+func newTestNodeServer(t *testing.T) *nodeServer {
+	t.Helper()
+	return &nodeServer{
+		mounter:   k8smount.NewFakeMounter(nil),
+		locks:     utils.NewVolumeLocks(),
+		credsRoot: t.TempDir(),
+	}
+}
+
+func publishReq(volumeID, targetPath string, volumeContext map[string]string, secrets map[string]string, mountFlags []string) *csi.NodePublishVolumeRequest {
+	return &csi.NodePublishVolumeRequest{
+		VolumeId:   volumeID,
+		TargetPath: targetPath,
+		VolumeCapability: &csi.VolumeCapability{
+			AccessType: &csi.VolumeCapability_Mount{
+				Mount: &csi.VolumeCapability_MountVolume{MountFlags: mountFlags},
+			},
+		},
+		PublishContext: map[string]string{
+			_networkType:    networkTypeVPC,
+			_vpcMountTarget: "10.0.0.1",
+		},
+		VolumeContext: volumeContext,
+		Secrets:       secrets,
+	}
+}
+
+func TestNodePublishVolume_AccessPoint(t *testing.T) {
+	t.Setenv(apOptionStyleEnv, "")
+	ns := newTestNodeServer(t)
+	target := filepath.Join(t.TempDir(), "target")
+	req := publishReq("cpfs-1+ap-a", target, map[string]string{_accessPointID: "ap-a"}, nil, nil)
+
+	resp, err := ns.NodePublishVolume(context.Background(), req)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	require.Len(t, ns.mounter.(*k8smount.FakeMounter).MountPoints, 1)
+	opts := ns.mounter.(*k8smount.FakeMounter).MountPoints[0].Opts
+	assert.Contains(t, opts, "g_unas_Accesspoint=ap-a")
+	assert.NotContains(t, opts, "accesspoint=ap-a")
+}
+
+func TestNodePublishVolume_AKMode(t *testing.T) {
+	ns := newTestNodeServer(t)
+	target := filepath.Join(t.TempDir(), "target")
+	secrets := map[string]string{"accessKeyId": "ak", "accessKeySecret": "sk"}
+	req := publishReq("cpfs-1+ap-a", target, map[string]string{_accessPointID: "ap-a"}, secrets, nil)
+
+	_, err := ns.NodePublishVolume(context.Background(), req)
+	require.NoError(t, err)
+
+	opts := ns.mounter.(*k8smount.FakeMounter).MountPoints[0].Opts
+	akPath := filepath.Join(ns.credsRoot, "cpfs-1+ap-a", akFileName)
+	assert.Contains(t, opts, optionKeyAKFile+"="+akPath)
+	assert.FileExists(t, akPath)
+}
+
+func TestNodePublishVolume_STSMode(t *testing.T) {
+	ns := newTestNodeServer(t)
+	target := filepath.Join(t.TempDir(), "target")
+	secrets := map[string]string{"accessKeyId": "ak", "accessKeySecret": "sk", "securityToken": "tok"}
+	req := publishReq("cpfs-1+ap-a", target, map[string]string{_accessPointID: "ap-a"}, secrets, nil)
+
+	_, err := ns.NodePublishVolume(context.Background(), req)
+	require.NoError(t, err)
+
+	opts := ns.mounter.(*k8smount.FakeMounter).MountPoints[0].Opts
+	stsPath := filepath.Join(ns.credsRoot, "cpfs-1+ap-a", stsFileName)
+	assert.Contains(t, opts, optionKeySTSFile+"="+stsPath)
+	assert.FileExists(t, stsPath)
+}
+
+func TestNodePublishVolume_SecretWithoutAccessPointRejected(t *testing.T) {
+	ns := newTestNodeServer(t)
+	target := filepath.Join(t.TempDir(), "target")
+	secrets := map[string]string{"accessKeyId": "ak", "accessKeySecret": "sk"}
+	req := publishReq("cpfs-1", target, map[string]string{}, secrets, nil)
+
+	_, err := ns.NodePublishVolume(context.Background(), req)
+	require.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+func TestNodePublishVolume_InvalidSecretShapeRejected(t *testing.T) {
+	ns := newTestNodeServer(t)
+	target := filepath.Join(t.TempDir(), "target")
+	secrets := map[string]string{"accessKeyId": "ak"}
+	req := publishReq("cpfs-1+ap-a", target, map[string]string{_accessPointID: "ap-a"}, secrets, nil)
+
+	_, err := ns.NodePublishVolume(context.Background(), req)
+	require.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+func TestValidateCredentialMountOptions(t *testing.T) {
+	tests := []struct {
+		name    string
+		options []string
+		wantErr bool
+	}{
+		{
+			name:    "no banned keys",
+			options: []string{"net=tcp", "efc"},
+			wantErr: false,
+		},
+		{
+			name:    "rejects standalone AKFile",
+			options: []string{"net=tcp", "g_unas_AKFile=/x"},
+			wantErr: true,
+		},
+		{
+			name:    "rejects STSFile within comma-joined entry",
+			options: []string{"efc,g_unas_STSFile=/y,net=tcp"},
+			wantErr: true,
+		},
+		{
+			name:    "rejects bare key without value",
+			options: []string{"g_unas_AKFile"},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCredentialMountOptions(tt.options)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, codes.InvalidArgument, status.Code(err))
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestNodePublishVolume_RejectsUserCredentialOptions(t *testing.T) {
+	ns := newTestNodeServer(t)
+	target := filepath.Join(t.TempDir(), "target")
+	req := publishReq("cpfs-1", target, map[string]string{}, nil, []string{"net=tcp,g_unas_STSFile=/evil"})
+
+	_, err := ns.NodePublishVolume(context.Background(), req)
+	require.ErrorContains(t, err, "g_unas_STSFile")
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	assert.Empty(t, ns.mounter.(*k8smount.FakeMounter).MountPoints)
+}
+
+func TestNodePublishVolume_RepublishRefreshesSTS(t *testing.T) {
+	ns := newTestNodeServer(t)
+	target := filepath.Join(t.TempDir(), "target")
+	secrets := map[string]string{"accessKeyId": "ak", "accessKeySecret": "sk", "securityToken": "tok1"}
+	req := publishReq("cpfs-1+ap-a", target, map[string]string{_accessPointID: "ap-a"}, secrets, nil)
+
+	_, err := ns.NodePublishVolume(context.Background(), req)
+	require.NoError(t, err)
+
+	// Republish with a rotated token.
+	secrets["securityToken"] = "tok2"
+	_, err = ns.NodePublishVolume(context.Background(), req)
+	require.NoError(t, err)
+
+	stsPath := filepath.Join(ns.credsRoot, "cpfs-1+ap-a", stsFileName)
+	raw, err := os.ReadFile(stsPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), "tok2")
+}
+
+func TestNodePublishVolume_RepublishAKShapeChangeIgnored(t *testing.T) {
+	ns := newTestNodeServer(t)
+	target := filepath.Join(t.TempDir(), "target")
+	akSecrets := map[string]string{"accessKeyId": "ak", "accessKeySecret": "sk"}
+	req := publishReq("cpfs-1+ap-a", target, map[string]string{_accessPointID: "ap-a"}, akSecrets, nil)
+
+	_, err := ns.NodePublishVolume(context.Background(), req)
+	require.NoError(t, err)
+
+	// Republish with an STS-shaped secret: warned and ignored.
+	req.Secrets = map[string]string{"accessKeyId": "ak", "accessKeySecret": "sk", "securityToken": "tok"}
+	_, err = ns.NodePublishVolume(context.Background(), req)
+	require.NoError(t, err)
+
+	credsDir := filepath.Join(ns.credsRoot, "cpfs-1+ap-a")
+	assert.FileExists(t, filepath.Join(credsDir, akFileName))
+	assert.NoFileExists(t, filepath.Join(credsDir, stsFileName))
+}
+
+func TestNodeUnstageVolume_CleansCredentials(t *testing.T) {
+	ns := newTestNodeServer(t)
+	credsDir := filepath.Join(ns.credsRoot, "vol-1")
+	require.NoError(t, os.MkdirAll(credsDir, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(credsDir, stsFileName), []byte("{}"), 0o600))
+
+	_, err := ns.NodeUnstageVolume(context.Background(), &csi.NodeUnstageVolumeRequest{VolumeId: "vol-1"})
+	require.NoError(t, err)
+	assert.NoDirExists(t, credsDir)
 }

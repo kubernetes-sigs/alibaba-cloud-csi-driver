@@ -48,4 +48,7 @@ metadata:
 spec:
   attachRequired: true
   podInfoOnMount: true
+  # Required for STS credential rotation: kubelet periodically re-invokes
+  # NodePublishVolume with the latest nodePublishSecretRef contents.
+  requiresRepublish: true
 {{- end }}

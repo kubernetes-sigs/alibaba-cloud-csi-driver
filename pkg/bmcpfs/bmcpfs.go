@@ -38,6 +38,8 @@ const (
 	_networkType    = "networkType"
 	_path           = "path"
 	_mpAutoSwitch   = "mountpointAutoSwitch"
+	// _accessPointID selects a CPFS access point mount; non-empty enables it.
+	_accessPointID = "accessPointId"
 
 	// CommonNodeIDPrefix is the prefix for common node IDs
 	CommonNodeIDPrefix = "common:"
