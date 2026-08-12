@@ -58,8 +58,8 @@ const (
 	metricsPathPrefix             = "/run/cnfs/efc/"
 
 	// EFC mount options managed by this driver. The credential file options
-	// are always generated from the driver-managed credentials directory and
-	// stripped from user-supplied mount options.
+	// are always generated from the driver-managed credentials directory;
+	// user-supplied ones are rejected.
 	optionKeyAKFile  = "g_unas_AKFile"
 	optionKeySTSFile = "g_unas_STSFile"
 
@@ -205,6 +205,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		networkType  = req.PublishContext[_networkType]
 		source       string
 	)
+	if err := validateCredentialMountOptions(mountOptions); err != nil {
+		return nil, err
+	}
 	switch networkType {
 	case networkTypeVPC:
 		source = req.PublishContext[_vpcMountTarget]
@@ -223,45 +226,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	klog.InfoS("Mounting mount target", "targetPath", req.TargetPath, "source", source)
 
-	// Credential file options are driver-managed; never accept user-supplied
-	// paths for them.
-	mountOptions, stripped := stripMountOptionKeys(mountOptions, optionKeyAKFile, optionKeySTSFile)
-	if len(stripped) > 0 {
-		klog.InfoS("NodePublishVolume: stripped driver-managed credential options from mount options", "volumeId", req.VolumeId, "keys", stripped)
-	}
-
-	accessPointID := req.VolumeContext[_accessPointID]
-	mode, err := detectAuthMode(req.Secrets)
+	authOptions, err := ns.prepareAuthMountOptions(req)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid secret for RAM auth: %v", err)
+		return nil, err
 	}
-	if mode != authModeNone && accessPointID == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "RAM auth requires %q in volume attributes", _accessPointID)
-	}
-	if accessPointID != "" {
-		mountOptions = append(mountOptions, accessPointMountOption(accessPointID))
-	}
-	switch mode {
-	case authModeAK, authModeSTS:
-		credsDir, err := credentialsDirForVolume(ns.credsRoot, req.VolumeId)
-		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		}
-		if mode == authModeAK {
-			akPath, err := writeAKFile(credsDir, req.Secrets)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "write AK credentials: %v", err)
-			}
-			mountOptions = append(mountOptions, optionKeyAKFile+"="+akPath)
-		} else {
-			stsPath, _, err := writeSTSFile(credsDir, req.Secrets)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "write STS credentials: %v", err)
-			}
-			mountOptions = append(mountOptions, optionKeySTSFile+"="+stsPath)
-		}
-		klog.V(2).InfoS("NodePublishVolume: prepared RAM auth credentials", "volumeId", req.VolumeId, "authMode", mode.String(), "accessPoint", accessPointID)
-	}
+	mountOptions = append(mountOptions, authOptions...)
 
 	// Default g_lease_Enable=false unless user explicitly specified it
 	// it turns on write caching for both data and metadata (backend support required), reducing read/write latency for small files. The risk is that it may increase the possibility of abnormal data loss in extreme cases.
@@ -313,30 +282,62 @@ func accessPointMountOption(accessPointID string) string {
 	return apOptionKeyLegacy + "=" + accessPointID
 }
 
-// stripMountOptionKeys removes options whose key matches any of the given
-// keys, handling comma-joined compound entries. It returns the filtered
-// options and the list of stripped keys.
-func stripMountOptionKeys(options []string, keys ...string) (kept []string, stripped []string) {
-	banned := make(map[string]struct{}, len(keys))
-	for _, k := range keys {
-		banned[k] = struct{}{}
+// validateCredentialMountOptions rejects driver-managed credential file
+// options in user-supplied mount flags. These options are generated from the
+// mounted Secret by this driver; a user-supplied path would redirect the EFC
+// credential source, so the publish fails loudly instead of proceeding.
+func validateCredentialMountOptions(options []string) error {
+	joined := strings.Join(options, ",")
+	if strings.Contains(joined, optionKeyAKFile) || strings.Contains(joined, optionKeySTSFile) {
+		return status.Errorf(codes.InvalidArgument,
+			"mount options must not contain driver-managed credential options %q or %q; remove them from the PV/StorageClass mountOptions",
+			optionKeyAKFile, optionKeySTSFile)
 	}
-	for _, opt := range options {
-		parts := strings.Split(opt, ",")
-		keptParts := parts[:0]
-		for _, part := range parts {
-			key, _, _ := strings.Cut(part, "=")
-			if _, ok := banned[key]; ok {
-				stripped = append(stripped, key)
-				continue
-			}
-			keptParts = append(keptParts, part)
-		}
-		if len(keptParts) > 0 {
-			kept = append(kept, strings.Join(keptParts, ","))
-		}
+	return nil
+}
+
+// prepareAuthMountOptions returns the driver-managed auth options for the
+// publish: the access point option whenever an AP is configured, plus the
+// credential file option for AK/STS modes, writing the credential file first.
+func (ns *nodeServer) prepareAuthMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error) {
+	accessPointID := req.VolumeContext[_accessPointID]
+	mode, err := detectAuthMode(req.Secrets)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid secret for RAM auth: %v", err)
 	}
-	return kept, stripped
+	if mode != authModeNone && accessPointID == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "RAM auth requires %q in volume attributes", _accessPointID)
+	}
+
+	var opts []string
+	if accessPointID != "" {
+		opts = append(opts, accessPointMountOption(accessPointID))
+	}
+	if mode == authModeNone {
+		return opts, nil
+	}
+
+	credsDir, err := credentialsDirForVolume(ns.credsRoot, req.VolumeId)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	var opt string
+	if mode == authModeAK {
+		path, err := writeAKFile(credsDir, req.Secrets)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "write AK credentials: %v", err)
+		}
+		opt = optionKeyAKFile + "=" + path
+	} else {
+		path, _, err := writeSTSFile(credsDir, req.Secrets)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "write STS credentials: %v", err)
+		}
+		opt = optionKeySTSFile + "=" + path
+	}
+	opts = append(opts, opt)
+	klog.V(2).InfoS("NodePublishVolume: prepared RAM auth credentials", "volumeId", req.VolumeId, "authMode", mode.String(), "accessPoint", accessPointID)
+	return opts, nil
 }
 
 // refreshCredentialsOnRepublish handles the already-mounted NodePublishVolume

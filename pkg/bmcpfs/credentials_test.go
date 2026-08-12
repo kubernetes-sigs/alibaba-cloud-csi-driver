@@ -58,17 +58,17 @@ func TestDetectAuthMode(t *testing.T) {
 		{
 			name:    "empty access key id value",
 			secrets: map[string]string{"accessKeyId": "", "accessKeySecret": "sk"},
-			wantErr: "empty value",
+			wantErr: "required",
 		},
 		{
-			name:    "unknown key rejected",
+			name:    "unknown key ignored",
 			secrets: map[string]string{"accessKeyId": "ak", "accessKeySecret": "sk", "security_token": "tok"},
-			wantErr: "unexpected secret key",
+			want:    authModeAK,
 		},
 		{
-			name:    "expiration without token rejected",
+			name:    "expiration without token still AK",
 			secrets: map[string]string{"accessKeyId": "ak", "accessKeySecret": "sk", "expiration": "x"},
-			wantErr: "only allowed together",
+			want:    authModeAK,
 		},
 	}
 	for _, tt := range tests {

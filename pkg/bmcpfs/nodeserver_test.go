@@ -311,52 +311,6 @@ func TestAccessPointMountOption(t *testing.T) {
 	})
 }
 
-func TestStripMountOptionKeys(t *testing.T) {
-	tests := []struct {
-		name         string
-		options      []string
-		keys         []string
-		wantKept     []string
-		wantStripped []string
-	}{
-		{
-			name:         "no match",
-			options:      []string{"net=tcp", "efc"},
-			keys:         []string{optionKeyAKFile},
-			wantKept:     []string{"net=tcp", "efc"},
-			wantStripped: nil,
-		},
-		{
-			name:         "strips standalone",
-			options:      []string{"net=tcp", "g_unas_AKFile=/x"},
-			keys:         []string{optionKeyAKFile, optionKeySTSFile},
-			wantKept:     []string{"net=tcp"},
-			wantStripped: []string{"g_unas_AKFile"},
-		},
-		{
-			name:         "strips within comma-joined",
-			options:      []string{"efc,g_unas_STSFile=/y,net=tcp"},
-			keys:         []string{optionKeySTSFile},
-			wantKept:     []string{"efc,net=tcp"},
-			wantStripped: []string{"g_unas_STSFile"},
-		},
-		{
-			name:         "entry fully stripped dropped",
-			options:      []string{"g_unas_AKFile=/x"},
-			keys:         []string{optionKeyAKFile},
-			wantKept:     nil,
-			wantStripped: []string{"g_unas_AKFile"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			kept, stripped := stripMountOptionKeys(tt.options, tt.keys...)
-			assert.Equal(t, tt.wantKept, kept)
-			assert.Equal(t, tt.wantStripped, stripped)
-		})
-	}
-}
-
 func newTestNodeServer(t *testing.T) *nodeServer {
 	t.Helper()
 	return &nodeServer{
@@ -444,7 +398,7 @@ func TestNodePublishVolume_SecretWithoutAccessPointRejected(t *testing.T) {
 func TestNodePublishVolume_InvalidSecretShapeRejected(t *testing.T) {
 	ns := newTestNodeServer(t)
 	target := filepath.Join(t.TempDir(), "target")
-	secrets := map[string]string{"accessKeyId": "ak", "accessKeySecret": "sk", "bogus": "x"}
+	secrets := map[string]string{"accessKeyId": "ak"}
 	req := publishReq("cpfs-1+ap-a", target, map[string]string{_accessPointID: "ap-a"}, secrets, nil)
 
 	_, err := ns.NodePublishVolume(context.Background(), req)
@@ -452,19 +406,55 @@ func TestNodePublishVolume_InvalidSecretShapeRejected(t *testing.T) {
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
-func TestNodePublishVolume_StripsUserCredentialOptions(t *testing.T) {
+func TestValidateCredentialMountOptions(t *testing.T) {
+	tests := []struct {
+		name    string
+		options []string
+		wantErr bool
+	}{
+		{
+			name:    "no banned keys",
+			options: []string{"net=tcp", "efc"},
+			wantErr: false,
+		},
+		{
+			name:    "rejects standalone AKFile",
+			options: []string{"net=tcp", "g_unas_AKFile=/x"},
+			wantErr: true,
+		},
+		{
+			name:    "rejects STSFile within comma-joined entry",
+			options: []string{"efc,g_unas_STSFile=/y,net=tcp"},
+			wantErr: true,
+		},
+		{
+			name:    "rejects bare key without value",
+			options: []string{"g_unas_AKFile"},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCredentialMountOptions(tt.options)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, codes.InvalidArgument, status.Code(err))
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestNodePublishVolume_RejectsUserCredentialOptions(t *testing.T) {
 	ns := newTestNodeServer(t)
 	target := filepath.Join(t.TempDir(), "target")
 	req := publishReq("cpfs-1", target, map[string]string{}, nil, []string{"net=tcp,g_unas_STSFile=/evil"})
 
 	_, err := ns.NodePublishVolume(context.Background(), req)
-	require.NoError(t, err)
-
-	opts := ns.mounter.(*k8smount.FakeMounter).MountPoints[0].Opts
-	for _, opt := range opts {
-		assert.NotContains(t, opt, "g_unas_STSFile")
-	}
-	assert.Contains(t, opts, "net=tcp")
+	require.ErrorContains(t, err, "g_unas_STSFile")
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	assert.Empty(t, ns.mounter.(*k8smount.FakeMounter).MountPoints)
 }
 
 func TestNodePublishVolume_RepublishRefreshesSTS(t *testing.T) {

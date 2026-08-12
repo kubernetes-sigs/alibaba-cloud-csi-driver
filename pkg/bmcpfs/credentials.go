@@ -29,16 +29,12 @@ import (
 )
 
 // Keys accepted in the nodePublishSecretRef secret. The auth mode is derived
-// from the exact key set (no authType attribute): AK/SK only selects AK mode,
-// AK/SK plus securityToken selects STS mode. Anything else is rejected so a
-// typo can never silently downgrade to AK mode or an unauthenticated mount.
+// from the key presence (no authType attribute): AK/SK selects AK mode, AK/SK
+// plus securityToken selects STS mode.
 const (
 	secretKeyAccessKeyID     = "accessKeyId"
 	secretKeyAccessKeySecret = "accessKeySecret"
 	secretKeySecurityToken   = "securityToken"
-	// secretKeyExpiration is optional and informational only; EFC does not
-	// consume it, it merely lets operators sanity-check rotation freshness.
-	secretKeyExpiration = "expiration"
 )
 
 // Credential files consumed by the EFC client. The directory is shared with
@@ -75,33 +71,18 @@ func (m authMode) String() string {
 	}
 }
 
-// detectAuthMode classifies the nodePublishSecretRef contents by strict
-// whitelist. Error messages reference key names only, never values.
+// detectAuthMode classifies the nodePublishSecretRef contents by key
+// presence: no secrets means no auth, a security token selects STS mode,
+// otherwise AK mode. Error messages reference key names only, never values.
 func detectAuthMode(secrets map[string]string) (authMode, error) {
 	if len(secrets) == 0 {
 		return authModeNone, nil
 	}
-	for key, value := range secrets {
-		switch key {
-		case secretKeyAccessKeyID, secretKeyAccessKeySecret, secretKeySecurityToken, secretKeyExpiration:
-			if value == "" {
-				return authModeNone, fmt.Errorf("secret key %q has an empty value", key)
-			}
-		default:
-			return authModeNone, fmt.Errorf("unexpected secret key %q, allowed keys: %s, %s, %s, %s",
-				key, secretKeyAccessKeyID, secretKeyAccessKeySecret, secretKeySecurityToken, secretKeyExpiration)
-		}
-	}
-	for _, key := range []string{secretKeyAccessKeyID, secretKeyAccessKeySecret} {
-		if secrets[key] == "" {
-			return authModeNone, fmt.Errorf("secret key %q is required", key)
-		}
+	if secrets[secretKeyAccessKeyID] == "" || secrets[secretKeyAccessKeySecret] == "" {
+		return authModeNone, fmt.Errorf("secret keys %q and %q are required", secretKeyAccessKeyID, secretKeyAccessKeySecret)
 	}
 	if secrets[secretKeySecurityToken] != "" {
 		return authModeSTS, nil
-	}
-	if secrets[secretKeyExpiration] != "" {
-		return authModeNone, fmt.Errorf("secret key %q is only allowed together with %q", secretKeyExpiration, secretKeySecurityToken)
 	}
 	return authModeAK, nil
 }
