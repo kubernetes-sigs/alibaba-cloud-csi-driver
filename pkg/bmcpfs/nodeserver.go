@@ -131,16 +131,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if source == "" {
 		return nil, status.Error(codes.InvalidArgument, "mountTarget is empty")
 	}
+
+	// Default g_lease_Enable=false unless user explicitly specified it
+	// it turns on write caching for both data and metadata (backend support required), reducing read/write latency for small files. The risk is that it may increase the possibility of abnormal data loss in extreme cases.
+	if !isNas2MountTarget(source) && !hasMountOption(mountOptions, "g_lease_Enable") {
+		mountOptions = append(mountOptions, "g_lease_Enable=false")
+	}
+
 	if path := req.VolumeContext[_path]; path != "" {
 		source = fmt.Sprintf("%s:%s", source, path)
 	}
 	klog.InfoS("Mounting mount target", "targetPath", req.TargetPath, "source", source)
-
-	// Default g_lease_Enable=false unless user explicitly specified it
-	// it turns on write caching for both data and metadata (backend support required), reducing read/write latency for small files. The risk is that it may increase the possibility of abnormal data loss in extreme cases.
-	if !hasMountOption(mountOptions, "g_lease_Enable") {
-		mountOptions = append(mountOptions, "g_lease_Enable=false")
-	}
 
 	mountOptions = append(mountOptions, "efc,protocol=efc,fstype=cpfs")
 	err = ns.mounter.Mount(source, req.TargetPath, "alinas", mountOptions)
@@ -174,4 +175,32 @@ func hasMountOption(options []string, key string) bool {
 	return slices.ContainsFunc(options, func(opt string) bool {
 		return opt == key || strings.HasPrefix(opt, prefix)
 	})
+}
+
+// length of a BMCPFS V2 file system ID: region(2) + arch(2) + random(17)
+const bmcpfsV2FSIDLength = 21
+
+// isNas2MountTarget reports whether the mount target belongs to a nas2 (self-developed new
+// architecture) file system, judged by the arch mark encoded in its file system ID.
+//
+// Supported mount target formats:
+//
+//	cpfs-<fsid>-<suffix>.<region>.cpfs.aliyuncs.com   (unified)
+//	bmcpfs-<fsid>-<suffix>.<region>.cpfs.aliyuncs.com (BMCPFS original)
+//	dcpfs-<fsid>-<suffix>.<region>.cpfs.aliyuncs.com  (dedicated CPFS)
+//
+// The arch mark is the 3rd and 4th character of the file system ID: 00 for GPFS, 01 for nas2.
+// Only BMCPFS V2 file system IDs are 21 characters long, so the others (GPFS 19, NAS 10-16)
+// never match here.
+func isNas2MountTarget(mountTarget string) bool {
+	host, _, _ := strings.Cut(mountTarget, ".")
+	parts := strings.Split(host, "-")
+	if len(parts) < 3 {
+		return false
+	}
+	fsid := parts[1]
+	if len(fsid) != bmcpfsV2FSIDLength {
+		return false
+	}
+	return fsid[2:4] == "01"
 }

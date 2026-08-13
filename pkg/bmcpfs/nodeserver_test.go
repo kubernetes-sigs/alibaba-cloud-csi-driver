@@ -87,26 +87,130 @@ func TestHasMountOption(t *testing.T) {
 	}
 }
 
+func TestIsNas2MountTarget(t *testing.T) {
+	tests := []struct {
+		name        string
+		mountTarget string
+		expected    bool
+	}{
+		// nas2 (arch=01)
+		{
+			name:        "unified format",
+			mountTarget: "cpfs-290113jifsm2nj4dg3rrx-000001.cn-wulanchabu.cpfs.aliyuncs.com",
+			expected:    true,
+		},
+		{
+			name:        "unified format in another region",
+			mountTarget: "cpfs-01010s1l10qqde4ru3krh-000001.cn-shanghai.cpfs.aliyuncs.com",
+			expected:    true,
+		},
+		{
+			name:        "BMCPFS original format",
+			mountTarget: "bmcpfs-37012i9aty1zmsd5a6pvc-009000.cn-wulanchabu.cpfs.aliyuncs.com",
+			expected:    true,
+		},
+		{
+			name:        "BMCPFS original format with non-digit suffix",
+			mountTarget: "bmcpfs-29011rcxzav3omorigltw-abcdefghij.cn-wulanchabu.cpfs.aliyuncs.com",
+			expected:    true,
+		},
+		{
+			name:        "dedicated CPFS format",
+			mountTarget: "dcpfs-03011yei5ad2qec9oa2fm-000001.cn-beijing.cpfs.aliyuncs.com",
+			expected:    true,
+		},
+		// GPFS (arch=00)
+		{
+			name:        "unified format of GPFS",
+			mountTarget: "cpfs-29001f0goqyg298uaugux-000001.cn-wulanchabu.cpfs.aliyuncs.com",
+			expected:    false,
+		},
+		{
+			name:        "BMCPFS original format of GPFS",
+			mountTarget: "bmcpfs-37002i9aty1zmsd5a6pvc-009000.cn-wulanchabu.cpfs.aliyuncs.com",
+			expected:    false,
+		},
+		// file system IDs that are not 21 characters long
+		{
+			name:        "GPFS old format with 19-character file system ID",
+			mountTarget: "cpfs-290zufboa90tn5cikkm-000001.cn-wulanchabu.cpfs.aliyuncs.com",
+			expected:    false,
+		},
+		{
+			name:        "CPFS old format with short file system ID",
+			mountTarget: "cpfs-2901abcdef-000001.cn-wulanchabu.cpfs.aliyuncs.com",
+			expected:    false,
+		},
+		// other domains
+		{
+			name:        "OSS bucket domain",
+			mountTarget: "cyx-wulanchabu-data.oss-cn-wulanchabu-internal.aliyuncs.com",
+			expected:    false,
+		},
+		{
+			name:        "NAS domain",
+			mountTarget: "xxx.nas.aliyuncs.com",
+			expected:    false,
+		},
+		{
+			name:        "host has less than 3 dash-separated parts",
+			mountTarget: "cpfs-290113jifsm2nj4dg3rrx.cn-wulanchabu.cpfs.aliyuncs.com",
+			expected:    false,
+		},
+		{
+			name:        "empty mount target",
+			mountTarget: "",
+			expected:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isNas2MountTarget(tt.mountTarget))
+		})
+	}
+}
+
 func TestNodePublishVolume_GLeaseEnable(t *testing.T) {
+	const (
+		gpfsMountTarget = "cpfs-29001f0goqyg298uaugux-000001.cn-wulanchabu.cpfs.aliyuncs.com"
+		nas2MountTarget = "cpfs-290113jifsm2nj4dg3rrx-000001.cn-wulanchabu.cpfs.aliyuncs.com"
+	)
 	tests := []struct {
 		name               string
+		mountTarget        string
 		mountFlags         []string
 		expectLeaseInMount bool // whether g_lease_Enable=false appears in mount args
 	}{
 		{
 			name:               "default: g_lease_Enable=false injected",
+			mountTarget:        gpfsMountTarget,
 			mountFlags:         nil,
 			expectLeaseInMount: true,
 		},
 		{
 			name:               "user specified g_lease_Enable=true, not injected",
+			mountTarget:        gpfsMountTarget,
 			mountFlags:         []string{"g_lease_Enable=true"},
 			expectLeaseInMount: false,
 		},
 		{
 			name:               "user specified g_lease_Enable=false explicitly",
+			mountTarget:        gpfsMountTarget,
 			mountFlags:         []string{"g_lease_Enable=false"},
-			expectLeaseInMount: false, // already present, we don't double-add
+			expectLeaseInMount: true, // specified by user, we don't double-add
+		},
+		{
+			name:               "nas2 file system: not injected",
+			mountTarget:        nas2MountTarget,
+			mountFlags:         nil,
+			expectLeaseInMount: false,
+		},
+		{
+			name:               "nas2 file system: user specified g_lease_Enable=false",
+			mountTarget:        nas2MountTarget,
+			mountFlags:         []string{"g_lease_Enable=false"},
+			expectLeaseInMount: true,
 		},
 	}
 
@@ -131,7 +235,7 @@ func TestNodePublishVolume_GLeaseEnable(t *testing.T) {
 				},
 				PublishContext: map[string]string{
 					_networkType:    networkTypeVPC,
-					_vpcMountTarget: "10.0.0.1:/",
+					_vpcMountTarget: tt.mountTarget,
 				},
 				VolumeContext: map[string]string{},
 			}
@@ -144,19 +248,20 @@ func TestNodePublishVolume_GLeaseEnable(t *testing.T) {
 			assert.Len(t, mounter.MountPoints, 1)
 			opts := mounter.MountPoints[0].Opts
 
-			if tt.expectLeaseInMount {
-				assert.Contains(t, opts, "g_lease_Enable=false",
-					"expected g_lease_Enable=false to be injected, got opts: %v", opts)
-			} else {
-				// When user already specified it, we should not find a duplicate
-				count := 0
-				for _, opt := range opts {
-					if opt == "g_lease_Enable=false" || opt == "g_lease_Enable=true" {
-						count++
-					}
+			count := 0
+			for _, opt := range opts {
+				if opt == "g_lease_Enable=false" || opt == "g_lease_Enable=true" {
+					count++
 				}
+			}
+			if tt.expectLeaseInMount {
 				assert.Equal(t, 1, count,
 					"expected exactly one g_lease_Enable option, got opts: %v", opts)
+				assert.Contains(t, opts, "g_lease_Enable=false",
+					"expected g_lease_Enable=false, got opts: %v", opts)
+			} else {
+				assert.NotContains(t, opts, "g_lease_Enable=false",
+					"expected no g_lease_Enable=false, got opts: %v", opts)
 			}
 		})
 	}
