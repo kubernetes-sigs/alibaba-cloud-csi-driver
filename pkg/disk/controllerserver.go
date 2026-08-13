@@ -87,6 +87,9 @@ type diskVolumeArgs struct {
 	BurstingEnabled  bool
 	RequestGB        int64
 	DataCache        datacache.Opts
+
+	// ExtraTopology is extra PV nodeAffinity resolved in getDiskVolumeOptions.
+	ExtraTopology map[string]string
 }
 
 var delVolumeSnap sync.Map
@@ -245,7 +248,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	klog.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], snapshotID[%s]", req.GetName(), diskID, diskVol.ZoneID, attempt, snapshotID)
 
-	tmpVol := volumeCreate(attempt, diskID, utils.Gi2Bytes(int64(diskVol.RequestGB)), volumeContext, diskVol.ZoneID, volumeContentSource(snapshotID))
+	tmpVol := volumeCreate(attempt, diskID, utils.Gi2Bytes(int64(diskVol.RequestGB)), volumeContext, diskVol.ZoneID, diskVol.ExtraTopology, volumeContentSource(snapshotID))
 
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }

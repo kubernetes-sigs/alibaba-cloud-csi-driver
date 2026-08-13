@@ -40,6 +40,9 @@ import (
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
@@ -303,6 +306,18 @@ func iterZone(requirement *csi.TopologyRequirement) iter.Seq[string] {
 	}
 }
 
+// injectTag sets tags[key]=value unless the user already set the same key to a
+// different value, in which case it errors instead of overwriting — the driver
+// must not adjudicate a user's tag value.
+func injectTag(tags map[string]string, key, value string) error {
+	if existing, ok := tags[key]; ok && existing != value {
+		return status.Errorf(codes.InvalidArgument,
+			"disk tag %q conflicts: driver requires %q but %q was requested", key, value, existing)
+	}
+	tags[key] = value
+	return nil
+}
+
 func parseTags(params map[string]string) (map[string]string, error) {
 	// Note that we cannot assume the iteration order of the map, we must ensure consistent output.
 	seenTags := map[string]string{}
@@ -509,6 +524,71 @@ func getDiskVolumeOptions(
 	diskVolArgs.DiskTags, err = parseTags(volOptions)
 	if err != nil {
 		return nil, err
+	}
+
+	// restrictToHpnZone SC parameter
+	restrictToHpnZone := RestrictToHpnZone(volOptions[RESTRICT_TO_HPN_ZONE])
+	switch restrictToHpnZone {
+	case "", RestrictToHpnZoneNever: // default, nothing to check
+	case RestrictToHpnZoneAlways:
+		// always means the driver owns attachToHpnZone per-disk; a static manual value
+		// contradicts that. Rejected from SC params alone (not gated on the selected
+		// target) so the verdict is deterministic rather than depending on which node a
+		// given PV happens to land on.
+		if _, ok := diskVolArgs.DiskTags[DiskTagAttachToHpnZone]; ok {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"disk tag %q must not be set manually when %s=%s", DiskTagAttachToHpnZone, RESTRICT_TO_HPN_ZONE, RestrictToHpnZoneAlways)
+		}
+	default:
+		return nil, fmt.Errorf("invalid %s %q, must be %q or %q", RESTRICT_TO_HPN_ZONE, restrictToHpnZone, RestrictToHpnZoneNever, RestrictToHpnZoneAlways)
+	}
+
+	access := req.AccessibilityRequirements
+	segs := access.GetPreferred()
+	if segs == nil {
+		segs = access.GetRequisite()
+	}
+
+	eflo := false
+	switch diskVolArgs.DiskTags[DiskTagCreatedByProduct] {
+	case DiskTagCreatedByProductEflo:
+		eflo = true
+	default:
+		if len(segs) > 0 && !slices.ContainsFunc(segs, func(seg *csi.Topology) bool {
+			return seg.GetSegments()[metadata.LingjunWorkerLabel] != "true"
+		}) {
+			// All target is LingJun, WaitForFirstConsumer selected LingJun node, or Immediate but all nodes in cluster is LingJun.
+			// auto-inject createdByProduct:eflo
+			// (create-time only, irreversible — makes the disk attachable and only attachable to LingJun)
+			if err := injectTag(diskVolArgs.DiskTags, DiskTagCreatedByProduct, DiskTagCreatedByProductEflo); err != nil {
+				return nil, err
+			}
+			eflo = true
+		}
+	}
+
+	// A disk carrying createdByProduct:eflo — whether we injected it for a LingJun target
+	// or the user set it manually — attaches ONLY to LingJun.
+	// Derived from the resolved SC tags (not the final DiskTags),
+	// so ExtraTopology stays unaffected by MutableParameters.
+	if eflo {
+		diskVolArgs.ExtraTopology = map[string]string{metadata.LingjunWorkerLabel: "true"}
+		if restrictToHpnZone == RestrictToHpnZoneAlways {
+			var hpnZone string // find first LingJun worker HPN zone
+			for _, seg := range segs {
+				seg := seg.GetSegments()
+				if seg[metadata.LingjunWorkerLabel] == "true" {
+					hpnZone = seg[metadata.LingjunHpnZoneLabel]
+					break
+				}
+			}
+			if hpnZone == "" {
+				return nil, status.Errorf(codes.InvalidArgument,
+					"%s=%s but no HPN zone in topology; use volumeBindingMode: WaitForFirstConsumer", RESTRICT_TO_HPN_ZONE, RestrictToHpnZoneAlways)
+			}
+			diskVolArgs.DiskTags[DiskTagAttachToHpnZone] = hpnZone
+			diskVolArgs.ExtraTopology[metadata.LingjunHpnZoneLabel] = hpnZone
+		}
 	}
 
 	// kmsKeyId
@@ -843,7 +923,7 @@ func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
 	return BuildNodePatch(node, maxVolumesNum, diskTypes, NodeDiskCountAnnotation)
 }
 
-func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
+func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, extraTopology map[string]string, contextSource *csi.VolumeContentSource) *csi.Volume {
 	segments := map[string]string{}
 	cateDesc := AllCategories[attempt.Category]
 	volumeContext[labelAppendPrefix+TopologyRegionKey] = GlobalConfigVar.Region
@@ -856,6 +936,7 @@ func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volu
 	if attempt.Instance != "" {
 		segments[common.ECSInstanceIDTopologyKey] = attempt.Instance
 	}
+	maps.Copy(segments, extraTopology)
 
 	accessibleTopology := []*csi.Topology{{Segments: segments}}
 	if attempt.Category != "" {
@@ -967,7 +1048,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
 		Category(disk.Category), PerformanceLevel(disk.PerformanceLevel),
 		"", // no instanceID for virtual-kubelet.
 	}
-	return volumeCreate(attempt, diskID, volSizeBytes, volumeContext, disk.ZoneId, volumeContentSource(snapshotID)), nil
+	return volumeCreate(attempt, diskID, volSizeBytes, volumeContext, disk.ZoneId, nil, volumeContentSource(snapshotID)), nil
 }
 
 // updateVolumeContext remove unnecessary volume context

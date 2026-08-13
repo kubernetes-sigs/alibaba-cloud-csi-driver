@@ -953,6 +953,21 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		segments[v1.LabelTopologyZone] = zoneID
 	}
 
+	kind, err := m.MachineKind()
+	if err != nil && !errors.Is(err, metadata.ErrUnknownMetadataKey) {
+		return nil, status.Errorf(codes.Internal, "cannot determine current machine kind: %v", err)
+	}
+	if kind == metadata.MachineKindLingjun {
+		hpnZone, err := m.Get(metadata.LingjunHpnZone)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get LingJun HPN zone: %v", err)
+		}
+		segments[metadata.LingjunWorkerLabel] = "true"
+		if hpnZone != "" {
+			segments[metadata.LingjunHpnZoneLabel] = hpnZone
+		}
+	}
+
 	// disable disk allocation when maxVolumesNum is 0
 	// events:
 	// Warning  ProvisioningFailed  diskplugin.csi.alibabacloud.com_csi-provisioner

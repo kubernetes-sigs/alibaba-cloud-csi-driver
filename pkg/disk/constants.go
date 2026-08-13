@@ -23,6 +23,25 @@ const (
 	BURSTING_ENABLED_KEY   = "burstingEnabled"
 	DISK_TAG_PREFIX        = "diskTags/"
 	REMOVE_DISK_TAG_PREFIX = "-diskTags/"
+	RESTRICT_TO_HPN_ZONE   = "restrictToHpnZone"
+)
+
+// Disk tags with special meaning for LingJun (灵骏) nodes.
+const (
+	// DiskTagCreatedByProduct, when set to DiskTagCreatedByProductEflo at disk
+	// creation (irreversible), makes the disk attachable only to LingJun instances.
+	DiskTagCreatedByProduct     = "createdByProduct"
+	DiskTagCreatedByProductEflo = "eflo"
+	// DiskTagAttachToHpnZone restricts the disk to a single HPN zone (e.g. "A3").
+	DiskTagAttachToHpnZone = "attachToHpnZone"
+)
+
+// RestrictToHpnZone is the value of the restrictToHpnZone SC parameter.
+type RestrictToHpnZone string
+
+const (
+	RestrictToHpnZoneNever  RestrictToHpnZone = "never"
+	RestrictToHpnZoneAlways RestrictToHpnZone = "always"
 )
 
 // keys used in CreateSnapshotRequest.Parameters
