@@ -5,6 +5,10 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: {{ .Values.deploy.fuseNamespace }}
+  annotations:
+    # Keep on uninstall: this namespace hosts on-demand fuse pods that may be
+    # serving live mounts; deleting it would tear them down.
+    helm.sh/resource-policy: keep
 
 ---
 apiVersion: v1
@@ -12,6 +16,8 @@ kind: ServiceAccount
 metadata:
   name: csi-fuse-ossfs
   namespace: {{ .Values.deploy.fuseNamespace }}
+  annotations:
+    helm.sh/resource-policy: keep
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
