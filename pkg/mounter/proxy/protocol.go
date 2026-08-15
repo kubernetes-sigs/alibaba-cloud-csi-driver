@@ -17,9 +17,17 @@ const (
 type Method string
 
 const (
-	Mount Method = "mount"
-	Ping  Method = "ping"
+	Mount   Method = "mount"
+	Unmount Method = "unmount"
+	Ping    Method = "ping"
 )
+
+// ErrTargetNotManaged is the error string returned by mount-proxy-server when an
+// Unmount request targets a mount point that was NOT mounted through the broker
+// (i.e. the broker has no record of it). The client uses this sentinel to fall
+// back to a local unmount. It is intentionally matched by string because the
+// error crosses the proxy socket as plain text (see Response.Error).
+const ErrTargetNotManaged = "target not managed by mount broker"
 
 type Header struct {
 	Method Method `json:"method,omitempty"`
@@ -57,6 +65,22 @@ type MountRequest struct {
 	// exposes the merged view at Target.
 	// Forward-compatible: old mount-proxy-server versions ignore unknown JSON fields.
 	Overlay bool `json:"overlay,omitempty"`
+}
+
+// UnmountRequest asks mount-proxy-server to unmount a mount point that was
+// mounted through the broker. It is executed inside the mount-proxy-server
+// process (cgroup 0), so the resulting umount.nfs traffic to the local mount
+// broker (tcp 12049) is not blocked by the csi_mount_proxy nftables rule (which
+// drops dport 12049 from cgroup != 0).
+//
+// Unlike MountRequest, it carries NO fstype: routing is decided by which driver
+// actually owns the target (tracked at mount time), not by the kernel fstype.
+// This avoids the alinas-vs-nfs mismatch (alinas AccessPoint mounts are recorded
+// as fstype "nfs" in the kernel mount table, so fstype-based routing would miss
+// them). If no driver owns the target, the broker returns ErrTargetNotManaged
+// and the caller falls back to a local unmount.
+type UnmountRequest struct {
+	Target string `json:"target,omitempty"`
 }
 
 func ReadMsg(r io.Reader, msg any) error {

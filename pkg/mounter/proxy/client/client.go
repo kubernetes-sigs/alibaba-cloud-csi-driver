@@ -101,6 +101,15 @@ func (c *client) Mount(ctx context.Context, req *proxy.MountRequest) (*proxy.Res
 	})
 }
 
+func (c *client) Unmount(ctx context.Context, req *proxy.UnmountRequest) (*proxy.Response, error) {
+	return c.doRequest(ctx, &proxy.Request{
+		Header: proxy.Header{
+			Method: proxy.Unmount,
+		},
+		Body: req,
+	})
+}
+
 func (c *client) Ping(ctx context.Context) (*proxy.Response, error) {
 	return c.doRequest(ctx, &proxy.Request{
 		Header: proxy.Header{

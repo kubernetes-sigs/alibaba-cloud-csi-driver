@@ -19,6 +19,24 @@ type Mounter interface {
 	ExtendedMount(ctx context.Context, op *MountOperation) error
 }
 
+// ProxyUnmounter is implemented by mounters that can unmount through the mount
+// broker (mount-proxy-server) instead of unmounting locally. This is required
+// for NAS AccessPoint mounts: the broker runs in cgroup 0, the only cgroup
+// allowed to reach the mount broker port (tcp 12049) under the csi_mount_proxy
+// nftables rule. A local umount from a container cgroup would be dropped.
+//
+// ExtendedUnmount returns ErrTargetNotManagedByBroker when the broker has no
+// record of target (it was not mounted through the broker), so the caller can
+// fall back to a local unmount.
+type ProxyUnmounter interface {
+	ExtendedUnmount(ctx context.Context, target string) error
+}
+
+// ErrTargetNotManagedByBroker is returned by ProxyUnmounter.ExtendedUnmount when
+// the mount broker reports it does not own the target (proxy.ErrTargetNotManaged)
+// or when the broker predates the unmount RPC. Callers fall back to local unmount.
+var ErrTargetNotManagedByBroker = errors.New("target not managed by mount broker")
+
 type MountOperation struct {
 	Source      string
 	Target      string

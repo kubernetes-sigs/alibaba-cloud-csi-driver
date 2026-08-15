@@ -52,3 +52,74 @@ func TestNasMounter_FuseMountError(t *testing.T) {
 	})
 	assert.Error(t, err)
 }
+
+// fakeProxyUnmounter implements mounter.Mounter (via embedded AdaptorMounter)
+// and mounter.ProxyUnmounter. It records ExtendedUnmount targets and can be
+// configured to report a target as not managed by the broker.
+type fakeProxyUnmounter struct {
+	mounter.Mounter
+	calls       []string
+	notManaged  bool // return ErrTargetNotManagedByBroker
+	extendedErr error
+}
+
+func (f *fakeProxyUnmounter) ExtendedUnmount(_ context.Context, target string) error {
+	f.calls = append(f.calls, target)
+	if f.notManaged {
+		return mounter.ErrTargetNotManagedByBroker
+	}
+	return f.extendedErr
+}
+
+func TestNasMounter_Unmount_BrokerOwnedRoutesToBroker(t *testing.T) {
+	fake := &mountutils.FakeMounter{}
+	pu := &fakeProxyUnmounter{Mounter: mounter.NewAdaptorMounter(fake)}
+	nasMounter := &NasMounter{Interface: fake, alinasMounter: pu}
+
+	err := nasMounter.Unmount("/mnt/alinas")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"/mnt/alinas"}, pu.calls)
+	// Broker handled it; no local unmount action recorded.
+	for _, a := range fake.GetLog() {
+		assert.NotEqual(t, mountutils.FakeActionUnmount, a.Action, "must not unmount locally")
+	}
+}
+
+func TestNasMounter_Unmount_NotManagedFallsBackToLocal(t *testing.T) {
+	fake := &mountutils.FakeMounter{
+		MountPoints: []mountutils.MountPoint{{Path: "/mnt/plain-nfs", Type: "nfs"}},
+	}
+	pu := &fakeProxyUnmounter{Mounter: mounter.NewAdaptorMounter(fake), notManaged: true}
+	nasMounter := &NasMounter{Interface: fake, alinasMounter: pu}
+
+	err := nasMounter.Unmount("/mnt/plain-nfs")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"/mnt/plain-nfs"}, pu.calls, "broker is tried first")
+	// Fell back to a local unmount.
+	var unmounted bool
+	for _, a := range fake.GetLog() {
+		if a.Action == mountutils.FakeActionUnmount {
+			unmounted = true
+		}
+	}
+	assert.True(t, unmounted, "must fall back to local unmount when broker does not own the target")
+}
+
+// nonProxyMounter implements only mounter.Mounter (no ProxyUnmounter), modeling
+// agent/connector mode where unmounts must always be local.
+func TestNasMounter_Unmount_NonProxyModeIsLocal(t *testing.T) {
+	fake := &mountutils.FakeMounter{
+		MountPoints: []mountutils.MountPoint{{Path: "/mnt/x", Type: "nfs"}},
+	}
+	nasMounter := &NasMounter{Interface: fake, alinasMounter: mounter.NewAdaptorMounter(fake)}
+
+	err := nasMounter.Unmount("/mnt/x")
+	assert.NoError(t, err)
+	var unmounted bool
+	for _, a := range fake.GetLog() {
+		if a.Action == mountutils.FakeActionUnmount {
+			unmounted = true
+		}
+	}
+	assert.True(t, unmounted, "non-proxy mode must unmount locally")
+}

@@ -56,6 +56,29 @@ func (h *Driver) Fstypes() []string {
 	return []string{fstypeAlinas, fstypeCpfsNfs}
 }
 
+var _ server.Unmounter = (*Driver)(nil)
+
+// Unmount implements server.Unmounter. It unmounts target only if this driver
+// mounted it (tracked in h.targets at mount time), returning owned=false when it
+// has no record of target so the dispatcher can fall back appropriately.
+//
+// Routing by ownership (not by kernel fstype) is required: alinas AccessPoint
+// mounts are performed with fstype "alinas" but appear as "nfs" in the kernel
+// mount table, so any fstype-based decision would fail to route their unmounts
+// through the broker and the umount.nfs RPC to tcp 12049 would be dropped by the
+// csi_mount_proxy nftables rule (cgroup != 0), blocking ~3s.
+func (h *Driver) Unmount(target string) (owned bool, err error) {
+	if _, ok := h.targets.Load(target); !ok {
+		return false, nil
+	}
+	// h.Mounter is the extendedMounter, whose Unmount also deletes the target
+	// from h.targets and stops the jwtauth refresher on success.
+	if err := h.Mounter.Unmount(target); err != nil {
+		return true, err
+	}
+	return true, nil
+}
+
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	return h.ExtendedMount(ctx, &mounter.MountOperation{
 		Source:      req.Source,
@@ -101,7 +124,7 @@ func (h *Driver) Terminate() {
 	h.targets.Range(func(key, _ any) bool {
 		target := key.(string)
 		klog.InfoS("Unmounting NAS mount point on exit", "target", target)
-		if err := h.Unmount(target); err != nil {
+		if _, err := h.Unmount(target); err != nil {
 			klog.ErrorS(err, "Failed to unmount NAS mount point", "target", target)
 		}
 		return true
