@@ -123,3 +123,23 @@ func TestNasMounter_Unmount_NonProxyModeIsLocal(t *testing.T) {
 	}
 	assert.True(t, unmounted, "non-proxy mode must unmount locally")
 }
+
+func TestNasMounter_Unmount_BrokerErrorFallsBackToLocal(t *testing.T) {
+	fake := &mountutils.FakeMounter{
+		MountPoints: []mountutils.MountPoint{{Path: "/mnt/alinas", Type: "nfs"}},
+	}
+	// Broker returns an unexpected (non-sentinel) error, e.g. socket unreachable.
+	pu := &fakeProxyUnmounter{Mounter: mounter.NewAdaptorMounter(fake), extendedErr: errors.New("call mounter daemon: dial unix: connection refused")}
+	nasMounter := &NasMounter{Interface: fake, alinasMounter: pu}
+
+	err := nasMounter.Unmount("/mnt/alinas")
+	assert.NoError(t, err, "broker error must not fail the unmount")
+	assert.Equal(t, []string{"/mnt/alinas"}, pu.calls, "broker is tried first")
+	var unmounted bool
+	for _, a := range fake.GetLog() {
+		if a.Action == mountutils.FakeActionUnmount {
+			unmounted = true
+		}
+	}
+	assert.True(t, unmounted, "must fall back to local unmount when the broker errors")
+}

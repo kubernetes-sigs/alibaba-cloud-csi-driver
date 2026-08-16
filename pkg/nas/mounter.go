@@ -84,8 +84,13 @@ func (m *NasMounter) unmount(target string, local func() error) error {
 		// Not a broker-owned mount (plain NFS, or broker too old): unmount locally.
 		return local()
 	default:
-		logger.Error(err, "failed to unmount via mount broker")
-		return err
+		// Broker is unreachable or returned an unexpected error. Do not fail the
+		// unmount: fall back to a local unmount so unmounting never becomes
+		// strictly dependent on broker availability. For broker-owned mounts this
+		// local umount may hit the ~3s utab-fallback path, but that is strictly
+		// better than failing NodeUnpublishVolume.
+		logger.Error(err, "unmount via mount broker failed, falling back to local unmount")
+		return local()
 	}
 }
 
