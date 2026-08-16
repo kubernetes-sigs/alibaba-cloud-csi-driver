@@ -188,7 +188,15 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	}); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(tmpPath, relPath), os.ModePerm); err != nil {
+	subDir := filepath.Join(tmpPath, relPath)
+	if err := os.MkdirAll(subDir, os.ModePerm); err != nil {
+		return err
+	}
+	// MkdirAll honors the process umask, so the created subpath would typically
+	// end up as 0755. Explicitly chmod to 0777 (umask is not applied to chmod)
+	// so the auto-created subpath is world-writable by default, matching the
+	// behavior expected by workloads that run as arbitrary UIDs.
+	if err := os.Chmod(subDir, 0o777); err != nil {
 		return err
 	}
 	if err := cleanupMountpoint(m, tmpPath); err != nil {

@@ -100,6 +100,20 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 				Error: err.Error(),
 			}
 		}
+	case proxy.Unmount:
+		var unmountReq proxy.UnmountRequest
+		err := json.Unmarshal(req.Body, &unmountReq)
+		if err != nil {
+			return proxy.Response{
+				Error: err.Error(),
+			}
+		}
+		err = handleUnmountRequest(ctx, &unmountReq)
+		if err != nil {
+			return proxy.Response{
+				Error: err.Error(),
+			}
+		}
 	case proxy.Ping:
 		return proxy.Response{}
 	default:
