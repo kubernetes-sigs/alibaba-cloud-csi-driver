@@ -535,8 +535,8 @@ spec:
             - --csi-address=/csi/csi.sock
             - --http-endpoint=:8121
             - --leader-election=true
-            - --kube-api-qps=50
-            - --kube-api-burst=100
+            - --kube-api-qps=500
+            - --kube-api-burst=1000
             - --worker-threads=256
             - --timeout=30s
           ports:
