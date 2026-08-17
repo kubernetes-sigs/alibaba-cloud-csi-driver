@@ -17,8 +17,8 @@ RUN --mount=type=bind,target=. \
 
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12:latest@sha256:e7e678c88c59e70e105a46549bb3fbfb3d732ee3b4afd3a19fdab2e15afaa6b3 as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
-ARG OSSFS_IMAGE_TAG=v1.91.11.ack.1-f3157f4
-ARG OSSFS2_IMAGE_TAG=v2.0.8.ack.1-d7bd1d4
+ARG OSSFS_IMAGE_TAG=v1.91.12.ack.2-5cf3371
+ARG OSSFS2_IMAGE_TAG=v2.0.9.ack.2-4094fc0
 LABEL defaultOssfsImageTag="${OSSFS_IMAGE_TAG}" defaultOssfs2ImageTag="${OSSFS2_IMAGE_TAG}"
 
 FROM distroless-base as csi-base

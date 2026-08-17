@@ -150,10 +150,10 @@ images:
     tag: "v2.17.0-aliyun"
   ossfs:
     repo: acs/csi-ossfs
-    tag: "v1.91.11.ack.1-f3157f4"
+    tag: "v1.91.12.ack.2-5cf3371"
   ossfs2:
     repo: acs/csi-ossfs2
-    tag: "v2.0.8.ack.1-d7bd1d4"
+    tag: "v2.0.9.ack.2-4094fc0"
 
 # List of image pull secrets to use for pulling images.
 imagePullSecrets: [ ]

@@ -23,7 +23,7 @@ FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS alinux-install
 
 FROM alinux-install AS ossfs
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.11.ack.1
+ARG OSSFS_VERSION=v1.91.12.ack.2
 ARG OSSFS_RPM_URL
 
 # install ossfs
@@ -83,7 +83,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 FROM alinux-install AS ossfs2
 ARG TARGETPLATFORM
-ARG OSSFS2_VERSION=v2.0.8.ack.1
+ARG OSSFS2_VERSION=v2.0.9.ack.2
 ARG OSSFS2_RPM_URL
 
 # install ossfs2
@@ -107,9 +107,9 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 FROM alinux-install AS alinas
 
 ARG TARGETPLATFORM
-ARG ALINAS_UTILS_VERSION=2.4-0.20260729113142.374faa.generic
-ARG EFC_VERSION=2.4-20260728201806.f77dd6.28e8ed2.release
-ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.4
+ARG ALINAS_UTILS_VERSION=2.4-0.20260727152320.aa12f6.generic
+ARG EFC_VERSION=2.4-20260727143717.f5a663.096fb99.release
+ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-shanghai.oss-cn-shanghai.aliyuncs.com/efc-release/2.4
 
 RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
     echo 'install_weak_deps=False' >> /etc/yum.conf; \
@@ -142,13 +142,13 @@ ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas" ]
 FROM alinux-install AS aio
 
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.11.ack.1
-ARG OSSFS2_VERSION=v2.0.8.ack.1
+ARG OSSFS_VERSION=v1.91.12.ack.2
+ARG OSSFS2_VERSION=v2.0.9.ack.2
 ARG OSSFS_RPM_URL
 ARG OSSFS2_RPM_URL
-ARG ALINAS_UTILS_VERSION=2.4-0.20260729113142.374faa.generic
-ARG EFC_VERSION=2.4-20260728201806.f77dd6.28e8ed2.release
-ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.4
+ARG ALINAS_UTILS_VERSION=2.4-0.20260727152320.aa12f6.generic
+ARG EFC_VERSION=2.4-20260727143717.f5a663.096fb99.release
+ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-shanghai.oss-cn-shanghai.aliyuncs.com/efc-release/2.4
 
 RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
     echo 'install_weak_deps=False' >> /etc/yum.conf; \
