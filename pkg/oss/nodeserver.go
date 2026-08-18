@@ -132,6 +132,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	// resolve agenticBucket/bucketSpace options
+	if err := resolveAgenticBucketOptions(opts, ns.metadata); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	socketPath := req.PublishContext[mountProxySocket]
 
@@ -180,7 +184,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	mountSource := fmt.Sprintf("%s:%s", opts.Bucket, opts.Path)
+	mountSource := fmt.Sprintf("%s:%s", opts.MountBucket(), opts.Path)
 	needRotateToken := needRotateToken(opts.FuseType, authCfg.Secrets)
 
 	// The mount request must be sent when the target is not mounted, when a token needs
@@ -267,7 +271,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		var metricsPath string
 		if notMntTarget {
 			// new mounts
-			metricsPath = utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.Bucket)
+			metricsPath = utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.MountBucket())
 		}
 		err := ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
 			Source:      mountSource,
@@ -303,7 +307,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		var metricsPath string
 		if notMntAttach {
 			// new mounts
-			metricsPath = utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opts.FuseType, "oss", opts.Bucket, attachPath)
+			metricsPath = utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opts.FuseType, "oss", opts.MountBucket(), attachPath)
 		}
 		err = ossfsMounter.ExtendedMount(ctx, &mounter.MountOperation{
 			Source:      mountSource,

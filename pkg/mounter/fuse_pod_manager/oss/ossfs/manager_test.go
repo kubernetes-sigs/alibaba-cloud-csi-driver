@@ -744,6 +744,29 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			},
 		},
 		{
+			name: "AgenticBucket",
+			setupEnv: func(t *testing.T) {
+				t.Setenv("AGENT_IDENTITY_ENDPOINT", "https://credential-provider.ack-agent-identity.svc:8443/")
+				t.Setenv("AGENT_IDENTITY_TOKEN_DIR", "/var/opt/sandbox/agent-token")
+			},
+			opts: &ossfpm.Options{
+				URL:                     "oss://bucket",
+				AgenticBucket:           "my-agentic-xxx-ab-apsr",
+				BucketSpace:             "my-space-xxx-bs-apsr",
+				AuthType:                ossfpm.AuthTypeAgentIdentity,
+				SandboxId:               "sandbox-123",
+				SandboxCredProviderName: "oss-rw",
+			},
+			expected: []string{
+				"url=oss://bucket",
+				"auto_create_bucket",
+				"agentic_bucket=my-agentic-xxx-ab-apsr",
+				"agent_identity_endpoint=https://credential-provider.ack-agent-identity.svc:8443/",
+				"agent_identity_token_file=/var/opt/sandbox/agent-token/sandbox-123.token",
+				"agent_identity_cred_provider=oss-rw",
+			},
+		},
+		{
 			name: "DefaultAuthType",
 			opts: &ossfpm.Options{
 				URL:       "oss://bucket",

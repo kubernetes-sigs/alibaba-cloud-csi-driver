@@ -72,9 +72,15 @@ type Options struct {
 	CNFSName       string
 
 	// oss options
+	// normal bucket
 	Bucket string `json:"bucket"`
-	URL    string `json:"url"`
-	Path   string `json:"path"`
+	// agentic bucket
+	AgenticBucket     string `json:"agenticBucket"`
+	BucketSpace       string `json:"bucketSpace"`
+	BucketSpacePrefix string `json:"bucketSpacePrefix"`
+
+	URL  string `json:"url"`
+	Path string `json:"path"`
 
 	// authorization options
 	// accesskey
@@ -114,4 +120,16 @@ type Options struct {
 
 	// pod template
 	DnsPolicy corev1.DNSPolicy `json:"dnsPolicy"`
+}
+
+// MountBucket returns the effective bucket name for mounting.
+// BucketSpace and Bucket are mutually exclusive (enforced by validation).
+// In AgenticBucket mode, BucketSpace is used; otherwise Bucket.
+// If BucketSpacePrefix was specified, it has already been resolved into BucketSpace
+// by resolveBucketSpacePrefix before this method is called.
+func (o *Options) MountBucket() string {
+	if o.BucketSpace != "" {
+		return o.BucketSpace
+	}
+	return o.Bucket
 }

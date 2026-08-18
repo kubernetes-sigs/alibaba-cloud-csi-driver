@@ -584,12 +584,13 @@ func Test_parseOtherOpts(t *testing.T) {
 	}
 }
 
-func Test_parsePathOptions(t *testing.T) {
+func Test_parseVolumeAsOptions(t *testing.T) {
 	tests := []struct {
-		name       string
-		volOptions map[string]string
-		reqName    string
-		wantPath   string
+		name            string
+		volOptions      map[string]string
+		reqName         string
+		wantPath        string
+		wantBucketSpace string
 	}{
 		{
 			name:       "default path",
@@ -623,12 +624,400 @@ func Test_parsePathOptions(t *testing.T) {
 			reqName:  "",
 			wantPath: "/base",
 		},
+		{
+			name: "bucketspace uses reqName as BucketSpace",
+			volOptions: map[string]string{
+				"volumeAs": "bucketspace",
+			},
+			reqName:         "pvc-12345",
+			wantPath:        "/",
+			wantBucketSpace: "pvc-12345",
+		},
+		{
+			name: "bucketspace with explicit path",
+			volOptions: map[string]string{
+				"path":     "/data",
+				"volumeAs": "bucketspace",
+			},
+			reqName:         "pvc-12345",
+			wantPath:        "/data",
+			wantBucketSpace: "pvc-12345",
+		},
+		{
+			name: "bucketspace with empty reqName",
+			volOptions: map[string]string{
+				"volumeAs": "bucketspace",
+			},
+			reqName:         "",
+			wantPath:        "/",
+			wantBucketSpace: "",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPath := parsePathOptions(tt.volOptions, tt.reqName)
+			gotPath, gotBucketSpace := parseVolumeAsOptions(tt.volOptions, tt.reqName)
 			assert.Equal(t, tt.wantPath, gotPath)
+			assert.Equal(t, tt.wantBucketSpace, gotBucketSpace)
+		})
+	}
+}
+
+func Test_validateAgenticBucketOptions(t *testing.T) {
+	tests := []struct {
+		name    string
+		opts    *ossfpm.Options
+		wantErr string
+	}{
+		{
+			name:    "all empty - valid",
+			opts:    &ossfpm.Options{},
+			wantErr: "",
+		},
+		{
+			name: "only bucket - valid",
+			opts: &ossfpm.Options{
+				Bucket: "my-bucket",
+			},
+			wantErr: "",
+		},
+		{
+			name: "agenticBucket + bucketSpace - valid",
+			opts: &ossfpm.Options{
+				AgenticBucket: "my-ab",
+				BucketSpace:   "my-bs",
+			},
+			wantErr: "",
+		},
+		{
+			name: "agenticBucket + bucketSpace + bucket - mutually exclusive",
+			opts: &ossfpm.Options{
+				AgenticBucket: "my-ab",
+				BucketSpace:   "my-bs",
+				Bucket:        "my-bucket",
+			},
+			wantErr: "mutually exclusive",
+		},
+		{
+			name: "bucketSpace + bucket - mutually exclusive",
+			opts: &ossfpm.Options{
+				BucketSpace: "my-bs",
+				Bucket:      "my-bucket",
+			},
+			wantErr: "mutually exclusive",
+		},
+		{
+			name: "agenticBucket without bucketSpace or prefix - invalid",
+			opts: &ossfpm.Options{
+				AgenticBucket: "my-ab",
+			},
+			wantErr: "bucketSpace or bucketSpacePrefix is required",
+		},
+		{
+			name: "bucketSpace without agenticBucket - invalid",
+			opts: &ossfpm.Options{
+				BucketSpace: "my-bs",
+			},
+			wantErr: "agenticBucket is required",
+		},
+		{
+			name: "agenticBucket + bucketSpacePrefix - valid",
+			opts: &ossfpm.Options{
+				AgenticBucket:     "my-ab",
+				BucketSpacePrefix: "sandbox-a",
+			},
+			wantErr: "",
+		},
+		{
+			name: "bucketSpace + bucketSpacePrefix - mutually exclusive",
+			opts: &ossfpm.Options{
+				AgenticBucket:     "my-ab",
+				BucketSpace:       "my-bs",
+				BucketSpacePrefix: "sandbox-a",
+			},
+			wantErr: "mutually exclusive",
+		},
+		{
+			name: "bucketSpacePrefix + bucket - mutually exclusive",
+			opts: &ossfpm.Options{
+				AgenticBucket:     "my-ab",
+				BucketSpacePrefix: "sandbox-a",
+				Bucket:            "my-bucket",
+			},
+			wantErr: "mutually exclusive",
+		},
+		{
+			name: "bucketSpacePrefix without agenticBucket - invalid",
+			opts: &ossfpm.Options{
+				BucketSpacePrefix: "sandbox-a",
+			},
+			wantErr: "agenticBucket is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAgenticBucketOptions(tt.opts)
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_parseOptions_agenticBucket(t *testing.T) {
+	t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
+
+	// Test parsing agenticBucket and bucketSpace from volumeAttributes
+	opts := mustParseOptions(t, map[string]string{
+		"agenticBucket": "my-agentic-xxx-ab-apsr",
+		"bucketSpace":   "my-space-xxx-bs-apsr",
+		"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
+		"authType":      "agent-identity",
+	}, nil, nil, false, "", false, m)
+
+	assert.Equal(t, "my-agentic-xxx-ab-apsr", opts.AgenticBucket)
+	assert.Equal(t, "my-space-xxx-bs-apsr", opts.BucketSpace)
+	assert.Equal(t, "", opts.Bucket)
+	assert.Equal(t, "my-space-xxx-bs-apsr", opts.MountBucket())
+
+	// Test mutual exclusion: agenticBucket + bucket should fail at resolve time
+	opts2, err := parseOptions(context.Background(), nil, map[string]string{
+		"agenticBucket": "my-ab",
+		"bucketSpace":   "my-bs",
+		"bucket":        "my-bucket",
+		"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
+	}, nil, nil, false, "", false, m)
+	require.NoError(t, err) // parseOptions itself should succeed
+	err = resolveAgenticBucketOptions(opts2, m)
+	assert.ErrorContains(t, err, "mutually exclusive")
+
+	// Test agenticBucket without bucketSpace or prefix should fail at resolve time
+	opts3, err := parseOptions(context.Background(), nil, map[string]string{
+		"agenticBucket": "my-ab",
+		"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
+	}, nil, nil, false, "", false, m)
+	require.NoError(t, err)
+	err = resolveAgenticBucketOptions(opts3, m)
+	assert.ErrorContains(t, err, "bucketSpace or bucketSpacePrefix is required")
+}
+
+func Test_resolveAgenticBucketOptions_prefix(t *testing.T) {
+	t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
+	t.Setenv("ALIBABA_CLOUD_ACCOUNT_ID", "1301557714835034")
+	t.Setenv("REGION_ID", "cn-hangzhou")
+
+	prefixMeta := metadata.NewMetadata()
+
+	// bucketSpacePrefix should be resolved into full BucketSpace name
+	opts := mustParseOptions(t, map[string]string{
+		"agenticBucket":     "my-agentic-xxx-ab-apsr",
+		"bucketSpacePrefix": "sandbox-a",
+		"url":               "oss-cn-hangzhou-internal.aliyuncs.com",
+		"authType":          "agent-identity",
+	}, nil, nil, false, "", false, prefixMeta)
+	require.NoError(t, resolveAgenticBucketOptions(opts, prefixMeta))
+
+	assert.Equal(t, "sandbox-a-1301557714835034-cn-hangzhou-bs-apsr", opts.BucketSpace)
+	assert.Equal(t, "sandbox-a-1301557714835034-cn-hangzhou-bs-apsr", opts.MountBucket())
+	assert.Equal(t, "sandbox-a", opts.BucketSpacePrefix)
+
+	// bucketSpacePrefix without accountId env should fail
+	t.Setenv("ALIBABA_CLOUD_ACCOUNT_ID", "")
+	noAccountMeta := metadata.NewMetadata()
+	opts2, err := parseOptions(context.Background(), nil, map[string]string{
+		"agenticBucket":     "my-ab",
+		"bucketSpacePrefix": "sandbox-a",
+		"url":               "oss-cn-hangzhou-internal.aliyuncs.com",
+	}, nil, nil, false, "", false, noAccountMeta)
+	require.NoError(t, err)
+	err = resolveAgenticBucketOptions(opts2, noAccountMeta)
+	assert.ErrorContains(t, err, "accountId unavailable")
+}
+
+// Note: volumeAs=bucketspace is tested in Test_parseVolumeAsOptions (parsing)
+// and Test_buildVolumeContext (CreateVolume validation, currently blocked).
+// It is not tested via parseOptions because parseOptions discards the
+// parsedBucketSpace return value from parseVolumeAsOptions — that value
+// is only used by buildVolumeContext in the CreateVolume path.
+
+func Test_checkOssOptions_agenticBucket(t *testing.T) {
+	// BucketSpace should satisfy the "bucket not empty" check
+	err := checkOssOptions(&ossfpm.Options{
+		URL:           "http://oss-cn-hangzhou-internal.aliyuncs.com",
+		BucketSpace:   "my-bs",
+		AgenticBucket: "my-ab",
+		Path:          "/",
+		FuseType:      "ossfs",
+	}, nil)
+	// fpm is nil, but the error should be about fuseType, not bucket
+	assert.ErrorContains(t, err, "Unsupported fuseType")
+}
+
+func Test_buildVolumeContext(t *testing.T) {
+	tests := []struct {
+		name            string
+		params          map[string]string
+		reqName         string
+		wantPath        string
+		wantBucketSpace string
+		wantErr         string
+	}{
+		{
+			name: "basic sharepath",
+			params: map[string]string{
+				"bucket": "my-bucket",
+				"url":    "oss-cn-hangzhou-internal.aliyuncs.com",
+			},
+			reqName:  "pvc-123",
+			wantPath: "/",
+		},
+		{
+			name: "subpath appends reqName",
+			params: map[string]string{
+				"bucket":   "my-bucket",
+				"path":     "/base",
+				"volumeAs": "subpath",
+			},
+			reqName:  "pvc-123",
+			wantPath: "/base/pvc-123",
+		},
+		{
+			name: "bucketspace is not yet supported",
+			params: map[string]string{
+				"agenticBucket": "my-ab",
+				"volumeAs":      "bucketspace",
+			},
+			reqName: "pvc-123",
+			wantErr: "volumeAs=bucketspace is not yet supported",
+		},
+		{
+			name: "sharepath with agenticBucket requires bucketSpace",
+			params: map[string]string{
+				"agenticBucket": "my-ab",
+			},
+			reqName: "pvc-123",
+			wantErr: "bucketSpace is required",
+		},
+		{
+			name: "sharepath with agenticBucket + bucketSpace is valid",
+			params: map[string]string{
+				"agenticBucket": "my-ab",
+				"bucketSpace":   "my-bs",
+			},
+			reqName:         "pvc-123",
+			wantPath:        "/",
+			wantBucketSpace: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, err := buildVolumeContext(tt.params, tt.reqName)
+			if tt.wantErr != "" {
+				assert.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantPath, ctx[volKeyPath])
+			if tt.wantBucketSpace != "" {
+				assert.Equal(t, tt.wantBucketSpace, ctx[volKeyBucketSpace])
+			}
+		})
+	}
+}
+
+func TestCreateVolume(t *testing.T) {
+	cs := &controllerServer{}
+
+	tests := []struct {
+		name       string
+		req        *csi.CreateVolumeRequest
+		wantErr    bool
+		wantErrMsg string
+		wantPath   string
+		wantBucket string // expected volumeContext["bucketSpace"]
+	}{
+		{
+			name: "basic bucket volume",
+			req: &csi.CreateVolumeRequest{
+				Name: "pvc-123",
+				Parameters: map[string]string{
+					"bucket": "my-bucket",
+					"url":    "oss-cn-hangzhou-internal.aliyuncs.com",
+				},
+				CapacityRange: &csi.CapacityRange{RequiredBytes: 10 * 1024 * 1024 * 1024},
+			},
+			wantPath: "/",
+		},
+		{
+			name: "volumeAs=bucketspace is not yet supported",
+			req: &csi.CreateVolumeRequest{
+				Name: "pvc-456",
+				Parameters: map[string]string{
+					"agenticBucket": "my-ab",
+					"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
+					"volumeAs":      "bucketspace",
+				},
+				CapacityRange: &csi.CapacityRange{RequiredBytes: 50 * 1024 * 1024 * 1024},
+			},
+			wantErr:    true,
+			wantErrMsg: "volumeAs=bucketspace is not yet supported",
+		},
+		{
+			name: "volumeAs=subpath with agenticBucket + bucketSpace",
+			req: &csi.CreateVolumeRequest{
+				Name: "pvc-789",
+				Parameters: map[string]string{
+					"agenticBucket": "my-ab",
+					"bucketSpace":   "my-bs",
+					"path":          "/data",
+					"volumeAs":      "subpath",
+				},
+				CapacityRange: &csi.CapacityRange{RequiredBytes: 10 * 1024 * 1024 * 1024},
+			},
+			wantPath: "/data/pvc-789",
+		},
+		{
+			name: "agenticBucket without bucketSpace fails",
+			req: &csi.CreateVolumeRequest{
+				Name: "pvc-err",
+				Parameters: map[string]string{
+					"agenticBucket": "my-ab",
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "bucketSpace is required when agenticBucket is specified",
+		},
+		{
+			name: "non-Retain reclaimPolicy fails",
+			req: &csi.CreateVolumeRequest{
+				Name: "pvc-err2",
+				Parameters: map[string]string{
+					"csi.alibabacloud.com/reclaimPolicy": "Delete",
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "ReclaimPolicy must be Retain",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := cs.CreateVolume(context.Background(), tt.req)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErrMsg)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.req.Name, resp.Volume.VolumeId)
+			assert.Equal(t, tt.wantPath, resp.Volume.VolumeContext[volKeyPath])
+			if tt.wantBucket != "" {
+				assert.Equal(t, tt.wantBucket, resp.Volume.VolumeContext[volKeyBucketSpace])
+			}
 		})
 	}
 }

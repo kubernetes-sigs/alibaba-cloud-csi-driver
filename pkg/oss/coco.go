@@ -75,7 +75,7 @@ func (ns *nodeServer) publishDirectVolume(ctx context.Context, req *csi.NodePubl
 		annotationsStr = "{}"
 	}
 	metadata := map[string]string{
-		"bucket":      opt.Bucket,
+		"bucket":      opt.MountBucket(),
 		"url":         opt.URL,
 		"otherOpts":   opt.OtherOpts,
 		"path":        opt.Path,

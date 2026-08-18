@@ -141,7 +141,7 @@ func (f *fuseOssfs) MakeAuthConfig(o *ossfpm.Options, m metadata.MetadataProvide
 func (f *fuseOssfs) MakeMountOptions(o *ossfpm.Options, m metadata.MetadataProvider) (mountOptions []string, err error) {
 	mountOptions = append(mountOptions,
 		"oss_endpoint="+o.URL,
-		"oss_bucket="+o.Bucket,
+		"oss_bucket="+o.MountBucket(),
 		"oss_bucket_prefix="+o.Path,
 	)
 
@@ -161,6 +161,14 @@ func (f *fuseOssfs) MakeMountOptions(o *ossfpm.Options, m metadata.MetadataProvi
 			return nil, fmt.Errorf("SigV4 is not supported without region")
 		}
 		mountOptions = append(mountOptions, fmt.Sprintf("oss_region=%s", region))
+	}
+
+	// AgenticBucket / BucketSpace support
+	if o.AgenticBucket != "" {
+		mountOptions = append(mountOptions,
+			"auto_create_bucket=true",
+			fmt.Sprintf("agentic_bucket=%s", o.AgenticBucket),
+		)
 	}
 
 	authOptions := f.getAuthOptions(o, region)

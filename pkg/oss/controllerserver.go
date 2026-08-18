@@ -77,12 +77,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Errorf(codes.InvalidArgument, "ReclaimPolicy must be Retain. The current reclaimPolicy is %q", reclaimPolicy)
 	}
 
-	path := parsePathOptions(req.Parameters, req.GetName())
-	volumeContext := req.GetParameters()
-	if volumeContext == nil {
-		volumeContext = map[string]string{}
+	volumeContext, err := buildVolumeContext(req.Parameters, req.GetName())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	volumeContext["path"] = path
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	csiTargetVolume := &csi.Volume{
 		VolumeId:      req.Name,
@@ -169,6 +167,10 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// ensure fuseType is not empty
 	opts, err := parseOptions(ctx, cs.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", false, cs.metadata)
 	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	// resolve agenticBucket/bucketSpace options
+	if err := resolveAgenticBucketOptions(opts, cs.metadata); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
