@@ -19,6 +19,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"testing"
 
@@ -516,6 +517,170 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	assert.Equal(t, map[string]string{"a": "b"}, opts.DiskTags)
 	assert.Equal(t, int64(20), opts.RequestGB)
 	assert.Equal(t, int64(10<<30), opts.DataCache.Size.Value())
+}
+
+func lingjunTopoReq(worker, hpnZone string) *csi.TopologyRequirement {
+	seg := map[string]string{}
+	if worker != "" {
+		seg[metadata.LingjunWorkerLabel] = worker
+	}
+	if hpnZone != "" {
+		seg[metadata.LingjunHpnZoneLabel] = hpnZone
+	}
+	return &csi.TopologyRequirement{Preferred: []*csi.Topology{{Segments: seg}}}
+}
+
+func TestGetDiskVolumeOptionsLingjun(t *testing.T) {
+	cases := []struct {
+		name        string
+		params      map[string]string
+		topo        *csi.TopologyRequirement
+		wantErr     string
+		wantEflo    bool // DiskTags[createdByProduct] == eflo
+		wantHpnZone string
+	}{
+		{
+			name:     "lingjun target auto eflo",
+			topo:     lingjunTopoReq("true", "A3"),
+			wantEflo: true,
+		},
+		{
+			name:        "restrictToHpnZone always with zone",
+			params:      map[string]string{RESTRICT_TO_HPN_ZONE: string(RestrictToHpnZoneAlways)},
+			topo:        lingjunTopoReq("true", "A3"),
+			wantEflo:    true,
+			wantHpnZone: "A3",
+		},
+		{
+			name:    "restrictToHpnZone always lingjun but no hpnzone",
+			params:  map[string]string{RESTRICT_TO_HPN_ZONE: string(RestrictToHpnZoneAlways)},
+			topo:    lingjunTopoReq("true", ""),
+			wantErr: "no HPN zone",
+		},
+		{
+			name:   "restrictToHpnZone always on non-lingjun target no-op",
+			params: map[string]string{RESTRICT_TO_HPN_ZONE: string(RestrictToHpnZoneAlways)},
+			topo:   lingjunTopoReq("", ""),
+		},
+		{
+			name:    "unknown enum value",
+			params:  map[string]string{RESTRICT_TO_HPN_ZONE: "sometimes"},
+			topo:    lingjunTopoReq("true", "A3"),
+			wantErr: "invalid restrictToHpnZone",
+		},
+		{
+			name:     "manual eflo same value deduped",
+			params:   map[string]string{"diskTags/createdByProduct": "eflo"},
+			topo:     lingjunTopoReq("true", "A3"),
+			wantEflo: true,
+		},
+		{
+			name:    "manual eflo different value conflicts",
+			params:  map[string]string{"diskTags/createdByProduct": "other"},
+			topo:    lingjunTopoReq("true", "A3"),
+			wantErr: "conflicts",
+		},
+		{
+			// Core invariant: a manual eflo tag makes the disk LingJun-only even
+			// when the target isn't detected as LingJun, so worker affinity must
+			// still be added (else the Pod may land on ECS and fail to attach).
+			name:     "manual eflo on non-lingjun target still gets worker affinity",
+			params:   map[string]string{"diskTags/createdByProduct": "eflo"},
+			topo:     lingjunTopoReq("", ""),
+			wantEflo: true,
+		},
+		{
+			name:    "manual attachToHpnZone rejected under always",
+			params:  map[string]string{RESTRICT_TO_HPN_ZONE: string(RestrictToHpnZoneAlways), "diskTags/attachToHpnZone": "A3"},
+			topo:    lingjunTopoReq("true", "A3"),
+			wantErr: "must not be set manually",
+		},
+		{
+			// Rejected from SC params alone: deterministic regardless of target.
+			name:    "manual attachToHpnZone rejected under always even on non-lingjun target",
+			params:  map[string]string{RESTRICT_TO_HPN_ZONE: string(RestrictToHpnZoneAlways), "diskTags/attachToHpnZone": "A3"},
+			topo:    lingjunTopoReq("", ""),
+			wantErr: "must not be set manually",
+		},
+		{
+			name:   "manual attachToHpnZone allowed under never",
+			params: map[string]string{"diskTags/attachToHpnZone": "A3"},
+			topo:   lingjunTopoReq("true", "A3"),
+			// eflo still auto-injected on lingjun target
+			wantEflo: true,
+		},
+		{
+			// eflo is auto-injected only when EVERY candidate is LingJun. A single
+			// ECS candidate means the disk could land on ECS, so we must not make it
+			// LingJun-only, even though another candidate is LingJun.
+			name: "any ECS candidate suppresses auto eflo",
+			topo: &csi.TopologyRequirement{Requisite: []*csi.Topology{
+				{Segments: map[string]string{TopologyZoneKey: "cn-beijing-i"}},
+				{Segments: map[string]string{metadata.LingjunWorkerLabel: "true", metadata.LingjunHpnZoneLabel: "A3"}},
+			}},
+			wantEflo: false,
+		},
+		{
+			// All candidates LingJun (e.g. Immediate in an all-LingJun cluster, or
+			// allowedTopologies pinned to worker) → auto eflo.
+			name: "all candidates lingjun auto eflo",
+			topo: &csi.TopologyRequirement{Requisite: []*csi.Topology{
+				{Segments: map[string]string{metadata.LingjunWorkerLabel: "true", metadata.LingjunHpnZoneLabel: "A3"}},
+				{Segments: map[string]string{metadata.LingjunWorkerLabel: "true", metadata.LingjunHpnZoneLabel: "A5"}},
+			}},
+			wantEflo: true,
+		},
+		{
+			// No topology at all (Topology feature off / non-topology caller) must NOT
+			// vacuously auto-inject eflo — that would make a plain ECS disk LingJun-only.
+			name:     "nil topology no auto eflo",
+			topo:     nil,
+			wantEflo: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			params := map[string]string{"zoneId": "cn-beijing-i"}
+			maps.Copy(params, tc.params)
+			req := &csi.CreateVolumeRequest{
+				CapacityRange:             &csi.CapacityRange{RequiredBytes: 20 * GBSIZE},
+				Parameters:                params,
+				AccessibilityRequirements: tc.topo,
+			}
+			opts, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{}, "")
+			if tc.wantErr != "" {
+				assert.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tc.wantEflo, opts.DiskTags[DiskTagCreatedByProduct] == DiskTagCreatedByProductEflo)
+			// Eflo disks always carry the lingjun-worker affinity; non-eflo disks none.
+			assert.Equal(t, tc.wantEflo, opts.ExtraTopology[metadata.LingjunWorkerLabel] == "true")
+			assert.Equal(t, tc.wantHpnZone, opts.ExtraTopology[metadata.LingjunHpnZoneLabel])
+			if tc.wantHpnZone != "" {
+				assert.Equal(t, tc.wantHpnZone, opts.DiskTags[DiskTagAttachToHpnZone])
+			}
+		})
+	}
+}
+
+func TestVolumeCreateExtraTopology(t *testing.T) {
+	attempt := createAttempt{Category: DiskSSD}
+	extra := map[string]string{
+		metadata.LingjunWorkerLabel:  "true",
+		metadata.LingjunHpnZoneLabel: "A3",
+	}
+	vol := volumeCreate(attempt, "d-123", 20*GBSIZE, map[string]string{}, "cn-beijing-i", extra, nil)
+	segs := vol.AccessibleTopology[0].Segments
+	assert.Equal(t, "true", segs[metadata.LingjunWorkerLabel])
+	assert.Equal(t, "A3", segs[metadata.LingjunHpnZoneLabel])
+	assert.Equal(t, "cn-beijing-i", segs[ZonalDiskTopologyKey])
+
+	// nil extra leaves the base segments untouched (regression guard)
+	vol = volumeCreate(attempt, "d-123", 20*GBSIZE, map[string]string{}, "cn-beijing-i", nil, nil)
+	segs = vol.AccessibleTopology[0].Segments
+	_, hasWorker := segs[metadata.LingjunWorkerLabel]
+	assert.False(t, hasWorker)
 }
 
 func TestGetDiskVolumeOptionsWithSnapshotID(t *testing.T) {

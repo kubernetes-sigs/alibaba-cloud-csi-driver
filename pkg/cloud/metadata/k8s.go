@@ -53,11 +53,12 @@ var (
 const instanceTypeInfoAnnotation = "alibabacloud.com/instance-type-info"
 
 var MetadataLabels = map[MetadataKey][]string{
-	RegionID:     RegionIDLabels,
-	ZoneID:       ZoneIDLabels,
-	InstanceType: InstanceTypeLabels,
-	InstanceID:   InstanceIdLabels,
-	VmocType:     VmocLabels,
+	RegionID:       RegionIDLabels,
+	ZoneID:         ZoneIDLabels,
+	InstanceType:   InstanceTypeLabels,
+	InstanceID:     InstanceIdLabels,
+	VmocType:       VmocLabels,
+	LingjunHpnZone: {LingjunHpnZoneLabel},
 }
 
 func init() {
@@ -70,6 +71,9 @@ func init() {
 
 // LingjunWorkerLabel is the label key used to identify Lingjun nodes.
 const LingjunWorkerLabel = "alibabacloud.com/lingjun-worker"
+
+// LingjunHpnZoneLabel is the label key carrying a Lingjun node's HPN zone (e.g. "A3").
+const LingjunHpnZoneLabel = "alibabacloud.com/lingjun-hpnzone"
 
 // VirtualKubeletTypeLabel is the label key whose value "virtual-kubelet"
 // identifies virtual-kubelet nodes (no real instance behind them).

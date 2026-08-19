@@ -95,6 +95,10 @@ func TestGetEFLO(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, MachineKindLingjun, kind)
 
+	hpnZone, err := m.Get(LingjunHpnZone)
+	assert.NoError(t, err)
+	assert.Equal(t, "A4", hpnZone)
+
 	_, err = m.Get(999)
 	assert.ErrorIs(t, err, ErrUnknownMetadataKey)
 }

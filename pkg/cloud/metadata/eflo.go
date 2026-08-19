@@ -10,12 +10,15 @@ import (
 
 type efloNodeMetadata struct {
 	nodeType string // empty string means "no nodeType" (some LingJun instances)
+	hpnZone  string
 }
 
 func (m *efloNodeMetadata) GetAny(_ *mcontext, key MetadataKey) (any, error) {
 	switch key {
 	case LingjunNodeType:
 		return m.nodeType, nil
+	case LingjunHpnZone:
+		return m.hpnZone, nil
 	case machineKind:
 		return MachineKindLingjun, nil
 	}
@@ -32,7 +35,7 @@ func (f *EfloNodeFetcher) ID() fetcherID { return efloNodeFetcherID }
 
 func (f *EfloNodeFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, error) {
 	switch key {
-	case LingjunNodeType, machineKind:
+	case LingjunNodeType, LingjunHpnZone, machineKind:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
@@ -57,9 +60,10 @@ func (f *EfloNodeFetcher) FetchFor(ctx *mcontext, key MetadataKey) (middleware, 
 		return nil, fmt.Errorf("DescribeNode returned nil response, resp: %v", resp)
 	}
 	nodeType := ptr.Deref(resp.Body.NodeType, "")
-	ctx.logger.V(1).Info("EFLO DescribeNode", "nodeType", nodeType, "requestID", ptr.Deref(resp.Body.RequestId, ""))
+	hpnZone := ptr.Deref(resp.Body.HpnZone, "")
+	ctx.logger.V(1).Info("EFLO DescribeNode", "nodeType", nodeType, "hpnZone", hpnZone, "requestID", ptr.Deref(resp.Body.RequestId, ""))
 
-	return newImmutable(&efloNodeMetadata{nodeType: nodeType}, "EFLO-Node"), nil
+	return newImmutable(&efloNodeMetadata{nodeType: nodeType, hpnZone: hpnZone}, "EFLO-Node"), nil
 }
 
 type efloNodeTypeMetadata struct {

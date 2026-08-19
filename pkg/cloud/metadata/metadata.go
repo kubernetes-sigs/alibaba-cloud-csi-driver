@@ -33,6 +33,7 @@ const (
 	RRSATokenFile
 	IsVscEnable
 	LingjunNodeType
+	LingjunHpnZone
 
 	// non-string metadata, not public, can only access with corresponding methods
 	machineKind
@@ -69,6 +70,8 @@ func (k MetadataKey) String() string {
 		return "RRSATokenFile"
 	case LingjunNodeType:
 		return "LingjunNodeType"
+	case LingjunHpnZone:
+		return "LingjunHpnZone"
 	case machineKind:
 		return "MachineKind"
 	case diskQuantity:
