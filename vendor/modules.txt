@@ -85,8 +85,11 @@ github.com/clbanning/mxj/v2
 # github.com/container-storage-interface/spec v1.11.0
 ## explicit; go 1.18
 github.com/container-storage-interface/spec/lib/go/csi
-# github.com/containerd/ttrpc v1.2.3
-## explicit; go 1.19
+# github.com/containerd/log v0.1.0
+## explicit; go 1.20
+github.com/containerd/log
+# github.com/containerd/ttrpc v1.2.9
+## explicit; go 1.25.0
 github.com/containerd/ttrpc
 # github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 ## explicit
