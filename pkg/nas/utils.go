@@ -193,8 +193,8 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		return err
 	}
 	// MkdirAll honors the process umask, so the created subpath would typically
-	// end up as 0755. Explicitly chmod to 0777 for agent mode (rootless containers are required)
-	if agentMode {
+	// end up as 0755. Explicitly chmod to 0777 for OpenKruise sandbox (rootless containers are required)
+	if os.Getenv("AGENT_SANDBOX") == "true" {
 		if err := os.Chmod(subDir, 0o777); err != nil {
 			return err
 		}
