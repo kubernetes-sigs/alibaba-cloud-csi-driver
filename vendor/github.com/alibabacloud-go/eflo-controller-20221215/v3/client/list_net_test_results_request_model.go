@@ -24,9 +24,9 @@ type ListNetTestResultsRequest struct {
 	//
 	// Default value:
 	//
-	// 	- If you do not configure this parameter or if you set this parameter to a value less than 20, the default value is 20.
+	// - If you do not set this parameter or you set it to a value less than 20, the default value is 20.
 	//
-	// 	- If you set this parameter to a value that is greater than 100, the default value is 100.
+	// - If you set the value to greater than 100, the default value is 100.
 	//
 	// example:
 	//
@@ -38,17 +38,17 @@ type ListNetTestResultsRequest struct {
 	//
 	// DelayTest
 	NetTestType *string `json:"NetTestType,omitempty" xml:"NetTestType,omitempty"`
-	// The token that determines the start position of the query. Set this parameter to the value of the NextToken parameter that is returned from the last call.
+	// The token that is used to retrieve the next page of results. Set this parameter to the value of \\`NextToken\\` that is returned in the last response.
 	//
 	// example:
 	//
-	// 3a6b93229825ac667104463b56790c91
+	// 3a6b93229825ac667104463b5679****
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The resource group ID.
+	// The ID of the resource group.
 	//
 	// example:
 	//
-	// rg-acfmxno4vh5muoq
+	// rg-acfmxno4vh5****
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 }
 

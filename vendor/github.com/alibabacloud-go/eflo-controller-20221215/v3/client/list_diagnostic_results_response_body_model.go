@@ -38,7 +38,7 @@ type ListDiagnosticResultsResponseBody struct {
 	//
 	// example:
 	//
-	// a3f2224a5ec7224116c4f5246120abe4
+	// a3f2224a5ec7224116c4f5246120****
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	// The request ID.
 	//
@@ -110,7 +110,7 @@ type ListDiagnosticResultsResponseBodyDiagnosticResults struct {
 	//
 	// example:
 	//
-	// i118578141694745246055
+	// i11857814169474524****
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
 	// Cluster Name
 	//
@@ -128,7 +128,7 @@ type ListDiagnosticResultsResponseBodyDiagnosticResults struct {
 	//
 	// example:
 	//
-	// diagcontent
+	// Test diagnosis information
 	DiagContent *string `json:"DiagContent,omitempty" xml:"DiagContent,omitempty"`
 	// Diagnosis ID
 	//
@@ -152,7 +152,7 @@ type ListDiagnosticResultsResponseBodyDiagnosticResults struct {
 	//
 	// example:
 	//
-	// e01-cn-bl03ofg6206
+	// e01-cn-bl03ofg6****
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
 	// Server name.
 	//

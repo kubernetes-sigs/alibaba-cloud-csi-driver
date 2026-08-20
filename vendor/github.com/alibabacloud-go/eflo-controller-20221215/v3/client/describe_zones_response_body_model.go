@@ -70,7 +70,7 @@ type DescribeZonesResponseBodyZones struct {
 	//
 	// example:
 	//
-	// Hang Zhou
+	// Hangzhou
 	LocalName *string `json:"LocalName,omitempty" xml:"LocalName,omitempty"`
 	// The zone ID.
 	//

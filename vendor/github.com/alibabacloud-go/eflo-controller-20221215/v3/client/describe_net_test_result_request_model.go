@@ -14,7 +14,7 @@ type iDescribeNetTestResultRequest interface {
 }
 
 type DescribeNetTestResultRequest struct {
-	// The ID of the test task. The unique identifier of a network test task.
+	// The ID of the test task.
 	//
 	// example:
 	//
