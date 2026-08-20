@@ -125,9 +125,6 @@ func (m *DeviceManager) adaptDevicePartition(rootDevicePath string) (string, err
 	if !m.EnableDiskPartition {
 		return rootDevicePath, nil
 	}
-	if !m.EnableDiskPartition {
-		return rootDevicePath, nil
-	}
 	devName, err := m.deviceName(rootDevicePath)
 	if err != nil {
 		return "", fmt.Errorf("get device name for %s failed: %w", rootDevicePath, err)
