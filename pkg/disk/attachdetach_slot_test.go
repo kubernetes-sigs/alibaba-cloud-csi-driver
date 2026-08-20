@@ -19,7 +19,7 @@ func TestDetachPriority(t *testing.T) {
 	for range 3 {
 		wg.Go(func() {
 			as := s.Attach()
-			if err := as.Acquire(context.Background()); err != nil {
+			if err := as.Acquire(t.Context()); err != nil {
 				t.Error(err)
 				return
 			}
@@ -31,7 +31,7 @@ func TestDetachPriority(t *testing.T) {
 	}
 	time.Sleep(100 * time.Millisecond)
 	ds := s.Detach()
-	if err := ds.Acquire(context.Background()); err != nil {
+	if err := ds.Acquire(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if seq != 1 {
@@ -64,7 +64,7 @@ func TestParallelGetSlot(t *testing.T) {
 
 func TestCancelWaiting(t *testing.T) {
 	testSlot := func(t *testing.T, s adSlot) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		errs := make(chan error)
 		go func() {
 			errs <- s.Detach().Acquire(ctx)
@@ -87,7 +87,7 @@ func TestCancelWaiting(t *testing.T) {
 	}
 	t.Run("serial", func(t *testing.T) {
 		s := NewSlots(1, 1).GetSlotFor("node1")
-		err := s.Detach().Acquire(context.Background()) // occupy the slot
+		err := s.Detach().Acquire(t.Context()) // occupy the slot
 		assert.NoError(t, err)
 		testSlot(t, s)
 	})
@@ -96,8 +96,8 @@ func TestCancelWaiting(t *testing.T) {
 			attach: newBlockable(newMaxConcurrentSlot(1)),
 			detach: newBlockable(newMaxConcurrentSlot(1)),
 		}
-		assert.NoError(t, s.attach.Acquire(context.Background()))
-		assert.NoError(t, s.detach.Acquire(context.Background()))
+		assert.NoError(t, s.attach.Acquire(t.Context()))
+		assert.NoError(t, s.detach.Acquire(t.Context()))
 		testSlot(t, s)
 	})
 }
@@ -105,7 +105,7 @@ func TestCancelWaiting(t *testing.T) {
 func TestCancelNoOccupy(t *testing.T) {
 	testSlot := func(t *testing.T, slots AttachDetachSlots) {
 		s := slots.GetSlotFor("node1")
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
 		if err := s.Detach().Acquire(ctx); err != context.Canceled {
@@ -130,7 +130,7 @@ func TestSerialDetach(t *testing.T) {
 	slots := NewSlots(1, 0)
 	s := slots.GetSlotFor("node1")
 
-	ctx := context.Background()
+	ctx := t.Context()
 	as := s.Attach()
 	err := as.Acquire(ctx)
 	if err != nil {
@@ -151,7 +151,7 @@ func TestSerialDetach(t *testing.T) {
 // run this with go test -race
 func TestSerialDetach_NoRace(t *testing.T) {
 	s := NewSlots(1, 0).GetSlotFor("node1").Detach()
-	ctx := context.Background()
+	ctx := t.Context()
 	wg := sync.WaitGroup{}
 	state := -1
 	for i := range 2 {
@@ -169,7 +169,7 @@ func TestSerialDetach_NoRace(t *testing.T) {
 
 func TestWaitingADError(t *testing.T) {
 	s := NewSlots(1, 0).GetSlotFor("node1").Detach()
-	ctx := context.Background()
+	ctx := t.Context()
 	assert.NoError(t, s.Acquire(ctx))
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
@@ -192,11 +192,11 @@ func testBlock_sync(t *testing.T) {
 
 	// multiple concurrent Acquire() should be fine. All of them are controlled by the same timeout
 	go func() {
-		assert.NoError(t, s.Attach().Acquire(context.Background()))
+		assert.NoError(t, s.Attach().Acquire(t.Context()))
 		s.Attach().Release()
 		assert.Equal(t, until, time.Now())
 	}()
-	assert.NoError(t, s.Detach().Acquire(context.Background()))
+	assert.NoError(t, s.Detach().Acquire(t.Context()))
 	s.Detach().Release()
 	assert.Equal(t, until, time.Now())
 }
@@ -211,7 +211,7 @@ func TestBlockCancel(t *testing.T) {
 				s := slots.GetSlotFor("node1")
 				s.Attach().Block(time.Now().Add(200 * time.Millisecond))
 
-				ctx, cancel := context.WithCancel(context.Background())
+				ctx, cancel := context.WithCancel(t.Context())
 				go func() {
 					time.Sleep(50 * time.Millisecond)
 					cancel()
@@ -219,7 +219,7 @@ func TestBlockCancel(t *testing.T) {
 				assert.ErrorIs(t, s.Attach().Acquire(ctx), context.Canceled)
 
 				// the cancelled Acquire must not hold the slot
-				if assert.NoError(t, s.Attach().Acquire(context.Background())) {
+				if assert.NoError(t, s.Attach().Acquire(t.Context())) {
 					s.Attach().Release()
 				}
 			})
