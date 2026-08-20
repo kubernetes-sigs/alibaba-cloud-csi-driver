@@ -36,7 +36,7 @@ type CancelFilesetQuotaRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- true: performs a dry run. The system checks the required parameters, request syntax, and service limits. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the DataFlowld parameter.
+	// 	- true: performs a dry run. The system checks the required parameters, request syntax, and service limits. If the request fails to pass the precheck, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the DataFlowld parameter.
 	//
 	// 	- false (default): performs a dry run and sends the request. If the request passes the dry run, the fileset quota is canceled.
 	//

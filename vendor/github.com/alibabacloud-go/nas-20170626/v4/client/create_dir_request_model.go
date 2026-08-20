@@ -84,7 +84,7 @@ type CreateDirRequest struct {
 	//
 	// example:
 	//
-	// test
+	// /test
 	RootDirectory *string `json:"RootDirectory,omitempty" xml:"RootDirectory,omitempty"`
 }
 

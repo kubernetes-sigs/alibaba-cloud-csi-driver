@@ -12,6 +12,7 @@ type iServerError interface {
 	GetStatusCode() *int
 	GetCode() *string
 	GetMessage() *string
+	GetDetail() *string
 	GetDescription() *string
 	GetRequestId() *string
 	GetRetryAfter() *int64
@@ -25,6 +26,7 @@ type ServerError struct {
 	StatusCode         *int                   ``
 	Code               *string                ``
 	Message            *string                ``
+	Detail             *string                ``
 	Description        *string                ``
 	RequestId          *string                ``
 	RetryAfter         *int64                 ``
@@ -53,6 +55,10 @@ func (s *ServerError) GetCode() *string {
 
 func (s *ServerError) GetMessage() *string {
 	return s.Message
+}
+
+func (s *ServerError) GetDetail() *string {
+	return s.Detail
 }
 
 func (s *ServerError) GetDescription() *string {

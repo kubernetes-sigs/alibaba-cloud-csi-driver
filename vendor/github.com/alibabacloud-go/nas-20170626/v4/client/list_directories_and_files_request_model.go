@@ -24,15 +24,15 @@ type iListDirectoriesAndFilesRequest interface {
 }
 
 type ListDirectoriesAndFilesRequest struct {
-	// Specifies whether to query only directories.
+	// Whether to list only directories.
 	//
 	// Valid values:
 	//
-	// 	- false (default): queries both directories and files.
+	// - `false` (default): Lists both directories and files.
 	//
-	// 	- true: queries only directories.
+	// - `true`: Lists only directories.
 	//
-	// >  If you set the StorageType parameter to All, you must set the DirectoryOnly parameter to true.
+	// > If you set `StorageType` to `All`, you must set `DirectoryOnly` to `true`.
 	//
 	// example:
 	//
@@ -46,17 +46,17 @@ type ListDirectoriesAndFilesRequest struct {
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The maximum number of directories or files to include in the results of each query.
+	// The maximum number of directories or files to return per page.
 	//
-	// Valid values: 10 to 128.
+	// Value range: 10–128
 	//
-	// Default value: 100.
+	// Default value: 100
 	//
 	// example:
 	//
 	// 100
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	// A continuation token used to retrieve the next page of results when the response is truncated.
 	//
 	// example:
 	//
@@ -64,7 +64,7 @@ type ListDirectoriesAndFilesRequest struct {
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	// The absolute path of the directory.
 	//
-	// The path must start with a forward slash (/) and must be a path that exists in the mount target.
+	// The path must start with a forward slash (/) and exist on the mount target.
 	//
 	// This parameter is required.
 	//
@@ -72,15 +72,15 @@ type ListDirectoriesAndFilesRequest struct {
 	//
 	// /pathway/to/folder
 	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
-	// The storage class.
+	// The storage type.
 	//
-	// 	- InfrequentAccess: the Infrequent Access (IA) storage class.
+	// - `InfrequentAccess`: infrequent access.
 	//
-	// 	- Archive: the Archive storage class.
+	// - `Archive`: archive storage.
 	//
-	// 	- All: all stored data.
+	// - `All`: all storage types.
 	//
-	// >  If you set the StorageType parameter to All, you must set the DirectoryOnly parameter to true.
+	// > If you set `StorageType` to `All`, you must set `DirectoryOnly` to `true`.
 	//
 	// This parameter is required.
 	//
