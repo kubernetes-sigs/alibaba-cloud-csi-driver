@@ -52,11 +52,25 @@ import (
 type controllerServer struct {
 	common.GenericControllerServer
 	vscManager     *internal.PrimaryVscManagerWithCache
+	ecsBackend     internal.Backend
+	lingjunBackend internal.Backend
 	attachDetacher internal.CPFSAttachDetacher
 	filesetManager internal.CPFSFileSetManager
 	locks          *utils.VolumeLocks
 	nasClient      *nasclient.Client
 	skipDetach     bool
+}
+
+// vscInstance pairs an instance ID with its VSC backend, selected from the node
+// kind the CSI layer already parsed. This is the single site that pairs the two;
+// it is only called for VSC-capable kinds (see nodeKind.supportsVSC), so any
+// non-Lingjun kind is nodeKindVSC and maps to ECS.
+func (cs *controllerServer) vscInstance(instanceID string, kind nodeKind) internal.Instance {
+	backend := cs.ecsBackend
+	if kind == nodeKindLingjun {
+		backend = cs.lingjunBackend
+	}
+	return internal.Instance{ID: instanceID, Backend: backend}
 }
 
 func newControllerServer(meta *metadata.Metadata) (*controllerServer, error) {
@@ -83,7 +97,9 @@ func newControllerServer(meta *metadata.Metadata) (*controllerServer, error) {
 	}
 
 	return &controllerServer{
-		vscManager:     internal.NewPrimaryVscManagerWithCache(efloClient, ecsClient),
+		vscManager:     internal.NewPrimaryVscManagerWithCache(),
+		ecsBackend:     internal.NewEcsBackend(ecsClient),
+		lingjunBackend: internal.NewEfloBackend(efloClient),
 		attachDetacher: internal.NewCPFSAttachDetacher(nasClient),
 		filesetManager: internal.NewCPFSFileSetManager(nasClient),
 		locks:          utils.NewVolumeLocks(),
@@ -246,7 +262,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 
 	// Get Primary VSC for the node (Lingjun or ECS w/ VSC enabled)
-	vscID, err := cs.vscManager.EnsurePrimaryVsc(ctx, instanceID)
+	vscID, err := cs.vscManager.EnsurePrimaryVsc(ctx, cs.vscInstance(instanceID, kind))
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -287,7 +303,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	if !kind.supportsVSC() || cs.skipDetach {
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
-	vsc, err := cs.vscManager.GetPrimaryVscOf(ctx, instanceID)
+	vsc, err := cs.vscManager.GetPrimaryVscOf(ctx, cs.vscInstance(instanceID, kind))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get vsc error: %v", err)
 	}
