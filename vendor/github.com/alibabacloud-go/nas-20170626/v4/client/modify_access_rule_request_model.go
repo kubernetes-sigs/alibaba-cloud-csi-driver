@@ -36,7 +36,7 @@ type ModifyAccessRuleRequest struct {
 	//
 	// vpc-test
 	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	// The rule ID.
+	// The ID of the permission rule.
 	//
 	// This parameter is required.
 	//
@@ -48,69 +48,73 @@ type ModifyAccessRuleRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- standard (default): General-purpose NAS file system.
+	// - standard (default): General-purpose NAS.
 	//
-	// 	- extreme: Extreme NAS file system.
+	// - extreme: Extreme NAS.
 	//
 	// example:
 	//
 	// standard
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The IPv6 address or CIDR block of the authorized object.
+	// The source IPv6 CIDR block.
 	//
-	// You must set this parameter to an IPv6 IP address or CIDR block.
+	// IPv6 addresses and CIDR blocks are supported.
 	//
-	// > 	- Only Extreme NAS file systems that reside in the China (Hohhot) region support IPv6.
+	// > - Only Extreme NAS file systems in the China (Hohhot) region support IPv6 CIDR blocks.
 	//
-	// >	- Only permission groups that reside in virtual private clouds (VPCs) support IPv6.
+	// > - Only VPCs are supported.
 	//
-	// >	- This parameter is unavailable if you specify the SourceCidrIp parameter.
+	// > - IPv4 and IPv6 are mutually exclusive. You cannot convert between the two types.
+	//
+	// > - You must specify either SourceCidrIp or Ipv6SourceCidrIp. You cannot leave both parameters empty, and you cannot specify both parameters at the same time.
 	//
 	// example:
 	//
 	// fe80::3d4a:80fd:f05d:****
 	Ipv6SourceCidrIp *string `json:"Ipv6SourceCidrIp,omitempty" xml:"Ipv6SourceCidrIp,omitempty"`
-	// The priority of the rule.
+	// The priority of the permission rule.
 	//
 	// Valid values: 1 to 100.
 	//
-	// Default value: 1, which indicates the highest priority.
+	// Default value: 1 (highest priority).
 	//
 	// example:
 	//
 	// 1
 	Priority *int32 `json:"Priority,omitempty" xml:"Priority,omitempty"`
-	// The access permissions of the authorized object on the file system.
+	// The read and write permission that the authorized object has on the file system.
 	//
 	// Valid values:
 	//
-	// 	- RDWR (default): the read and write permissions.
+	// - RDWR (default): read and write.
 	//
-	// 	- RDONLY: the read-only permissions.
+	// - RDONLY: read-only.
 	//
 	// example:
 	//
 	// RDWR
 	RWAccessType *string `json:"RWAccessType,omitempty" xml:"RWAccessType,omitempty"`
-	// The IP address or CIDR block of the authorized object.
+	// The IP address or CIDR block.
 	//
-	// You must set this parameter to an IP address or CIDR block.
+	// The value must be a single IP address or a CIDR block.
+	//
+	// > You must specify either SourceCidrIp or Ipv6SourceCidrIp. You cannot leave both parameters empty, and you cannot specify both parameters at the same time.
 	//
 	// example:
 	//
 	// ``192.0.**.**``
 	SourceCidrIp *string `json:"SourceCidrIp,omitempty" xml:"SourceCidrIp,omitempty"`
-	// The access permissions for different types of users in the authorized object.
+	// The access permissions that the system user of the authorization object has on the file system.
 	//
 	// Valid values:
 	//
-	// 	- no_squash: allows access from root users to the file system.
+	// - no_squash: allows access to the file system as the root user.
 	//
-	// 	- root_squash: grants root users the least permissions as the nobody user.
+	// - root_squash: maps the root user to the nobody user when the root user accesses the file system.
 	//
-	// 	- all_squash: grants all users the least permissions as the nobody user.
+	// - all_squash: maps all users to the nobody user regardless of the user identity used to access the file system.
 	//
-	// The nobody user has the least permissions in Linux and can access only the public content of the file system. This ensures the security of the file system.
+	// The nobody user is a default user in Linux. This user can access only public content on the server and has low privileges and high security.
 	//
 	// example:
 	//

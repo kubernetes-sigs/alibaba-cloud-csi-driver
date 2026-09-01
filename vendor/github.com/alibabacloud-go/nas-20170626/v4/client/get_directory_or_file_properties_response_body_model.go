@@ -16,7 +16,7 @@ type iGetDirectoryOrFilePropertiesResponseBody interface {
 }
 
 type GetDirectoryOrFilePropertiesResponseBody struct {
-	// The details about the file or directory.
+	// The properties of the directory or file.
 	Entry *GetDirectoryOrFilePropertiesResponseBodyEntry `json:"Entry,omitempty" xml:"Entry,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -62,65 +62,65 @@ func (s *GetDirectoryOrFilePropertiesResponseBody) Validate() error {
 }
 
 type GetDirectoryOrFilePropertiesResponseBodyEntry struct {
-	// The time when the file was queried.
+	// The time when the file was last accessed.
 	//
-	// The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format.
+	// The time is displayed in the ISO 8601 standard format and is returned in UTC. Format: YYYY-MM-DDThh:mm:ssZ.
 	//
-	// This parameter is returned only if the value of the Type parameter is File.
+	// This parameter is returned only if Type is set to File.
 	//
 	// example:
 	//
 	// 2021-02-01T10:08:08Z
 	ATime *string `json:"ATime,omitempty" xml:"ATime,omitempty"`
-	// The time when the metadata was modified.
+	// The time when the metadata of the file was last modified.
 	//
-	// The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format.
+	// The time is displayed in the ISO 8601 standard format and is returned in UTC. Format: YYYY-MM-DDThh:mm:ssZ.
 	//
-	// This parameter is returned only if the value of the Type parameter is File.
+	// This parameter is returned only if Type is set to File.
 	//
 	// example:
 	//
 	// 2021-02-11T10:08:10Z
 	CTime *string `json:"CTime,omitempty" xml:"CTime,omitempty"`
-	// Indicates whether the directory contains files stored in the Archive storage class.
+	// Indicates whether the directory contains an archive file.
 	//
-	// This parameter is returned only if the Type parameter is set to Directory.
+	// This parameter is returned only if Type is set to Directory.
 	//
 	// Valid values:
 	//
-	// 	- true: The directory contains files stored in the Archive storage class.
+	// - true: The directory contains at least one archive file.
 	//
-	// 	- false: The directory does not contain files stored in the Archive storage class.
+	// - false: The directory does not contain archive files.
 	//
 	// example:
 	//
 	// false
 	HasArchiveFile *bool `json:"HasArchiveFile,omitempty" xml:"HasArchiveFile,omitempty"`
-	// Indicates whether the directory contains files stored in the IA storage medium.
+	// Indicates whether the directory contains an Infrequent Access (IA) file.
 	//
-	// This parameter is returned only if the value of the Type parameter is Directory.
+	// This parameter is returned only if Type is set to Directory.
 	//
 	// Valid values:
 	//
-	// 	- true: The directory contains files stored in the IA storage medium.
+	// - true: The directory contains at least one IA file.
 	//
-	// 	- false: The directory does not contain files stored in the IA storage medium.
+	// - false: The directory does not contain IA files.
 	//
 	// example:
 	//
 	// true
 	HasInfrequentAccessFile *bool `json:"HasInfrequentAccessFile,omitempty" xml:"HasInfrequentAccessFile,omitempty"`
-	// The file or directory inode.
+	// The inode of the file or directory.
 	//
 	// example:
 	//
 	// 40
 	Inode *string `json:"Inode,omitempty" xml:"Inode,omitempty"`
-	// The time when the file was modified.
+	// The time when the file was last modified.
 	//
-	// The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format.
+	// The time is displayed in the ISO 8601 standard format and is returned in UTC. Format: YYYY-MM-DDThh:mm:ssZ.
 	//
-	// This parameter is returned only if the value of the Type parameter is File.
+	// This parameter is returned only if Type is set to File.
 	//
 	// example:
 	//
@@ -131,12 +131,14 @@ type GetDirectoryOrFilePropertiesResponseBodyEntry struct {
 	// example:
 	//
 	// file.txt
-	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
+	Name                     *string `json:"Name,omitempty" xml:"Name,omitempty"`
+	OfflineDuration          *int64  `json:"OfflineDuration,omitempty" xml:"OfflineDuration,omitempty"`
+	OfflineUnchangedDuration *int64  `json:"OfflineUnchangedDuration,omitempty" xml:"OfflineUnchangedDuration,omitempty"`
 	// The time when the last data retrieval task was run.
 	//
-	// The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format.
+	// The time is displayed in the ISO 8601 standard format and is returned in UTC. Format: YYYY-MM-DDThh:mm:ssZ.
 	//
-	// This parameter is returned only if the value of the Type parameter is File.
+	// This parameter is returned only if Type is set to File.
 	//
 	// example:
 	//
@@ -146,33 +148,33 @@ type GetDirectoryOrFilePropertiesResponseBodyEntry struct {
 	//
 	// Unit: bytes.
 	//
-	// This parameter is returned only if the value of the Type parameter is File.
+	// This parameter is returned only if Type is set to File.
 	//
 	// example:
 	//
 	// 1024
 	Size *int64 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The storage class of the file.
+	// The storage type of the file.
 	//
-	// This parameter is returned only if the value of the Type parameter is File.
+	// This parameter is returned only if Type is set to File.
 	//
 	// Valid values:
 	//
-	// 	- standard: General-purpose NAS file system
+	// - Standard: General-purpose NAS file systems
 	//
-	// 	- InfrequentAccess: the IA storage class.
+	// - InfrequentAccess: IA storage medium
 	//
 	// example:
 	//
 	// InfrequentAccess
 	StorageType *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
-	// The type of the query result.
+	// The type of the returned entry.
 	//
 	// Valid values:
 	//
-	// 	- File
+	// - File: The entry is a file.
 	//
-	// 	- Directory
+	// - Directory: The entry is a directory.
 	//
 	// example:
 	//
@@ -214,6 +216,14 @@ func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) GetMTime() *string {
 
 func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) GetName() *string {
 	return s.Name
+}
+
+func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) GetOfflineDuration() *int64 {
+	return s.OfflineDuration
+}
+
+func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) GetOfflineUnchangedDuration() *int64 {
+	return s.OfflineUnchangedDuration
 }
 
 func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) GetRetrieveTime() *string {
@@ -264,6 +274,16 @@ func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) SetMTime(v string) *GetD
 
 func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) SetName(v string) *GetDirectoryOrFilePropertiesResponseBodyEntry {
 	s.Name = &v
+	return s
+}
+
+func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) SetOfflineDuration(v int64) *GetDirectoryOrFilePropertiesResponseBodyEntry {
+	s.OfflineDuration = &v
+	return s
+}
+
+func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) SetOfflineUnchangedDuration(v int64) *GetDirectoryOrFilePropertiesResponseBodyEntry {
+	s.OfflineUnchangedDuration = &v
 	return s
 }
 

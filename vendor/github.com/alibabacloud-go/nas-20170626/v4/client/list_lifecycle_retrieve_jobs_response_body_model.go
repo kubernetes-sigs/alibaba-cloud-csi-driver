@@ -22,21 +22,21 @@ type iListLifecycleRetrieveJobsResponseBody interface {
 }
 
 type ListLifecycleRetrieveJobsResponseBody struct {
-	// The details about the data retrieval tasks.
+	// The collection of data retrieval task information.
 	LifecycleRetrieveJobs []*ListLifecycleRetrieveJobsResponseBodyLifecycleRetrieveJobs `json:"LifecycleRetrieveJobs,omitempty" xml:"LifecycleRetrieveJobs,omitempty" type:"Repeated"`
-	// The page number of the returned page.
+	// The page number of the list.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of entries returned per page.
+	// The number of data retrieval tasks on each page.
 	//
 	// example:
 	//
 	// 10
 	PageSize *int32 `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	// The ID of the request.
+	// The request ID.
 	//
 	// example:
 	//
@@ -119,33 +119,33 @@ func (s *ListLifecycleRetrieveJobsResponseBody) Validate() error {
 type ListLifecycleRetrieveJobsResponseBodyLifecycleRetrieveJobs struct {
 	// The time when the task was created.
 	//
-	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
+	// The time follows the ISO 8601 standard in the format of `yyyy-MM-ddTHH:mm:ssZ`.
 	//
 	// example:
 	//
 	// 2021-02-30T10:08:08Z
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The total number of files that are read in the data retrieval task.
+	// The total number of files read by the data retrieval task.
 	//
 	// example:
 	//
 	// 100
 	DiscoveredFileCount *int64 `json:"DiscoveredFileCount,omitempty" xml:"DiscoveredFileCount,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// example:
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The ID of the data retrieval task.
+	// The data retrieval task ID.
 	//
 	// example:
 	//
 	// lrj-nfstest-ia-160****853-hshvw
 	JobId *string `json:"JobId,omitempty" xml:"JobId,omitempty"`
-	// The execution path of the data retrieval task.
+	// The execution paths of the data retrieval task.
 	Paths []*string `json:"Paths,omitempty" xml:"Paths,omitempty" type:"Repeated"`
-	// The total number of files that are retrieved.
+	// The number of files successfully retrieved by the data retrieval task.
 	//
 	// example:
 	//
@@ -153,31 +153,31 @@ type ListLifecycleRetrieveJobsResponseBodyLifecycleRetrieveJobs struct {
 	RetrievedFileCount *int64 `json:"RetrievedFileCount,omitempty" xml:"RetrievedFileCount,omitempty"`
 	// The status of the data retrieval task. Valid values:
 	//
-	// 	- active: The task is running.
+	// - active: running.
 	//
-	// 	- canceled: The task is canceled.
+	// - canceled: canceled.
 	//
-	// 	- completed: The task is completed.
+	// - completed: completed.
 	//
-	// 	- failed: The task has failed.
+	// - failed: failed.
 	//
 	// example:
 	//
 	// completed
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The storage class.
+	// The storage class. Valid values:
 	//
-	// 	- InfrequentAccess: the IA storage class.
+	// - InfrequentAccess: IA storage class.
 	//
-	// 	- Archive: the Archive storage class.
+	// - Archive: Archive storage class.
 	//
 	// example:
 	//
 	// InfrequentAccess
 	StorageType *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
-	// The time when the task was updated.
+	// The time when the task was last updated.
 	//
-	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
+	// The time follows the ISO 8601 standard in the format of `yyyy-MM-ddTHH:mm:ssZ`.
 	//
 	// example:
 	//

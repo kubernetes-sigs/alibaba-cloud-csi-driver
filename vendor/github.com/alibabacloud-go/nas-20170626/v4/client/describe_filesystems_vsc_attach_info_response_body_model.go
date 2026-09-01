@@ -22,7 +22,7 @@ type iDescribeFilesystemsVscAttachInfoResponseBody interface {
 }
 
 type DescribeFilesystemsVscAttachInfoResponseBody struct {
-	// The number of directories to return for each query.
+	// The number of entries returned per query.
 	//
 	// Valid values: 10 to 1000.
 	//
@@ -32,7 +32,7 @@ type DescribeFilesystemsVscAttachInfoResponseBody struct {
 	//
 	// 10
 	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// Query token, which is the NextToken value returned from the previous API call.
+	// The query token. Set the value to the NextToken value returned in the previous API call.
 	//
 	// example:
 	//
@@ -44,13 +44,12 @@ type DescribeFilesystemsVscAttachInfoResponseBody struct {
 	//
 	// BC7C825C-5F65-4B56-BEF6-98C56C7C****
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The total number of associated information.
+	// The total number of association entries.
 	//
 	// example:
 	//
 	// 1
-	TotalCount *int32 `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-	// A collection of file system and virtual channel association data.
+	TotalCount    *int32                                                     `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
 	VscAttachInfo *DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfo `json:"VscAttachInfo,omitempty" xml:"VscAttachInfo,omitempty" type:"Struct"`
 }
 
@@ -151,34 +150,9 @@ func (s *DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfo) Validate() e
 }
 
 type DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo struct {
-	// The ID of the file system.
-	//
-	// example:
-	//
-	// bmcpfs-290t15yn4uo8lid****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The association status of the file system and virtual channel. Valid values:
-	//
-	// 	- Attaching: The association is being made.
-	//
-	// 	- Attached: The association is complete.
-	//
-	// 	- Detaching: The association is being canceled.
-	//
-	// 	- Detached: The association is canceled.
-	//
-	// 	- Failed: The association failed.
-	//
-	// example:
-	//
-	// Attached
-	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The ID of the virtual storage channel.
-	//
-	// example:
-	//
-	// vsc-8vb864o3ppwfvh****
-	VscId *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
+	Status       *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	VscId        *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
 }
 
 func (s DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo) String() string {

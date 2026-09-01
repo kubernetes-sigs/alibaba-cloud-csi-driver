@@ -16,7 +16,7 @@ type iDeleteSnapshotResponseBody interface {
 type DeleteSnapshotResponseBody struct {
 	// The request ID.
 	//
-	// Every response returns a unique request ID regardless of whether the request is successful.
+	// The request ID is returned regardless of whether the API call is successful.
 	//
 	// example:
 	//

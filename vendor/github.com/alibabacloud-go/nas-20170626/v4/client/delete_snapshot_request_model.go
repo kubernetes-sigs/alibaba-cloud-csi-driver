@@ -14,7 +14,7 @@ type iDeleteSnapshotRequest interface {
 }
 
 type DeleteSnapshotRequest struct {
-	// The snapshot ID.
+	// The snapshot ID. After a snapshot is successfully created on an Advanced Extreme NAS file system by calling [CreateSnapshot](https://www.alibabacloud.com/help/en/nas/developer-reference/api-nas-2017-06-26-createsnapshot), call [DescribeSnapshots](https://www.alibabacloud.com/help/en/nas/developer-reference/api-nas-2017-06-26-describesnapshots) (with FileSystemType set to extreme) to query the snapshot list and obtain the snapshot ID.
 	//
 	// This parameter is required.
 	//

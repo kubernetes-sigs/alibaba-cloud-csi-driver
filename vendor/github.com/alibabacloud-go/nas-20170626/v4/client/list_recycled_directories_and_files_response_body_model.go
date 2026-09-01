@@ -20,13 +20,13 @@ type iListRecycledDirectoriesAndFilesResponseBody interface {
 type ListRecycledDirectoriesAndFilesResponseBody struct {
 	// The information about files or directories in the recycle bin.
 	Entries []*ListRecycledDirectoriesAndFilesResponseBodyEntries `json:"Entries,omitempty" xml:"Entries,omitempty" type:"Repeated"`
-	// A pagination token.
+	// The pagination token for the next page.
 	//
-	// If all the files and directories are incompletely returned in a query, the return value of the NextToken parameter is not empty. In this case, you can specify a valid value for the NextToken parameter to continue the query.
+	// If a single query does not return all files and directories, a non-empty NextToken is returned. You can specify the correct NextToken in subsequent queries to continue listing.
 	//
 	// example:
 	//
-	// CKuO8QMSIjE2OTc3NzI0NjI5MTcyMTYyNDVfMzEzNTUyMF81MjEzODY=
+	// None
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	// The request ID.
 	//
@@ -85,25 +85,25 @@ func (s *ListRecycledDirectoriesAndFilesResponseBody) Validate() error {
 }
 
 type ListRecycledDirectoriesAndFilesResponseBodyEntries struct {
-	// The time when the file or directory was last accessed.
+	// The most recent access time. The time follows the ISO 8601 standard in UTC. Format: yyyy-MM-ddTHH:mm:ssZ.
 	//
 	// example:
 	//
 	// 2019-10-30T10:08:08Z
 	ATime *string `json:"ATime,omitempty" xml:"ATime,omitempty"`
-	// The time when the metadata was last modified.
+	// The most recent metadata modification time. The time follows the ISO 8601 standard in UTC. Format: yyyy-MM-ddTHH:mm:ssZ.
 	//
 	// example:
 	//
 	// 2019-10-30T10:08:08Z
 	CTime *string `json:"CTime,omitempty" xml:"CTime,omitempty"`
-	// The time when the file or directory was deleted.
+	// The time when the file or directory was deleted. The time follows the ISO 8601 standard in UTC. Format: yyyy-MM-ddTHH:mm:ssZ.
 	//
 	// example:
 	//
 	// 2021-05-30T10:08:08Z
 	DeleteTime *string `json:"DeleteTime,omitempty" xml:"DeleteTime,omitempty"`
-	// The IDs of the files or directories.
+	// The FileId of the file or directory.
 	//
 	// example:
 	//
@@ -115,31 +115,31 @@ type ListRecycledDirectoriesAndFilesResponseBodyEntries struct {
 	//
 	// 04***08
 	Inode *string `json:"Inode,omitempty" xml:"Inode,omitempty"`
-	// The time when the file or directory was last modified.
+	// The most recent modification time. The time follows the ISO 8601 standard in UTC. Format: yyyy-MM-ddTHH:mm:ssZ.
 	//
 	// example:
 	//
 	// 2019-10-30T10:08:08Z
 	MTime *string `json:"MTime,omitempty" xml:"MTime,omitempty"`
-	// The name of the file or directory before it was deleted.
+	// The name of the file or directory before deletion.
 	//
 	// example:
 	//
 	// test001
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The size of the file. Unit: bytes.
+	// The file size. Unit: bytes.
 	//
-	// The value 0 is returned for this parameter if Directory is returned for the Type parameter.
+	// If Type is set to Directory, the value 0 is returned.
 	//
 	// example:
 	//
 	// 1073741824
 	Size *int64 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The type of the returned object. Valid values:
+	// The object type. Valid values:
 	//
-	// 	- File
+	// - File: file
 	//
-	// 	- Directory
+	// - Directory: folder
 	//
 	// example:
 	//

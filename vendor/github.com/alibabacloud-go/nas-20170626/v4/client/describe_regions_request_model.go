@@ -18,33 +18,31 @@ type iDescribeRegionsRequest interface {
 }
 
 type DescribeRegionsRequest struct {
-	// The type of the file system.
+	// The file system type.
 	//
 	// Valid values:
 	//
-	// 	- all: all types of file systems
+	// - all: all types.
 	//
-	// 	- standard (default): General-purpose NAS file system
+	// - standard (default): General-purpose NAS.
 	//
-	// 	- extreme: Extreme NAS file system
+	// - extreme: Extreme NAS.
 	//
-	// 	- cpfs: Cloud Parallel File Storage (CPFS) file system
-	//
-	// > CPFS file systems are available only on the China site (aliyun.com).
+	// - cpfs: CPFS.
 	//
 	// example:
 	//
 	// standard
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The page number.
+	// The page number of the list.
 	//
-	// Pages start from page 1. Default value: 1.
+	// Start value (default value): 1.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of entries per page.
+	// The number of regions on each page during a paged query.
 	//
 	// Valid values: 1 to 100.
 	//

@@ -16,7 +16,7 @@ type iDescribeSmbAclResponseBody interface {
 }
 
 type DescribeSmbAclResponseBody struct {
-	// The information about the ACL feature.
+	// The ACL information.
 	Acl *DescribeSmbAclResponseBodyAcl `json:"Acl,omitempty" xml:"Acl,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -62,53 +62,53 @@ func (s *DescribeSmbAclResponseBody) Validate() error {
 }
 
 type DescribeSmbAclResponseBodyAcl struct {
-	// Indicates whether the file system allows anonymous access. Valid values:
+	// Indicates whether anonymous access is allowed. Valid values:
 	//
-	// 	- true: The file system allows anonymous access.
+	// - true: Anonymous access is allowed.
 	//
-	// 	- false: The file system does not allow anonymous access.
+	// - false: Anonymous access is not allowed.
 	//
 	// example:
 	//
 	// true
 	EnableAnonymousAccess *bool `json:"EnableAnonymousAccess,omitempty" xml:"EnableAnonymousAccess,omitempty"`
-	// Indicates whether the ACL feature is enabled. Valid values:
+	// Indicates whether the SMB AD ACL feature is enabled.
 	//
-	// 	- true: The ACL feature is enabled.
+	// - true: The SMB AD ACL feature is enabled.
 	//
-	// 	- false: The ACL feature is disabled.
+	// - false: The SMB AD ACL feature is not enabled.
 	//
 	// example:
 	//
 	// true
 	Enabled *bool `json:"Enabled,omitempty" xml:"Enabled,omitempty"`
-	// Indicates whether encryption in transit is enabled. Valid values:
+	// Indicates whether encryption in transit is enabled.
 	//
-	// 	- true: Encryption in transit is enabled.
+	// - true: Encryption in transit is enabled.
 	//
-	// 	- false: Encryption in transit is disabled.
+	// - false: Encryption in transit is not enabled.
 	//
 	// example:
 	//
 	// true
 	EncryptData *bool `json:"EncryptData,omitempty" xml:"EncryptData,omitempty"`
-	// The home directory of each user.
+	// The home directory path for each user.
 	//
 	// example:
 	//
 	// /home
 	HomeDirPath *string `json:"HomeDirPath,omitempty" xml:"HomeDirPath,omitempty"`
-	// Indicates whether the file system denies access from non-encrypted clients. Valid values:
+	// Indicates whether unencrypted clients are rejected.
 	//
-	// 	- true: The file system denies access from non-encrypted clients.
+	// - true: Unencrypted clients are rejected.
 	//
-	// 	- false: The file system allows access from non-encrypted clients.
+	// - false: Unencrypted clients are not rejected.
 	//
 	// example:
 	//
 	// true
 	RejectUnencryptedAccess *bool `json:"RejectUnencryptedAccess,omitempty" xml:"RejectUnencryptedAccess,omitempty"`
-	// The ID of a super admin.
+	// The ID of the superuser.
 	//
 	// example:
 	//

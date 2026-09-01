@@ -16,7 +16,7 @@ type iGetRecycleBinAttributeResponseBody interface {
 }
 
 type GetRecycleBinAttributeResponseBody struct {
-	// The description of the recycle bin.
+	// The recycle bin description.
 	RecycleBinAttribute *GetRecycleBinAttributeResponseBodyRecycleBinAttribute `json:"RecycleBinAttribute,omitempty" xml:"RecycleBinAttribute,omitempty" type:"Struct"`
 	// The request ID.
 	//
@@ -62,45 +62,45 @@ func (s *GetRecycleBinAttributeResponseBody) Validate() error {
 }
 
 type GetRecycleBinAttributeResponseBodyRecycleBinAttribute struct {
-	// The size of the archived data that is dumped to the recycle bin. Unit: bytes.
+	// The storage usage of archived data in the recycle bin. Unit: bytes.
 	//
 	// example:
 	//
 	// 1611661312
 	ArchiveSize *int64 `json:"ArchiveSize,omitempty" xml:"ArchiveSize,omitempty"`
-	// The time at which the recycle bin was enabled.
+	// The time when the recycle bin was enabled. The time follows the ISO 8601 standard in UTC. Format: yyyy-MM-ddTHH:mm:ssZ.
 	//
 	// example:
 	//
 	// 2021-05-30T10:08:08Z
 	EnableTime *string `json:"EnableTime,omitempty" xml:"EnableTime,omitempty"`
-	// The retention period of the files in the recycle bin. Unit: days.
+	// The retention period of files in the recycle bin. Unit: days.
 	//
-	// If the recycle bin is disabled, 0 is returned for this parameter.
+	// If the recycle bin is disabled, this parameter returns 0.
 	//
 	// example:
 	//
 	// 0
 	ReservedDays *int64 `json:"ReservedDays,omitempty" xml:"ReservedDays,omitempty"`
-	// The size of the Infrequent Access (IA) data that is dumped to the recycle bin. Unit: bytes.
+	// The storage usage of Infrequent Access (IA) data in the recycle bin. Unit: bytes.
 	//
 	// example:
 	//
 	// 100
 	SecondarySize *int64 `json:"SecondarySize,omitempty" xml:"SecondarySize,omitempty"`
-	// The size of the files that are dumped to the recycle bin. Unit: bytes.
+	// The storage usage of files in the recycle bin. Unit: bytes.
 	//
 	// example:
 	//
 	// 100
 	Size *int64 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The status of the recycle bin.
+	// The recycle bin status.
 	//
 	// Valid values:
 	//
-	// 	- Enable: The recycle bin is enabled.
+	// - Enable: The recycle bin is enabled.
 	//
-	// 	- Disable: The recycle bin is disabled.
+	// - Disable: The recycle bin is disabled.
 	//
 	// example:
 	//

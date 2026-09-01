@@ -16,11 +16,11 @@ type iCreateProtocolServiceResponseBody interface {
 }
 
 type CreateProtocolServiceResponseBody struct {
-	// The ID of the protocol service.
+	// The protocol service cluster ID.
 	//
 	// example:
 	//
-	// ptc-123****
+	// ptc-197ed6a00f2b****
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
 	// The request ID.
 	//

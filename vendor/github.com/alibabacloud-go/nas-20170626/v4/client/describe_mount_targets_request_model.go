@@ -22,21 +22,21 @@ type iDescribeMountTargetsRequest interface {
 }
 
 type DescribeMountTargetsRequest struct {
-	// The dual-stack (IPv4 and IPv6) domain name of the mount target.
+	// The IPv4 and IPv6 dual-stack mount target.
 	//
-	// > Only Extreme NAS file systems that reside in the Chinese mainland support IPv6.
+	// > Currently, only Extreme NAS in regions in the Chinese mainland supports IPv6.
 	//
 	// example:
 	//
 	// 1ca404****-x****.dualstack.cn-hangzhou.nas.aliyuncs.com
 	DualStackMountTargetDomain *string `json:"DualStackMountTargetDomain,omitempty" xml:"DualStackMountTargetDomain,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
-	// 	- Sample ID of a General-purpose NAS file system: 31a8e4\\*\\*\\*\\*.
+	// - General-purpose NAS: 31a8e4\\*\\*\\*\\*.
 	//
-	// 	- The IDs of Extreme NAS file systems must start with `extreme-`, for example, extreme-0015\\*\\*\\*\\*.
+	// - Extreme NAS: must start with `extreme-`, for example, extreme-0015\\*\\*\\*\\*.
 	//
-	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-125487\\*\\*\\*\\*.
+	// - CPFS: must start with `cpfs-`, for example, cpfs-125487\\*\\*\\*\\*.
 	//
 	// This parameter is required.
 	//
@@ -44,21 +44,21 @@ type DescribeMountTargetsRequest struct {
 	//
 	// 1ca404****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The address of the mount target.
+	// The mount target address.
 	//
 	// example:
 	//
 	// 1ca404****-x****.cn-hangzhou.nas.aliyuncs.com
 	MountTargetDomain *string `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
-	// The page number.
+	// The page number of the list.
 	//
-	// Pages start from page 1. Default value: 1.
+	// Start value (default value): 1.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of entries per page.
+	// The number of mount targets on each page.
 	//
 	// Valid values: 1 to 100.
 	//

@@ -22,7 +22,7 @@ type iListRecycleBinJobsRequest interface {
 }
 
 type ListRecycleBinJobsRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// This parameter is required.
 	//
@@ -30,21 +30,21 @@ type ListRecycleBinJobsRequest struct {
 	//
 	// 1ca404****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The job ID.
+	// The task ID.
 	//
 	// example:
 	//
 	// rb-15****ed-r-1625****2441
 	JobId *string `json:"JobId,omitempty" xml:"JobId,omitempty"`
-	// The page number.
+	// The page number of the current page in a paged query.
 	//
-	// Pages start from page 1. Default value: 1.
+	// Start value (default value): 1.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int64 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of entries per page.
+	// The number of entries per page in a paged query.
 	//
 	// Valid values: 1 to 100.
 	//
@@ -54,21 +54,21 @@ type ListRecycleBinJobsRequest struct {
 	//
 	// 10
 	PageSize *int64 `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	// The job status. Valid values:
+	// The task status. Valid values:
 	//
-	// 	- Running: The job is running.
+	// - Running: The task is running.
 	//
-	// 	- Defragmenting: The job is defragmenting data.
+	// - Defragmenting: Data is being defragmented.
 	//
-	// 	- PartialSuccess: The job is partially completed.
+	// - PartialSuccess: The task partially succeeded.
 	//
-	// 	- Success: The job is completed.
+	// - Success: The task succeeded.
 	//
-	// 	- Fail: The job failed.
+	// - Fail: The task failed.
 	//
-	// 	- Cancelled: The job is canceled.
+	// - Cancelled: The task is canceled.
 	//
-	// 	- all (default)
+	// - All (default): All statuses.
 	//
 	// example:
 	//

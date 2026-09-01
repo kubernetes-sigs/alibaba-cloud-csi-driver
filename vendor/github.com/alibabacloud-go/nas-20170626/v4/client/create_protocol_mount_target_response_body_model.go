@@ -16,11 +16,11 @@ type iCreateProtocolMountTargetResponseBody interface {
 }
 
 type CreateProtocolMountTargetResponseBody struct {
-	// The ID of the export directory for the protocol service.
+	// The ID of the protocol service export directory.
 	//
 	// example:
 	//
-	// exp-123****
+	// exp-19abf5beab8d****
 	ExportId *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
 	// The request ID.
 	//

@@ -631,19 +631,22 @@ type iParams interface {
 	GetReqBodyType() *string
 	SetStyle(v string) *Params
 	GetStyle() *string
+	SetWebsocketSubProtocol(v string) *Params
+	GetWebsocketSubProtocol() *string
 }
 
 type Params struct {
 	dara.Model
-	Action      *string `json:"action,omitempty" xml:"action,omitempty" require:"true"`
-	Version     *string `json:"version,omitempty" xml:"version,omitempty" require:"true"`
-	Protocol    *string `json:"protocol,omitempty" xml:"protocol,omitempty" require:"true"`
-	Pathname    *string `json:"pathname,omitempty" xml:"pathname,omitempty" require:"true"`
-	Method      *string `json:"method,omitempty" xml:"method,omitempty" require:"true"`
-	AuthType    *string `json:"authType,omitempty" xml:"authType,omitempty" require:"true"`
-	BodyType    *string `json:"bodyType,omitempty" xml:"bodyType,omitempty" require:"true"`
-	ReqBodyType *string `json:"reqBodyType,omitempty" xml:"reqBodyType,omitempty" require:"true"`
-	Style       *string `json:"style,omitempty" xml:"style,omitempty"`
+	Action               *string `json:"action,omitempty" xml:"action,omitempty" require:"true"`
+	Version              *string `json:"version,omitempty" xml:"version,omitempty" require:"true"`
+	Protocol             *string `json:"protocol,omitempty" xml:"protocol,omitempty" require:"true"`
+	Pathname             *string `json:"pathname,omitempty" xml:"pathname,omitempty" require:"true"`
+	Method               *string `json:"method,omitempty" xml:"method,omitempty" require:"true"`
+	AuthType             *string `json:"authType,omitempty" xml:"authType,omitempty" require:"true"`
+	BodyType             *string `json:"bodyType,omitempty" xml:"bodyType,omitempty" require:"true"`
+	ReqBodyType          *string `json:"reqBodyType,omitempty" xml:"reqBodyType,omitempty" require:"true"`
+	Style                *string `json:"style,omitempty" xml:"style,omitempty"`
+	WebsocketSubProtocol *string `json:"websocketSubProtocol,omitempty" xml:"websocketSubProtocol,omitempty"`
 }
 
 func (s Params) String() string {
@@ -732,6 +735,15 @@ func (s *Params) SetReqBodyType(v string) *Params {
 
 func (s *Params) SetStyle(v string) *Params {
 	s.Style = &v
+	return s
+}
+
+func (s *Params) GetWebsocketSubProtocol() *string {
+	return s.WebsocketSubProtocol
+}
+
+func (s *Params) SetWebsocketSubProtocol(v string) *Params {
+	s.WebsocketSubProtocol = &v
 	return s
 }
 
