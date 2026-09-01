@@ -1,10 +1,10 @@
-# httpmock [![Build Status](https://github.com/jarcoal/httpmock/workflows/Build/badge.svg?branch=v1)](https://github.com/jarcoal/httpmock/actions?query=workflow%3ABuild) [![Coverage Status](https://coveralls.io/repos/github/jarcoal/httpmock/badge.svg?branch=v1)](https://coveralls.io/github/jarcoal/httpmock?branch=v1) [![GoDoc](https://godoc.org/github.com/jarcoal/httpmock?status.svg)](https://godoc.org/github.com/jarcoal/httpmock) [![Version](https://img.shields.io/github/tag/jarcoal/httpmock.svg)](https://github.com/jarcoal/httpmock/releases) [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge.svg)](https://github.com/avelino/awesome-go/#testing)
+# httpmock [![Build Status](https://github.com/jarcoal/httpmock/actions/workflows/ci.yml/badge.svg?branch=v1)](https://github.com/jarcoal/httpmock/actions?query=workflow%3ABuild) [![Coverage Status](https://coveralls.io/repos/github/jarcoal/httpmock/badge.svg?branch=v1)](https://coveralls.io/github/jarcoal/httpmock?branch=v1) [![GoDoc](https://godoc.org/github.com/jarcoal/httpmock?status.svg)](https://godoc.org/github.com/jarcoal/httpmock) [![Version](https://img.shields.io/github/tag/jarcoal/httpmock.svg)](https://github.com/jarcoal/httpmock/releases) [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge.svg)](https://github.com/avelino/awesome-go/#testing)
 
 Easy mocking of http responses from external resources.
 
 ## Install
 
-Currently supports Go 1.13 to 1.21 and is regularly tested against tip.
+Currently supports Go 1.16 to 1.26 and is regularly tested against tip.
 
 `v1` branch has to be used instead of `master`.
 
@@ -23,8 +23,7 @@ populate your `go.mod` with the latest httpmock release, now
 ### Simple Example:
 ```go
 func TestFetchArticles(t *testing.T) {
-  httpmock.Activate()
-  defer httpmock.DeactivateAndReset()
+  httpmock.Activate(t)
 
   // Exact URL match
   httpmock.RegisterResponder("GET", "https://api.mybiz.com/articles",
@@ -51,8 +50,7 @@ func TestFetchArticles(t *testing.T) {
 ### Advanced Example:
 ```go
 func TestFetchArticles(t *testing.T) {
-  httpmock.Activate()
-  defer httpmock.DeactivateAndReset()
+  httpmock.Activate(t)
 
   // our database of articles
   articles := make([]map[string]interface{}, 0)
@@ -138,18 +136,13 @@ type MySuite struct{}
 
 func (s *MySuite) Setup(t *td.T) error {
   // block all HTTP requests
-  httpmock.Activate()
+  httpmock.Activate(t)
   return nil
 }
 
 func (s *MySuite) PostTest(t *td.T, testName string) error {
   // remove any mocks after each test
   httpmock.Reset()
-  return nil
-}
-
-func (s *MySuite) Destroy(t *td.T) error {
-  httpmock.DeactivateAndReset()
   return nil
 }
 
@@ -214,12 +207,17 @@ var _ = Describe("Articles", func() {
 import (
   // ...
   "github.com/jarcoal/httpmock"
-  "github.com/go-resty/resty"
+  "github.com/go-resty/resty/v2"
 )
 // ...
+
+// global client (using resty.New() creates a new transport each time,
+// so you need to use the same one here and when making the request)
+var client = resty.New()
+
 var _ = BeforeSuite(func() {
   // block all HTTP requests
-  httpmock.ActivateNonDefault(resty.DefaultClient.GetClient())
+  httpmock.ActivateNonDefault(client.GetClient())
 })
 
 var _ = BeforeEach(func() {
@@ -237,18 +235,26 @@ var _ = AfterSuite(func() {
 import (
   // ...
   "github.com/jarcoal/httpmock"
-  "github.com/go-resty/resty"
 )
+
+type Article struct {
+	Status struct {
+		Message string `json:"message"`
+		Code    int    `json:"code"`
+	} `json:"status"`
+}
 
 var _ = Describe("Articles", func() {
   It("returns a list of articles", func() {
     fixture := `{"status":{"message": "Your message", "code": 200}}`
-    responder := httpmock.NewStringResponder(200, fixture)
+    // have to use NewJsonResponder to get an application/json content-type
+    // alternatively, create a go object instead of using json.RawMessage
+    responder, _ := httpmock.NewJsonResponder(200, json.RawMessage(`{"status":{"message": "Your message", "code": 200}}`)
     fakeUrl := "https://api.mybiz.com/articles.json"
     httpmock.RegisterResponder("GET", fakeUrl, responder)
 
     // fetch the article into struct
-    articleObject := &models.Article{}
+    articleObject := &Article{}
     _, err := resty.R().SetResult(articleObject).Get(fakeUrl)
 
     // do stuff with the article object ...
