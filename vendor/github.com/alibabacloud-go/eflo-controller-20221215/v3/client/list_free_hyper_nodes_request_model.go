@@ -26,28 +26,46 @@ type iListFreeHyperNodesRequest interface {
 }
 
 type ListFreeHyperNodesRequest struct {
+	// The cluster ID.
+	//
 	// example:
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// The machine type.
+	//
 	// example:
 	//
 	// efg1.nvga1
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
+	// The number of entries to return on each page. The maximum value is 100.
+	//
+	// Default value:
+	//
+	// • If you do not set this parameter or you set a value less than 20, the default value is 20.
+	//
+	// • If you set a value greater than 100, the default value is 100.
+	//
 	// example:
 	//
 	// 20
 	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// The token to retrieve the next page of results. Set this parameter to the NextToken value from the previous response.
+	//
 	// example:
 	//
 	// a3f2224a5ec7224116c4f5246120****
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The resource group ID.
+	//
 	// example:
 	//
 	// rg-aekzyqdwnfabx6q
-	ResourceGroupId *string                          `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	Status          []*string                        `json:"Status,omitempty" xml:"Status,omitempty" type:"Repeated"`
-	Tags            []*ListFreeHyperNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	// A list of statuses of unused nodes to return.
+	Status []*string `json:"Status,omitempty" xml:"Status,omitempty" type:"Repeated"`
+	// The list of tags.
+	Tags []*ListFreeHyperNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 }
 
 func (s ListFreeHyperNodesRequest) String() string {
@@ -135,10 +153,14 @@ func (s *ListFreeHyperNodesRequest) Validate() error {
 }
 
 type ListFreeHyperNodesRequestTags struct {
+	// The tag key.
+	//
 	// example:
 	//
 	// my_key
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The tag value.
+	//
 	// example:
 	//
 	// 129

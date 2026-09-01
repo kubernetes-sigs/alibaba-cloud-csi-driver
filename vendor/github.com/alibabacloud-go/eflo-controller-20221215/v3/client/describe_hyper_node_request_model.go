@@ -14,6 +14,8 @@ type iDescribeHyperNodeRequest interface {
 }
 
 type DescribeHyperNodeRequest struct {
+	// The ID of the hyper node.
+	//
 	// This parameter is required.
 	//
 	// example:

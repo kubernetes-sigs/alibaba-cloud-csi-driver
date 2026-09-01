@@ -18,13 +18,13 @@ type iListFreeNodesResponseBody interface {
 }
 
 type ListFreeNodesResponseBody struct {
-	// The returned pagination token which can be used in the next request to retrieve a new page of results.
+	// The token returned for the next query.
 	//
 	// example:
 	//
 	// a3f2224a5ec7224116c4f5246120abe4
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The nodes.
+	// The list of nodes.
 	Nodes []*ListFreeNodesResponseBodyNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
 	// The request ID.
 	//
@@ -93,25 +93,27 @@ type ListFreeNodesResponseBodyNodes struct {
 	//
 	// example:
 	//
-	// 1652321554
+	// 2026-02-02T11:27:07
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The time when the node expires.
+	// The expiration time of the machine.
 	//
 	// example:
 	//
-	// 1673107200
+	// 2026-03-03T00:00:00
 	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// The cluster number.
+	// The cluster ID.
 	//
 	// example:
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// The hyper node ID.
+	//
 	// example:
 	//
 	// e01-cn-zvp2tgykr08
 	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
-	// The instance type.
+	// The machine type.
 	//
 	// example:
 	//
@@ -127,7 +129,7 @@ type ListFreeNodesResponseBodyNodes struct {
 	//
 	// example:
 	//
-	// Unused
+	// Extending
 	OperatingState *string `json:"OperatingState,omitempty" xml:"OperatingState,omitempty"`
 	// The resource group ID.
 	//
@@ -135,13 +137,13 @@ type ListFreeNodesResponseBodyNodes struct {
 	//
 	// rg-aekzkkbrpl4owgy
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The serial number of the node.
+	// The serial number (SN) of the machine.
 	//
 	// example:
 	//
 	// sn_pozkHBgicd
 	Sn *string `json:"Sn,omitempty" xml:"Sn,omitempty"`
-	// The tags.
+	// The list of tags.
 	Tags []*ListFreeNodesResponseBodyNodesTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 	// The zone ID.
 	//
@@ -285,13 +287,13 @@ type ListFreeNodesResponseBodyNodesTags struct {
 	//
 	// example:
 	//
-	// aa_key
+	// alarm_xdc
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	// The tag value.
 	//
 	// example:
 	//
-	// aa_vakye
+	// true
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

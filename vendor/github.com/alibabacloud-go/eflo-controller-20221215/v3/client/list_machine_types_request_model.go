@@ -14,7 +14,7 @@ type iListMachineTypesRequest interface {
 }
 
 type ListMachineTypesRequest struct {
-	// The name of the instance type.
+	// The name of the machine type.
 	//
 	// example:
 	//
