@@ -1,6 +1,7 @@
 package customfuse
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -43,7 +44,7 @@ func NewDriver() *Driver {
 	}
 	m := &extendedMounter{
 		driver:    driver,
-		Interface: mount.New(""),
+		Interface: mount.NewWithoutSystemd(""),
 	}
 	driver.Mounter = mounter.NewForMounter(
 		m,
@@ -101,6 +102,7 @@ type extendedMounter struct {
 var _ mounter.Mounter = &extendedMounter{}
 
 func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
+	startTime := time.Now()
 	logger := klog.FromContext(ctx)
 	target := op.Target
 
@@ -115,11 +117,13 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	}
 	logger.Info("Using entrypoint", "path", entrypoint)
 
-	sw := server.NewSwitchableWriter(os.Stderr)
+	var stderrBuf bytes.Buffer
+	multiWriter := io.MultiWriter(os.Stderr, &stderrBuf)
+	sw := server.NewSwitchableWriter(multiWriter)
 	cmd := exec.Command(entrypoint)
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = io.MultiWriter(os.Stderr, sw)
+	cmd.Stderr = sw
 	defer func() {
 		sw.SwitchTarget(os.Stderr)
 	}()
@@ -140,6 +144,10 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 
 		err := cmd.Wait()
 		if err != nil {
+			stderrContent := stderrBuf.String()
+			if stderrContent != "" {
+				err = fmt.Errorf("%w, with stderr: %s", err, stderrContent)
+			}
 			logger.Error(err, "customfuse entrypoint exited with error", "mountpoint", target, "pid", pid)
 		} else {
 			logger.Info("customfuse entrypoint exited", "mountpoint", target, "pid", pid)
@@ -179,14 +187,16 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	}
 
 	if wait.Interrupted(err) {
+		err = fmt.Errorf("customfuse mount timeout after %s, pid=%d, mountpoint=%s, process terminated with SIGTERM",
+			time.Since(startTime).Round(time.Second), pid, target)
 		if terr := cmd.Process.Signal(syscall.SIGTERM); terr != nil {
-			logger.Error(terr, "Failed to terminate entrypoint", "pid", pid)
+			logger.Error(err, "Failed to terminate entrypoint", "pid", pid, "signalErr", terr)
 		}
 		select {
 		case <-exited:
-		case <-time.After(2 * time.Second):
+		case <-time.After(proxy.MountShutdownGrace):
 			if kerr := cmd.Process.Kill(); kerr != nil && !errors.Is(kerr, os.ErrProcessDone) {
-				logger.Error(kerr, "Failed to kill entrypoint", "pid", pid)
+				logger.Error(err, "Failed to kill entrypoint", "pid", pid, "killErr", kerr)
 			}
 		}
 	}
