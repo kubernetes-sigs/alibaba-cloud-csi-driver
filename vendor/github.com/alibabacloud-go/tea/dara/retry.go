@@ -120,7 +120,8 @@ func NewExponentialBackoffPolicy(option map[string]interface{}) *ExponentialBack
 }
 
 func (e *ExponentialBackoffPolicy) GetDelayTime(ctx *RetryPolicyContext) int {
-	randomTime := int(math.Pow(2, float64(ctx.RetriesAttempted)*float64(e.Period)))
+	// period * 2^retries (align with C# / standard exponential backoff)
+	randomTime := int(float64(e.Period) * math.Pow(2, float64(ctx.RetriesAttempted)))
 	if randomTime > e.Cap {
 		return e.Cap
 	}
@@ -152,7 +153,8 @@ func NewEqualJitterBackoffPolicy(option map[string]interface{}) *EqualJitterBack
 }
 
 func (e *EqualJitterBackoffPolicy) GetDelayTime(ctx *RetryPolicyContext) int {
-	ceil := int64(math.Min(float64(e.Cap), float64(math.Pow(2, float64(ctx.RetriesAttempted)*float64(e.Period)))))
+	// period * 2^retries (aligned with C# EqualJitterBackoffPolicy)
+	ceil := int64(math.Min(float64(e.Cap), math.Pow(2, float64(ctx.RetriesAttempted))*float64(e.Period)))
 	randNum := rand.Int63n(ceil/2 + 1)
 	return int(ceil/2 + randNum)
 }
@@ -181,7 +183,8 @@ func NewFullJitterBackoffPolicy(option map[string]interface{}) *FullJitterBackof
 }
 
 func (f *FullJitterBackoffPolicy) GetDelayTime(ctx *RetryPolicyContext) int {
-	ceil := int64(math.Min(float64(f.Cap), float64(math.Pow(2, float64(ctx.RetriesAttempted)*float64(f.Period)))))
+	// period * 2^retries (aligned with C# FullJitterBackoffPolicy)
+	ceil := int64(math.Min(float64(f.Cap), math.Pow(2, float64(ctx.RetriesAttempted))*float64(f.Period)))
 	return int(rand.Int63n(ceil))
 }
 
@@ -200,9 +203,9 @@ func NewRetryCondition(condition map[string]interface{}) *RetryCondition {
 		backoffOption := condition["backoff"].(map[string]interface{})
 		backoff, _ = BackoffPolicyFactory(backoffOption)
 	}
-	maxAttempts, ok := condition["maxAttempts"].(int)
-	if !ok {
-		maxAttempts = MAX_ATTEMPTS
+	maxAttempts := MAX_ATTEMPTS
+	if v, ok := condition["maxAttempts"].(int); ok && v > 0 {
+		maxAttempts = v
 	}
 
 	exception, ok := condition["exception"].([]string)
@@ -229,9 +232,17 @@ func NewRetryCondition(condition map[string]interface{}) *RetryCondition {
 	}
 }
 
+func effectiveMaxAttempts(maxAttempts int) int {
+	if maxAttempts <= 0 {
+		return MAX_ATTEMPTS
+	}
+	return maxAttempts
+}
+
 // RetryOptions holds the retry options
 type RetryOptions struct {
 	Retryable        bool
+	MaxAttempts      int
 	RetryCondition   []*RetryCondition
 	NoRetryCondition []*RetryCondition
 }
@@ -249,8 +260,14 @@ func NewRetryOptions(options map[string]interface{}) *RetryOptions {
 		noRetryConditions = append(noRetryConditions, condition)
 	}
 
+	maxAttempts := MAX_ATTEMPTS
+	if v, ok := options["maxAttempts"].(int); ok && v > 0 {
+		maxAttempts = v
+	}
+
 	return &RetryOptions{
 		Retryable:        options["retryable"].(bool),
+		MaxAttempts:      maxAttempts,
 		RetryCondition:   retryConditions,
 		NoRetryCondition: noRetryConditions,
 	}
@@ -288,7 +305,7 @@ func ShouldRetry(options *RetryOptions, ctx *RetryPolicyContext) bool {
 		for _, condition := range conditions {
 			for _, exc := range condition.Exception {
 				if exc == StringValue(baseErr.GetName()) {
-					if retriesAttempted >= condition.MaxAttempts {
+					if retriesAttempted >= effectiveMaxAttempts(condition.MaxAttempts) {
 						return false
 					}
 					return true
@@ -296,7 +313,7 @@ func ShouldRetry(options *RetryOptions, ctx *RetryPolicyContext) bool {
 			}
 			for _, code := range condition.ErrorCode {
 				if code == StringValue(baseErr.GetCode()) {
-					if retriesAttempted >= condition.MaxAttempts {
+					if retriesAttempted >= effectiveMaxAttempts(condition.MaxAttempts) {
 						return false
 					}
 					return true
@@ -305,7 +322,7 @@ func ShouldRetry(options *RetryOptions, ctx *RetryPolicyContext) bool {
 		}
 	}
 
-	return false
+	return retriesAttempted < effectiveMaxAttempts(options.MaxAttempts)
 }
 
 // getBackoffDelay calculates backoff delay

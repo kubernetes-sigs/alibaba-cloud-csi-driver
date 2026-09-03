@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
+
 	"github.com/alibabacloud-go/tea/tea"
 )
 
@@ -36,6 +38,7 @@ type SDKError struct {
 	Stack              *string
 	errMsg             *string
 	Description        *string
+	Detail             *string
 	AccessDeniedDetail map[string]interface{}
 }
 
@@ -56,19 +59,27 @@ func TeaSDKError(err error) error {
 			"message": StringValue(te.Message),
 			"data": te.Data,
 			"description": StringValue(te.Description),
+			"detail": StringValue(te.Detail),
 			"accessDeniedDetail": te.AccessDeniedDetail,
 		})
 	}
 
-	if respErr, ok := err.(ResponseError); ok { 
-		return tea.NewSDKError(map[string]interface{}{
-			"code": StringValue(respErr.GetCode()),
-			"statusCode": IntValue(respErr.GetStatusCode()),
-			"message": respErr.Error(),
-			"description": StringValue(respErr.GetDescription()),
-			"data": respErr.GetData(),
+	if respErr, ok := err.(ResponseError); ok {
+		obj := map[string]interface{}{
+			"code":               StringValue(respErr.GetCode()),
+			"statusCode":         IntValue(respErr.GetStatusCode()),
+			"message":            respErr.Error(),
+			"description":        StringValue(respErr.GetDescription()),
+			"data":               respErr.GetData(),
 			"accessDeniedDetail": respErr.GetAccessDeniedDetail(),
-		})
+		}
+		// ResponseError does not require GetDetail(); copy when present and non-empty.
+		if dg, ok := err.(interface{ GetDetail() *string }); ok {
+			if d := strings.TrimSpace(StringValue(dg.GetDetail())); d != "" {
+				obj["detail"] = d
+			}
+		}
+		return tea.NewSDKError(obj)
 	}
 
 	if baseErr, ok := err.(BaseError); ok { 
@@ -101,6 +112,9 @@ func NewSDKError(obj map[string]interface{}) *SDKError {
 
 	if obj["description"] != nil {
 		err.Description = String(obj["description"].(string))
+	}
+	if obj["detail"] != nil {
+		err.Detail = String(obj["detail"].(string))
 	}
 	if detail := obj["accessDeniedDetail"]; detail != nil {
 		r := reflect.ValueOf(detail)
@@ -165,6 +179,10 @@ func (err *SDKError) GetCode() *string {
 	return err.Code
 }
 
+func (err *SDKError) GetDetail() *string {
+	return err.Detail
+}
+
 // Set ErrMsg by msg
 func (err *SDKError) SetErrMsg(msg string) {
 	err.errMsg = String(msg)
@@ -172,9 +190,14 @@ func (err *SDKError) SetErrMsg(msg string) {
 
 func (err *SDKError) Error() string {
 	if err.errMsg == nil {
-		str := fmt.Sprintf("SDKError:\n   StatusCode: %d\n   Code: %s\n   Message: %s\n   Data: %s\n",
-			IntValue(err.StatusCode), StringValue(err.Code), StringValue(err.Message), StringValue(err.Data))
-		err.SetErrMsg(str)
+		var b strings.Builder
+		fmt.Fprintf(&b, "SDKError:\n   StatusCode: %d\n   Code: %s\n   Message: %s\n",
+			IntValue(err.StatusCode), StringValue(err.Code), StringValue(err.Message))
+		if d := strings.TrimSpace(StringValue(err.Detail)); d != "" {
+			fmt.Fprintf(&b, "   Detail: %s\n", d)
+		}
+		fmt.Fprintf(&b, "   Data: %s\n", StringValue(err.Data))
+		err.SetErrMsg(b.String())
 	}
 	return StringValue(err.errMsg)
 }
