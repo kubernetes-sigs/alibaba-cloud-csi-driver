@@ -27,7 +27,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -268,7 +268,8 @@ func (cs *clientStream) RecvMsg(m interface{}) error {
 	case msg = <-cs.s.recv:
 	}
 
-	if msg.header.Type == messageTypeResponse {
+	switch msg.header.Type {
+	case messageTypeResponse:
 		resp := &Response{}
 		err := proto.Unmarshal(msg.payload[:msg.header.Length], resp)
 		// return the payload buffer for reuse
@@ -289,7 +290,7 @@ func (cs *clientStream) RecvMsg(m interface{}) error {
 		cs.remoteClosed = true
 
 		return nil
-	} else if msg.header.Type == messageTypeData {
+	case messageTypeData:
 		if !cs.desc.StreamingServer {
 			cs.c.deleteStream(cs.s)
 			cs.remoteClosed = true
@@ -310,9 +311,9 @@ func (cs *clientStream) RecvMsg(m interface{}) error {
 			return err
 		}
 		return nil
+	default:
+		return fmt.Errorf("unexpected %q message received: %w", msg.header.Type, ErrProtocol)
 	}
-
-	return fmt.Errorf("unexpected %q message received: %w", msg.header.Type, ErrProtocol)
 }
 
 // Close closes the ttrpc connection and underlying connection
@@ -368,7 +369,7 @@ func (c *Client) receiveLoop() error {
 			sid := streamID(msg.header.StreamID)
 			s := c.getStream(sid)
 			if s == nil {
-				logrus.WithField("stream", sid).Errorf("ttrpc: received message on inactive stream")
+				log.G(c.ctx).WithField("stream", sid).Error("ttrpc: received message on inactive stream")
 				continue
 			}
 
@@ -376,7 +377,7 @@ func (c *Client) receiveLoop() error {
 				s.closeWithError(err)
 			} else {
 				if err := s.receive(c.ctx, msg); err != nil {
-					logrus.WithError(err).WithField("stream", sid).Errorf("ttrpc: failed to handle message")
+					log.G(c.ctx).WithFields(log.Fields{"error": err, "stream": sid}).Error("ttrpc: failed to handle message")
 				}
 			}
 		}
@@ -385,26 +386,45 @@ func (c *Client) receiveLoop() error {
 
 // createStream creates a new stream and registers it with the client
 // Introduce stream types for multiple or single response
-func (c *Client) createStream(flags uint8, b []byte) (*stream, error) {
-	c.streamLock.Lock()
+func (c *Client) createStream(flags uint8, b []byte, recvBuf int) (*stream, error) {
+	// sendLock must be held across both allocation of the stream ID and sending it across the wire.
+	// This ensures that new stream IDs sent on the wire are always increasing, which is a
+	// requirement of the TTRPC protocol.
+	// This use of sendLock could be split into another mutex that covers stream creation + first send,
+	// and just use sendLock to guard writing to the wire, but for now it seems simpler to have fewer mutexes.
+	c.sendLock.Lock()
+	defer c.sendLock.Unlock()
 
 	// Check if closed since lock acquired to prevent adding
 	// anything after cleanup completes
 	select {
 	case <-c.ctx.Done():
-		c.streamLock.Unlock()
 		return nil, ErrClosed
 	default:
 	}
 
-	// Stream ID should be allocated at same time
-	s := newStream(c.nextStreamID, c)
-	c.streams[s.id] = s
-	c.nextStreamID = c.nextStreamID + 2
+	var s *stream
+	if err := func() error {
+		// In the future this could be replaced with a sync.Map instead of streamLock+map.
+		c.streamLock.Lock()
+		defer c.streamLock.Unlock()
 
-	c.sendLock.Lock()
-	defer c.sendLock.Unlock()
-	c.streamLock.Unlock()
+		// Check if closed since lock acquired to prevent adding
+		// anything after cleanup completes
+		select {
+		case <-c.ctx.Done():
+			return ErrClosed
+		default:
+		}
+
+		s = newStream(c.nextStreamID, c, recvBuf)
+		c.streams[s.id] = s
+		c.nextStreamID = c.nextStreamID + 2
+
+		return nil
+	}(); err != nil {
+		return nil, err
+	}
 
 	if err := c.channel.send(uint32(s.id), messageTypeRequest, flags, b); err != nil {
 		return s, filterCloseErr(err)
@@ -497,7 +517,7 @@ func (c *Client) NewStream(ctx context.Context, desc *StreamDesc, service, metho
 	} else {
 		flags = flagRemoteClosed
 	}
-	s, err := c.createStream(flags, p)
+	s, err := c.createStream(flags, p, streamRecvBufferSize)
 	if err != nil {
 		return nil, err
 	}
@@ -516,7 +536,7 @@ func (c *Client) dispatch(ctx context.Context, req *Request, resp *Response) err
 		return err
 	}
 
-	s, err := c.createStream(0, p)
+	s, err := c.createStream(0, p, 1)
 	if err != nil {
 		return err
 	}
