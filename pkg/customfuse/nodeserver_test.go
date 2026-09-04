@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,7 +90,7 @@ func TestNodePublishVolume_SocketPathPriority(t *testing.T) {
 			}
 			if tt.publishContextSock != "" {
 				req.PublishContext = map[string]string{
-					mountProxySocket: tt.publishContextSock,
+					mounterutils.MountProxySocketKey: tt.publishContextSock,
 				}
 			}
 

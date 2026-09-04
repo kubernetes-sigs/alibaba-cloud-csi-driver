@@ -19,7 +19,6 @@ import (
 
 const (
 	fusePodNamespace = "ack-csi-customfuse"
-	mountProxySocket = mounterutils.MountProxySocketKey
 )
 
 type controllerServer struct {
@@ -72,8 +71,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 
 	publishContext := map[string]string{
-		mountProxySocket: mounterutils.GetMountProxySocketPath(req.VolumeId, true),
-		"fusePod":        fmt.Sprintf("%s/%s", fusePod.Namespace, fusePod.Name),
+		mounterutils.MountProxySocketKey: mounterutils.GetMountProxySocketPath(req.VolumeId, true),
+		"fusePod":                        fmt.Sprintf("%s/%s", fusePod.Namespace, fusePod.Name),
 	}
 
 	klog.Infof("ControllerPublishVolume: successfully published volume %s on node %s", req.VolumeId, req.NodeId)

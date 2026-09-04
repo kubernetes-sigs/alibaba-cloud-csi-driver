@@ -68,3 +68,45 @@ kubectl -n kube-system create configmap csi-plugin \
 Changes take effect on the next mount via informer — no restart needed.
 
 See [examples/customfuse/](../examples/customfuse/) for volumeAttributes reference, Secret passthrough, entrypoint examples, and a complete working demo with JuiceFS CE.
+
+## Security model
+
+customfuse runs a FUSE client you supply, and hands it credentials you supply.
+Both are more exposed than in a driver that knows its client, so the trade-offs
+are stated here rather than left to be discovered.
+
+**The fuse pod is privileged.** Establishing a FUSE mount that other pods can see
+requires it, and `hostNetwork: true` lets the client reach storage endpoints the
+way the node does. Treat the choice of its image and its entrypoint as a
+privileged operation, and restrict who can write the `csi-plugin` ConfigMap (which
+selects the image) and the `entrypointConfig` ConfigMaps (which supply the
+script).
+
+**Secret entries reach the entrypoint as environment variables.** Every key in
+the volume's `nodePublishSecretRef` becomes `$key` in the entrypoint's
+environment, because the driver cannot know how an arbitrary client wants to be
+given a credential. Consequences worth planning for:
+
+* Anyone who can exec into the fuse pod can read it, and it may appear in a core
+  dump of the client. Workload containers cannot: the fuse pod is a separate pod,
+  and under sandbox injection the sidecar shares no process namespace with them.
+* An entrypoint that echoes its environment for debugging will write credentials
+  to the pod log.
+* For compatibility with the OSS convention, `akId` and `akSecret` are also
+  exposed as `accessKeyId` and `accessKeySecret` when the latter are absent, so a
+  Secret written for OSS works unchanged. Both spellings are then present.
+
+If your client does not need the credential once it is running, `unset` the
+variables before `exec`ing it — only before an `exec`, since a script that stays
+alive keeps the environment it was started with.
+
+`authType: agent-identity` avoids this entirely where it is available: the
+credential is exchanged per mount, delivered as files rather than environment
+variables, and rotated before it expires. See
+[customfuse-agent-identity.md](./customfuse-agent-identity.md).
+
+**`otherOpts` is passed through verbatim.** It reaches the entrypoint as
+`$otherOpts` without interpretation, since only the entrypoint knows what its
+client's options look like. An entrypoint that expands it on a command line is
+responsible for rejecting what it does not expect — the examples under
+[examples/customfuse/](../examples/customfuse/) show one way to validate it.

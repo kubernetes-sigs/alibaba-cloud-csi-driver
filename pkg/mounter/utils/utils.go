@@ -53,8 +53,9 @@ const LegacyFusePodNamespace = "kube-system" // deprecated
 //   - csi-agent: NewCSIAgent constructor
 //
 // Priority: overrideSock (if non-empty) > publishContext[MountProxySocketKey].
-// In sandbox agent scenarios there is no ControllerPublish, so publishContext
-// is empty and overrideSock provides the socket path directly.
+// The explicit setting wins for compatibility: publishContext may be supplied by
+// a caller that is not driver-aware, so its value cannot be assumed to name this
+// driver's socket. Sandbox deployments pass the path by flag for that reason.
 func ResolveMountProxySocket(publishContext map[string]string, overrideSock string) string {
 	if overrideSock != "" {
 		return overrideSock

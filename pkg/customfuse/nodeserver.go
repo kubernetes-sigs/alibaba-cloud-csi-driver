@@ -43,7 +43,7 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.Infof("NodePublishVolume: volume %s", req.VolumeId)
+	klog.V(2).Infof("NodePublishVolume: volume %s", req.VolumeId)
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
@@ -98,7 +98,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		klog.Infof("NodePublishVolume(csi-agent): mounted on %s", targetPath)
+		klog.V(2).Infof("NodePublishVolume(csi-agent): mounted on %s", targetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -122,7 +122,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		klog.Infof("NodePublishVolume: mounted volume %s on %s", req.VolumeId, attachPath)
+		klog.V(2).Infof("NodePublishVolume: mounted volume %s on %s", req.VolumeId, attachPath)
 	}
 
 	if !notMntTarget {
@@ -133,13 +133,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err := ns.rawMounter.Mount(attachPath, targetPath, "", []string{"bind"}); err != nil {
 		return nil, status.Errorf(codes.Internal, "bind mount failed: %v", err)
 	}
-	klog.Infof("NodePublishVolume: bind mounted %s to %s", attachPath, targetPath)
+	klog.V(2).Infof("NodePublishVolume: bind mounted %s to %s", attachPath, targetPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	klog.Infof("NodeUnpublishVolume: %s", req.TargetPath)
+	klog.V(2).Infof("NodeUnpublishVolume: %s", req.TargetPath)
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
@@ -149,7 +149,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", req.TargetPath, err)
 	}
-	klog.Infof("NodeUnpublishVolume: unmounted %s", req.TargetPath)
+	klog.V(2).Infof("NodeUnpublishVolume: unmounted %s", req.TargetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
