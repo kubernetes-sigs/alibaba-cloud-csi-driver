@@ -1,23 +1,23 @@
-# BMCPFS Access Point（AP）挂载使用文档
+# Mounting BMCPFS via an Access Point (AP)
 
-本文档介绍如何使用 bmcpfs 驱动（`bmcpfsplugin.csi.alibabacloud.com`）通过 CPFS Access Point 挂载文件系统，包括无鉴权挂载、RAM 鉴权（静态 AK / 可轮转 STS）两类场景。
+This document describes how to mount a file system through a CPFS Access Point with the bmcpfs driver (`bmcpfsplugin.csi.alibabacloud.com`). It covers anonymous mounts and RAM-authenticated mounts (static AccessKey, or STS credentials with rotation).
 
-## 功能概述
+## Overview
 
-| 能力 | 说明 |
+| Capability | Description |
 | --- | --- |
-| AP 挂载 | 通过 `accessPointId` 指定接入点，支持 tcp 与 vsc 两种网络类型（驱动按节点类型自动选择） |
-| 无鉴权挂载 | 不配置 `nodePublishSecretRef`，仅通过 AP 挂载 |
-| RAM 鉴权：静态 AK | Secret 含 AK/SK 两键，写入 `g_unas_AKFile`；不支持热更新 |
-| RAM 鉴权：STS 轮转 | Secret 含 STS 三元组，支持外部轮转，写入 `g_unas_STSFile`；EFC 客户端每 10 分钟自动重读并刷新签名 |
-| 鉴权模式自动识别 | 无需 `authType` 参数，驱动按 `nodePublishSecretRef` 的 Secret 键集合自动识别 AK / STS 模式 |
-| 单 Pod 多 AP | 同一 Pod 可同时挂载同一文件系统的多个不同 AP（每个 AP 一个 PV） |
+| AP mount | The access point is specified by `accessPointId`. Both `tcp` and `vsc` network types are supported; the driver picks one based on the node type. |
+| Anonymous mount | Mount through an AP only, without configuring `nodePublishSecretRef`. |
+| RAM auth: static AK | The Secret holds two keys (AK/SK), written to `g_unas_AKFile`. Hot reload is not supported. |
+| RAM auth: STS rotation | The Secret holds an STS credential triple and can be rotated externally. It is written to `g_unas_STSFile`, and the EFC client re-reads it and refreshes the signature every 10 minutes. |
+| Automatic auth mode detection | No `authType` parameter is needed. The driver infers AK vs. STS mode from the set of keys in the Secret referenced by `nodePublishSecretRef`. |
+| Multiple APs in one Pod | A single Pod can mount several APs of the same file system at once (one PV per AP). |
 
-STS 轮转基于 Kubernetes 社区的 `CSIDriver requiresRepublish` 机制：kubelet 周期性重新调用 NodePublishVolume 并携带最新 Secret 内容，驱动检测到变化后原子更新 STS 配置文件，EFC 客户端在下一个 10 分钟周期内加载新凭证。全程无需重启 Pod、不中断挂载。
+STS rotation builds on the upstream Kubernetes `CSIDriver requiresRepublish` mechanism: kubelet periodically calls NodePublishVolume again with the latest Secret contents, the driver atomically rewrites the STS credential file when it detects a change, and the EFC client picks up the new credentials in its next 10-minute cycle. No Pod restart and no mount interruption are involved.
 
-## 前提条件
+## Prerequisites
 
-1. **CSI 组件版本**：安装包含 bmcpfs AP 支持的 csi-plugin / csi-provisioner 版本，helm values 中启用：
+1. **CSI component version**: install a csi-plugin / csi-provisioner version that includes bmcpfs AP support, and enable it in the helm values:
 
    ```yaml
    csi:
@@ -25,55 +25,55 @@ STS 轮转基于 Kubernetes 社区的 `CSIDriver requiresRepublish` 机制：kub
        enabled: true
    ```
 
-   bmcpfs 的 CSIDriver 对象默认渲染 `requiresRepublish: true`（STS 轮转依赖），无需额外开关。
+   The bmcpfs CSIDriver object renders `requiresRepublish: true` by default (required for STS rotation); no extra switch is needed.
 
-2. **EFC 客户端版本**：节点上的 EFC 客户端需支持 `accesspoint`、`g_unas_AKFile`、`g_unas_STSFile` 挂载参数。
-3. **fileserver 集群配置**：CPFS fileserver 集群需设置 flag `efc_pov_UmmSigningRegion=<当前 region>`（RAM 鉴权签名校验的服务端前置条件，请联系 CPFS 侧配置）。
-4. **AP 已创建**：通过 NAS 控制台/OpenAPI 预先创建 Access Point，获得 `ap-` 开头的 AP ID。
+2. **EFC client version**: the EFC client on the node must support the `accesspoint`, `g_unas_AKFile`, and `g_unas_STSFile` mount options.
+3. **fileserver cluster configuration**: the CPFS fileserver cluster must have the flag `efc_pov_UmmSigningRegion=<current region>` set. This is the server-side prerequisite for RAM auth signature verification; contact the CPFS team to have it configured.
+4. **AP created**: create the Access Point beforehand via the NAS console or OpenAPI and obtain its `ap-` prefixed ID.
 
-## 卷配置规范
+## Volume specification
 
-### volumeHandle 唯一性要求（重要）
+### volumeHandle uniqueness (important)
 
-同一 Pod 引用同一文件系统的多个 AP 时，kubelet 按 `volumeHandle` 对卷去重。因此**每个 AP PV 的 volumeHandle 必须唯一**，格式为：
+When a single Pod references multiple APs of the same file system, kubelet deduplicates volumes by `volumeHandle`. Therefore **the volumeHandle of each AP PV must be unique**, in the following format:
 
 ```
-volumeHandle: "<bmcpfsId>+<唯一后缀>"
-# 推荐用 AP ID 作后缀: cpfs-0123456789+ap-aaaaaaaa
-# 存量 fileset 卷的 <bmcpfsId>+<filesetId> 格式继续兼容，无需变更
+volumeHandle: "<bmcpfsId>+<unique suffix>"
+# Using the AP ID as the suffix is recommended: cpfs-0123456789+ap-aaaaaaaa
+# The existing <bmcpfsId>+<filesetId> format for fileset volumes stays compatible and needs no change
 ```
 
-第一段必须为文件系统 ID（驱动据此执行 attach）；后缀仅用于保证唯一性，内容不限（推荐 AP ID，便于运维对应）。实际挂载的 AP 以 `volumeAttributes.accessPointId` 为准，与后缀无强制关联。
+The first segment must be the file system ID, which the driver uses to perform the attach. The suffix exists purely to guarantee uniqueness and may be anything (the AP ID is recommended, as it makes operations easier to correlate). The AP that actually gets mounted is determined by `volumeAttributes.accessPointId`, not by the suffix.
 
 ### volumeAttributes
 
-| 键 | 必填 | 说明 |
+| Key | Required | Description |
 | --- | --- | --- |
-| `vpcMountTarget` | 与 vsc 二选一或同时配置 | VPC 挂载点域名（tcp 链路使用） |
-| `vscMountTarget` | 与 vpc 二选一或同时配置 | VSC 挂载点域名（vsc 链路使用） |
-| `accessPointId` | AP 场景必填 | Access Point ID，非空即启用 AP 挂载 |
+| `vpcMountTarget` | One of this or vsc, or both | VPC mount target domain (used for the tcp link) |
+| `vscMountTarget` | One of this or vpc, or both | VSC mount target domain (used for the vsc link) |
+| `accessPointId` | Required for AP mounts | Access Point ID. A non-empty value enables AP mounting. |
 
-### 鉴权模式识别与校验规则
+### Auth mode detection and validation
 
-驱动不使用 `authType` 参数，而是根据 `nodePublishSecretRef` 引用的 Secret 键集合自动识别模式：
+The driver does not use an `authType` parameter. It infers the mode from the set of keys in the Secret referenced by `nodePublishSecretRef`:
 
-| Secret 内容 | 识别结果 |
+| Secret contents | Detected mode |
 | --- | --- |
-| 未配置 `nodePublishSecretRef` | 无鉴权挂载 |
-| 恰好含 `accessKeyId`、`accessKeySecret` | AK 模式 |
-| 含 `accessKeyId`、`accessKeySecret`、`securityToken`（可选 `expiration`） | STS 模式 |
-| 其它形状（缺键、空值、未知键） | 拒绝挂载（`InvalidArgument`） |
+| No `nodePublishSecretRef` configured | Anonymous mount |
+| Exactly `accessKeyId` and `accessKeySecret` | AK mode |
+| `accessKeyId`, `accessKeySecret`, `securityToken` (optionally `expiration`) | STS mode |
+| Any other shape (missing keys, empty values, unknown keys) | Mount rejected (`InvalidArgument`) |
 
-注意：
+Notes:
 
-- 键集合为严格白名单匹配，拼写错误（如 `security_token`）会被直接拒绝，不会静默降级为 AK 模式或匿名挂载。
-- 配置了 Secret 时 `accessPointId` 必须非空（RAM 鉴权仅对 AP 挂载生效）。
-- 鉴权模式在首次挂载时定格：挂载后若 Secret 形状变化（如 AK 改为三元组），驱动告警并忽略，需重建 Pod 重新挂载生效。
-- 不支持在 PV `mountOptions` 中手工填写 `g_unas_AKFile` / `g_unas_STSFile`，此类选项会被驱动剥离并告警；凭证文件路径由驱动统一管理。
+- Key-set matching is a strict allowlist. A typo (such as `security_token`) is rejected outright rather than silently degrading to AK mode or an anonymous mount.
+- When a Secret is configured, `accessPointId` must be non-empty (RAM auth applies to AP mounts only).
+- The auth mode is fixed at first mount. If the Secret shape changes afterwards (for example AK keys replaced by an STS triple), the driver logs a warning and ignores it; recreate the Pod to remount with the new mode.
+- Writing `g_unas_AKFile` / `g_unas_STSFile` by hand in the PV `mountOptions` is not supported. Such options are stripped by the driver with a warning, since credential file paths are managed centrally by the driver.
 
-## 使用方式
+## Usage
 
-### 用例 1：无鉴权 AP 挂载
+### Example 1: anonymous AP mount
 
 ```yaml
 apiVersion: v1
@@ -108,7 +108,7 @@ spec:
   volumeName: bmcpfs-ap-pv
 ```
 
-驱动生成的挂载命令等价于（tcp 链路）：
+The mount command generated by the driver is equivalent to (tcp link):
 
 ```bash
 mount -t alinas -o efc,protocol=efc,net=tcp,fstype=cpfs \
@@ -116,7 +116,7 @@ mount -t alinas -o efc,protocol=efc,net=tcp,fstype=cpfs \
   cpfs-0123456789-vpc.cn-hangzhou.cpfs.aliyuncs.com:/ <targetPath>
 ```
 
-### 用例 2：RAM 鉴权——静态 AK
+### Example 2: RAM auth with a static AccessKey
 
 ```yaml
 apiVersion: v1
@@ -151,11 +151,11 @@ spec:
       namespace: kube-system
 ```
 
-驱动检测到 Secret 仅含 AK/SK 两键，自动按 AK 模式挂载。
+The driver detects that the Secret holds only the two AK keys and mounts in AK mode automatically.
 
-**注意**：AK 配置不支持热更新。修改 Secret 中的 AK 后，需要重建使用该卷的 Pod 触发重新挂载才能生效。
+**Note**: AK configuration does not support hot reload. After changing the AK in the Secret, recreate the Pods using the volume to trigger a remount.
 
-### 用例 3：RAM 鉴权——STS 轮转
+### Example 3: RAM auth with rotating STS credentials
 
 ```yaml
 apiVersion: v1
@@ -164,11 +164,11 @@ metadata:
   name: bmcpfs-sts-secret
   namespace: kube-system
 type: Opaque
-stringData:               # 由外部系统周期性轮转更新
+stringData:               # rotated periodically by an external system
   accessKeyId: "STS.xxx"
   accessKeySecret: "********"
   securityToken: "********"
-  expiration: "2026-08-10T12:00:00Z"   # 可选，仅用于告警
+  expiration: "2026-08-10T12:00:00Z"   # optional, used for warnings only
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -192,21 +192,21 @@ spec:
       namespace: kube-system
 ```
 
-驱动检测到 Secret 含 `securityToken`，自动按 STS 模式挂载。
+The driver detects `securityToken` in the Secret and mounts in STS mode automatically.
 
-**STS 轮转说明**：
+**STS rotation notes**:
 
-- 外部系统只需更新 Secret 中的三元组，无需操作节点或 Pod。
-- Secret 中**不需要** md5 字段；驱动写入 STS 配置文件时自动计算 `md5(accessKeyId + accessKeySecret + securityToken)`。
-- 新凭证生效链路：Secret 更新 → kubelet 周期性 republish 带入 → 驱动原子重写 STS 文件 → EFC 下一个 10 分钟周期加载。**端到端生效延迟上限约为 republish 间隔 + 10 分钟**，请保证轮转时新 STS 的剩余有效期充分大于该窗口（建议 ≥ 30 分钟）。
-- 同一 PV 在同一节点上的多个 Pod 共享同一份凭证文件（凭证为 PV 级配置）。
+- The external system only needs to update the credential triple in the Secret; no action on the node or the Pod is required.
+- An md5 field is **not** needed in the Secret. The driver computes `md5(accessKeyId + accessKeySecret + securityToken)` itself when writing the STS credential file.
+- Propagation path for new credentials: Secret update → picked up by the next periodic kubelet republish → driver atomically rewrites the STS file → EFC loads it in the next 10-minute cycle. **End-to-end propagation is bounded by roughly the republish interval plus 10 minutes**, so make sure the new STS credential stays valid well beyond that window when rotating (30 minutes or more is recommended).
+- Pods on the same node sharing one PV also share a single credential file, as credentials are configured per PV.
 
-### 用例 4：单 Pod 挂载同一文件系统的多个 AP
+### Example 4: multiple APs of the same file system in one Pod
 
-为每个 AP 各建一个 PV/PVC（volumeHandle 后缀不同即可），Pod 同时引用：
+Create one PV/PVC pair per AP (only the volumeHandle suffix needs to differ) and reference both from the Pod:
 
 ```yaml
-# PV/PVC 定义同用例 1~3，两个 PV 的 volumeHandle 分别为：
+# PV/PVC definitions are the same as in Examples 1-3, with volumeHandles:
 #   cpfs-0123456789+ap-aaaaaaaa
 #   cpfs-0123456789+ap-bbbbbbbb
 apiVersion: apps/v1
@@ -235,42 +235,42 @@ spec:
           persistentVolumeClaim: {claimName: bmcpfs-ap-b-pvc}
 ```
 
-两个 AP 各自独立挂载、独立鉴权（可引用不同 Secret），互不影响。
+The two APs are mounted and authenticated independently (they may reference different Secrets) and do not affect each other.
 
-## 行为说明与约束
+## Behavior and constraints
 
-### 卸载与 attach 保留行为
+### Unmount and attach retention
 
-同一文件系统的多个 AP/fileset PV 在同一节点上共享一条 CPFS↔VSC attach。为保证多 AP 场景卸载安全，当前版本对 volumeHandle 带 `+` 后缀的卷（AP 卷、fileset 卷）在卸载时**不执行 detach**，而是直接返回错误（`InvalidArgument`：`Volume with suffix is not detachable, please use the skip detach feature`）：
+Multiple AP/fileset PVs of the same file system on one node share a single CPFS↔VSC attach. To keep unmounting safe in multi-AP scenarios, this version **does not detach** volumes whose volumeHandle carries a `+` suffix (AP volumes and fileset volumes). Instead it returns an error directly (`InvalidArgument`: `Volume with suffix is not detachable, please use the skip detach feature`):
 
-- 卸载请求持续失败重试，VolumeAttachment 保留，不会误断同节点其它 AP 的挂载，running pod 不受影响。
-- 如需让 AP/fileset 卷正常完成卸载（Pod 删除、PVC 删除），设置 `SKIP_BMCPFS_DETACH=true`：卸载直接成功、不执行 detach。
-- 文件系统与节点 VSC 之间的 attach 会保留，随 VSC / 节点回收自动清理。
-- 如需提前回收（如触及 VSC attach 数量上限），可在确认该节点无该文件系统任何活跃挂载后，通过 NAS OpenAPI `DetachVscFromFilesystems` 手工 detach。
-- 后续版本计划通过增强的 external-attacher 方案恢复标准的按引用 detach 行为，届时该约束将移除，PV 配置无需变化。
+- Unmount requests keep failing and are retried, the VolumeAttachment is retained, mounts of other APs on the same node are not broken by mistake, and running Pods are unaffected.
+- To let AP/fileset volumes complete unmounting normally (on Pod deletion or PVC deletion), set `SKIP_BMCPFS_DETACH=true`: unmount succeeds immediately without performing a detach.
+- The attach between the file system and the node VSC is retained and cleaned up automatically when the VSC or the node is reclaimed.
+- To reclaim it earlier (for example when hitting the VSC attach quota), confirm the node has no active mount of that file system left, then detach manually via the NAS OpenAPI `DetachVscFromFilesystems`.
+- A later version plans to restore the standard reference-counted detach behavior through an enhanced external-attacher approach. That constraint will then be lifted, with no change required to PV configuration.
 
-### 其它约束
+### Other constraints
 
-| 约束 | 说明 |
+| Constraint | Description |
 | --- | --- |
-| accessModes | AP 卷推荐 `ReadWriteMany` |
-| AK 热更新 | 不支持；修改 AK 需重建 Pod |
-| 凭证文件 | 由驱动管理于节点 `/run/cnfs/efc-credentials/<volumeId>/`（目录 0700、文件 0600，位于 tmpfs），卷卸载后自动清理，请勿手工修改 |
-| Secret 内容 | 驱动不校验凭证与 AP 权限的匹配性；权限不足表现为挂载失败或 IO 报错，请核对 AP 的 RAM 策略 |
+| accessModes | `ReadWriteMany` is recommended for AP volumes |
+| AK hot reload | Not supported; changing the AK requires recreating the Pod |
+| Credential files | Managed by the driver under `/run/cnfs/efc-credentials/<volumeId>/` on the node (directory 0700, files 0600, on tmpfs) and cleaned up automatically after the volume is unmounted. Do not modify them by hand. |
+| Secret contents | The driver does not verify that the credentials match the AP permissions. Insufficient permissions show up as a failed mount or IO errors, so check the AP's RAM policy. |
 
-## 故障排查
+## Troubleshooting
 
-| 现象 | 排查方向 |
+| Symptom | Where to look |
 | --- | --- |
-| 挂载失败，事件含 `InvalidArgument` | 核对 Secret 键集合是否符合 AK / STS 白名单（拼写、多余键、空值）、`accessPointId` 是否配置 |
-| 多 AP 只挂上一个 / 挂错 AP | 检查各 PV 的 volumeHandle 是否唯一（kubelet 按 handle 去重，重复时只会挂其中一个） |
-| 挂载失败，EFC 报鉴权错误 | 确认 fileserver 已配置 `efc_pov_UmmSigningRegion`；核对 AK/STS 是否有效、AP RAM 策略是否授权 |
-| 轮转后新 STS 未生效 | 依次确认：Secret 已更新 → 节点上 `/run/cnfs/efc-credentials/<volumeId>/sts.json` 内容已更新（驱动侧）→ 等待 EFC 10 分钟读取周期（客户端侧）。若文件未更新，检查 CSIDriver 对象是否含 `requiresRepublish: true` |
-| STS 过期导致 IO 失败 | 检查外部轮转系统是否停止更新 Secret；确认轮转周期满足"剩余有效期 ≥ republish 间隔 + 10 分钟"的要求 |
-| 驱动日志 | 节点侧：csi-plugin DaemonSet Pod（bmcpfs 相关日志）；挂载执行侧：alinas mount-proxy 日志 |
+| Mount fails with an `InvalidArgument` event | Check that the Secret key set matches the AK / STS allowlist (spelling, extra keys, empty values) and that `accessPointId` is configured |
+| Only one of several APs is mounted, or the wrong AP is mounted | Check that each PV's volumeHandle is unique (kubelet deduplicates by handle, so duplicates result in only one mount) |
+| Mount fails with an EFC auth error | Confirm the fileserver has `efc_pov_UmmSigningRegion` configured; verify the AK/STS credentials are valid and the AP RAM policy grants access |
+| A new STS credential does not take effect after rotation | Check in order: the Secret is updated → `/run/cnfs/efc-credentials/<volumeId>/sts.json` on the node is updated (driver side) → wait for the EFC 10-minute read cycle (client side). If the file is not updated, check that the CSIDriver object has `requiresRepublish: true` |
+| IO failures caused by an expired STS credential | Check whether the external rotation system stopped updating the Secret; confirm the rotation period satisfies "remaining validity ≥ republish interval + 10 minutes" |
+| Driver logs | Node side: the csi-plugin DaemonSet Pod (bmcpfs-related logs). Mount execution side: the alinas mount-proxy logs. |
 
-验证 STS 文件已更新的快捷方式（节点上执行）：
+Quick way to verify the STS file was updated (run on the node):
 
 ```bash
-ls -l --time-style=full-iso /run/cnfs/efc-credentials/<volumeId>/sts.json   # 看修改时间
+ls -l --time-style=full-iso /run/cnfs/efc-credentials/<volumeId>/sts.json   # check the modification time
 ```
