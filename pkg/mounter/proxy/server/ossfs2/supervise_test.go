@@ -970,3 +970,90 @@ func TestTerminate_OverlayBeforeTerminating(t *testing.T) {
 		t.Fatal("trulyExited not closed after Terminate")
 	}
 }
+
+// TestSuperviseProcess_TerminateDuringBackoffSleep verifies that when
+// Terminate() sets terminating=true while recoveryRestart is in a backoff
+// sleep, the loop exits at the next iteration's terminating check and
+// wg.Wait() does not block longer than the sleep duration.
+func TestSuperviseProcess_TerminateDuringBackoffSleep(t *testing.T) {
+	driver := &Driver{
+		pids:           new(sync.Map),
+		monitorManager: server.NewMountMonitorManager(),
+		overlay:        server.NewOverlayManager(mount.NewFakeMounter(nil)),
+	}
+
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "mount")
+	require.NoError(t, os.Mkdir(target, 0o755))
+
+	var pipeFds [2]int
+	require.NoError(t, syscall.Pipe(pipeFds[:]))
+	_ = syscall.Close(pipeFds[1])
+
+	// Given: backoff sleep of 200ms — short enough for the test, long enough
+	// to prove Terminate waits for it
+	backoffDuration := 200 * time.Millisecond
+	var attemptCount atomic.Int32
+
+	m := &extendedMounter{
+		driver: driver,
+		Interface: &mockMounter{
+			isLikelyNotMountPointFunc: func(path string) (bool, error) {
+				return false, nil
+			},
+		},
+		recoveryBackoff: wait.Backoff{
+			Duration: backoffDuration,
+			Factor:   1.0,
+			Steps:    recoveryMaxAttempts,
+		},
+		flushFunc: func(chanId uint64) error { return nil },
+		statFunc: func(name string) (os.FileInfo, error) {
+			time.Sleep(30 * time.Second)
+			return nil, fmt.Errorf("unreachable")
+		},
+		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
+			attemptCount.Add(1)
+			cmd := exec.Command("/bin/sh", "-c", "exit 1")
+			require.NoError(t, cmd.Start())
+			return cmd, nil
+		},
+	}
+
+	// Given: first process crashes immediately → enters recovery loop
+	proc, cmd := startTestProcess(t, "exit 1")
+	trulyExited := make(chan error, 1)
+
+	op := &mounter.MountOperation{
+		Target:        target,
+		FuseFd:        pipeFds[0],
+		OnProcessExit: func(exitErr error) {},
+		OnRecoveryFailed: func(exitErr error, recoveryErr error, attempts int) {
+			assert.Contains(t, recoveryErr.Error(), "server terminating during recovery")
+		},
+	}
+	driver.pids.Store(cmd.Process.Pid, cmd)
+	driver.activeTargets.Store(target, struct{}{})
+
+	driver.wg.Add(1)
+	go m.superviseProcess(proc, op, 42, true, trulyExited)
+
+	// When: wait for first failed restart attempt, then set terminating
+	// during the backoff sleep before the second attempt
+	require.Eventually(t, func() bool {
+		return attemptCount.Load() >= 1
+	}, 5*time.Second, 10*time.Millisecond)
+
+	// Set terminating while the loop is sleeping before attempt 2
+	driver.terminating.Store(true)
+
+	// Then: supervise must exit within backoff duration + margin
+	select {
+	case <-trulyExited:
+	case <-time.After(backoffDuration + 2*time.Second):
+		t.Fatal("supervise hung during backoff sleep after terminating was set")
+	}
+
+	_, loaded := driver.activeTargets.Load(target)
+	assert.False(t, loaded, "activeTargets must be cleared")
+}
