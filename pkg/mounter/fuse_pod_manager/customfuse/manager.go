@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -23,11 +24,18 @@ import (
 const (
 	configMapName      = "csi-plugin"
 	configMapNamespace = "kube-system"
+
+	// Inside the controller's liveness budget (5x10s), so the cause is reported here
+	// rather than by a kubelet restarting a container that never explained itself.
+	configMapSyncTimeout = 30 * time.Second
 )
 
 type CustomFuse struct {
 	defaultConfig fpm.FuseContainerConfig
 	client        kubernetes.Interface
+	// syncTimeout bounds the initial informer sync in Start. It is a field rather
+	// than a constant so tests can drive the real deadline path.
+	syncTimeout time.Duration
 
 	mu            sync.RWMutex
 	configMapData map[string]string
@@ -40,6 +48,7 @@ func NewCustomFuse(csiCfg utils.Config, client kubernetes.Interface) *CustomFuse
 	return &CustomFuse{
 		defaultConfig: defaultConfig,
 		client:        client,
+		syncTimeout:   configMapSyncTimeout,
 	}
 }
 
@@ -58,9 +67,11 @@ func (f *CustomFuse) Start(ctx context.Context) error {
 			return cmClient.Watch(ctx, opts)
 		},
 	}
-	// Reflector initial list uses RV="0" (watch cache) by default, safe for all K8s versions.
+	// The initial fetch is served from the watch cache rather than a consistent read
+	// from etcd, which every supported Kubernetes version provides, so unlike the fuse
+	// pod informer this one needs no version gate.
 	_, informer := cache.NewInformerWithOptions(cache.InformerOptions{
-		ListerWatcher: lw,
+		ListerWatcher: cache.ToListWatcherWithWatchListSemantics(lw, f.client),
 		ObjectType:    &corev1.ConfigMap{},
 		Handler: cache.ResourceEventHandlerFuncs{
 			AddFunc:    func(obj any) { f.updateFromConfigMap(obj) },
@@ -69,8 +80,19 @@ func (f *CustomFuse) Start(ctx context.Context) error {
 		},
 	})
 	go informer.Run(ctx.Done())
-	if !cache.WaitForCacheSync(ctx.Done(), informer.HasSynced) {
-		return fmt.Errorf("failed to sync configmap %s/%s informer", configMapNamespace, configMapName)
+	// A List the RBAC rule does not authorize never starts succeeding: the reflector
+	// only retries, so waiting on the caller's context would block here forever, before
+	// the driver serves anything at all.
+	syncCtx, cancel := context.WithTimeout(ctx, f.syncTimeout)
+	defer cancel()
+	if !cache.WaitForCacheSync(syncCtx.Done(), informer.HasSynced) {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("failed to sync configmap %s/%s informer: %w", configMapNamespace, configMapName, err)
+		}
+		return fmt.Errorf("configmap %s/%s informer did not sync in %s: the reflector lists it by name, "+
+			"which needs configmaps list/watch in that namespace, and RBAC scopes a list to a single name "+
+			"only on Kubernetes 1.32+ (feature gate AuthorizeWithSelectors)",
+			configMapNamespace, configMapName, f.syncTimeout)
 	}
 	return nil
 }
