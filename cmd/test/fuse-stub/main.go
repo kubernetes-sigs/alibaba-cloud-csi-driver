@@ -157,7 +157,9 @@ func main() {
 		fuseFd = fd
 	}
 
-	if !isRecovery {
+	if !isRecovery && *fdFlag <= 0 {
+		// Only call mount(2) when we opened /dev/fuse ourselves.
+		// In fd-passing mode the caller already mounted; we just serve.
 		opts := fmt.Sprintf("fd=%d,rootmode=40000,user_id=%d,group_id=%d,allow_other",
 			fuseFd, os.Getuid(), os.Getgid())
 		if err := unix.Mount("fuse-stub", mountpoint, "fuse.fuse-stub", unix.MS_NOSUID|unix.MS_NODEV, opts); err != nil {
