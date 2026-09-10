@@ -31,6 +31,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // TestParseVolumeHandle tests the parseVolumeHandle function with various inputs
@@ -406,4 +408,45 @@ func TestControllerServer_ControllerGetCapabilities(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Capabilities)
+}
+
+// Suffixed handles (access point and fileset volumes) share a filesystem-level
+// CPFS<->VSC attach, so their unpublish must never detach: it fails with
+// InvalidArgument instead, keeping the VolumeAttachment and the shared attach
+// intact. The controllerServer is left with nil managers on purpose: reaching
+// them would mean the refusal was bypassed, which would panic and fail the test.
+func TestControllerUnpublishVolume_SuffixedHandleRefusesDetach(t *testing.T) {
+	cs := &controllerServer{}
+	tests := []struct {
+		name     string
+		volumeID string
+	}{
+		{name: "access point volume", volumeID: "cpfs-123+ap-abc"},
+		{name: "fileset volume", volumeID: "cpfs-123+fset-456"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := &csi.ControllerUnpublishVolumeRequest{VolumeId: tt.volumeID, NodeId: LingjunNodeIDPrefix + "i-1"}
+			resp, err := cs.ControllerUnpublishVolume(context.Background(), req)
+			assert.Error(t, err)
+			assert.Nil(t, resp)
+			assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		})
+	}
+}
+
+func TestControllerUnpublishVolume_NonVSCNodeSkips(t *testing.T) {
+	cs := &controllerServer{}
+	req := &csi.ControllerUnpublishVolumeRequest{VolumeId: "cpfs-123", NodeId: CommonNodeIDPrefix + "node-1"}
+	resp, err := cs.ControllerUnpublishVolume(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+}
+
+func TestControllerUnpublishVolume_SkipDetachFlag(t *testing.T) {
+	cs := &controllerServer{skipDetach: true}
+	req := &csi.ControllerUnpublishVolumeRequest{VolumeId: "cpfs-123", NodeId: LingjunNodeIDPrefix + "i-1"}
+	resp, err := cs.ControllerUnpublishVolume(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
 }
