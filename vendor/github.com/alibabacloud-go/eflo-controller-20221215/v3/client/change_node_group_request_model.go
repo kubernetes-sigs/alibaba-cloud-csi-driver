@@ -18,11 +18,16 @@ type iChangeNodeGroupRequest interface {
 }
 
 type ChangeNodeGroupRequest struct {
+	// Specifies whether to skip failed nodes. The default value is False.
+	//
 	// example:
 	//
 	// False
-	IgnoreFailedNodeTasks *bool     `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
-	Nodes                 []*string `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
+	IgnoreFailedNodeTasks *bool `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
+	// The node information.
+	Nodes []*string `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
+	// The ID of the target node group.
+	//
 	// example:
 	//
 	// i234242342342

@@ -18,11 +18,16 @@ type iChangeNodeGroupShrinkRequest interface {
 }
 
 type ChangeNodeGroupShrinkRequest struct {
+	// Specifies whether to skip failed nodes. The default value is False.
+	//
 	// example:
 	//
 	// False
-	IgnoreFailedNodeTasks *bool   `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
-	NodesShrink           *string `json:"Nodes,omitempty" xml:"Nodes,omitempty"`
+	IgnoreFailedNodeTasks *bool `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
+	// The node information.
+	NodesShrink *string `json:"Nodes,omitempty" xml:"Nodes,omitempty"`
+	// The ID of the target node group.
+	//
 	// example:
 	//
 	// i234242342342

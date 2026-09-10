@@ -22,13 +22,13 @@ type iListVscsResponseBody interface {
 }
 
 type ListVscsResponseBody struct {
-	// No response is returned. The TotalCount parameter is used.
+	// This parameter is not returned. Use the \\`TotalCount\\` parameter instead.
 	//
 	// example:
 	//
 	// 0
 	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The token. It can be used in the next request to retrieve a new page of results. If this parameter is empty, no next page exists.
+	// The token to retrieve the next page of results. If this parameter is empty, all results have been returned.
 	//
 	// This parameter is required.
 	//
@@ -36,19 +36,19 @@ type ListVscsResponseBody struct {
 	//
 	// 3a6b93229825ac667104463b56790c91
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The request ID.
+	// The ID of the request.
 	//
 	// example:
 	//
 	// 03668372-18FF-5959-98D9-6B36A4643C7A
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The total number of VSCs.
+	// The total number of entries that match the query conditions.
 	//
 	// example:
 	//
 	// 3
 	TotalCount *int32 `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-	// The VSCs.
+	// A list of VSCs.
 	Vscs []*ListVscsResponseBodyVscs `json:"Vscs,omitempty" xml:"Vscs,omitempty" type:"Repeated"`
 }
 
@@ -125,21 +125,13 @@ type ListVscsResponseBodyVscs struct {
 	//
 	// e01-cn-fzh47xd7u08
 	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
-	// The resource group ID.
+	// The ID of the resource group.
 	//
 	// example:
 	//
 	// rg-acfm2zkwhkns57i
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The VSC status.
-	//
-	// Valid values:
-	//
-	// 	- Creating
-	//
-	// 	- Normal
-	//
-	// 	- Deleting
+	// The status of the VSC.
 	//
 	// example:
 	//
@@ -147,7 +139,7 @@ type ListVscsResponseBodyVscs struct {
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
 	// The tags.
 	Tags []*ListVscsResponseBodyVscsTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
-	// The VSC ID.
+	// The ID of the VSC.
 	//
 	// example:
 	//
@@ -159,7 +151,7 @@ type ListVscsResponseBodyVscs struct {
 	//
 	// test_name
 	VscName *string `json:"VscName,omitempty" xml:"VscName,omitempty"`
-	// The VSC type. Valid values: primary and standard.
+	// The type of the VSC. Valid values: \\`primary\\` and \\`standard\\`.
 	//
 	// example:
 	//

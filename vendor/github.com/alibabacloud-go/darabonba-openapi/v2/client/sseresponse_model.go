@@ -63,5 +63,14 @@ func (s *SSEResponse) SetEvent(v *dara.SSEEvent) *SSEResponse {
 }
 
 func (s *SSEResponse) Validate() error {
-	return dara.Validate(s)
+	if err := dara.ValidateRequired(s.Headers, "Headers"); err != nil {
+		return err
+	}
+	if err := dara.ValidateRequired(s.StatusCode, "StatusCode"); err != nil {
+		return err
+	}
+	if err := dara.ValidateRequired(s.Event, "Event"); err != nil {
+		return err
+	}
+	return nil
 }

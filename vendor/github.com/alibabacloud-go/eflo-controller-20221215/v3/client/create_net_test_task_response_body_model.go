@@ -16,13 +16,13 @@ type iCreateNetTestTaskResponseBody interface {
 }
 
 type CreateNetTestTaskResponseBody struct {
-	// Id of the request
+	// The ID of the request.
 	//
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE*****
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The ID of the test task. The unique identifier of a network test task.
+	// The ID of the network test task. This ID is the unique identifier for the task.
 	//
 	// example:
 	//

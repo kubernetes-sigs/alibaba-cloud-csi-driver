@@ -40,11 +40,11 @@ type CreateNetTestTaskRequest struct {
 	//
 	// Eflo-YJ-Test-Cluster
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
-	// Specify when NetTestType is CommTest.
+	// Specify this parameter if NetTestType is set to CommTest.
 	CommTest *CreateNetTestTaskRequestCommTest `json:"CommTest,omitempty" xml:"CommTest,omitempty" type:"Struct"`
-	// Specify when NetTestType is DelayTest.
+	// Specify this parameter if NetTestType is set to DelayTest.
 	DelayTest *CreateNetTestTaskRequestDelayTest `json:"DelayTest,omitempty" xml:"DelayTest,omitempty" type:"Struct"`
-	// The type of the network test. Valid values: DelayTest, TrafficTest, and CommTest.
+	// The type of network test. Valid values: DelayTest, TrafficTest, and CommTest.
 	//
 	// example:
 	//
@@ -56,13 +56,13 @@ type CreateNetTestTaskRequest struct {
 	//
 	// 2
 	NetworkMode *string `json:"NetworkMode,omitempty" xml:"NetworkMode,omitempty"`
-	// The port number.
+	// The test port number.
 	//
 	// example:
 	//
 	// 23604
 	Port *string `json:"Port,omitempty" xml:"Port,omitempty"`
-	// If the TrafficModel is Fullmesh, leave this parameter empty.
+	// This field is empty if TrafficModel is set to Fullmesh.
 	TrafficTest *CreateNetTestTaskRequestTrafficTest `json:"TrafficTest,omitempty" xml:"TrafficTest,omitempty" type:"Struct"`
 }
 
@@ -172,7 +172,7 @@ type CreateNetTestTaskRequestCommTest struct {
 	//
 	// 1
 	GPUNum *int64 `json:"GPUNum,omitempty" xml:"GPUNum,omitempty"`
-	// The host IDs.
+	// The hosts.
 	Hosts []*CreateNetTestTaskRequestCommTestHosts `json:"Hosts,omitempty" xml:"Hosts,omitempty" type:"Repeated"`
 	// The communication library model.
 	//
@@ -180,7 +180,7 @@ type CreateNetTestTaskRequestCommTest struct {
 	//
 	// intention_v4
 	Model *string `json:"Model,omitempty" xml:"Model,omitempty"`
-	// The CommTest type, which can be ACCL or NCCL.
+	// The type of communication library test. Valid values: ACCL and NCCL.
 	//
 	// example:
 	//
@@ -264,7 +264,7 @@ type CreateNetTestTaskRequestCommTestHosts struct {
 	//
 	// i111670831721110797708
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The name of the service.
+	// The service name.
 	//
 	// example:
 	//
@@ -321,7 +321,7 @@ func (s *CreateNetTestTaskRequestCommTestHosts) Validate() error {
 }
 
 type CreateNetTestTaskRequestDelayTest struct {
-	// The hosts of the test node.
+	// The hosts of the test nodes.
 	Hosts []*CreateNetTestTaskRequestDelayTestHosts `json:"Hosts,omitempty" xml:"Hosts,omitempty" type:"Repeated"`
 }
 
@@ -356,7 +356,7 @@ func (s *CreateNetTestTaskRequestDelayTest) Validate() error {
 }
 
 type CreateNetTestTaskRequestDelayTestHosts struct {
-	// The bonding of network interface card.
+	// The bonded NIC port.
 	//
 	// example:
 	//
@@ -380,7 +380,7 @@ type CreateNetTestTaskRequestDelayTestHosts struct {
 	//
 	// e01-cn-bcd3u1aee06
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The name of the service.
+	// The service name.
 	//
 	// example:
 	//
@@ -446,35 +446,35 @@ func (s *CreateNetTestTaskRequestDelayTestHosts) Validate() error {
 }
 
 type CreateNetTestTaskRequestTrafficTest struct {
-	// The client IDs.
+	// The client resources.
 	Clients []*CreateNetTestTaskRequestTrafficTestClients `json:"Clients,omitempty" xml:"Clients,omitempty" type:"Repeated"`
-	// The running duration of the pipeline job. Unit: seconds.
+	// The runtime duration of the flow task, in seconds.
 	//
 	// example:
 	//
 	// 1
 	Duration *int64 `json:"Duration,omitempty" xml:"Duration,omitempty"`
-	// If the protocol is RDMA, enter True or False. If the protocol is TCP, leave this field empty.
+	// If Protocol is set to RDMA, specify True or False. This field is empty if Protocol is set to TCP.
 	//
 	// example:
 	//
 	// False
 	GDR *bool `json:"GDR,omitempty" xml:"GDR,omitempty"`
-	// The network protocol, which can be RDMA or TCP.
+	// The network protocol. Valid values: RDMA and TCP.
 	//
 	// example:
 	//
 	// TCP
 	Protocol *string `json:"Protocol,omitempty" xml:"Protocol,omitempty"`
-	// If the protocol is TCP, enter the number of concurrent connections. If the protocol is RDMA, enter the configured QP value.
+	// If Protocol is set to TCP, specify the number of concurrent connections for the test. If Protocol is set to RDMA, specify the QP value.
 	//
 	// example:
 	//
 	// 1
 	QP *int64 `json:"QP,omitempty" xml:"QP,omitempty"`
-	// The services.
+	// The list of servers.
 	Servers []*CreateNetTestTaskRequestTrafficTestServers `json:"Servers,omitempty" xml:"Servers,omitempty" type:"Repeated"`
-	// The traffic model, which can be MTON or Fullmesh.
+	// The traffic model. Valid values: MTON and Fullmesh.
 	//
 	// example:
 	//
@@ -576,7 +576,7 @@ func (s *CreateNetTestTaskRequestTrafficTest) Validate() error {
 }
 
 type CreateNetTestTaskRequestTrafficTestClients struct {
-	// The bonding of network interface card.
+	// The bonded port of the network interface card (NIC).
 	//
 	// example:
 	//
@@ -600,7 +600,7 @@ type CreateNetTestTaskRequestTrafficTestClients struct {
 	//
 	// e01-cn-20s41p6cx01
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The name of the service.
+	// The service name.
 	//
 	// example:
 	//
@@ -666,7 +666,7 @@ func (s *CreateNetTestTaskRequestTrafficTestClients) Validate() error {
 }
 
 type CreateNetTestTaskRequestTrafficTestServers struct {
-	// The bonding of network interface card.
+	// The bonded NIC port.
 	//
 	// example:
 	//
@@ -690,7 +690,7 @@ type CreateNetTestTaskRequestTrafficTestServers struct {
 	//
 	// e01-cn-wwo3etaqu0b
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The name of the service.
+	// The service name.
 	//
 	// example:
 	//

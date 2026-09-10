@@ -24,29 +24,29 @@ type iListVscsShrinkRequest interface {
 }
 
 type ListVscsShrinkRequest struct {
-	// The maximum number of data entries to return.
+	// The maximum number of entries to return on each page.
 	//
 	// example:
 	//
 	// 20
 	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The token that is used in the next request to retrieve a new page of results. If you leave this parameter empty, the query starts from the beginning.
+	// The token that marks the position from which to start the query. If you leave this parameter empty, the query starts from the beginning.
 	//
 	// example:
 	//
 	// 563d42ae0b17572449ec8c97f7f66069
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The IDs of the nodes.
+	// The list of node IDs.
 	NodeIdsShrink *string `json:"NodeIds,omitempty" xml:"NodeIds,omitempty"`
-	// The resource group ID.
+	// The ID of the resource group.
 	//
 	// example:
 	//
 	// rg-aek2xdkc6icwfha
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags.
+	// The list of tags.
 	Tag []*ListVscsShrinkRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-	// The VSC name.
+	// The name of the VSC.
 	//
 	// example:
 	//
