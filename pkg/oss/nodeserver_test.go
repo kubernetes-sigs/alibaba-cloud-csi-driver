@@ -6,10 +6,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs2"
@@ -17,6 +19,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	featuregatetesting "k8s.io/component-base/featuregate/testing"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -582,6 +585,117 @@ func TestNodePublishVolume_RunC_BindMount(t *testing.T) {
 			if tt.expectBindMount {
 				// Bind mount should be needed
 				assert.False(t, tt.targetMounted, "targetPath should not be mounted for bind mount")
+			}
+		})
+	}
+}
+
+// TestNodePublishVolume_LivenessProbeDispatch verifies that NodePublishVolume
+// picks the fd-passing probe when opts.FdPassing is true, and the legacy
+// (statfs) probe otherwise. The two package vars checkMountPointLegacy and
+// checkMountPointFdPassing are swapped with spies for the duration of each
+// sub-test.
+func TestNodePublishVolume_LivenessProbeDispatch(t *testing.T) {
+	tests := []struct {
+		name            string
+		fuseType        string
+		enableFdPass    bool
+		enableRecovery  bool
+		wantFdPassProbe bool
+	}{
+		{
+			name:            "legacy ossfs2 without gates uses statfs probe",
+			fuseType:        mounterutils.OssFs2Type,
+			enableFdPass:    false,
+			enableRecovery:  false,
+			wantFdPassProbe: false,
+		},
+		{
+			name:            "ossfs2 with fd-passing gate uses safe probe",
+			fuseType:        mounterutils.OssFs2Type,
+			enableFdPass:    true,
+			enableRecovery:  false,
+			wantFdPassProbe: true,
+		},
+		{
+			name:            "ossfs2 with recovery gate implies fd-passing probe",
+			fuseType:        mounterutils.OssFs2Type,
+			enableFdPass:    false,
+			enableRecovery:  true,
+			wantFdPassProbe: true,
+		},
+		{
+			name:            "ossfs ignores gates — always legacy probe",
+			fuseType:        mounterutils.OssFsType,
+			enableFdPass:    true,
+			enableRecovery:  true,
+			wantFdPassProbe: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableFUSEFdPassing, tt.enableFdPass)
+			featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableOssfs2Recovery, tt.enableRecovery)
+
+			// Given: spy counters for each probe path
+			var legacyCalls, fdPassCalls atomic.Int32
+			origLegacy := checkMountPointLegacy
+			origFdPass := checkMountPointFdPassing
+			checkMountPointLegacy = func(m mountutils.Interface, target string) (bool, error) {
+				legacyCalls.Add(1)
+				return m.IsLikelyNotMountPoint(target)
+			}
+			checkMountPointFdPassing = func(m mountutils.Interface, target string) (bool, error) {
+				fdPassCalls.Add(1)
+				return m.IsLikelyNotMountPoint(target)
+			}
+			t.Cleanup(func() {
+				checkMountPointLegacy = origLegacy
+				checkMountPointFdPassing = origFdPass
+			})
+
+			baseDir := t.TempDir()
+			targetPath := filepath.Join(baseDir, "target")
+			require.NoError(t, os.MkdirAll(targetPath, 0o755))
+
+			fakeMounter := mountutils.NewFakeMounter(nil)
+			ns := setupTestNodeServer(t, fakeMounter, false)
+			ns.kernelSupportsRecovery = true
+
+			req := &csi.NodePublishVolumeRequest{
+				VolumeId:   "probe-dispatch-vol",
+				TargetPath: targetPath,
+				VolumeContext: map[string]string{
+					"bucket":   "test-bucket",
+					"url":      "https://oss-cn-beijing.aliyuncs.com",
+					"fuseType": tt.fuseType,
+				},
+				PublishContext: map[string]string{
+					mountProxySocket: filepath.Join(baseDir, "nonexistent.sock"),
+				},
+				VolumeCapability: &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{FsType: tt.fuseType},
+					},
+				},
+				Secrets: map[string]string{
+					"akId":     "test-akid",
+					"akSecret": "test-aksecret",
+				},
+			}
+
+			// When: NodePublishVolume runs (will fail later at proxy dial, but
+			// the liveness check happens before that)
+			_, _ = ns.NodePublishVolume(context.Background(), req)
+
+			// Then: exactly one probe path was called
+			if tt.wantFdPassProbe {
+				assert.Equal(t, int32(1), fdPassCalls.Load(), "fd-passing probe should be called once")
+				assert.Equal(t, int32(0), legacyCalls.Load(), "legacy probe must not be called")
+			} else {
+				assert.Equal(t, int32(1), legacyCalls.Load(), "legacy probe should be called once")
+				assert.Equal(t, int32(0), fdPassCalls.Load(), "fd-passing probe must not be called")
 			}
 		})
 	}

@@ -97,6 +97,14 @@ const (
 // use unifiedFsType instead
 var unifiedFsType = mounterutils.OssFsType
 
+// checkMountPointLegacy and checkMountPointFdPassing are the two mount-point
+// probe strategies selected by opts.FdPassing in NodePublishVolume. They are
+// package variables so tests can replace them with spies.
+var checkMountPointLegacy = mounterutils.IsNotLiveMountPoint
+var checkMountPointFdPassing = func(mounter mountutils.Interface, target string) (bool, error) {
+	return mounterutils.SafeIsNotMountPoint(mounter, target, false)
+}
+
 func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{Capabilities: []*csi.NodeServiceCapability{
 		{
@@ -202,9 +210,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	//   repaired. This is safe because there is no open FUSE fd keeping the connection alive.
 	var notMntTarget bool
 	if opts.FdPassing {
-		notMntTarget, err = mounterutils.SafeIsNotMountPoint(ns.rawMounter, targetPath, false)
+		notMntTarget, err = checkMountPointFdPassing(ns.rawMounter, targetPath)
 	} else {
-		notMntTarget, err = mounterutils.IsNotLiveMountPoint(ns.rawMounter, targetPath)
+		notMntTarget, err = checkMountPointLegacy(ns.rawMounter, targetPath)
 	}
 	if err != nil {
 		return nil, err
