@@ -94,6 +94,8 @@ type FusePodContext struct {
 	NodeName          string
 	VolumeId          string
 	FuseType          string
+	FdPassing         bool
+	Recovery          bool
 	AuthConfig        *AuthConfig
 	PodTemplateConfig *PodTemplateConfig
 }
@@ -101,7 +103,11 @@ type FusePodContext struct {
 type FuseMounterType interface {
 	Name() string
 	PodTemplateSpec(c *FusePodContext, target string) (*corev1.PodTemplateSpec, error)
-	AddDefaultMountOptions(options []string) []string
+	// AddDefaultMountOptions appends default mount options to the given options.
+	// mountFlags are the PV spec mount flags.
+	// For ossfs: flags are appended to options, then defaults are applied.
+	// For ossfs2: if flags is non-empty, a warning is logged (flags are not passed to the daemon).
+	AddDefaultMountOptions(options []string, mountFlags []string) []string
 }
 
 type FuseContainerConfig struct {

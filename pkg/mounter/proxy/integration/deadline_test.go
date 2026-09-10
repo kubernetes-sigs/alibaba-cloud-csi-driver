@@ -36,7 +36,7 @@ func (d *stuckDriver) ApplyOptionDefaults(options []string) []string {
 	return options
 }
 
-func (d *stuckDriver) Mount(ctx context.Context, _ *proxy.MountRequest) error {
+func (d *stuckDriver) Mount(ctx context.Context, _ *proxy.MountRequest, _ int) error {
 	<-ctx.Done()
 	time.Sleep(proxy.MountShutdownGrace)
 	d.returned <- time.Now()
