@@ -69,6 +69,32 @@ Changes take effect on the next mount via informer — no restart needed.
 
 See [examples/customfuse/](../examples/customfuse/) for volumeAttributes reference, Secret passthrough, entrypoint examples, and a complete working demo with JuiceFS CE.
 
+### Fuse pod ServiceAccount
+
+A volume can name the ServiceAccount its fuse pod runs as:
+
+```yaml
+spec:
+  csi:
+    volumeAttributes:
+      serviceAccountName: my-fuse-sa
+```
+
+Unset, the pod uses `ack-csi-customfuse`'s `default`. The account has to exist in
+that namespace, because that is where the fuse pod is created — Kubernetes does not
+look in the consumer's namespace.
+
+The fuse pod never calls the API server, so this is not about permissions. It is
+how the pod reaches a **private registry**: the driver puts no `imagePullSecrets`
+on the pod, and the chart's `imagePullSecrets` cover only the workloads the chart
+renders, not pods created at mount time. Kubernetes honours `imagePullSecrets`
+from the ServiceAccount or the pod spec, which leaves the ServiceAccount as the
+supported route. The same field will carry RRSA-style authentication once
+`authType` supports it.
+
+[examples/customfuse/README.md](../examples/customfuse/README.md#private-registry)
+has the full recipe.
+
 ## Security model
 
 customfuse runs a FUSE client you supply, and hands it credentials you supply.
@@ -105,8 +131,21 @@ credential is exchanged per mount, delivered as files rather than environment
 variables, and rotated before it expires. See
 [customfuse-agent-identity.md](./customfuse-agent-identity.md).
 
-**`otherOpts` is passed through verbatim.** It reaches the entrypoint as
-`$otherOpts` without interpretation, since only the entrypoint knows what its
-client's options look like. An entrypoint that expands it on a command line is
-responsible for rejecting what it does not expect — the examples under
-[examples/customfuse/](../examples/customfuse/) show one way to validate it.
+**`otherOpts` reaches the entrypoint without interpretation**, as `$otherOpts`,
+since only the entrypoint knows what its client's options look like. Every
+`pv.spec.mountOptions` entry travels the same way, as the environment variable its
+own name.
+
+The driver refuses a newline, a semicolon, a backtick or `$(` in either, because
+an entrypoint that splices them onto a command line would run them in a privileged
+container. That refusal is a floor, not a validation of your options: everything
+else is left alone, since the driver cannot tell an exotic option value from an
+attack and guessing wrong breaks mounts that were working. So an entrypoint that
+expands `$otherOpts` unquoted is still exposed to word splitting and to the
+metacharacters that remain. Keep the expansion quoted, or check the value against
+what your client accepts — the examples under
+[examples/customfuse/](../examples/customfuse/) show one way.
+
+`source`, `path` and Secret values are deliberately not checked. They can
+legitimately contain any of those characters, so quoting them stays the
+entrypoint's job.

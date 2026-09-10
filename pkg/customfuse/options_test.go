@@ -3,6 +3,7 @@
 package customfuse
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -337,6 +338,80 @@ func TestParseOptions_CapacityPassthrough(t *testing.T) {
 			}
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCapacity, opts.Capacity)
+		})
+	}
+}
+
+func TestParseOptions_ServiceAccountName(t *testing.T) {
+	opts, err := parseOptions(&csi.NodePublishVolumeRequest{
+		VolumeContext: map[string]string{"serviceAccountName": "my-fuse-sa"},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "my-fuse-sa", opts.ServiceAccountName)
+}
+
+func TestParseOptions_ServiceAccountNameDefaultsEmpty(t *testing.T) {
+	opts, err := parseOptions(&csi.NodePublishVolumeRequest{})
+	assert.NoError(t, err)
+	assert.Empty(t, opts.ServiceAccountName, "unset has to stay empty so the namespace default applies")
+}
+
+// The driver hands these strings to a script it does not control, running in a
+// privileged container, so a separator written into a PV must not end up separating
+// commands.
+func TestParseOptions_RejectsShellControlChars(t *testing.T) {
+	payloads := []string{
+		"cache-size=1024;reboot",
+		"cache-size=1024\nreboot",
+		"cache-size=1024\rreboot",
+		"cache-size=$(reboot)",
+		"cache-size=`reboot`",
+	}
+	for _, payload := range payloads {
+		t.Run("otherOpts "+strconv.Quote(payload), func(t *testing.T) {
+			_, err := parseOptions(&csi.NodePublishVolumeRequest{
+				VolumeContext: map[string]string{"otherOpts": payload},
+			})
+			assert.ErrorContains(t, err, "otherOpts")
+		})
+
+		// pv.spec.mountOptions is the same string by another door: entries are mapped
+		// to env vars identically, so an "otherOpts=..." flag lands in $otherOpts too.
+		t.Run("mountOptions "+strconv.Quote(payload), func(t *testing.T) {
+			_, err := parseOptions(&csi.NodePublishVolumeRequest{
+				VolumeCapability: &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{
+							MountFlags: []string{"otherOpts=" + payload},
+						},
+					},
+				},
+			})
+			assert.ErrorContains(t, err, "mountOptions")
+		})
+	}
+}
+
+// Only separators and substitution are refused. Everything else stays the
+// entrypoint's business, because the driver cannot tell an exotic option value
+// from an attack, and guessing wrong breaks mounts that were working.
+func TestParseOptions_LeavesRemainingMetacharsToTheEntrypoint(t *testing.T) {
+	for _, value := range []string{
+		"-o max_stat_cache_size=1 -o allow_other",
+		"cache-size=1024,buffer-size=300",
+		"--cache-size=1024 --buffer-size=300",
+		"-o a=b --c=d --e f",
+		"attr_timeout=7|entry_timeout=7",
+		"replicas=3&copies=2",
+		"prefix=>/data",
+		"token=$literal",
+	} {
+		t.Run(strconv.Quote(value), func(t *testing.T) {
+			opts, err := parseOptions(&csi.NodePublishVolumeRequest{
+				VolumeContext: map[string]string{"otherOpts": value},
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, value, opts.OtherOpts)
 		})
 	}
 }

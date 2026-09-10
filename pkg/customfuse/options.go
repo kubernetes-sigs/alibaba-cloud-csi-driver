@@ -70,6 +70,15 @@ type fuseOptions struct {
 	// env vars they consume — they are the same string.
 	Secrets   map[string]string
 	DnsPolicy corev1.DNSPolicy
+	// ServiceAccountName names the ServiceAccount the fuse pod runs as, in the fuse
+	// pod namespace. Empty leaves it to the namespace default.
+	//
+	// The pod calls no API server, so this is not about permissions: it is how a
+	// private registry is reached. imagePullSecrets are honoured only from the
+	// ServiceAccount or the pod spec, and the driver fills in neither on its own.
+	// Spelled as in the oss driver's volumeAttributes.serviceAccountName, which the
+	// same field will carry RRSA auth through once authType supports it.
+	ServiceAccountName string
 }
 
 // publishRequest is the common interface for CSI Publish requests.
@@ -80,6 +89,25 @@ type publishRequest interface {
 	GetSecrets() map[string]string
 	GetVolumeCapability() *csi.VolumeCapability
 	GetReadonly() bool
+}
+
+// shellControlChars are rejected in the free-form option strings. The driver runs
+// no shell — these go straight into the entrypoint's environment — but the
+// entrypoint is a script the driver does not control, it commonly splices them onto
+// a command line, and it runs in a privileged container.
+//
+// Structured fields and secrets are deliberately not checked: they can legitimately
+// contain these characters, so quoting those stays the entrypoint's job. The
+// boundary is documented in docs/customfuse.md.
+var shellControlChars = []string{"\n", "\r", ";", "`", "$("}
+
+func validateShellSafe(name, value string) error {
+	for _, c := range shellControlChars {
+		if strings.Contains(value, c) {
+			return fmt.Errorf("%s must not contain %q", name, c)
+		}
+	}
+	return nil
 }
 
 func parseOptions(req publishRequest) (*fuseOptions, error) {
@@ -109,7 +137,12 @@ func parseOptions(req publishRequest) (*fuseOptions, error) {
 		case "url":
 			opts.URL = value
 		case "otheropts":
+			if err := validateShellSafe("otherOpts", value); err != nil {
+				return nil, err
+			}
 			opts.OtherOpts = value
+		case "serviceaccountname":
+			opts.ServiceAccountName = value
 		case "fusetype":
 			opts.FuseType = value
 		case "authtype":
@@ -153,6 +186,14 @@ func parseOptions(req publishRequest) (*fuseOptions, error) {
 				opts.FuseType = mount.FsType
 			}
 			if len(mount.MountFlags) > 0 {
+				// Checked as well, because an "otherOpts=..." entry here travels the
+				// same path into the entrypoint's environment as the attribute above,
+				// so rejecting one and not the other would just move the payload.
+				for _, flag := range mount.MountFlags {
+					if err := validateShellSafe("mountOptions entry", flag); err != nil {
+						return nil, err
+					}
+				}
 				opts.MountOptions = mount.MountFlags
 			}
 		}

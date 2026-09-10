@@ -50,7 +50,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 	authCfg := makeAuthConfig(opts)
 	ptCfg := &fpm.PodTemplateConfig{
-		DnsPolicy: opts.DnsPolicy,
+		DnsPolicy:          opts.DnsPolicy,
+		ServiceAccountName: opts.ServiceAccountName,
 	}
 
 	controllerPublishPath := mounterutils.GetAttachPath(req.VolumeId, true)

@@ -248,6 +248,7 @@ Control fields (consumed by the driver, NOT passed as env vars):
 | `entrypointConfig` | ConfigMap name (in `ack-csi-customfuse` ns) to override `/entrypoint.sh` |
 | `entrypointKey` | Key in ConfigMap (default: `entrypoint.sh`) |
 | `dnsPolicy` | Pod DNS policy (`ClusterFirst`, `Default`, etc.) |
+| `serviceAccountName` | ServiceAccount the fuse pod runs as. Must exist in `ack-csi-customfuse`, not in the consumer's namespace. Defaults to that namespace's `default`. The fuse pod calls no API server, so this is for reaching a private registry — see [Private registry](#private-registry) |
 
 Secret key mapping:
 
@@ -271,6 +272,39 @@ ControllerPublish is triggered).
 kubectl -n kube-system create configmap csi-plugin \
   --from-literal="fuse-juicefs=image=registry.example.com/csi-fuse-juicefs:v1.0"
 ```
+
+### Private registry
+
+The driver puts no `imagePullSecrets` on the fuse pod, and the chart's
+`imagePullSecrets` apply only to the workloads the chart itself renders — not to
+pods created at mount time. So an image in a private registry needs a
+ServiceAccount that carries the credentials, named from the volume:
+
+```bash
+# 1. A docker-registry Secret in the fuse pod namespace. Read the password from a
+#    file or a prompt rather than a flag, so it does not land in shell history.
+kubectl -n ack-csi-customfuse create secret docker-registry my-registry-cred \
+  --docker-server=registry.example.com \
+  --docker-username=<user> --docker-password=<password>
+
+# 2. A ServiceAccount that uses it.
+kubectl -n ack-csi-customfuse create serviceaccount my-fuse-sa
+kubectl -n ack-csi-customfuse patch serviceaccount my-fuse-sa \
+  -p '{"imagePullSecrets": [{"name": "my-registry-cred"}]}'
+```
+
+```yaml
+# 3. Name it from the PV.
+spec:
+  csi:
+    volumeAttributes:
+      serviceAccountName: my-fuse-sa
+```
+
+Both objects belong in `ack-csi-customfuse`, because that is where the fuse pod is
+created; Kubernetes does not look in the consumer's namespace. Patching that
+namespace's `default` ServiceAccount works too, but applies to every customfuse
+volume in the cluster.
 
 ## Other FUSE Clients
 
