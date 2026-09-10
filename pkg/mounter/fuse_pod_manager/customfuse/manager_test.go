@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -119,4 +120,30 @@ func TestResolveConfig(t *testing.T) {
 
 	f.clearConfigMap()
 	assert.Equal(t, f.defaultConfig, f.resolveConfig(mounterutils.CustomFuseType), "after the configmap is deleted")
+}
+
+// The driver sets no imagePullSecrets of its own, so the ServiceAccount a PV names
+// is the only way its fuse pod can reach a private registry.
+func TestBuildPodSpecServiceAccount(t *testing.T) {
+	const target = "/var/lib/kubelet/plugins/customfuseplugin.csi.alibabacloud.com/vol-1/globalmount"
+	f := NewCustomFuse(utils.Config{}, nil)
+	config := fpm.FuseContainerConfig{Image: "fuse-image"}
+
+	spec, err := f.buildPodSpec(config, &fpm.FusePodContext{
+		VolumeId:          "vol-1",
+		NodeName:          "node-1",
+		PodTemplateConfig: &fpm.PodTemplateConfig{ServiceAccountName: "my-fuse-sa"},
+	}, target)
+	require.NoError(t, err)
+	assert.Equal(t, "my-fuse-sa", spec.ServiceAccountName)
+
+	// Unset stays unset, so the API server applies the namespace default exactly as
+	// it did before this field existed.
+	spec, err = f.buildPodSpec(config, &fpm.FusePodContext{
+		VolumeId:          "vol-1",
+		NodeName:          "node-1",
+		PodTemplateConfig: &fpm.PodTemplateConfig{},
+	}, target)
+	require.NoError(t, err)
+	assert.Empty(t, spec.ServiceAccountName)
 }

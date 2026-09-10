@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -43,7 +42,6 @@ type CustomFuse struct {
 
 func NewCustomFuse(csiCfg utils.Config, client kubernetes.Interface) *CustomFuse {
 	defaultConfig := fpm.ExtractFuseContainerConfig(csiCfg, mounterutils.CustomFuseType)
-	defaultConfig.Image = extractImage(csiCfg.ConfigMap, mounterutils.CustomFuseType)
 
 	return &CustomFuse{
 		defaultConfig: defaultConfig,
@@ -124,27 +122,11 @@ func (f *CustomFuse) resolveConfig(fuseType string) fpm.FuseContainerConfig {
 
 	cfg := utils.Config{ConfigMap: data}
 	config := fpm.ExtractFuseContainerConfig(cfg, fuseType)
-	config.Image = extractImage(data, fuseType)
 
 	if config.Image == "" {
 		return f.defaultConfig
 	}
 	return config
-}
-
-// extractImage parses the "image" key from the "fuse-{fuseType}" entry in the ConfigMap data.
-func extractImage(data map[string]string, fuseType string) string {
-	content, ok := data["fuse-"+fuseType]
-	if !ok {
-		return ""
-	}
-	for line := range strings.SplitSeq(content, "\n") {
-		key, value, _ := strings.Cut(strings.TrimSpace(line), "=")
-		if key == "image" {
-			return value
-		}
-	}
-	return ""
 }
 
 func (f *CustomFuse) Name() string {
@@ -274,6 +256,7 @@ func (f *CustomFuse) buildPodSpec(config fpm.FuseContainerConfig, c *fpm.FusePod
 	spec.NodeName = c.NodeName
 	spec.HostNetwork = true
 	spec.DNSPolicy = c.PodTemplateConfig.DnsPolicy
+	spec.ServiceAccountName = c.PodTemplateConfig.ServiceAccountName
 	spec.PriorityClassName = "system-node-critical"
 	spec.Tolerations = []corev1.Toleration{{Operator: corev1.TolerationOpExists}}
 	return

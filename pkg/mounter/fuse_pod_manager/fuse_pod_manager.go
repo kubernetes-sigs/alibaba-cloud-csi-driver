@@ -87,6 +87,9 @@ type AgentIdentityConfig struct {
 
 type PodTemplateConfig struct {
 	DnsPolicy corev1.DNSPolicy
+	// ServiceAccountName is the ServiceAccount the fuse pod runs as. Empty leaves it
+	// to the namespace default.
+	ServiceAccountName string
 }
 
 const (
@@ -158,7 +161,7 @@ func ExtractFuseContainerConfig(csiCfg utils.Config, name string) (config FuseCo
 				invalid = true
 			}
 		case "image":
-			klog.Warning("'image' config in configmap no longer supported")
+			config.Image = value
 		case "image-tag":
 			config.ImageTag = value
 		case "cpu-request", "cpu-limit", "memory-request", "memory-limit":
