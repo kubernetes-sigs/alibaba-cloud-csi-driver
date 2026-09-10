@@ -367,14 +367,7 @@ const (
 )
 
 func (f *fuseOssfs) AddDefaultMountOptions(options []string, mountFlags []string) []string {
-	// For ossfs, mountFlags are appended to options (legacy behavior).
-	// TODO: configuring ossfs daemon options via pv.spec.mountOptions (mountFlags) may be
-	// deprecated in the future; users should migrate to volumeAttributes.otherOpts.
-	if len(mountFlags) > 0 {
-		klog.Warningf("NodePublishVolume: configuring ossfs daemon options via pv.spec.mountOptions (mountFlags) " +
-			"is still supported but may be deprecated in the future. " +
-			"Please migrate to volumeAttributes.otherOpts.")
-	}
+	// For ossfs, mountFlags (from PV spec mountOptions) are appended to daemon options.
 	options = append(options, mountFlags...)
 
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS_OPTIONS")
