@@ -36,16 +36,16 @@ type recoverableDriver struct {
 
 func newRecoverableDriver(fstype string) *recoverableDriver {
 	return &recoverableDriver{
-		fstype:       fstype,
-		mountEntered: make(chan struct{}, 10),
-		mountRelease: make(chan error, 10),
+		fstype:        fstype,
+		mountEntered:  make(chan struct{}, 10),
+		mountRelease:  make(chan error, 10),
 		terminateDone: make(chan struct{}),
 	}
 }
 
-func (d *recoverableDriver) Name() string      { return d.fstype }
-func (d *recoverableDriver) Fstypes() []string { return []string{d.fstype} }
-func (d *recoverableDriver) Init()             {}
+func (d *recoverableDriver) Name() string                                  { return d.fstype }
+func (d *recoverableDriver) Fstypes() []string                             { return []string{d.fstype} }
+func (d *recoverableDriver) Init()                                         {}
 func (d *recoverableDriver) ApplyOptionDefaults(options []string) []string { return options }
 
 func (d *recoverableDriver) Terminate() {

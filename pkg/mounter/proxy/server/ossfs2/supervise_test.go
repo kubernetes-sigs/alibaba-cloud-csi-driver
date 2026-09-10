@@ -684,8 +684,8 @@ func TestSuperviseProcess_MaxAttemptsExhausted_FullCleanup(t *testing.T) {
 	trulyExited := make(chan error, 1)
 
 	op := &mounter.MountOperation{
-		Target: target,
-		FuseFd: fuseFd,
+		Target:        target,
+		FuseFd:        fuseFd,
 		OnProcessExit: func(exitErr error) {},
 		OnRecoveryFailed: func(exitErr error, recoveryErr error, attempts int) {
 			recoveryFailedCalled.Store(true)
