@@ -91,6 +91,14 @@ const (
 // use unifiedFsType instead
 var unifiedFsType = mounterutils.OssFsType
 
+// checkMountPointLegacy and checkMountPointFdPassing are the two mount-point
+// probe strategies selected by opts.FdPassing in NodePublishVolume. They are
+// package variables so tests can replace them with spies.
+var checkMountPointLegacy = mounterutils.IsNotLiveMountPoint
+var checkMountPointFdPassing = func(mounter mountutils.Interface, target string) (bool, error) {
+	return mounterutils.SafeIsNotMountPoint(mounter, target, false)
+}
+
 func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{Capabilities: []*csi.NodeServiceCapability{
 		{
@@ -192,8 +200,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Check if targetPath is already mounted (used to determine if token rotation is needed)
 	// Note: For RunC, targetPath may not be mounted even if attachPath is mounted (bind mount not done yet)
-	// fuseUnsafe=false: targetPath is either non-existent (new pod) or has an active daemon (token rotation)
-	notMntTarget, err := mounterutils.SafeIsNotMountPoint(ns.rawMounter, targetPath, false)
+	//
+	// Two modes require different probes:
+	// - fd-passing/recovery: the FUSE connection stays open while the daemon is dead (fuse pod
+	//   holds /dev/fuse fd), so statfs would block in D-state. Use SafeIsNotMountPoint (mountinfo)
+	//   which is a pure procfs read and cannot block.
+	// - Legacy (no fd-passing): a crashed daemon leaves a mount whose root inode stat is still
+	//   cached, making the mount look healthy. IsNotLiveMountPoint adds a statfs probe that
+	//   reaches the daemon and detects this, auto-unmounting unserviced mounts so they can be
+	//   repaired. This is safe because there is no open FUSE fd keeping the connection alive.
+	var notMntTarget bool
+	if opts.FdPassing {
+		notMntTarget, err = checkMountPointFdPassing(ns.rawMounter, targetPath)
+	} else {
+		notMntTarget, err = checkMountPointLegacy(ns.rawMounter, targetPath)
+	}
 	if err != nil {
 		return nil, err
 	}
