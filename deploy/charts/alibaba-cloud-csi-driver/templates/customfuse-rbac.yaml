@@ -35,6 +35,10 @@ rules:
 # and external-attacher retry for the lock forever and never serve a request,
 # which surfaces only as volumes stuck Pending
 # ConfigMap csi-plugin is where the informer reads the fuse pod image
+# resourceNames scopes a list or a watch only from Kubernetes 1.32, where the
+# AuthorizeWithSelectors feature gate turned on by default. On an older cluster
+# this rule authorizes the get alone, the informer's list stays Forbidden, and the
+# controller exits after 30s naming the gate. See docs/customfuse.md
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

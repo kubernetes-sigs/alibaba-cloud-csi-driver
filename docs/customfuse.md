@@ -10,6 +10,24 @@ CustomFuse can be installed independently or alongside other CSI drivers (OSS, N
 The controller and node plugin deploy in `kube-system` (same as other drivers);
 only the managed **fuse pods** run in the dedicated `ack-csi-customfuse` namespace.
 
+### Requirements
+
+Kubernetes **1.32 or newer**.
+
+The controller learns the fuse pod image from the `csi-plugin` ConfigMap through an
+informer that lists it by name. RBAC's `resourceNames` scopes a `list` or a `watch` only
+from 1.32, when the `AuthorizeWithSelectors` feature gate turned on by default; before
+that it applies to `get` alone. So on an older cluster the chart's `customfuse-controller`
+Role authorizes nothing the informer can use, its list stays Forbidden, and the controller
+exits after ~30s with an error naming the gate rather than retrying forever.
+
+The node plugin is unaffected — it reads the same ConfigMap with a `get`, which
+`resourceNames` has always scoped.
+
+If you cannot upgrade, drop `resourceNames` from that Role's `configmaps` rule so the
+informer can list every ConfigMap in `kube-system`. That gives up the scoping the rule was
+written with, so prefer upgrading.
+
 ### Install CustomFuse only
 
 ```shell
