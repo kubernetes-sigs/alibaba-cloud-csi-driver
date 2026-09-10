@@ -821,7 +821,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID, true)
 	if err != nil {
 		logger.Error(err, "Detach failed")
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "detach disk %s from node %s: %v", req.VolumeId, ns.NodeID, err)
 	}
 	ns.ad.repo.DeleteAttached(req.VolumeId)
 
