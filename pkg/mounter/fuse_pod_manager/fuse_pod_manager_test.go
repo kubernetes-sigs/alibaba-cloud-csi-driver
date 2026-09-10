@@ -45,7 +45,7 @@ func Test_ExtractFuseContainerConfig(t *testing.T) {
 				corev1.ResourceMemory: resource.MustParse("500Mi"),
 			},
 		},
-		Image:    "",
+		Image:    "ossfs:latest",
 		Dbglevel: "info",
 		Extra: map[string]string{
 			"mime-support": "false",

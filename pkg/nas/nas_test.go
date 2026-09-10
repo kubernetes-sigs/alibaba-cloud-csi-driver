@@ -48,15 +48,16 @@ const (
 }`
 )
 
-func TestNewDriverProvisioner(t *testing.T) {
+func TestNewServersProvisioner(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 	registerConfigMapResponder()
 	prepareNasTestFakeK8sContext()
 	prepareFakeRegionEnvVar(t)
 
-	driver := NewServers(metadata.NewMetadata(), "", utils.Controller, utils.Config{})
-	assert.NotNil(t, driver)
+	servers := NewServers(metadata.NewMetadata(), "", utils.Controller, utils.Config{}, "")
+	assert.NotNil(t, servers)
+	assert.NotNil(t, servers.ControllerServer)
 }
 
 func registerConfigMapResponder() {
@@ -76,7 +77,7 @@ func prepareFakeRegionEnvVar(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-hangzhou")
 }
 
-func TestNewDriverPlugin(t *testing.T) {
+func TestNewServersPlugin(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 	registerConfigMapResponder()
@@ -84,8 +85,9 @@ func TestNewDriverPlugin(t *testing.T) {
 	prepareNasTestFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	driver := NewServers(metadata.NewMetadata(), "", utils.Node, utils.Config{})
-	assert.NotNil(t, driver)
+	servers := NewServers(metadata.NewMetadata(), "", utils.Node, utils.Config{}, "")
+	assert.NotNil(t, servers)
+	assert.NotNil(t, servers.NodeServer)
 }
 
 func registerNodeResponder() {

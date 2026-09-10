@@ -305,7 +305,7 @@ spec:
               mountPropagation: HostToContainer
 {{- end }}
 {{- range $key, $val := $nodePool.csi }}
-{{- if $val.enabled }}
+{{- if and $val.enabled (ne $key "customfuse") }}
         - name: {{$key}}-driver-registrar
           image: {{ include "imageSpec" (list $nodePool "pluginRegistrar") }}
           resources:
@@ -375,7 +375,7 @@ spec:
             path: {{ (clean $nodePool.deploy.kubeletRootDir) | quote }}
             type: Directory
 {{- range $key, $val := $nodePool.csi }}
-{{- if $val.enabled }}
+{{- if and $val.enabled (ne $key "customfuse") }}
         - name: {{ $key }}-plugin-dir
           hostPath:
             path: {{ printf "%s/csi-plugins/%splugin.csi.alibabacloud.com" (clean $nodePool.deploy.kubeletRootDir) $key | quote }}

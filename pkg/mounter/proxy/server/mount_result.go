@@ -1,6 +1,6 @@
 package server
 
-type OssfsMountResult struct {
+type FuseMountResult struct {
 	PID      int
 	ExitChan chan error
 }

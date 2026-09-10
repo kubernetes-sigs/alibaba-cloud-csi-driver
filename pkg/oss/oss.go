@@ -41,7 +41,7 @@ const (
 	driverName = "ossplugin.csi.alibabacloud.com"
 )
 
-func NewServers(endpoint string, m metadata.MetadataProvider, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version) *common.Servers {
+func NewServers(endpoint string, m metadata.MetadataProvider, serviceType utils.ServiceType, csiCfg utils.Config, k8sVersion *k8sver.Version, mountProxySock string) *common.Servers {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 	if k8sVersion != nil {
 		klog.Infof("Kubernetes version: %s", k8sVersion.String())
@@ -92,6 +92,7 @@ func NewServers(endpoint string, m metadata.MetadataProvider, serviceType utils.
 			skipGlobalMount: utils.GetSkipGlobalMount(false),
 			rawMounter:      mountutils.NewWithoutSystemd(""),
 			fusePodManagers: fusePodManagers,
+			mountProxySock:  mountProxySock,
 			GenericNodeServer: common.GenericNodeServer{
 				NodeID: nodeName,
 			},

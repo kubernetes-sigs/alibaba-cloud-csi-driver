@@ -418,7 +418,7 @@ type backendPosixCounterDesc struct {
 }
 
 func init() {
-	registerCollector("fuse_stat", NewFuseStatCollector, ossDriverName, nasDriverName, bmcpfsDriverName)
+	registerCollector("fuse_stat", NewFuseStatCollector, ossDriverName, nasDriverName, bmcpfsDriverName, customfuseDriverName)
 }
 
 // NewUsFsStatCollector returns a new Collector exposing user space fs stats.
@@ -686,8 +686,9 @@ func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsCli
 
 var (
 	fuseMetricDirs = map[string][]string{
-		"ossfs": {"/host/var/run/ossfs", "/var/run/ossfs"},
-		"efc":   {"/host/var/run/efc", "/var/run/efc", "/run/cnfs/efc"},
+		"ossfs":      {"/host/var/run/ossfs", "/var/run/ossfs"},
+		"efc":        {"/host/var/run/efc", "/var/run/efc", "/run/cnfs/efc"},
+		"customfuse": {"/host/var/run/customfuse", "/var/run/customfuse"},
 	}
 )
 

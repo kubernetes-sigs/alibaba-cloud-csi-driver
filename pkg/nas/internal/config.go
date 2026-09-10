@@ -8,7 +8,6 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
@@ -23,8 +22,6 @@ import (
 const (
 	configMapName      = "csi-plugin"
 	configMapNamespace = "kube-system"
-
-	defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
 )
 
 type ControllerConfig struct {
@@ -80,7 +77,11 @@ type NodeConfig struct {
 	EnableLosetup     bool
 	EnableVolumeStats bool
 
-	// path of mount proxy socket
+	// MountProxySocket is the resolved socket path for mount-proxy-server.
+	// Resolution is done in main.go:
+	//   1. --mount-proxy-sock flag (sandbox agent scenario)
+	//   2. AlinasMountProxy feature gate + default socket
+	//   3. Empty string → NAS uses ConnectorMounter instead of ProxyMounter
 	MountProxySocket string
 	AgentMode        bool
 
@@ -89,7 +90,7 @@ type NodeConfig struct {
 	CNFSGetter cnfsv1beta1.CNFSGetter
 }
 
-func GetNodeConfig(csiCfg utils.Config) (*NodeConfig, error) {
+func GetNodeConfig(csiCfg utils.Config, mountProxySock string) (*NodeConfig, error) {
 	kubeClient, cnfsGetter := getKubeClients()
 	config := &NodeConfig{
 		// enable nfs port check by default
@@ -133,9 +134,8 @@ func GetNodeConfig(csiCfg utils.Config) (*NodeConfig, error) {
 		}
 	}
 
-	if features.FunctionalMutableFeatureGate.Enabled(features.AlinasMountProxy) {
-		config.MountProxySocket = defaultAlinasMountProxySocket
-	}
+	// mountProxySock is already resolved by main.go (flag > feature gate + default > empty).
+	config.MountProxySocket = mountProxySock
 
 	return config, nil
 }

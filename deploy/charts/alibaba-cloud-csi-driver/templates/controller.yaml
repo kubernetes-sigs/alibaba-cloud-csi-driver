@@ -836,7 +836,7 @@ spec:
 {{- end }}
       volumes:
 {{- range $key, $val := .Values.csi }}
-{{- if and $val.enabled $val.controller.enabled }}
+{{- if and $val.enabled $val.controller.enabled (ne $key "customfuse") }}
         - name: {{ $key }}-provisioner-dir
           emptyDir: {}
 {{- end -}}

@@ -1,0 +1,35 @@
+# Demo 4: Development ConfigMap
+#
+# Hardcodes development-friendly format and mount options.
+# PV only needs to provide instance-specific values (source, bucket, url).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-development
+  namespace: ack-csi-customfuse
+data:
+  entrypoint.sh: |
+    #!/bin/bash
+    set -e
+
+    # ── 1. Format ──
+    juicefs format \
+        --storage=oss \
+        --bucket="http://$bucket.$url" \
+        --access-key="$accessKeyId" \
+        --secret-key="$accessKeySecret" \
+        --block-size=4096 \
+        --trash-days=2 \          # development: keep trash 2 days (prod uses 0)
+        "$source" myjfs
+
+    # ── 2. Credential cleanup ──
+    unset accessKeyId accessKeySecret akId akSecret
+
+    # ── 3. Mount ──
+    # development: small cache, no writeback (prod uses cache-size=4096 + writeback)
+    MOUNT_OPTS="foreground,no-update,cache-size=256,cache-dir=/var/jfsCache"
+    [ -n "$path" ] && MOUNT_OPTS="${MOUNT_OPTS},subdir=${path}"
+    [ "$readOnly" = "true" ] && MOUNT_OPTS="${MOUNT_OPTS},ro"
+
+    echo "Mounting at $mountpoint with -o $MOUNT_OPTS"
+    exec mount.juicefs "$source" "$mountpoint" -o "$MOUNT_OPTS"
