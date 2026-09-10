@@ -34,22 +34,26 @@ func NewServers(endpoint string, serviceType utils.ServiceType, csiCfg utils.Con
 		nodeName = "controller"
 	}
 
-	cfg, err := options.GetRestConfig()
-	if err != nil {
-		klog.ErrorS(err, "failed to get rest config")
-	}
-
-	var clientset kubernetes.Interface
-	if cfg != nil {
-		clientset = kubernetes.NewForConfigOrDie(cfg)
-	}
-
 	var servers common.Servers
 	servers.IdentityServer = &identityServer{
 		common.GenericIdentityServer{Name: driverName},
 	}
 
 	if serviceType&utils.Controller != 0 {
+		// Only the controller talks to the API server: it resolves the fuse image out
+		// of the csi-plugin ConfigMap and owns the fuse pods. The node reaches them
+		// through the mount-proxy socket, so building a clientset here would leave a
+		// node-only plugin able to fail on something it never uses.
+		cfg, err := options.GetRestConfig()
+		if err != nil {
+			klog.ErrorS(err, "failed to get rest config")
+		}
+
+		var clientset kubernetes.Interface
+		if cfg != nil {
+			clientset = kubernetes.NewForConfigOrDie(cfg)
+		}
+
 		fuseManager := customfusefpm.NewCustomFuse(csiCfg, clientset)
 		if err := fuseManager.Start(context.Background()); err != nil {
 			klog.Fatalf("Failed to start configmap informer: %v", err)
