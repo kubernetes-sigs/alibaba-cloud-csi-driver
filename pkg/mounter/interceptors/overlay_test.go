@@ -381,3 +381,93 @@ func TestOverlayInterceptor_OverlayMountFails_CleansUpLower(t *testing.T) {
 		assert.NotEqual(t, lowerDir, mp.Path, "lower mount should be cleaned up after overlay failure")
 	}
 }
+
+// TestOverlayInterceptor_FdPassing_SkipsLivenessProbe verifies that when
+// op.FdPassing is true the interceptor skips the IsNotLiveMountPoint probe
+// (which would D-state on an open FUSE connection with a dead daemon) and
+// passes through directly to the handler with target rewritten to lowerDir.
+func TestOverlayInterceptor_FdPassing_SkipsLivenessProbe(t *testing.T) {
+	mounterutils.OverlayBaseDir = t.TempDir()
+	merged := t.TempDir()
+	lowerDir := mounterutils.OverlayLowerDir(merged)
+
+	// Simulate: merged has a live overlay, lower has a FUSE mount whose daemon
+	// is dead but connection is alive (fd-passing). If the interceptor probed
+	// liveness via statfs it would hang; the fix skips straight to the handler.
+	fake := k8smount.NewFakeMounter([]k8smount.MountPoint{
+		{Path: merged, Device: "overlay", Type: "overlay"},
+		{Path: lowerDir, Device: "ossfs2", Type: "fuse.ossfs2"},
+	})
+
+	// Use a probeMounter that would fail with ENOTCONN if called — proving
+	// the interceptor never reaches it in fd-passing mode.
+	origRaw := raw
+	raw = &probeMounter{
+		FakeMounter: fake,
+		failPath:    lowerDir,
+		failErr:     &os.PathError{Op: "statfs", Path: lowerDir, Err: syscall.ENOTCONN},
+	}
+	defer func() { raw = origRaw }()
+
+	manager := server.NewOverlayManager(fake)
+	interceptor := NewOverlayInterceptor(manager)
+
+	var mountedTarget string
+	handler := func(ctx context.Context, op *mounter.MountOperation) error {
+		mountedTarget = op.Target
+		return nil
+	}
+
+	op := &mounter.MountOperation{
+		Overlay:   true,
+		FdPassing: true,
+		Target:    merged,
+	}
+
+	err := interceptor(context.Background(), op, handler)
+	assert.NoError(t, err)
+	assert.Equal(t, lowerDir, mountedTarget, "target should be rewritten to lower dir")
+}
+
+// TestOverlayInterceptor_FdPassing_FirstMount verifies that fd-passing mode
+// on the very first mount (no existing overlay) creates the lower dir and
+// passes through to the handler without attempting an overlay mount — the
+// overlay is set up by the caller for fd-passing volumes.
+func TestOverlayInterceptor_FdPassing_FirstMount(t *testing.T) {
+	mounterutils.OverlayBaseDir = t.TempDir()
+	merged := t.TempDir()
+	lowerDir := mounterutils.OverlayLowerDir(merged)
+
+	fake := k8smount.NewFakeMounter(nil)
+	origRaw := raw
+	raw = fake
+	defer func() { raw = origRaw }()
+
+	manager := server.NewOverlayManager(fake)
+	interceptor := NewOverlayInterceptor(manager)
+
+	var mountedTarget string
+	handler := func(ctx context.Context, op *mounter.MountOperation) error {
+		mountedTarget = op.Target
+		return nil
+	}
+
+	op := &mounter.MountOperation{
+		Overlay:   true,
+		FdPassing: true,
+		Target:    merged,
+	}
+
+	err := interceptor(context.Background(), op, handler)
+	assert.NoError(t, err)
+	assert.Equal(t, lowerDir, mountedTarget)
+	assert.DirExists(t, lowerDir, "lower dir should be created")
+
+	// No overlay mount should be attempted in fd-passing mode
+	mountPoints, _ := fake.List()
+	for _, mp := range mountPoints {
+		if mp.Type == "overlay" {
+			t.Errorf("overlay mount should not be attempted in fd-passing mode, got: %+v", mp)
+		}
+	}
+}
