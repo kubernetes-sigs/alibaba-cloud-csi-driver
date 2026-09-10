@@ -15,9 +15,11 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/wait"
+	mount "k8s.io/mount-utils"
 )
 
 func startTestProcess(t *testing.T, script string) (*startedProcess, *exec.Cmd) {
@@ -877,4 +879,94 @@ func TestSuperviseProcess_FdClosedDuringRecovery(t *testing.T) {
 	assert.True(t, recoveryFailedCalled.Load(), "OnRecoveryFailed should be called when fd is closed")
 	_, loaded := driver.activeTargets.Load(target)
 	assert.False(t, loaded, "activeTargets must be cleared")
+}
+
+// TestTerminate_OverlayBeforeTerminating exercises the Terminate() ordering:
+// TerminateOverlays runs first, then terminating is set, then pids are killed.
+// If a supervise loop completes recovery restart in the window between overlay
+// teardown and terminating=true, the newly started process must still be killed
+// by the subsequent pids.Range SIGTERM (or by the post-recovery terminating check).
+func TestTerminate_OverlayBeforeTerminating(t *testing.T) {
+	driver := &Driver{
+		pids:           new(sync.Map),
+		monitorManager: server.NewMountMonitorManager(),
+		overlay:        server.NewOverlayManager(mount.NewFakeMounter(nil)),
+	}
+
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "mount")
+	require.NoError(t, os.Mkdir(target, 0o755))
+
+	var pipeFds [2]int
+	require.NoError(t, syscall.Pipe(pipeFds[:]))
+	_ = syscall.Close(pipeFds[1])
+
+	// recoveryGate blocks until we release it — simulates recovery happening
+	// in the window between TerminateOverlays and terminating.Store(true).
+	recoveryGate := make(chan struct{})
+	var recoveryPid atomic.Int32
+
+	m := &extendedMounter{
+		driver: driver,
+		Interface: &mockMounter{
+			isLikelyNotMountPointFunc: func(path string) (bool, error) {
+				return false, nil
+			},
+		},
+		recoveryBackoff: wait.Backoff{Duration: time.Millisecond, Factor: 1, Steps: 5},
+		flushFunc:       func(chanId uint64) error { return nil },
+		statFunc:        func(name string) (os.FileInfo, error) { return os.Stat(name) },
+		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
+			<-recoveryGate
+			cmd := exec.Command("/bin/sh", "-c", "sleep 300")
+			require.NoError(t, cmd.Start())
+			return cmd, nil
+		},
+	}
+
+	// Given: a process that crashes immediately
+	proc, cmd := startTestProcess(t, "exit 1")
+	trulyExited := make(chan error, 1)
+
+	op := &mounter.MountOperation{
+		Target:        target,
+		FuseFd:        pipeFds[0],
+		OnProcessExit: func(exitErr error) {},
+		OnRecoverySuccess: func(pid int, exitErr error, attempts int) {
+			recoveryPid.Store(int32(pid))
+		},
+	}
+	driver.pids.Store(cmd.Process.Pid, cmd)
+	driver.activeTargets.Store(target, struct{}{})
+
+	driver.wg.Add(1)
+	go m.superviseProcess(proc, op, 42, true, trulyExited)
+
+	// When: wait for the crash to trigger recovery, then let recovery proceed
+	// right as we call Terminate — simulating the race window
+	time.Sleep(100 * time.Millisecond)
+
+	terminateDone := make(chan struct{})
+	go func() {
+		defer close(terminateDone)
+		driver.Terminate()
+	}()
+
+	// Release recovery — it runs between TerminateOverlays and terminating
+	time.Sleep(50 * time.Millisecond)
+	close(recoveryGate)
+
+	// Then: Terminate must complete (wg.Wait returns) — not hang
+	select {
+	case <-terminateDone:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Terminate() hung — recovery in the overlay→terminating window was not cleaned up")
+	}
+
+	// Then: trulyExited must be closed
+	select {
+	case <-trulyExited:
+	case <-time.After(2 * time.Second):
+		t.Fatal("trulyExited not closed after Terminate")
+	}
 }
