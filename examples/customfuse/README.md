@@ -184,8 +184,7 @@ Pick based on **where you want the configuration to live**:
 | [4-configmap](4-configmap/) | ConfigMap | Edit ConfigMap | Solidify complex format/mount configs (cache policy, writeback, etc.) into a reusable template — adding a new instance is just a PV with `source`/`bucket`/`url` pointing to the ConfigMap |
 
 > **Note**: volumeAttributes are immutable after PV creation. To change them you
-> must delete and recreate the PV. <!-- TODO: support CSI ModifyVolume to allow
-> in-place volumeAttributes updates -->
+> must delete and recreate the PV.
 
 ## How It Works
 

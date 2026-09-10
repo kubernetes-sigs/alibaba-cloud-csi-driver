@@ -144,11 +144,6 @@ If your client does not need the credential once it is running, `unset` the
 variables before `exec`ing it — only before an `exec`, since a script that stays
 alive keeps the environment it was started with.
 
-`authType: agent-identity` avoids this entirely where it is available: the
-credential is exchanged per mount, delivered as files rather than environment
-variables, and rotated before it expires. See
-[customfuse-agent-identity.md](./customfuse-agent-identity.md).
-
 **`otherOpts` reaches the entrypoint without interpretation**, as `$otherOpts`,
 since only the entrypoint knows what its client's options look like. Every
 `pv.spec.mountOptions` entry travels the same way, as the environment variable its

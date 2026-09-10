@@ -139,7 +139,7 @@ ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas" ]
 #################### CUSTOMFUSE MOUNT-PROXY BASE IMAGE ####################
 # Minimal image containing only mount-proxy binaries.
 # Customers should use this as a base or copy mount-proxy into their own FUSE client image.
-# See examples/oss/common-fuse-juicefs/ for a usage example.
+# See examples/customfuse/ for a usage example.
 
 FROM alinux-install AS customfuse-base
 
