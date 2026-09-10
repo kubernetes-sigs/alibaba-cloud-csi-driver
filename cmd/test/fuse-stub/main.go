@@ -67,19 +67,19 @@ type fuseInitIn struct {
 }
 
 type fuseInitOut struct {
-	Major                uint32
-	Minor                uint32
-	MaxReadahead         uint32
-	Flags                uint32
-	MaxBackground        uint16
-	CongestionThreshold  uint16
-	MaxWrite             uint32
-	TimeGran             uint32
-	MaxPages             uint16
-	MapAlignment         uint16
-	Flags2               uint32
-	MaxStackDepth        uint32
-	Unused               [6]uint32
+	Major               uint32
+	Minor               uint32
+	MaxReadahead        uint32
+	Flags               uint32
+	MaxBackground       uint16
+	CongestionThreshold uint16
+	MaxWrite            uint32
+	TimeGran            uint32
+	MaxPages            uint16
+	MapAlignment        uint16
+	Flags2              uint32
+	MaxStackDepth       uint32
+	Unused              [6]uint32
 }
 
 type fuseAttrOut struct {

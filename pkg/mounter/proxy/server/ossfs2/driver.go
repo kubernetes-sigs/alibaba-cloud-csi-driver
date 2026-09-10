@@ -33,8 +33,8 @@ type Driver struct {
 	activeTargets  sync.Map // target path → struct{}; tracks targets with a running daemon
 	monitorManager *server.MountMonitorManager
 	wg             sync.WaitGroup
-	overlay     *server.OverlayManager
-	terminating atomic.Bool // Set to true during Terminate() to block recovery
+	overlay        *server.OverlayManager
+	terminating    atomic.Bool // Set to true during Terminate() to block recovery
 }
 
 func NewDriver() *Driver {

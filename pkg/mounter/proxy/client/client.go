@@ -19,7 +19,6 @@ const (
 	FuseMountType = "fuse"
 )
 
-
 type client struct {
 	timeout time.Duration
 	raddr   net.UnixAddr
