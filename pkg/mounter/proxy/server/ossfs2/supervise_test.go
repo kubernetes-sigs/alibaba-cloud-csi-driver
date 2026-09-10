@@ -638,3 +638,243 @@ func TestSuperviseProcess_FdValidDuringRecoveryAndClosedAfter(t *testing.T) {
 	err := unix.Fstat(fuseFd, &stat)
 	assert.Error(t, err, "FuseFd should be closed after supervision exits")
 }
+
+// TestSuperviseProcess_MaxAttemptsExhausted_FullCleanup drives the complete
+// superviseProcess path through max-attempts exhaustion and verifies every
+// resource is released: activeTargets cleared, fuseFd closed, trulyExited
+// closed, pids map empty.
+func TestSuperviseProcess_MaxAttemptsExhausted_FullCleanup(t *testing.T) {
+	driver := &Driver{pids: new(sync.Map)}
+
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "mount")
+	require.NoError(t, os.Mkdir(target, 0o755))
+
+	// Given: a real pipe fd to track close
+	var pipeFds [2]int
+	require.NoError(t, syscall.Pipe(pipeFds[:]))
+	_ = syscall.Close(pipeFds[1])
+	fuseFd := pipeFds[0]
+
+	var recoveryFailedCalled atomic.Bool
+
+	m := &extendedMounter{
+		driver: driver,
+		Interface: &mockMounter{
+			isLikelyNotMountPointFunc: func(path string) (bool, error) {
+				return false, nil
+			},
+		},
+		recoveryBackoff: wait.Backoff{Duration: time.Millisecond, Factor: 1, Steps: recoveryMaxAttempts},
+		flushFunc:       func(chanId uint64) error { return nil },
+		statFunc: func(name string) (os.FileInfo, error) {
+			time.Sleep(30 * time.Second)
+			return nil, fmt.Errorf("unreachable")
+		},
+		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
+			cmd := exec.Command("/bin/sh", "-c", "exit 1")
+			require.NoError(t, cmd.Start())
+			return cmd, nil
+		},
+	}
+
+	proc, cmd := startTestProcess(t, "exit 1")
+	trulyExited := make(chan error, 1)
+
+	op := &mounter.MountOperation{
+		Target: target,
+		FuseFd: fuseFd,
+		OnProcessExit: func(exitErr error) {},
+		OnRecoveryFailed: func(exitErr error, recoveryErr error, attempts int) {
+			recoveryFailedCalled.Store(true)
+			assert.Equal(t, recoveryMaxAttempts, attempts)
+		},
+	}
+	driver.pids.Store(cmd.Process.Pid, cmd)
+	driver.activeTargets.Store(target, struct{}{})
+
+	// When: supervise runs with recovery=true and all restarts fail
+	driver.wg.Add(1)
+	go m.superviseProcess(proc, op, 42, true, trulyExited)
+
+	select {
+	case <-trulyExited:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for supervision to finish")
+	}
+
+	// Then: everything is cleaned up
+	assert.True(t, recoveryFailedCalled.Load(), "OnRecoveryFailed must be called")
+
+	_, loaded := driver.activeTargets.Load(target)
+	assert.False(t, loaded, "activeTargets must be cleared after exhaustion")
+
+	pidCount := 0
+	driver.pids.Range(func(_, _ any) bool { pidCount++; return true })
+	assert.Equal(t, 0, pidCount, "pids map must be empty")
+
+	var st unix.Stat_t
+	assert.Error(t, unix.Fstat(fuseFd, &st), "fuseFd must be closed")
+}
+
+// TestSuperviseProcess_MultipleCrashRecoveryCycles verifies state consistency
+// across two full crash → recovery cycles: the process crashes, recovers, runs,
+// crashes again, recovers again; pids map always has exactly one entry and
+// activeTargets stays populated until final termination.
+func TestSuperviseProcess_MultipleCrashRecoveryCycles(t *testing.T) {
+	driver := &Driver{pids: new(sync.Map)}
+
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "mount")
+	require.NoError(t, os.Mkdir(target, 0o755))
+
+	var pipeFds [2]int
+	require.NoError(t, syscall.Pipe(pipeFds[:]))
+	_ = syscall.Close(pipeFds[1])
+
+	// crashGate controls when the "recovered" process should crash again.
+	// Send true to crash, false to stay alive.
+	crashGate := make(chan bool, 10)
+
+	var recoveryCount atomic.Int32
+
+	m := &extendedMounter{
+		driver: driver,
+		Interface: &mockMounter{
+			isLikelyNotMountPointFunc: func(path string) (bool, error) {
+				return false, nil
+			},
+		},
+		recoveryBackoff: wait.Backoff{Duration: time.Millisecond, Factor: 1, Steps: recoveryMaxAttempts},
+		flushFunc:       func(chanId uint64) error { return nil },
+		statFunc:        func(name string) (os.FileInfo, error) { return os.Stat(name) },
+		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
+			shouldCrash := <-crashGate
+			var script string
+			if shouldCrash {
+				script = "exit 1"
+			} else {
+				script = "sleep 300"
+			}
+			cmd := exec.Command("/bin/sh", "-c", script)
+			require.NoError(t, cmd.Start())
+			return cmd, nil
+		},
+	}
+
+	proc, cmd := startTestProcess(t, "exit 1")
+	trulyExited := make(chan error, 1)
+
+	op := &mounter.MountOperation{
+		Target:        target,
+		FuseFd:        pipeFds[0],
+		OnProcessExit: func(exitErr error) {},
+		OnRecoverySuccess: func(pid int, exitErr error, attempts int) {
+			recoveryCount.Add(1)
+		},
+	}
+	driver.pids.Store(cmd.Process.Pid, cmd)
+	driver.activeTargets.Store(target, struct{}{})
+
+	driver.wg.Add(1)
+	go m.superviseProcess(proc, op, 42, true, trulyExited)
+
+	// Cycle 1: initial crash → recovery restart succeeds → stays alive
+	crashGate <- false // recovery restart: succeed (sleep 300)
+
+	require.Eventually(t, func() bool {
+		return recoveryCount.Load() >= 1
+	}, 5*time.Second, 50*time.Millisecond, "first recovery should complete")
+
+	// Verify state: exactly one pid, activeTargets populated
+	pidCount := 0
+	var lastPid int
+	driver.pids.Range(func(k, _ any) bool { pidCount++; lastPid = k.(int); return true })
+	assert.Equal(t, 1, pidCount, "exactly one pid after first recovery")
+	_, loaded := driver.activeTargets.Load(target)
+	assert.True(t, loaded, "activeTargets should be populated")
+
+	// Cycle 2: kill the recovered process → triggers second recovery
+	storedCmd, _ := driver.pids.Load(lastPid)
+	_ = storedCmd.(*exec.Cmd).Process.Kill()
+	crashGate <- false // second recovery: succeed
+
+	require.Eventually(t, func() bool {
+		return recoveryCount.Load() >= 2
+	}, 5*time.Second, 50*time.Millisecond, "second recovery should complete")
+
+	// Verify state again
+	pidCount = 0
+	driver.pids.Range(func(k, _ any) bool { pidCount++; lastPid = k.(int); return true })
+	assert.Equal(t, 1, pidCount, "exactly one pid after second recovery")
+	_, loaded = driver.activeTargets.Load(target)
+	assert.True(t, loaded, "activeTargets should still be populated")
+
+	// Terminate
+	driver.terminating.Store(true)
+	storedCmd, _ = driver.pids.Load(lastPid)
+	_ = storedCmd.(*exec.Cmd).Process.Kill()
+
+	select {
+	case <-trulyExited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for supervision to finish")
+	}
+}
+
+// TestSuperviseProcess_FdClosedDuringRecovery simulates a fuse pod deletion
+// that closes the FUSE fd while recovery is in progress. The flush function
+// should fail (EBADF on closed fd) and recovery should abort cleanly.
+func TestSuperviseProcess_FdClosedDuringRecovery(t *testing.T) {
+	driver := &Driver{pids: new(sync.Map)}
+
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "mount")
+	require.NoError(t, os.Mkdir(target, 0o755))
+
+	var pipeFds [2]int
+	require.NoError(t, syscall.Pipe(pipeFds[:]))
+	_ = syscall.Close(pipeFds[1])
+	fuseFd := pipeFds[0]
+
+	var recoveryFailedCalled atomic.Bool
+
+	m := &extendedMounter{
+		driver: driver,
+		flushFunc: func(chanId uint64) error {
+			// Simulate: fuse pod deleted → fd already closed → flush fails
+			return fmt.Errorf("flush failed: EBADF")
+		},
+	}
+
+	proc, cmd := startTestProcess(t, "exit 1")
+	trulyExited := make(chan error, 1)
+
+	op := &mounter.MountOperation{
+		Target: target,
+		FuseFd: fuseFd,
+		OnProcessExit: func(exitErr error) {
+			// Simulate external fd close (fuse pod deletion) between crash and flush
+			_ = unix.Close(fuseFd)
+		},
+		OnRecoveryFailed: func(exitErr error, recoveryErr error, attempts int) {
+			recoveryFailedCalled.Store(true)
+			assert.Contains(t, recoveryErr.Error(), "EBADF")
+		},
+	}
+	driver.pids.Store(cmd.Process.Pid, cmd)
+	driver.activeTargets.Store(target, struct{}{})
+
+	driver.wg.Add(1)
+	go m.superviseProcess(proc, op, 42, true, trulyExited)
+
+	select {
+	case <-trulyExited:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for supervision to finish")
+	}
+
+	assert.True(t, recoveryFailedCalled.Load(), "OnRecoveryFailed should be called when fd is closed")
+	_, loaded := driver.activeTargets.Load(target)
+	assert.False(t, loaded, "activeTargets must be cleared")
+}
