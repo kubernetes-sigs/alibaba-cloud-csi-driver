@@ -142,7 +142,7 @@ func TestExtendedMount(t *testing.T) {
 		elapsed := time.Since(start)
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "mount timeout after")
+		assert.Contains(t, err.Error(), "timed out verifying mount point readiness")
 		assert.Less(t, elapsed, 5*time.Second, "the attempt must stop at the deadline it was given")
 	})
 
