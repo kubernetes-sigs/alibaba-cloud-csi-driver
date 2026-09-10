@@ -49,6 +49,19 @@ rules:
   resources: ["configmaps"]
   resourceNames: ["csi-plugin"]
   verbs: ["get", "list", "watch"]
+# The node plugin resolves the fuse client image out of csi-plugin before it serves
+# anything, and a ClusterRole cannot scope that get to one named object in one namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: customfuse-node
+  namespace: {{ .Release.Namespace }}
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["csi-plugin"]
+  verbs: ["get"]
 # Bind controller SA to standard CSI ClusterRole (for external-provisioner/attacher sidecars)
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -106,5 +119,20 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: csi-customfuse-controller
+  namespace: {{ .Release.Namespace }}
+# Bind node SA to its namespaced Role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: customfuse-node
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: customfuse-node
+subjects:
+- kind: ServiceAccount
+  name: csi-customfuse-node
   namespace: {{ .Release.Namespace }}
 {{- end }}
