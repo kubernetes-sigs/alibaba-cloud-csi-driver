@@ -28,17 +28,17 @@ type ListDirectoriesAndFilesRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- false (default): queries both directories and files.
+	// - false (default): No. Both directories and files can be queried.
 	//
-	// 	- true: queries only directories.
+	// - true: Yes. Only directories are queried.
 	//
-	// >  If you set the StorageType parameter to All, you must set the DirectoryOnly parameter to true.
+	// > When StorageType is set to All, DirectoryOnly must be set to true and cannot be set to false.
 	//
 	// example:
 	//
 	// false
 	DirectoryOnly *bool `json:"DirectoryOnly,omitempty" xml:"DirectoryOnly,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// This parameter is required.
 	//
@@ -46,7 +46,7 @@ type ListDirectoriesAndFilesRequest struct {
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The maximum number of directories or files to include in the results of each query.
+	// The number of directories or files included in each query result.
 	//
 	// Valid values: 10 to 128.
 	//
@@ -56,15 +56,15 @@ type ListDirectoriesAndFilesRequest struct {
 	//
 	// 100
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	// The pagination token that is used in the next request to retrieve a new page of results. If the return results are truncated, you can use NextToken to initiate a new request to retrieve the content after the current truncation position.
 	//
 	// example:
 	//
 	// TGlzdFJlc291cmNlU****mVzJjE1MTI2NjY4NzY5MTAzOTEmMiZORnI4NDhVeEtrUT0=
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The absolute path of the directory.
+	// The absolute path of the specified directory.
 	//
-	// The path must start with a forward slash (/) and must be a path that exists in the mount target.
+	// The path must start with a forward slash (/) and must be an existing path in the mount target.
 	//
 	// This parameter is required.
 	//
@@ -72,15 +72,15 @@ type ListDirectoriesAndFilesRequest struct {
 	//
 	// /pathway/to/folder
 	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
-	// The storage class.
+	// The storage class type.
 	//
-	// 	- InfrequentAccess: the Infrequent Access (IA) storage class.
+	// - InfrequentAccess: IA storage class.
 	//
-	// 	- Archive: the Archive storage class.
+	// - Archive: Archive storage class.
 	//
-	// 	- All: all stored data.
+	// - All: queries data of all storage classes.
 	//
-	// >  If you set the StorageType parameter to All, you must set the DirectoryOnly parameter to true.
+	// > When StorageType is set to All, you must set DirectoryOnly to true.
 	//
 	// This parameter is required.
 	//

@@ -18,27 +18,27 @@ type iModifyFileSystemRequest interface {
 }
 
 type ModifyFileSystemRequest struct {
-	// The description of the file system.
+	// The file system description.
 	//
 	// Limits:
 	//
-	// 	- The description must be 2 to 128 characters in length.
+	// - The description must be 2 to 128 characters in length.
 	//
-	// 	- It must start with a letter but cannot start with `http://` or `https://`.
+	// - The description must start with a letter or Chinese character and cannot start with `http://` or `https://`.
 	//
-	// 	- The description can contain letters, digits, colons (:), underscores (_), and hyphens (-).
+	// - The description can contain digits, colons (:), underscores (_), or hyphens (-).
 	//
 	// example:
 	//
 	// NAS-test-1
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
-	// 	- Sample ID of a General-purpose NAS file system: `31a8e4****`.
+	// - General-purpose NAS: `31a8e4****`.
 	//
-	// 	- The IDs of Extreme NAS file systems must start with `extreme-`. Example: `extreme-0015****`.
+	// - Extreme NAS: must start with `extreme-`, for example, `extreme-0015****`.
 	//
-	// 	- The IDs of Cloud Paralleled File System (CPFS) file systems must start with `cpfs-`. Example: `cpfs-125487****`.
+	// - CPFS: must start with `cpfs-`, for example, `cpfs-125487****`.
 	//
 	// This parameter is required.
 	//
@@ -95,18 +95,32 @@ func (s *ModifyFileSystemRequest) Validate() error {
 }
 
 type ModifyFileSystemRequestOptions struct {
-	// Specifies whether to enable the oplock feature. Valid values:
+	// Specifies whether to enable the SMB Access-based Enumeration (ABE) access control feature.
 	//
-	// 	- true: enables the feature.
+	// example:
 	//
-	// 	- false: disables the feature.
+	// false
+	EnableABE *bool `json:"EnableABE,omitempty" xml:"EnableABE,omitempty"`
+	// Specifies whether to enable the OpLock feature.
 	//
-	// >  Only Server Message Block (SMB) file systems support this feature.
+	// Valid values:
+	//
+	// - true: enables the feature.
+	//
+	// - false: does not enable the feature.
+	//
+	// > Only file systems whose Protocol Type is SMB protocol are supported.
 	//
 	// example:
 	//
 	// true
 	EnableOplock *bool `json:"EnableOplock,omitempty" xml:"EnableOplock,omitempty"`
+	// Specifies whether the Lingjun VSC mount target supports access only through access points.
+	//
+	// example:
+	//
+	// false
+	VscAccessPointAccessOnly *bool `json:"VscAccessPointAccessOnly,omitempty" xml:"VscAccessPointAccessOnly,omitempty"`
 }
 
 func (s ModifyFileSystemRequestOptions) String() string {
@@ -117,12 +131,30 @@ func (s ModifyFileSystemRequestOptions) GoString() string {
 	return s.String()
 }
 
+func (s *ModifyFileSystemRequestOptions) GetEnableABE() *bool {
+	return s.EnableABE
+}
+
 func (s *ModifyFileSystemRequestOptions) GetEnableOplock() *bool {
 	return s.EnableOplock
 }
 
+func (s *ModifyFileSystemRequestOptions) GetVscAccessPointAccessOnly() *bool {
+	return s.VscAccessPointAccessOnly
+}
+
+func (s *ModifyFileSystemRequestOptions) SetEnableABE(v bool) *ModifyFileSystemRequestOptions {
+	s.EnableABE = &v
+	return s
+}
+
 func (s *ModifyFileSystemRequestOptions) SetEnableOplock(v bool) *ModifyFileSystemRequestOptions {
 	s.EnableOplock = &v
+	return s
+}
+
+func (s *ModifyFileSystemRequestOptions) SetVscAccessPointAccessOnly(v bool) *ModifyFileSystemRequestOptions {
+	s.VscAccessPointAccessOnly = &v
 	return s
 }
 

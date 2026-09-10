@@ -22,19 +22,19 @@ type iDescribeDataFlowTasksRequest interface {
 }
 
 type DescribeDataFlowTasksRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
-	// 	- The IDs of CPFS file systems must start with `cpfs-`. Example: cpfs-099394bd928c\\*\\*\\*\\*.
+	// - General-purpose CPFS: must start with `cpfs-`, such as cpfs-099394bd928c****.
 	//
-	// 	- The IDs of CPFS for Lingjun file systems must start with `bmcpfs-`. Example: bmcpfs-290w65p03ok64ya\\*\\*\\*\\*. .
+	// - CPFS for Lingjun: must start with `bmcpfs-`, such as bmcpfs-290w65p03ok64ya****.
 	//
 	// This parameter is required.
 	//
 	// example:
 	//
-	// cpfs-099394bd928c****
+	// bmcpfs-290w65p03ok64ya****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The details about filters.
+	// The filter conditions.
 	//
 	// if can be null:
 	// false
@@ -49,23 +49,21 @@ type DescribeDataFlowTasksRequest struct {
 	//
 	// 20
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	// The pagination token that is used in the next request to retrieve a new page of results. If the return results are truncated, you can use NextToken to initiate a new request to retrieve the content after the truncation point.
 	//
 	// example:
 	//
 	// TGlzdFJlc291cmNlU****mVzJjE1MTI2NjY4NzY5MTAzOTEmMiZORnI4NDhVeEtrUT0=
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// Whether to query report information.
+	// Specifies whether to query report information.
 	//
-	// 	- True (default)
+	// - True (default): queries reports.
 	//
-	// 	- False
+	// - False: does not query reports.
 	//
-	// >
+	// >- Setting this parameter to False can speed up queries.
 	//
-	// 	- Set it to False to speed up the query.
-	//
-	// 	- Only CPFS for Lingjun supports this parameter.
+	// > - Only CPFS for Lingjun is supported.
 	//
 	// example:
 	//
@@ -140,67 +138,67 @@ func (s *DescribeDataFlowTasksRequest) Validate() error {
 }
 
 type DescribeDataFlowTasksRequestFilters struct {
-	// The filter name.
+	// The name of the filter key.
 	//
-	// Valid value:
+	// Valid values:
 	//
-	// 	- DataFlowIds: filters dataflow tasks by dataflow ID.
+	// - DataFlowIds: filters by data flow ID.
 	//
-	// 	- TaskIds: filters dataflow tasks by task ID.
+	// - TaskIds: filters by data flow task ID.
 	//
-	// 	- Originator: filters dataflow tasks by task initiator.
+	// - Originator: filters by the initiator of the data flow task.
 	//
-	// 	- TaskActions: filters dataflow tasks by task type.
+	// - TaskActions: filters by the type of the data flow task.
 	//
-	// 	- DataTypes: filters dataflow tasks by data type.
+	// - DataTypes: filters by the data type of the data flow task.
 	//
-	// 	- Status: filters dataflow tasks by dataflow status.
+	// - Status: filters by data flow status.
 	//
-	// 	- CreateTimeBegin: filters dataflow tasks that are created after a specified time.
+	// - CreateTimeBegin: filters data flow tasks created after the specified time.
 	//
-	// 	- CreateTimeEnd: filters dataflow tasks that are created before a specified time.
+	// - CreateTimeEnd: filters data flow tasks created before the specified time.
 	//
-	// 	- StartTimeBegin: filters dataflow tasks that are started after a specified time.
+	// - StartTimeBegin: filters data flow tasks started after the specified time.
 	//
-	// 	- StartTimeEnd: filters dataflow tasks that are started before a specified time.
+	// - StartTimeEnd: filters data flow tasks started before the specified time.
 	//
-	// 	- EndTimeBegin: filters dataflow tasks that are stopped after a specified time.
+	// - EndTimeBegin: filters data flow tasks ended after the specified time.
 	//
-	// 	- EndTimeEnd: filters dataflow tasks that are stopped before a specified time.
+	// - EndTimeEnd: filters data flow tasks ended before the specified time.
 	//
 	// example:
 	//
 	// DataFlowIds
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The value of the filter. This parameter does not support wildcards.
+	// The value of the filter key. Wildcards are not supported.
 	//
-	// 	- If Key is set to DataFlowIds, set Value to a dataflow ID or a part of the dataflow ID. You can specify a dataflow ID or a group of dataflow IDs. You can specify a maximum of 10 dataflow IDs. Example: `df-194433a5be31****` or `df-194433a512a2****,df-234533a5be31****`.
+	// - If Key is set to DataFlowIds, Value is set to a data flow ID or part of a data flow ID. You can specify one or more data flow IDs. A maximum of 10 data flow IDs can be specified. Example: `df-194433a5be31****` or `df-194433a512a2****,df-234533a5be31****`.
 	//
-	// 	- If Key is set to TaskId, set Value to a dataflow task ID or a part of the dataflow task ID. You can specify a dataflow task ID or a group of dataflow task IDs. You can specify a maximum of 10 dataflow task IDs. Example: `task-38aa8e890f45****` or `task-38aa8e890f45****,task-29ae8e890f45****`.
+	// - If Key is set to TaskId, Value is set to a data flow task ID or part of a data flow task ID. You can specify one or more data flow task IDs. A maximum of 10 data flow task IDs can be specified. Example: `task-38aa8e890f45****` or `task-38aa8e890f45****,task-29ae8e890f45****`.
 	//
-	// 	- If Key is set to TaskActions, set Value to the type of dataflow task. The task type can be **Import**, **Export**, **Evict**, **Inventory**, **StreamImport**, or **StreamExport**. Combined query is supported. CPFS for Lingjun supports only the Import, Export, StreamImport, and StreamExport tasks. Only CPFS for Lingjun V2.6.0 and later support the StreamImport and StreamExport tasks.
+	// - If Key is set to TaskActions, Value is set to the type of the data flow task, including **Import**, **Export**, **Evict**, **Inventory**, **StreamImport**, and **StreamExport**. Combined queries are supported. CPFS for Lingjun supports only Import, Export, StreamImport, and StreamExport. StreamImport and StreamExport are supported only by CPFS for Lingjun 2.6.0 and later.
 	//
-	// 	- If Key is set to DataTypes, set Value to the data type of the dataflow task. The data type can be MetaAndData, Metadata, or Data. Combined query is supported.
+	// - If Key is set to DataTypes, Value is set to the data type of the data flow task, including MetaAndData, Metadata, and Data. Combined queries are supported.
 	//
-	// 	- If Key is set to Originator, set Value to the initiator of the dataflow task. The initiator can be User or System.
+	// - If Key is set to Originator, Value is set to the initiator of the data flow task, including User and System.
 	//
-	// 	- If Key is set to Status, set Value to the status of the dataflow task. The status can be Pending, Executing, Failed, Completed, Canceling, or Canceled. Combined query is supported.
+	// - If Key is set to Status, Value is set to the status of the data flow task, including Pending, Executing, Failed, Completed, Canceling, and Canceled. Combined queries are supported.
 	//
-	// 	- If Key is set to CreateTimeBegin, set Value to the beginning of the time range to create the dataflow task. Time format: `yyyy-MM-ddThh:mmZ`.
+	// - If Key is set to CreateTimeBegin, Value is set to the earliest creation time of data flow tasks. Format: `yyyy-MM-ddThh:mmZ`.
 	//
-	// 	- If Key is set to CreateTimeEnd, set Value to the end of the time range to create the dataflow task. Time format: `yyyy-MM-ddThh:mmZ`.
+	// - If Key is set to CreateTimeEnd, Value is set to the latest creation time of data flow tasks. Format: `yyyy-MM-ddThh:mmZ`.
 	//
-	// 	- If Key is set to StartTimeBegin, set Value to the beginning of the time range to start the dataflow task. Time format: `yyyy-MM-ddThh:mmZ`.
+	// - If Key is set to StartTimeBegin, Value is set to the earliest start time of data flow tasks. Format: `yyyy-MM-ddThh:mmZ`.
 	//
-	// 	- If Key is set to StartTimeEnd, set Value to the end of the time range to start the dataflow task. Time format: `yyyy-MM-ddThh:mmZ`.
+	// - If Key is set to StartTimeEnd, Value is set to the latest start time of data flow tasks. Format: `yyyy-MM-ddThh:mmZ`.
 	//
-	// 	- If Key is set to EndTimeBegin, set Value to the beginning of the time range to stop the dataflow task. Time format: `yyyy-MM-ddThh:mmZ`.
+	// - If Key is set to EndTimeBegin, Value is set to the earliest end time of data flow tasks. Format: `yyyy-MM-ddThh:mmZ`.
 	//
-	// 	- If Key is set to EndTimeEnd, set Value to the end of the time range to stop the dataflow task. Time format: `yyyy-MM-ddThh:mmZ`.
+	// - If Key is set to EndTimeEnd, Value is set to the latest end time of data flow tasks. Format: `yyyy-MM-ddThh:mmZ`.
 	//
 	// example:
 	//
-	// dfid-12345678
+	// df-194433a5be31****
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

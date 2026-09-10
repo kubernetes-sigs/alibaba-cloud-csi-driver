@@ -28,11 +28,11 @@ type iModifySmbAclRequest interface {
 }
 
 type ModifySmbAclRequest struct {
-	// Specifies whether to allow anonymous access. Valid values:
+	// Specifies whether to allow anonymous access.
 	//
-	// 	- true: The file system allows anonymous access.
+	// - true: Anonymous access is allowed.
 	//
-	// 	- false (default): The file system denies anonymous access.
+	// - false (default): Anonymous access is not allowed.
 	//
 	// if can be null:
 	// false
@@ -41,17 +41,17 @@ type ModifySmbAclRequest struct {
 	//
 	// false
 	EnableAnonymousAccess *bool `json:"EnableAnonymousAccess,omitempty" xml:"EnableAnonymousAccess,omitempty"`
-	// Specifies whether to enable encryption in transit. Valid values:
+	// Specifies whether to enable encryption in transit.
 	//
-	// 	- true: enables encryption in transit.
+	// - true: Encryption in transit is enabled.
 	//
-	// 	- false (default): disables encryption in transit.
+	// - false (default): Encryption in transit is not enabled.
 	//
 	// example:
 	//
 	// false
 	EncryptData *bool `json:"EncryptData,omitempty" xml:"EncryptData,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// This parameter is required.
 	//
@@ -59,53 +59,53 @@ type ModifySmbAclRequest struct {
 	//
 	// 1ca404****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The home directory of each user. Each user-specific home directory must meet the following requirements:
+	// The home folder path for each user. The file path format is as follows:
 	//
-	// 	- Each segment starts with a forward slash (/) or a backward slash (\\\\).
+	// - Use a forward slash (/) or backslash (\\) as the separator.
 	//
-	// 	- Each segment does not contain the following special characters: `<>":|?*`.
+	// - Each segment cannot contain `<>":|?*`.
 	//
-	// 	- Each segment is 0 to 255 characters in length.
+	// - The length of each segment ranges from 0 to 255.
 	//
-	// 	- The total length is 0 to 32,767 characters.
+	// - The total length ranges from 0 to 32767.
 	//
-	// For example, if you create a user named A and the home directory is `/home`, the file system automatically creates a directory named `/home/A` when User A logs on to the file system. If the `/home/A` directory already exists, the file system does not create the directory.
+	// For example, if the user folder is `/home`, the file system performs automatic creation of the `/home/A` folder when user A performs logon. If `/home/A` already exists, this step is skipped.
 	//
-	// > User A must have the permissions to create folders in the \\home directory. Otherwise, the file system cannot create the `/home/A` directory when User A logs on to the file system.
+	// > User A must have the permission to create folders. Otherwise, the `/home/A` folder cannot be created.
 	//
 	// example:
 	//
 	// /home
 	HomeDirPath *string `json:"HomeDirPath,omitempty" xml:"HomeDirPath,omitempty"`
-	// The string that is generated after the system encodes the keytab file by using Base64.
+	// The Base64-encoded string of the keytab file content.
 	//
 	// example:
 	//
 	// BQIAAABHAAIADUFMSUFEVEVTVC5DT00ABGNpZnMAGXNtYnNlcnZlcjI0LmFsaWFkdGVzdC5jb20AAAABAAAAAAEAAQAIqIx6v7p11oUAAABHAAIADUFMSUFEVEVTVC5DT00ABGNpZnMAGXNtYnNlcnZlcjI0LmFsaWFkdGVzdC5jb20AAAABAAAAAAEAAwAIqIx6v7p11oUAAABPAAIADUFMSUFEVEVTVC5DT00ABGNpZnMAGXNtYnNlcnZlcjI0LmFsaWFkdGVzdC5jb20AAAABAAAAAAEAFwAQnQZWB3RAPHU7PMIJyBWePAAAAF8AAgANQUxJQURURVNULkNPTQAEY2lmcwAZc21ic2VydmVyMjQuYWxpYWR0ZXN0LmNvbQAAAAEAAAAAAQASACAGJ7F0s+bcBjf6jD5HlvlRLmPSOW+qDZe0Qk0lQcf8WwAAAE8AAgANQUxJQURURVNULkNPTQAEY2lmcwAZc21ic2VydmVyMjQuYWxpYWR0ZXN0LmNvbQAAAAEAAAAAAQARABDdFmanrSIatnDDh****
 	Keytab *string `json:"Keytab,omitempty" xml:"Keytab,omitempty"`
-	// The string that is generated after the system encodes the keytab file by using MD5.
+	// The MD5-encrypted string of the keytab file content.
 	//
 	// example:
 	//
 	// E3CCF7E2416DF04FA958AA4513EA****
 	KeytabMd5 *string `json:"KeytabMd5,omitempty" xml:"KeytabMd5,omitempty"`
-	// Specifies whether to deny access from non-encrypted clients. Valid values:
+	// Specifies whether to reject unencrypted clients.
 	//
-	// 	- true: The file system denies access from non-encrypted clients.
+	// - true: Unencrypted clients are rejected.
 	//
-	// 	- false (default): The file system allows access from non-encrypted clients.
+	// - false (default): Unencrypted clients are not rejected.
 	//
 	// example:
 	//
 	// false
 	RejectUnencryptedAccess *bool `json:"RejectUnencryptedAccess,omitempty" xml:"RejectUnencryptedAccess,omitempty"`
-	// The ID of a super admin. The ID must meet the following requirements:
+	// The ID of the superuser. The ID must follow these rules:
 	//
-	// 	- The ID starts with `S` and does not contain letters except S.
+	// - Must start with `S`, and no other letters are allowed after the initial S.
 	//
-	// 	- The ID contains at least three hyphens (-) as delimiters.
+	// - Must contain at least three hyphens (-) as separators.
 	//
-	// Examples: `S-1-5-22` and `S-1-5-22-23`.
+	// For example, `S-1-5-22` or `S-1-5-22-23`.
 	//
 	// example:
 	//

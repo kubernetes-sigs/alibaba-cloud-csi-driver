@@ -20,7 +20,7 @@ type iCancelDirQuotaRequest interface {
 }
 
 type CancelDirQuotaRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// This parameter is required.
 	//
@@ -28,7 +28,7 @@ type CancelDirQuotaRequest struct {
 	//
 	// 1ca404****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The absolute path of a directory.
+	// The absolute path of the directory in the file system.
 	//
 	// This parameter is required.
 	//
@@ -36,29 +36,29 @@ type CancelDirQuotaRequest struct {
 	//
 	// /data/sub1
 	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
-	// The UID or GID of a user for whom you want to cancel the directory quota.
+	// The UID or GID to cancel.
 	//
-	// This parameter is required and valid only if the UserType parameter is set to Uid or Gid.
+	// This parameter is required and valid only when UserType is set to Uid or Gid.
 	//
 	// Examples:
 	//
-	// 	- If you want to cancel a quota for a user whose UID is 500, set the UserType parameter to Uid and set the UserId parameter to 500.
+	// - To cancel the quota for the user whose UID is 500, set UserType to Uid and UserId to 500.
 	//
-	// 	- If you want to cancel a quota for a group whose GID is 100, set the UserType parameter to Gid and set the UserId parameter to 100.
+	// - To cancel the quota for the user group whose GID is 100, set UserType to Gid and UserId to 100.
 	//
 	// example:
 	//
 	// 500
 	UserId *string `json:"UserId,omitempty" xml:"UserId,omitempty"`
-	// The type of the user.
+	// The user type.
 	//
 	// Valid values:
 	//
-	// 	- Uid: user ID
+	// - Uid: user ID
 	//
-	// 	- Gid: user group ID
+	// - Gid: user group ID
 	//
-	// 	- AllUsers: all users
+	// - AllUsers: all users.
 	//
 	// This parameter is required.
 	//

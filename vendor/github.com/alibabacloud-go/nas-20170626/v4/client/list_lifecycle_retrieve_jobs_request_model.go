@@ -22,21 +22,21 @@ type iListLifecycleRetrieveJobsRequest interface {
 }
 
 type ListLifecycleRetrieveJobsRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// example:
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The number of the page to return.
+	// The page number of the list.
 	//
-	// Pages start from page 1. Default value: 1.
+	// Start value (default value): 1.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of entries to return on each page.
+	// The number of data retrieval tasks on each page.
 	//
 	// Valid values: 1 to 100.
 	//
@@ -48,25 +48,25 @@ type ListLifecycleRetrieveJobsRequest struct {
 	PageSize *int32 `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
 	// The status of the data retrieval task. Valid values:
 	//
-	// 	- active: The task is running.
+	// - active: running.
 	//
-	// 	- canceled: The task is canceled.
+	// - canceled: canceled.
 	//
-	// 	- completed: The task is completed.
+	// - completed: completed.
 	//
-	// 	- failed: The task has failed.
+	// - failed: failed.
 	//
 	// example:
 	//
 	// completed
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The storage class.
+	// The storage class. Valid values:
 	//
-	// 	- InfrequentAccess: the Infrequent Access (IA) storage class.
+	// - InfrequentAccess: IA storage class.
 	//
-	// 	- Archive: the Archive storage class.
+	// - Archive: Archive storage class.
 	//
-	// >  If the StorageType parameter is not specified, data retrieval tasks of all types are returned.
+	// > If StorageType is not specified, data retrieval tasks of all storage classes are returned.
 	//
 	// example:
 	//

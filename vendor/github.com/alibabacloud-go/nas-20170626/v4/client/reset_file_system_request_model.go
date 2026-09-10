@@ -16,7 +16,7 @@ type iResetFileSystemRequest interface {
 }
 
 type ResetFileSystemRequest struct {
-	// The ID of the advanced Extreme NAS file system.
+	// The ID of the Advanced Extreme NAS file system.
 	//
 	// This parameter is required.
 	//
@@ -24,7 +24,7 @@ type ResetFileSystemRequest struct {
 	//
 	// extreme-012dd****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The snapshot ID.
+	// The ID of the historical snapshot to which you want to roll back the specified file system.
 	//
 	// This parameter is required.
 	//

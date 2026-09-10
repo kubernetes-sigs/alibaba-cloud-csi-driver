@@ -18,11 +18,11 @@ type iListRecentlyRecycledDirectoriesResponseBody interface {
 }
 
 type ListRecentlyRecycledDirectoriesResponseBody struct {
-	// The information about the directories that are recently deleted.
+	// The information about directories on which delete operations were recently performed.
 	Entries []*ListRecentlyRecycledDirectoriesResponseBodyEntries `json:"Entries,omitempty" xml:"Entries,omitempty" type:"Repeated"`
-	// A pagination token.
+	// The pagination token for the next page.
 	//
-	// If not all directories are returned in a query, the return value of the NextToken parameter is not empty. In this case, you can specify a valid value for the NextToken parameter to continue the query.
+	// If the query results are not completely returned, the NextToken parameter is returned with a value. You can specify the NextToken value in the next request to continue the query.
 	//
 	// example:
 	//
@@ -85,13 +85,13 @@ func (s *ListRecentlyRecycledDirectoriesResponseBody) Validate() error {
 }
 
 type ListRecentlyRecycledDirectoriesResponseBodyEntries struct {
-	// The ID of the directory.
+	// The directory ID.
 	//
 	// example:
 	//
 	// 04***08
 	FileId *string `json:"FileId,omitempty" xml:"FileId,omitempty"`
-	// The time when the directory was last deleted.
+	// The most recent time when a delete operation was performed on the directory. The time follows the ISO 8601 standard in UTC. Format: yyyy-MM-ddTHH:mm:ssZ.
 	//
 	// example:
 	//
@@ -103,7 +103,7 @@ type ListRecentlyRecycledDirectoriesResponseBodyEntries struct {
 	//
 	// b
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The absolute path to the directory.
+	// The absolute path of the directory.
 	//
 	// example:
 	//

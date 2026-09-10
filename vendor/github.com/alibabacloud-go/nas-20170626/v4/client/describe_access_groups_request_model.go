@@ -26,9 +26,9 @@ type DescribeAccessGroupsRequest struct {
 	//
 	// Limits:
 	//
-	// 	- The name must be 3 to 64 characters in length.
+	// - The name must be 3 to 64 characters in length.
 	//
-	// 	- The name must start with a letter and can contain letters, digits, underscores (_), and hyphens (-).
+	// - The name must start with a letter and can contain letters, digits, underscores (_), or hyphens (-).
 	//
 	// example:
 	//
@@ -38,25 +38,25 @@ type DescribeAccessGroupsRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- standard: General-purpose Apsara File Storage NAS (NAS) file system
+	// - standard (default): General-purpose NAS.
 	//
-	// 	- extreme: Extreme NAS file system.
+	// - extreme: Extreme NAS.
 	//
-	// 	- cpfs: CPFS file system.
+	// - cpfs: Cloud Parallel File Storage (CPFS).
 	//
 	// example:
 	//
 	// standard
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The page number.
+	// The page number of the list.
 	//
-	// Pages start from page 1. Default value: 1.
+	// Start value (default value): 1.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of permission groups returned per page.
+	// The number of permission groups on each page.
 	//
 	// Valid values: 1 to 100.
 	//
@@ -66,13 +66,13 @@ type DescribeAccessGroupsRequest struct {
 	//
 	// 2
 	PageSize *int32 `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	// Specifies whether to display the creation time of the permission group in UTC.
+	// Specifies whether the returned time is displayed in UTC.
 	//
 	// Valid values:
 	//
-	// 	- true (default): The time is displayed in UTC.
+	// - true (default): The returned time is displayed in UTC.
 	//
-	// 	- false: The time is not displayed in UTC.
+	// - false: The returned time is not displayed in UTC.
 	//
 	// example:
 	//

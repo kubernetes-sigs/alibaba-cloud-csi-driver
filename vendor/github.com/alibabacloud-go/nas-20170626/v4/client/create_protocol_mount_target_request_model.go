@@ -42,37 +42,37 @@ type CreateProtocolMountTargetRequest struct {
 	//
 	// DEFAULT_VPC_GROUP_NAME
 	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but make sure that the token is unique among different requests.
 	//
-	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](https://help.aliyun.com/document_detail/25693.html)
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How to ensure idempotence](https://help.aliyun.com/document_detail/25693.html).
 	//
-	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
+	// > If you do not specify this parameter, the system automatically uses the RequestId of the API request as the ClientToken. The RequestId may differ for each API request.
 	//
 	// example:
 	//
 	// 473469C7-AA6F-4DC5-B3DB-A3DC0DE3****
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// The description of the export directory for the protocol service. The **name of the export directory*	- appears in the console.
+	// The description of the protocol service export directory. This parameter is displayed as **Export Directory Name*	- in the console.
 	//
 	// Limits:
 	//
-	// 	- The description must be 2 to 128 characters in length.
+	// - The description must be 2 to 128 characters in length and can contain letters and Chinese characters.
 	//
-	// 	- The description must start with a letter but cannot start with `http://` or `https://`.
+	// - The description must start with a letter or a Chinese character and cannot start with `http://` or `https://`.
 	//
-	// 	- The description can contain letters, digits, colons (:), underscores (_), and hyphens (-).
+	// - The description can contain digits, colons (:), underscores (_), and hyphens (-).
 	//
 	// example:
 	//
-	// test
+	// 此导出目录的描述
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Specifies whether to perform a dry run. The dry run checks parameter validity and prerequisites. The dry run does not create an export directory or incur fees.
+	// Specifies whether to perform a dry run for this request. A dry run checks parameter validity, dependencies, and other conditions without actually creating the instance or incurring charges.
 	//
 	// Valid values:
 	//
-	// 	- true: performs a dry run. The system checks the request format, service limits, prerequisites, and whether the required parameters are specified. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the ExportId parameter.
+	// - true: sends a dry run request without creating the export directory. The dry run checks whether required parameters are specified, whether the request format is valid, and whether business limit dependencies are met. If the check fails, the corresponding error is returned. If the check succeeds, HTTP status code 200 is returned, but ExportId is empty.
 	//
-	// 	- false (default): performs a dry run and sends the request. If the request passes the dry run, an export directory is created.
+	// - false (default): sends a normal request. After the check succeeds, the instance is created.
 	//
 	// example:
 	//
@@ -84,39 +84,39 @@ type CreateProtocolMountTargetRequest struct {
 	//
 	// example:
 	//
-	// cpfs-123****
+	// cpfs-099394bd928c****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The ID of the fileset that you want to export.
+	// The ID of the fileset to export.
 	//
 	// Limits:
 	//
-	// 	- The fileset already exists.
+	// - The fileset must already exist.
 	//
-	// 	- You can create only one export directory for a fileset.
+	// - Only one export directory can be created for each fileset.
 	//
-	// 	- You can specify either a fileset or a path.
+	// - You must specify one and only one of FsetId and Path.
 	//
 	// example:
 	//
-	// fset-123****
+	// fset-1902718ea0ae****
 	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
-	// The path of the CPFS directory that you want to export.
+	// The path of the CPFS directory to export.
 	//
 	// Limits:
 	//
-	// 	- The directory already exists in the CPFS file system.
+	// - The directory must already exist on the CPFS file system.
 	//
-	// 	- You can create only one export directory for a directory.
+	// - Only one export can be created for each directory.
 	//
-	// 	- You can specify either a fileset or a path.
+	// - You must specify one and only one of FsetId and Path.
 	//
 	// Format:
 	//
-	// 	- The path must be 1 to 1,024 characters in length.
+	// - The path must be 1 to 1,024 characters in length.
 	//
-	// 	- The path must be encoded in UTF-8.
+	// - The path must be encoded in UTF-8.
 	//
-	// 	- The path must start and end with a forward slash (/). The root directory is `/`.
+	// - The path must start and end with a forward slash (/). The root directory is `/`.
 	//
 	// example:
 	//
@@ -128,28 +128,34 @@ type CreateProtocolMountTargetRequest struct {
 	//
 	// example:
 	//
-	// ptc-123****
+	// ptc-197ed6a00f2b****
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
-	// The vSwitch ID of the export directory for the protocol service.
+	// The ID of the vSwitch for the protocol service export.
+	//
+	// If the storage redundancy type of the file system is not zone-redundant storage (ZRS), this parameter is required when VpcId is specified.
+	//
+	// >  The vSwitch must be in the same zone as the target CPFS file system.
 	//
 	// if can be null:
 	// true
 	//
 	// example:
 	//
-	// vsw-123****
+	// vsw-2vc3c2lybvdllxyq4****
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The list of vSwitch IDs for the protocol service export.
+	//
 	// if can be null:
 	// true
 	VSwitchIds []*string `json:"VSwitchIds,omitempty" xml:"VSwitchIds,omitempty" type:"Repeated"`
-	// The VPC ID of the export directory for the protocol service.
+	// The ID of the VPC for the protocol service export.
 	//
 	// if can be null:
 	// true
 	//
 	// example:
 	//
-	// vpc-123****
+	// vpc-2vct297b8157bth9z****
 	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
 

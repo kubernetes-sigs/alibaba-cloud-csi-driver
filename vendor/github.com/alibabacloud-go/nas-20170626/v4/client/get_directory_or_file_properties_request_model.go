@@ -24,9 +24,9 @@ type GetDirectoryOrFilePropertiesRequest struct {
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The absolute path of the directory.
+	// The absolute path of the directory or file.
 	//
-	// The path must start with a forward slash (/) and must be a path that exists in the mount target.
+	// The path must start with a forward slash (/) and must be an existing path in the mount target.
 	//
 	// This parameter is required.
 	//
