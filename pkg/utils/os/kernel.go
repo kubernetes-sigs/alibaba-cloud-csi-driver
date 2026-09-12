@@ -1,25 +1,35 @@
 package os
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
 )
 
-// ErrPrefixRecoveryKernel is the common prefix for recovery kernel validation errors.
-const ErrPrefixRecoveryKernel = "recovery requires kernel >= 5.10.134-18 on Alibaba Cloud Linux 3, x86_64"
+// fuseFlushSymbol is the kernel symbol exposed by the alinux FUSE recovery patch.
+// Its presence in /proc/kallsyms indicates the kernel supports flushing in-flight
+// FUSE requests via /sys/fs/fuse/connections/<id>/flush, which is required for
+// ossfs2 crash recovery. See also: bmcpfs checks fuse_dev_ioctl_recover from the
+// same patch set.
+const fuseFlushSymbol = "fuse_flush_pq"
+
+// procKallsymsPath is the default path to the kernel symbol table.
+// Overridden in tests.
+var procKallsymsPath = "/proc/kallsyms"
 
 // KernelVersion represents a parsed kernel version string from uname.
-// Example: "5.10.134-18.al8.x86_64" → {Major:5, Minor:10, Patch:134, Sublevel:18, OSDist:"al8", Arch:"x86_64"}
+// Example: "5.10.134-18.al8.x86_64" → {Major:5, Minor:10, Patch:134, Sublevel:18, OSDist:"al8"}
+// Architecture is not parsed here; use UnameMachine() (uname -m) instead.
 type KernelVersion struct {
 	Major    int
 	Minor    int
 	Patch    int
 	Sublevel int    // the numeric part after the first hyphen (e.g. 18 in "5.10.134-18")
 	OSDist   string // the OS distribution tag (e.g. "al8", "el8")
-	Arch     string // the architecture (e.g. "x86_64", "aarch64")
 	raw      string
 }
 
@@ -87,9 +97,6 @@ func ParseKernelVersion(release string) (*KernelVersion, error) {
 	for i := 1; i < len(suffixParts); i++ {
 		if _, err := strconv.Atoi(suffixParts[i]); err != nil {
 			kv.OSDist = suffixParts[i]
-			if i+1 < len(suffixParts) {
-				kv.Arch = strings.Join(suffixParts[i+1:], ".")
-			}
 			break
 		}
 	}
@@ -116,62 +123,36 @@ func (kv *KernelVersion) String() string {
 	return kv.raw
 }
 
-// CheckKernelForRecovery validates that the kernel meets the minimum requirements
-// for FUSE recovery support:
-//   - Kernel version >= 5.10.134-18
-//   - OS distribution is Alibaba Cloud Linux 3 (al8)
-//   - Architecture is x86_64
+// CheckKernelForRecovery checks whether the running kernel supports FUSE
+// connection flush, required for ossfs2 crash recovery.
 //
-// Returns an error describing which requirement is not met.
+// Detection is capability-based: we scan /proc/kallsyms for the fuse_flush_pq
+// symbol rather than inferring support from kernel version/OS/arch. This
+// matches the approach used by bmcpfs (which checks fuse_dev_ioctl_recover).
 func CheckKernelForRecovery() error {
-	release, err := UnameRelease()
-	if err != nil {
-		return fmt.Errorf("%s: cannot detect kernel version: %w", ErrPrefixRecoveryKernel, err)
-	}
-	machine, err := UnameMachine()
-	if err != nil {
-		return fmt.Errorf("%s: cannot detect architecture: %w", ErrPrefixRecoveryKernel, err)
-	}
-	return checkKernelForRecoveryWithInputs(release, machine)
+	return checkKallsymsForSymbol(procKallsymsPath, fuseFlushSymbol)
 }
 
-// checkKernelForRecoveryWithInputs validates kernel requirements using the provided
-// release and machine strings. It is the testable core of CheckKernelForRecovery.
-func checkKernelForRecoveryWithInputs(release, machine string) error {
-	kv, err := ParseKernelVersion(release)
+// checkKallsymsForSymbol scans a kallsyms-format file for a symbol name.
+// kallsyms format: "<addr> <type> <name>\n" or "<addr> <type> <name>\t[<module>]\n"
+func checkKallsymsForSymbol(path, symbol string) error {
+	f, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("%s: %w", ErrPrefixRecoveryKernel, err)
+		return fmt.Errorf("cannot check kernel symbols: %w", err)
 	}
+	defer func() { _ = f.Close() }()
 
-	minVersion := &KernelVersion{Major: 5, Minor: 10, Patch: 134, Sublevel: 18}
-	if kv.Less(minVersion) {
-		return fmt.Errorf("%s, got %s", ErrPrefixRecoveryKernel, release)
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) >= 3 && fields[2] == symbol {
+			return nil
+		}
 	}
-
-	if !isSupportedOSForRecovery(kv.OSDist) {
-		return fmt.Errorf("%s: unsupported OS distribution %q (kernel %s)", ErrPrefixRecoveryKernel, kv.OSDist, release)
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading %s: %w", path, err)
 	}
-
-	// TODO: support aarch64 architecture for recovery
-	if machine != "x86_64" {
-		return fmt.Errorf("recovery requires x86_64 architecture, got %q", machine)
-	}
-
-	return nil
-}
-
-// isSupportedOSForRecovery checks whether the OS distribution supports FUSE recovery.
-// Currently only Alibaba Cloud Linux 3 (osDist "al8") is supported.
-func isSupportedOSForRecovery(osDist string) bool {
-	if osDist == "al8" {
-		return true
-	}
-	// TODO: enable when ossfs2 supports Alibaba Cloud Linux 4+ (alnx4, alnx5, ...)
-	// if verStr, ok := strings.CutPrefix(osDist, "alnx"); ok {
-	// 	ver, err := strconv.Atoi(verStr)
-	// 	return err == nil && ver >= 4
-	// }
-	return false
+	return fmt.Errorf("kernel symbol %q not found in %s; FUSE recovery flush not supported by this kernel", symbol, path)
 }
 
 // utsnameToString converts a C-style char array from Utsname to a Go string.

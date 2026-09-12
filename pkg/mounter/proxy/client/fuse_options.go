@@ -102,14 +102,12 @@ func splitFuseOptions(options []string, mountFlags []string) (fuseOptions, daemo
 // Returns ("", false) for empty / blank-key inputs and "rw" (the default mode,
 // silently ignored to avoid conflicts with "ro").
 func parseOptionKey(opt string) (string, bool) {
-	kv := strings.SplitN(opt, "=", 2)
-	if len(kv) == 0 || kv[0] == "" {
+	k, _, _ := strings.Cut(opt, "=")
+	k = strings.TrimSpace(k)
+	if k == "" || k == "rw" {
 		return "", false
 	}
-	if kv[0] == "rw" {
-		return "", false
-	}
-	return kv[0], true
+	return k, true
 }
 
 // setFuseOption stores opt into fuseOptionsMap. If opt is "key=value", the value is
@@ -120,9 +118,8 @@ func setFuseOption(fuseOptionsMap map[string]string, opt string) {
 	if !ok {
 		return
 	}
-	kv := strings.SplitN(opt, "=", 2)
-	if len(kv) == 2 {
-		fuseOptionsMap[key] = kv[1]
+	if _, v, hasValue := strings.Cut(opt, "="); hasValue {
+		fuseOptionsMap[key] = v
 	} else {
 		fuseOptionsMap[key] = nullVal
 	}

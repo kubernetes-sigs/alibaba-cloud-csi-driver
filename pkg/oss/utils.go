@@ -352,6 +352,7 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 	if onNode && opts.Recovery && !nodeKernelSupportsRecovery {
 		klog.Warningf("FUSE recovery requested for volume (fuseType=%s) but node kernel does not support it; falling back to non-recovery mode", opts.FuseType)
 		opts.Recovery = false
+		opts.RecoveryDegraded = true
 	}
 
 	// Resolve CNFS fallback before URL normalization:

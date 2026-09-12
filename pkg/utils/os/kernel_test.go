@@ -1,6 +1,8 @@
 package os
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -13,8 +15,8 @@ func TestParseKernelVersion(t *testing.T) {
 		wantPatch  int
 		wantSub    int
 		wantOSDist string
-		wantArch   string
-		wantErr    bool
+
+		wantErr bool
 	}{
 		{
 			name:       "Alibaba Cloud Linux 2 x86_64",
@@ -24,7 +26,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    18,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "Alibaba Cloud Linux 3 newer sublevel",
@@ -34,7 +35,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    19,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "Alibaba Cloud Linux aarch64",
@@ -44,7 +44,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    18,
 			wantOSDist: "al8",
-			wantArch:   "aarch64",
 		},
 		{
 			name:       "CentOS 8",
@@ -54,7 +53,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    18,
 			wantOSDist: "el8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "higher kernel version",
@@ -64,7 +62,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  135,
 			wantSub:    20,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "Alibaba Cloud Linux 4 x86_64",
@@ -74,7 +71,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  102,
 			wantSub:    5,
 			wantOSDist: "alnx4",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "kernel 6.x",
@@ -84,7 +80,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  0,
 			wantSub:    1,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "multi-segment sublevel",
@@ -94,7 +89,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    19,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "extra version and sublevel segments",
@@ -104,7 +98,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    19,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:      "no suffix",
@@ -151,9 +144,6 @@ func TestParseKernelVersion(t *testing.T) {
 			if kv.OSDist != tt.wantOSDist {
 				t.Errorf("osdist = %q, want %q", kv.OSDist, tt.wantOSDist)
 			}
-			if kv.Arch != tt.wantArch {
-				t.Errorf("arch = %q, want %q", kv.Arch, tt.wantArch)
-			}
 			if kv.String() != tt.release {
 				t.Errorf("String() = %q, want %q", kv.String(), tt.release)
 			}
@@ -189,70 +179,65 @@ func TestKernelVersionLess(t *testing.T) {
 	}
 }
 
-func TestCheckKernelForRecovery_ValidationError(t *testing.T) {
+func TestCheckKallsymsForSymbol(t *testing.T) {
 	tests := []struct {
 		name    string
-		release string
-		machine string
+		content string
+		symbol  string
 		wantErr bool
 	}{
-		{"kernel too old - sublevel", "5.10.134-17.al8.x86_64", "x86_64", true},
-		{"kernel too old - patch", "5.10.133-18.al8.x86_64", "x86_64", true},
-		{"kernel too old - minor", "5.9.134-18.al8.x86_64", "x86_64", true},
-		{"not alinux - el8", "5.10.134-18.el8.x86_64", "x86_64", true},
-		{"not alinux - al7", "5.10.134-18.al7.x86_64", "x86_64", true},
-		{"wrong arch - s390x", "5.10.134-18.al8.x86_64", "s390x", true},
-		{"wrong arch - aarch64", "5.10.134-18.al8.aarch64", "aarch64", true},
-		{"wrong arch - i386", "5.10.134-18.al8.i386", "i386", true},
-		{"wrong arch - armv7l", "5.10.134-18.al8.armv7l", "armv7l", true},
-		{"wrong arch - ppc64le", "5.10.134-18.al8.ppc64le", "ppc64le", true},
-		{"wrong arch - empty", "5.10.134-18.al8", "", true},
-		{"valid al8 x86_64", "5.10.134-18.al8.x86_64", "x86_64", false},
-		{"valid higher version", "5.10.135-20.al8.x86_64", "x86_64", false},
-		{"valid kernel 6", "6.6.0-1.al8.x86_64", "x86_64", false},
-		{"valid alnx4 x86_64", "6.6.102-5.alnx4.x86_64", "x86_64", true}, // TODO: change to false when ossfs2 supports alinux4+
-		{"valid alnx5 x86_64", "6.6.102-5.alnx5.x86_64", "x86_64", true}, // TODO: change to false when ossfs2 supports alinux4+
-		{"valid multi-segment sublevel", "5.10.134-19.3.1.al8.x86_64", "x86_64", false},
-		{"not alinux - al9", "5.10.134-18.al9.x86_64", "x86_64", true},
-		{"not alinux - alnx3", "5.10.134-18.alnx3.x86_64", "x86_64", true},
+		{
+			name:    "symbol present in fuse module",
+			content: "ffffffffc0b20ed0 t fuse_dev_ioctl_recover\t[fuse]\nffffffffc0b25ed0 t fuse_flush_pq\t[fuse]\n",
+			symbol:  "fuse_flush_pq",
+			wantErr: false,
+		},
+		{
+			name:    "symbol present without module",
+			content: "ffffffff81000000 T startup_64\nffffffff82000000 t fuse_flush_pq\n",
+			symbol:  "fuse_flush_pq",
+			wantErr: false,
+		},
+		{
+			name:    "symbol not present",
+			content: "ffffffffc0b20ed0 t fuse_dev_ioctl_recover\t[fuse]\nffffffff81000000 T startup_64\n",
+			symbol:  "fuse_flush_pq",
+			wantErr: true,
+		},
+		{
+			name:    "empty file",
+			content: "",
+			symbol:  "fuse_flush_pq",
+			wantErr: true,
+		},
+		{
+			name:    "partial match is not a match",
+			content: "ffffffff82000000 t fuse_flush_pq_extended\n",
+			symbol:  "fuse_flush_pq",
+			wantErr: true,
+		},
+		{
+			name:    "file does not exist",
+			content: "",
+			symbol:  "fuse_flush_pq",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := checkKernelForRecoveryWithInputs(tt.release, tt.machine)
-			gotErr := err != nil
-			if gotErr != tt.wantErr {
-				t.Errorf("checkKernelForRecoveryWithInputs(%q, %q) error=%v, wantErr=%v", tt.release, tt.machine, err, tt.wantErr)
+			var path string
+			if tt.name == "file does not exist" {
+				path = filepath.Join(t.TempDir(), "nonexistent")
+			} else {
+				path = filepath.Join(t.TempDir(), "kallsyms")
+				if err := os.WriteFile(path, []byte(tt.content), 0o644); err != nil {
+					t.Fatal(err)
+				}
 			}
-		})
-	}
-}
-
-func TestIsSupportedOSForRecovery(t *testing.T) {
-	tests := []struct {
-		osDist string
-		want   bool
-	}{
-		{"al8", true},
-		{"alnx4", false}, // TODO: change to true when ossfs2 supports alinux4+
-		{"alnx5", false},
-		{"alnx10", false},
-		{"al7", false},
-		{"al9", false},
-		{"al10", false},
-		{"al1", false},
-		{"alnx3", false},
-		{"alnx", false},
-		{"el8", false},
-		{"al", false},
-		{"alx", false},
-		{"", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.osDist, func(t *testing.T) {
-			if got := isSupportedOSForRecovery(tt.osDist); got != tt.want {
-				t.Errorf("isSupportedOSForRecovery(%q) = %v, want %v", tt.osDist, got, tt.want)
+			err := checkKallsymsForSymbol(path, tt.symbol)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("checkKallsymsForSymbol() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

@@ -196,7 +196,7 @@ func (c *client) Unmount(ctx context.Context, req *proxy.UnmountRequest) (*proxy
 			Method: proxy.Unmount,
 		},
 		Body: req,
-	})
+	}, 0)
 }
 
 func (c *client) Ping(ctx context.Context) (*proxy.Response, error) {

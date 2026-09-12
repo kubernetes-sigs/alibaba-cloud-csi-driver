@@ -31,10 +31,10 @@ func GetFuseConnectionID(mountpoint string) (uint64, error) {
 // FlushFuseConnection interrupts all in-flight FUSE requests for a connection,
 // keeping the connection alive for recovery restart.
 //
-// "flush" is an alinux kernel extension (available on alinux3 5.10.134-17+
-// with FUSE recovery patches). Callers are already gated by kernel version
-// checks (see detectKernelRecoverySupport), so this file is expected to
-// exist when this function is reached.
+// "flush" is a kernel extension from the alinux FUSE recovery patch set.
+// Callers are already gated by a /proc/kallsyms check for fuse_flush_pq
+// (see detectKernelRecoverySupport), so this file is expected to exist
+// when this function is reached.
 func FlushFuseConnection(connID uint64) error {
 	connDir := filepath.Join(FuseConnectionsDir, strconv.FormatUint(connID, 10))
 	flushPath := filepath.Join(connDir, "flush")
