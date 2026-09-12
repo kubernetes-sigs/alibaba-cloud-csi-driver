@@ -35,16 +35,21 @@ func NewOverlayInterceptor(manager overlayMounter) mounter.MountInterceptor {
 		mergedDir := op.Target
 		lowerDir := mounterutils.OverlayLowerDir(mergedDir)
 
-		// merged already mounted: either a republish over a healthy overlay, or a stale
-		// overlay whose lower FUSE died. Presence of the lower proves nothing — see
-		// IsNotLiveMountPoint for what actually decides liveness.
-		//
-		// TODO(fd-passing): with fd-passing the FUSE connection outlives the daemon, so
-		// probing a dead lower hangs in D state (see SafeIsNotMountPoint on the
-		// ossfs2-failover branch). One early return here is the whole fix:
-		//   if op.FdPassing { op.Target = lowerDir; return handler(ctx, op) }
-		// mount-proxy holds the fd, so the lower superblock — and therefore merged — stays
-		// valid while ossfs is restarted, leaving nothing for this interceptor to do.
+		// fd-passing: the FUSE connection outlives the daemon (mount-proxy holds
+		// /dev/fuse fd), so the lower superblock — and therefore merged overlay —
+		// stays valid while ossfs is restarted. Probing liveness via statfs would
+		// hang in D-state because the kernel sends FUSE_STATFS to a dead daemon
+		// through an open connection. Skip straight to the handler.
+		// Use FuseFd > 0 (server-side fact: "I received an fd") rather than the
+		// client-side FdPassing bool, consistent with all other server-side checks.
+		if op.FuseFd > 0 {
+			op.Target = lowerDir
+			if err := os.MkdirAll(lowerDir, 0755); err != nil {
+				return fmt.Errorf("failed to create overlay lower dir %s: %w", lowerDir, err)
+			}
+			return handler(ctx, op)
+		}
+
 		notMnt, err := raw.IsLikelyNotMountPoint(mergedDir)
 		if err == nil && !notMnt {
 			notLive, lerr := mounterutils.IsNotLiveMountPoint(raw, lowerDir)

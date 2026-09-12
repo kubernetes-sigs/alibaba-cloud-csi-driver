@@ -22,6 +22,14 @@ const (
 
 var kataDirectVolumeRootPath = "/run/kata-containers/shared/direct-volumes"
 
+// SetRootPathForTesting overrides the kata direct-volume root path and returns
+// a restore function. Intended for use in tests that cannot write to /run.
+func SetRootPathForTesting(path string) func() {
+	old := kataDirectVolumeRootPath
+	kataDirectVolumeRootPath = path
+	return func() { kataDirectVolumeRootPath = old }
+}
+
 // MountInfo contains the information needed by Kata to consume a host block device and mount it as a filesystem inside the guest VM.
 type MountInfo struct {
 	// The type of the volume (ie. block)

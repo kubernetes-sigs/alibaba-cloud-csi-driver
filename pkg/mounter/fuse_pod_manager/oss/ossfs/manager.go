@@ -235,7 +235,7 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
-			Privileged: new(true),
+			Privileged: new(true), // ossfs 1.0 do not support fd-passing
 		},
 		ReadinessProbe: &corev1.Probe{
 			ProbeHandler: corev1.ProbeHandler{
@@ -366,7 +366,10 @@ const (
 	KeyListObjectsV2 = "listobjectsv2"
 )
 
-func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
+func (f *fuseOssfs) AddDefaultMountOptions(options []string, mountFlags []string) []string {
+	// For ossfs, mountFlags (from PV spec mountOptions) are appended to daemon options.
+	options = append(options, mountFlags...)
+
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS_OPTIONS")
 	if defaultOSSFSOptions != "" {
 		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)

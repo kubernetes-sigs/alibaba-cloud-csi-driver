@@ -2,6 +2,7 @@ package ossfs2
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -85,21 +86,28 @@ func (f *fakeMountChecker) IsLikelyNotMountPoint(string) (bool, error) {
 }
 
 // newTestMounter builds an extendedMounter whose mountpoint check is scripted
-// and whose mount command is replaced for the duration of the test. Any process
-// still tracked by the driver is killed on cleanup so a stand-in process cannot
-// outlive the test.
+// and whose mount command is replaced via runCmdOverride. Any process still
+// tracked by the driver is killed on cleanup.
 func newTestMounter(t *testing.T, notMnt bool, cmd func(...string) *exec.Cmd) *extendedMounter {
 	t.Helper()
-	original := newMountCmd
-	newMountCmd = cmd
 	m := &extendedMounter{
-		// Unlike the ossfs driver, pids is a *sync.Map here and has no usable
-		// zero value.
 		driver:    &Driver{pids: new(sync.Map)},
 		Interface: &fakeMountChecker{notMnt: notMnt},
+		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
+			c := cmd("mount", op.Target)
+			c.Stdout = os.Stdout
+			if sw != nil {
+				c.Stderr = sw
+			} else {
+				c.Stderr = os.Stderr
+			}
+			if err := c.Start(); err != nil {
+				return nil, fmt.Errorf("start ossfs2 failed: %w", err)
+			}
+			return c, nil
+		},
 	}
 	t.Cleanup(func() {
-		newMountCmd = original
 		m.driver.pids.Range(func(_, v any) bool {
 			_ = v.(*exec.Cmd).Process.Kill()
 			return true
@@ -134,7 +142,7 @@ func TestExtendedMount(t *testing.T) {
 		elapsed := time.Since(start)
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "mount timeout after")
+		assert.Contains(t, err.Error(), "timed out verifying mount point readiness")
 		assert.Less(t, elapsed, 5*time.Second, "the attempt must stop at the deadline it was given")
 	})
 

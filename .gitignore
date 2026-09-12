@@ -4,6 +4,7 @@
 .qoder/
 .qwen/
 .local/
+.gocache/
 .DS_Store
 diskplugin.csi.alibabacloud.com
 nasplugin.csi.alibabacloud.com

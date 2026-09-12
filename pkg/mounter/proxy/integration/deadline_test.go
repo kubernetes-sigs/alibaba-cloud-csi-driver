@@ -36,7 +36,7 @@ func (d *stuckDriver) ApplyOptionDefaults(options []string) []string {
 	return options
 }
 
-func (d *stuckDriver) Mount(ctx context.Context, _ *proxy.MountRequest) error {
+func (d *stuckDriver) Mount(ctx context.Context, _ *proxy.MountRequest, _ int) error {
 	<-ctx.Done()
 	time.Sleep(proxy.MountShutdownGrace)
 	d.returned <- time.Now()
@@ -63,16 +63,15 @@ func TestTimedOutMountReportsItsOwnError(t *testing.T) {
 	callerDeadline, ok := ctx.Deadline()
 	require.True(t, ok)
 
-	resp, err := client.NewClient(socketPath).Mount(ctx, &proxy.MountRequest{
+	_, err := client.NewClient(socketPath).Mount(ctx, &proxy.MountRequest{
 		Fstype: driver.fstype,
 		Source: "stuck://bucket",
 		Target: t.TempDir(),
 	})
 
-	require.NoError(t, err, "the request itself must complete; only the mount fails")
-	require.NotNil(t, resp)
-	assert.Contains(t, resp.Error, stuckMountError,
-		"the caller got %q instead of what the driver reported", resp.Error)
+	require.Error(t, err, "mount must fail with the driver's error")
+	assert.Contains(t, err.Error(), stuckMountError,
+		"the caller got %q instead of what the driver reported", err)
 
 	select {
 	case returnedAt := <-driver.returned:
@@ -91,13 +90,12 @@ func TestTimedOutMountReportsWithoutCallerDeadline(t *testing.T) {
 	driver := registerStuckDriver(t)
 	socketPath := newTestServer(t)
 
-	resp, err := client.NewClient(socketPath).Mount(ctx, &proxy.MountRequest{
+	_, err := client.NewClient(socketPath).Mount(ctx, &proxy.MountRequest{
 		Fstype: driver.fstype,
 		Source: "stuck://bucket",
 		Target: t.TempDir(),
 	})
 
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Contains(t, resp.Error, stuckMountError)
+	require.Error(t, err, "mount must fail with the driver's error")
+	assert.Contains(t, err.Error(), stuckMountError)
 }
