@@ -13,8 +13,8 @@ func TestParseKernelVersion(t *testing.T) {
 		wantPatch  int
 		wantSub    int
 		wantOSDist string
-		wantArch   string
-		wantErr    bool
+
+		wantErr bool
 	}{
 		{
 			name:       "Alibaba Cloud Linux 2 x86_64",
@@ -24,7 +24,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    18,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "Alibaba Cloud Linux 3 newer sublevel",
@@ -34,7 +33,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    19,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "Alibaba Cloud Linux aarch64",
@@ -44,7 +42,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    18,
 			wantOSDist: "al8",
-			wantArch:   "aarch64",
 		},
 		{
 			name:       "CentOS 8",
@@ -54,7 +51,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    18,
 			wantOSDist: "el8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "higher kernel version",
@@ -64,7 +60,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  135,
 			wantSub:    20,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "Alibaba Cloud Linux 4 x86_64",
@@ -74,7 +69,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  102,
 			wantSub:    5,
 			wantOSDist: "alnx4",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "kernel 6.x",
@@ -84,7 +78,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  0,
 			wantSub:    1,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "multi-segment sublevel",
@@ -94,7 +87,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    19,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:       "extra version and sublevel segments",
@@ -104,7 +96,6 @@ func TestParseKernelVersion(t *testing.T) {
 			wantPatch:  134,
 			wantSub:    19,
 			wantOSDist: "al8",
-			wantArch:   "x86_64",
 		},
 		{
 			name:      "no suffix",
@@ -150,9 +141,6 @@ func TestParseKernelVersion(t *testing.T) {
 			}
 			if kv.OSDist != tt.wantOSDist {
 				t.Errorf("osdist = %q, want %q", kv.OSDist, tt.wantOSDist)
-			}
-			if kv.Arch != tt.wantArch {
-				t.Errorf("arch = %q, want %q", kv.Arch, tt.wantArch)
 			}
 			if kv.String() != tt.release {
 				t.Errorf("String() = %q, want %q", kv.String(), tt.release)

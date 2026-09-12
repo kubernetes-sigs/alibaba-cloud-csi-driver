@@ -12,14 +12,14 @@ import (
 const ErrPrefixRecoveryKernel = "recovery requires kernel >= 5.10.134-18 on Alibaba Cloud Linux 3, x86_64"
 
 // KernelVersion represents a parsed kernel version string from uname.
-// Example: "5.10.134-18.al8.x86_64" → {Major:5, Minor:10, Patch:134, Sublevel:18, OSDist:"al8", Arch:"x86_64"}
+// Example: "5.10.134-18.al8.x86_64" → {Major:5, Minor:10, Patch:134, Sublevel:18, OSDist:"al8"}
+// Architecture is not parsed here; use UnameMachine() (uname -m) instead.
 type KernelVersion struct {
 	Major    int
 	Minor    int
 	Patch    int
 	Sublevel int    // the numeric part after the first hyphen (e.g. 18 in "5.10.134-18")
 	OSDist   string // the OS distribution tag (e.g. "al8", "el8")
-	Arch     string // the architecture (e.g. "x86_64", "aarch64")
 	raw      string
 }
 
@@ -87,9 +87,6 @@ func ParseKernelVersion(release string) (*KernelVersion, error) {
 	for i := 1; i < len(suffixParts); i++ {
 		if _, err := strconv.Atoi(suffixParts[i]); err != nil {
 			kv.OSDist = suffixParts[i]
-			if i+1 < len(suffixParts) {
-				kv.Arch = strings.Join(suffixParts[i+1:], ".")
-			}
 			break
 		}
 	}

@@ -383,9 +383,9 @@ func TestOverlayInterceptor_OverlayMountFails_CleansUpLower(t *testing.T) {
 }
 
 // TestOverlayInterceptor_FdPassing_SkipsLivenessProbe verifies that when
-// op.FdPassing is true the interceptor skips the IsNotLiveMountPoint probe
-// (which would D-state on an open FUSE connection with a dead daemon) and
-// passes through directly to the handler with target rewritten to lowerDir.
+// FuseFd > 0 the interceptor skips the IsNotLiveMountPoint probe (which would
+// D-state on an open FUSE connection with a dead daemon) and passes through
+// directly to the handler with target rewritten to lowerDir.
 func TestOverlayInterceptor_FdPassing_SkipsLivenessProbe(t *testing.T) {
 	mounterutils.OverlayBaseDir = t.TempDir()
 	merged := t.TempDir()
@@ -419,9 +419,9 @@ func TestOverlayInterceptor_FdPassing_SkipsLivenessProbe(t *testing.T) {
 	}
 
 	op := &mounter.MountOperation{
-		Overlay:   true,
-		FdPassing: true,
-		Target:    merged,
+		Overlay: true,
+		FuseFd:  3,
+		Target:  merged,
 	}
 
 	err := interceptor(context.Background(), op, handler)
@@ -431,8 +431,7 @@ func TestOverlayInterceptor_FdPassing_SkipsLivenessProbe(t *testing.T) {
 
 // TestOverlayInterceptor_FdPassing_FirstMount verifies that fd-passing mode
 // on the very first mount (no existing overlay) creates the lower dir and
-// passes through to the handler without attempting an overlay mount — the
-// overlay is set up by the caller for fd-passing volumes.
+// passes through to the handler without attempting an overlay mount.
 func TestOverlayInterceptor_FdPassing_FirstMount(t *testing.T) {
 	mounterutils.OverlayBaseDir = t.TempDir()
 	merged := t.TempDir()
@@ -453,9 +452,9 @@ func TestOverlayInterceptor_FdPassing_FirstMount(t *testing.T) {
 	}
 
 	op := &mounter.MountOperation{
-		Overlay:   true,
-		FdPassing: true,
-		Target:    merged,
+		Overlay: true,
+		FuseFd:  3,
+		Target:  merged,
 	}
 
 	err := interceptor(context.Background(), op, handler)

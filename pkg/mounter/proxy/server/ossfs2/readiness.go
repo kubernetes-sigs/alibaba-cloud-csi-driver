@@ -10,6 +10,13 @@ import (
 	"k8s.io/klog/v2"
 )
 
+func ossfs2ExitError(err error) error {
+	if err != nil {
+		return fmt.Errorf("ossfs2 exited during initialization: %w", err)
+	}
+	return fmt.Errorf("ossfs2 exited during initialization")
+}
+
 // waitForFdPassingMountReady waits for fd-passing mode mount to become ready.
 // os.Stat blocks until ossfs2 replies to FUSE_INIT, so we rely on context timeout.
 func (m *extendedMounter) waitForFdPassingMountReady(
@@ -52,10 +59,7 @@ func (m *extendedMounter) waitForFdPassingMountReady(
 		logger.Info("Successfully mounted", "mountpoint", target, "fd", fuseFd)
 		return nil
 	case err := <-ossfsExited:
-		if err != nil {
-			return fmt.Errorf("ossfs2 exited during initialization: %w", err)
-		}
-		return fmt.Errorf("ossfs2 exited during initialization")
+		return ossfs2ExitError(err)
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -81,10 +85,7 @@ func (m *extendedMounter) checkMountReadiness(
 ) (bool, error) {
 	select {
 	case err := <-ossfsExited:
-		if err != nil {
-			return false, fmt.Errorf("ossfs2 exited: %w", err)
-		}
-		return false, fmt.Errorf("ossfs2 exited")
+		return false, ossfs2ExitError(err)
 	default:
 	}
 
