@@ -40,7 +40,9 @@ func NewOverlayInterceptor(manager overlayMounter) mounter.MountInterceptor {
 		// stays valid while ossfs is restarted. Probing liveness via statfs would
 		// hang in D-state because the kernel sends FUSE_STATFS to a dead daemon
 		// through an open connection. Skip straight to the handler.
-		if op.FdPassing {
+		// Use FuseFd > 0 (server-side fact: "I received an fd") rather than the
+		// client-side FdPassing bool, consistent with all other server-side checks.
+		if op.FuseFd > 0 {
 			op.Target = lowerDir
 			if err := os.MkdirAll(lowerDir, 0755); err != nil {
 				return fmt.Errorf("failed to create overlay lower dir %s: %w", lowerDir, err)

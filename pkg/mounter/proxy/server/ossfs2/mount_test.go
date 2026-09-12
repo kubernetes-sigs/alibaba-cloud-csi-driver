@@ -242,7 +242,7 @@ func TestMount_ActiveTargetsStored(t *testing.T) {
 	_, loaded := driver.activeTargets.Load(target)
 	assert.True(t, loaded, "active target should be stored after mount succeeds")
 
-	result, ok := op.MountResult.(server.OssfsMountResult)
+	result, ok := op.MountResult.(server.FuseMountResult)
 	require.True(t, ok)
 	defer func() {
 		if p, _ := os.FindProcess(result.PID); p != nil {

@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -52,11 +53,7 @@ type nodeServer struct {
 	ossfsPaths      map[string]string
 	common.GenericNodeServer
 	skipGlobalMount bool
-	// mountProxySock is the --mount-proxy-sock flag value, set from main.go
-	// (csi-plugin) or from csi_agent.go (csi-agent). ResolveMountProxySocket gives
-	// it priority over the per-volume socket in PublishContext, and falls back to
-	// that value when it is empty.
-	mountProxySock string
+	mountProxySock  string
 	// kernelSupportsRecovery records whether this node's kernel has the
 	// fuse_flush_pq symbol (see utilsos.CheckKernelForRecovery). Probed once at
 	// startup. When false, opts.Recovery is forced off even if the feature gate
@@ -373,6 +370,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if notMntAttach {
 			// new mounts
 			metricsPath = utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opts.FuseType, "oss", opts.MountBucket(), attachPath)
+			if opts.RecoveryDegraded {
+				metricsDir := utils.GetFuseMetricsMountDir(metricsPathPrefix, req.GetVolumeId())
+				_ = utils.WriteAndSyncFile(filepath.Join(metricsDir, utils.MetricsRecoveryDegraded), []byte("1"), 0o644)
+			}
 		}
 		// Fd-passing and recovery are enabled only for RunC:
 		// the FUSE daemon is shared across pods via bind mounts, so a daemon crash

@@ -27,7 +27,7 @@ func (d *deadlineSpyDriver) ApplyOptionDefaults(options []string) []string {
 	return options
 }
 
-func (d *deadlineSpyDriver) Mount(ctx context.Context, _ *proxy.MountRequest) error {
+func (d *deadlineSpyDriver) Mount(ctx context.Context, _ *proxy.MountRequest, _ int) error {
 	deadline, _ := ctx.Deadline()
 	d.got <- deadline
 	return nil

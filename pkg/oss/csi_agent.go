@@ -21,12 +21,12 @@ type CSIAgent struct {
 
 func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
 	ns := &nodeServer{
-		metadata:        m,
-		locks:           utils.NewVolumeLocks(),
-		rawMounter:      mountutils.NewWithoutSystemd(""),
-		skipGlobalMount: utils.GetSkipGlobalMount(true),
-		fusePodManagers: ossfpm.GetAllOSSFusePodManagers(utils.Config{}, m, nil, nil),
-		ossfsPaths:      ossfpm.GetAllFuseMounterPaths(),
+		metadata:               m,
+		locks:                  utils.NewVolumeLocks(),
+		rawMounter:             mountutils.NewWithoutSystemd(""),
+		skipGlobalMount:        utils.GetSkipGlobalMount(true),
+		fusePodManagers:        ossfpm.GetAllOSSFusePodManagers(utils.Config{}, m, nil, nil),
+		ossfsPaths:             ossfpm.GetAllFuseMounterPaths(),
 		mountProxySock:         socketPath,
 		kernelSupportsRecovery: detectKernelRecoverySupport(),
 	}

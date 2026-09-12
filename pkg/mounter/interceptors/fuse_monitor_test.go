@@ -125,14 +125,14 @@ func TestRecoveryMetrics(t *testing.T) {
 	op := &mounter.MountOperation{
 		Target:      "recovery-test-volume",
 		MetricsPath: metricsDir,
-		MountResult: server.OssfsMountResult{
+		MountResult: server.FuseMountResult{
 			PID:      123,
 			ExitChan: make(chan error),
 		},
 	}
 
 	// Initial mount success
-	err := OssfsMonitorInterceptor(context.Background(), op, successMountHandler)
+	err := FuseMonitorInterceptor(context.Background(), op, successMountHandler)
 	assert.NoError(t, err)
 
 	monitor, found := monitorManager.GetMountMonitor(op.Target, op.MetricsPath, raw, false)

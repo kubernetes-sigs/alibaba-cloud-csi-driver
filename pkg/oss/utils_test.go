@@ -793,7 +793,7 @@ func Test_parseOptions_agenticBucket(t *testing.T) {
 		"bucketSpace":   "my-bs",
 		"bucket":        "my-bucket",
 		"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
-	}, nil, nil, false, "", false, m)
+	}, nil, nil, false, "", false, true, m)
 	require.NoError(t, err) // parseOptions itself should succeed
 	err = resolveAgenticBucketOptions(opts2, m)
 	assert.ErrorContains(t, err, "mutually exclusive")
@@ -802,7 +802,7 @@ func Test_parseOptions_agenticBucket(t *testing.T) {
 	opts3, err := parseOptions(context.Background(), nil, map[string]string{
 		"agenticBucket": "my-ab",
 		"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
-	}, nil, nil, false, "", false, m)
+	}, nil, nil, false, "", false, true, m)
 	require.NoError(t, err)
 	err = resolveAgenticBucketOptions(opts3, m)
 	assert.ErrorContains(t, err, "bucketSpace or bucketSpacePrefix is required")
@@ -835,7 +835,7 @@ func Test_resolveAgenticBucketOptions_prefix(t *testing.T) {
 		"agenticBucket":     "my-ab",
 		"bucketSpacePrefix": "sandbox-a",
 		"url":               "oss-cn-hangzhou-internal.aliyuncs.com",
-	}, nil, nil, false, "", false, noAccountMeta)
+	}, nil, nil, false, "", false, true, noAccountMeta)
 	require.NoError(t, err)
 	err = resolveAgenticBucketOptions(opts2, noAccountMeta)
 	assert.ErrorContains(t, err, "accountId unavailable")
@@ -881,7 +881,7 @@ func Test_parseOptions_fuseTypeNormalization(t *testing.T) {
 				}}
 			}
 
-			opts, err := parseOptions(context.Background(), nil, volOpts, nil, volCaps, false, "", false, m)
+			opts, err := parseOptions(context.Background(), nil, volOpts, nil, volCaps, false, "", false, true, m)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)

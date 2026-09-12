@@ -99,7 +99,7 @@ func TestHandleUnmountViaHandle_BadBody(t *testing.T) {
 	resp := handle(context.Background(), &rawRequest{
 		Header: proxy.Header{Method: proxy.Unmount},
 		Body:   json.RawMessage(`{bad`),
-	})
+	}, 0)
 	assert.NotEmpty(t, resp.Error)
 }
 
@@ -107,7 +107,7 @@ func TestHandleUnmountViaHandle_EmptyTarget(t *testing.T) {
 	resp := handle(context.Background(), &rawRequest{
 		Header: proxy.Header{Method: proxy.Unmount},
 		Body:   json.RawMessage(`{}`),
-	})
+	}, 0)
 	assert.Contains(t, resp.Error, "empty unmount target")
 }
 
