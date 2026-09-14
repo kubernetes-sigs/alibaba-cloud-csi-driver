@@ -18,9 +18,9 @@ type iListDirectoriesAndFilesResponseBody interface {
 }
 
 type ListDirectoriesAndFilesResponseBody struct {
-	// The details about the files or directories.
+	// The collection of directory or file information.
 	Entries []*ListDirectoriesAndFilesResponseBodyEntries `json:"Entries,omitempty" xml:"Entries,omitempty" type:"Repeated"`
-	// A pagination token. It can be used in the next request to retrieve a new page of results.
+	// The pagination token that is used in the next request to retrieve a new page of results. If the return results are truncated, you can use NextToken to initiate a new request to retrieve the content after the current truncation position.
 	//
 	// example:
 	//
@@ -83,61 +83,61 @@ func (s *ListDirectoriesAndFilesResponseBody) Validate() error {
 }
 
 type ListDirectoriesAndFilesResponseBodyEntries struct {
-	// The time when the file was queried.
+	// The query time.
 	//
-	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
+	// The time follows the ISO 8601 standard and is returned in the format: `yyyy-MM-ddTHH:mm:ssZ`.
 	//
-	// This parameter is returned and valid only if the value of the Type parameter is File.
+	// This parameter is returned and meaningful only when Type is set to File.
 	//
 	// example:
 	//
 	// 2021-02-01T10:08:08Z
 	Atime *string `json:"Atime,omitempty" xml:"Atime,omitempty"`
-	// The time when the raw data was modified.
+	// The time when the metadata was modified.
 	//
-	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
+	// The time follows the ISO 8601 standard and is returned in the format: `yyyy-MM-ddTHH:mm:ssZ`.
 	//
-	// This parameter is returned and valid only if the value of the Type parameter is File.
+	// This parameter is returned and meaningful only when Type is set to File.
 	//
 	// example:
 	//
 	// 2021-02-11T10:08:10Z
 	Ctime *string `json:"Ctime,omitempty" xml:"Ctime,omitempty"`
-	// The ID of the directory or file.
+	// The FileId of the directory or file.
 	//
 	// example:
 	//
 	// 66
 	FileId *string `json:"FileId,omitempty" xml:"FileId,omitempty"`
-	// Indicates whether the directory contains files stored in the Archive storage class.
+	// Indicates whether the directory contains archive storage class files.
 	//
-	// This parameter is returned and valid only if the value of the Type parameter is Directory.
+	// This parameter is returned and meaningful only when Type is set to Directory.
 	//
 	// Valid values:
 	//
-	// 	- true: The directory contains files stored in the Archive storage class.
+	// - true: The directory contains archive storage class files.
 	//
-	// 	- false: The directory does not contain files stored in the Archive storage class.
+	// - false: The directory does not contain archive storage class files.
 	//
 	// example:
 	//
 	// true
 	HasArchiveFile *string `json:"HasArchiveFile,omitempty" xml:"HasArchiveFile,omitempty"`
-	// Indicates whether the directory contains files stored in the IA storage class.
+	// Indicates whether the directory contains IA storage class files.
 	//
-	// This parameter is returned and valid only if the value of the Type parameter is Directory.
+	// This parameter is returned and meaningful only when Type is set to Directory.
 	//
 	// Valid values:
 	//
-	// 	- true: The directory contains files stored in the IA storage class.
+	// - true: The directory contains IA storage class files.
 	//
-	// 	- false: The directory does not contain files stored in the IA storage class.
+	// - false: The directory does not contain IA storage class files.
 	//
 	// example:
 	//
 	// true
 	HasInfrequentAccessFile *bool `json:"HasInfrequentAccessFile,omitempty" xml:"HasInfrequentAccessFile,omitempty"`
-	// The file or directory inode.
+	// The inode of the file or directory.
 	//
 	// example:
 	//
@@ -145,31 +145,45 @@ type ListDirectoriesAndFilesResponseBodyEntries struct {
 	Inode *string `json:"Inode,omitempty" xml:"Inode,omitempty"`
 	// The time when the file was modified.
 	//
-	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
+	// The time follows the ISO 8601 standard and is returned in the format: `yyyy-MM-ddTHH:mm:ssZ`.
 	//
-	// This parameter is returned and valid only if the value of the Type parameter is File.
+	// This parameter is returned and meaningful only when Type is set to File.
 	//
 	// example:
 	//
 	// 2021-02-11T10:08:08Z
 	Mtime *string `json:"Mtime,omitempty" xml:"Mtime,omitempty"`
-	// The name of the file or directory.
+	// The file name or directory name.
 	//
 	// example:
 	//
 	// file.txt
 	Name *string `json:"Name,omitempty" xml:"Name,omitempty"`
-	// The ID of the portable account. This parameter is returned and valid only if the value of the ProtocolType parameter is SMB and RAM-based access control is enabled.
+	// The total duration for which the file has been stored as an archive file. Unit: seconds.
+	//
+	// example:
+	//
+	// 3600
+	OfflineDuration *int64 `json:"OfflineDuration,omitempty" xml:"OfflineDuration,omitempty"`
+	// The total duration for which the file has remained unchanged since it was stored as an archive file. Unit: seconds.
+	//
+	// example:
+	//
+	// 3600
+	OfflineUnchangedDuration *int64 `json:"OfflineUnchangedDuration,omitempty" xml:"OfflineUnchangedDuration,omitempty"`
+	// The portable account ID.
+	//
+	// This parameter is meaningful only when ProtocolType is set to SMB and access control is enabled.
 	//
 	// example:
 	//
 	// 37862c****
 	Owner *string `json:"Owner,omitempty" xml:"Owner,omitempty"`
-	// The time when the last data retrieval task was run.
+	// The time when the most recent data retrieval task was run.
 	//
-	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
+	// The time follows the ISO 8601 standard and is returned in the format: `yyyy-MM-ddTHH:mm:ssZ`.
 	//
-	// This parameter is returned and valid only if the value of the Type parameter is File.
+	// This parameter is returned and meaningful only when Type is set to File.
 	//
 	// example:
 	//
@@ -179,37 +193,37 @@ type ListDirectoriesAndFilesResponseBodyEntries struct {
 	//
 	// Unit: bytes.
 	//
-	// This parameter is returned and valid only if the value of the Type parameter is File.
+	// This parameter is returned and meaningful only when Type is set to File.
 	//
 	// example:
 	//
 	// 1024
 	Size *int64 `json:"Size,omitempty" xml:"Size,omitempty"`
-	// The storage class.
+	// The storage class type of the returned file.
 	//
-	// This parameter is returned and valid only if the value of the Type parameter is File.
+	// This parameter is returned and meaningful only when Type is set to File.
 	//
 	// Valid values:
 	//
-	// 	- InfrequentAccess: the IA storage class.
+	// - InfrequentAccess: IA storage class.
 	//
-	// 	- Archive: the Archive storage class.
+	// - Archive: Archive storage class.
 	//
 	// example:
 	//
 	// InfrequentAccess
 	StorageType *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
-	// The type of the query result.
+	// The type of the returned result.
 	//
 	// Valid values:
 	//
-	// 	- File
+	// - File: file.
 	//
-	// 	- Directory
+	// - Directory: directory.
 	//
 	// example:
 	//
-	// Directory
+	// File
 	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
 }
 
@@ -251,6 +265,14 @@ func (s *ListDirectoriesAndFilesResponseBodyEntries) GetMtime() *string {
 
 func (s *ListDirectoriesAndFilesResponseBodyEntries) GetName() *string {
 	return s.Name
+}
+
+func (s *ListDirectoriesAndFilesResponseBodyEntries) GetOfflineDuration() *int64 {
+	return s.OfflineDuration
+}
+
+func (s *ListDirectoriesAndFilesResponseBodyEntries) GetOfflineUnchangedDuration() *int64 {
+	return s.OfflineUnchangedDuration
 }
 
 func (s *ListDirectoriesAndFilesResponseBodyEntries) GetOwner() *string {
@@ -310,6 +332,16 @@ func (s *ListDirectoriesAndFilesResponseBodyEntries) SetMtime(v string) *ListDir
 
 func (s *ListDirectoriesAndFilesResponseBodyEntries) SetName(v string) *ListDirectoriesAndFilesResponseBodyEntries {
 	s.Name = &v
+	return s
+}
+
+func (s *ListDirectoriesAndFilesResponseBodyEntries) SetOfflineDuration(v int64) *ListDirectoriesAndFilesResponseBodyEntries {
+	s.OfflineDuration = &v
+	return s
+}
+
+func (s *ListDirectoriesAndFilesResponseBodyEntries) SetOfflineUnchangedDuration(v int64) *ListDirectoriesAndFilesResponseBodyEntries {
+	s.OfflineUnchangedDuration = &v
 	return s
 }
 

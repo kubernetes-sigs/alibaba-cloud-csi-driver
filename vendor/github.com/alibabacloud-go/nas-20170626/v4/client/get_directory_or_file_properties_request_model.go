@@ -16,7 +16,7 @@ type iGetDirectoryOrFilePropertiesRequest interface {
 }
 
 type GetDirectoryOrFilePropertiesRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// This parameter is required.
 	//
@@ -24,9 +24,9 @@ type GetDirectoryOrFilePropertiesRequest struct {
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The absolute path of the directory.
+	// The absolute path of the specified directory.
 	//
-	// The path must start with a forward slash (/) and must be a path that exists in the mount target.
+	// The path must start with a forward slash (/) and must be an existing path in the mount target.
 	//
 	// This parameter is required.
 	//

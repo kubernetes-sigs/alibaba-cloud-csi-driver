@@ -24,17 +24,17 @@ type iCancelDataFlowSubTaskRequest interface {
 }
 
 type CancelDataFlowSubTaskRequest struct {
-	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but make sure that the token is unique among different requests.
 	//
-	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](https://help.aliyun.com/document_detail/25693.html)
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How to ensure idempotence](https://help.aliyun.com/document_detail/25693.html).
 	//
-	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
+	// > If you do not specify this parameter, the system automatically uses the RequestId of the API request as the ClientToken. The RequestId may differ for each API request.
 	//
 	// example:
 	//
 	// 123e4567-e89b-12d3-a456-42665544****
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// The ID of the data flow.
+	// The data flow ID.
 	//
 	// This parameter is required.
 	//
@@ -42,7 +42,7 @@ type CancelDataFlowSubTaskRequest struct {
 	//
 	// df-194433a5be31****
 	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// The ID of the data streaming task.
+	// The data flow streaming subtask ID.
 	//
 	// This parameter is required.
 	//
@@ -50,7 +50,7 @@ type CancelDataFlowSubTaskRequest struct {
 	//
 	// subTaskId-370kyfmyknxcyzw****
 	DataFlowSubTaskId *string `json:"DataFlowSubTaskId,omitempty" xml:"DataFlowSubTaskId,omitempty"`
-	// The ID of the data flow task.
+	// The data flow task ID.
 	//
 	// This parameter is required.
 	//
@@ -58,21 +58,23 @@ type CancelDataFlowSubTaskRequest struct {
 	//
 	// task-38aa8e890f45****
 	DataFlowTaskId *string `json:"DataFlowTaskId,omitempty" xml:"DataFlowTaskId,omitempty"`
-	// Specifies whether to perform a dry run.
+	// Specifies whether to perform a dry run for this request.
 	//
-	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no data streaming task is created and no fee is incurred.
+	// A dry run checks parameter validity and resource availability without actually creating an instance or incurring charges.
 	//
 	// Valid values:
 	//
-	// 	- true: performs a dry run. The system checks the required parameters, request syntax, service limits, and available File Storage NAS (NAS) resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned.
+	// - true: Sends a dry run request without creating an instance. The check items include required parameters, request format, business limits, and NAS inventory. If the check fails, the corresponding error is returned. If the check passes, HTTP status code 200 is returned.
 	//
-	// 	- false (default): performs a dry run and sends the request. If the request passes the dry run, a data streaming task is created.
+	// - false (default): Sends a normal request and creates the instance after the check passes.
 	//
 	// example:
 	//
 	// false
 	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
+	//
+	// > Only CPFS for Lingjun (with the bmcpfs- prefix) file systems of version 2.6.0 or later are supported.
 	//
 	// This parameter is required.
 	//

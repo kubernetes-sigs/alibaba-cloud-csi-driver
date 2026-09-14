@@ -36,6 +36,7 @@ type SDKError struct {
 	Stack              *string
 	errMsg             *string
 	Description        *string
+	Detail             *string
 	AccessDeniedDetail map[string]interface{}
 }
 
@@ -56,6 +57,7 @@ func TeaSDKError(err error) error {
 			"message": StringValue(te.Message),
 			"data": te.Data,
 			"description": StringValue(te.Description),
+			"detail": StringValue(te.Detail),
 			"accessDeniedDetail": te.AccessDeniedDetail,
 		})
 	}
@@ -101,6 +103,9 @@ func NewSDKError(obj map[string]interface{}) *SDKError {
 
 	if obj["description"] != nil {
 		err.Description = String(obj["description"].(string))
+	}
+	if obj["detail"] != nil {
+		err.Detail = String(obj["detail"].(string))
 	}
 	if detail := obj["accessDeniedDetail"]; detail != nil {
 		r := reflect.ValueOf(detail)
@@ -163,6 +168,10 @@ func (err *SDKError) ErrorMessage() *string {
 
 func (err *SDKError) GetCode() *string {
 	return err.Code
+}
+
+func (err *SDKError) GetDetail() *string {
+	return err.Detail
 }
 
 // Set ErrMsg by msg

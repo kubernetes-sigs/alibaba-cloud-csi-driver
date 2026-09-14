@@ -14,13 +14,18 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
 	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
 )
 
 const (
-	connTimeout = 10
+	// connTimeout is the SDK ConnectTimeout, in milliseconds per the darabonba convention. The
+	// runtime uses it as the deadline of the whole HTTP call rather than only the dial, so this
+	// bounds a single NAS OpenAPI request at 10s. ReadTimeout is deliberately left unset: it is
+	// added to that deadline, and leaving it at 0 keeps the 10s bound authoritative.
+	connTimeout = 10000
 )
 
 func NewNasClientV2(region string) (*sdk.Client, error) {
@@ -66,6 +71,9 @@ type NasClientV2 struct {
 	limiter *rate.Limiter
 	client  cloud.NasInterface
 }
+
+// Reported here rather than at the factory's return statement when the two drift apart.
+var _ interfaces.NasClientV2Interface = (*NasClientV2)(nil)
 
 var (
 	// longThrottleLatency defines threshold for logging requests. All requests being
@@ -169,6 +177,14 @@ func (c *NasClientV2) DescribeAccesspoint(ctx context.Context, filesystemId, acc
 	})
 }
 
+func (c *NasClientV2) ListAccesspoints(ctx context.Context, req *sdk.ListAccessPointsRequest) (*sdk.ListAccessPointsResponse, error) {
+	logger := klog.FromContext(ctx)
+	if err := c.wait(ctx, logger); err != nil {
+		return nil, err
+	}
+	return wrap.V2(logger, c.client.ListAccessPoints)(req)
+}
+
 func (c *NasClientV2) DescribeFileSystems(ctx context.Context, filesystemID string) (*sdk.DescribeFileSystemsResponse, error) {
 	logger := klog.FromContext(ctx)
 	if err := c.wait(ctx, logger); err != nil {
@@ -177,4 +193,36 @@ func (c *NasClientV2) DescribeFileSystems(ctx context.Context, filesystemID stri
 	return wrap.V2(logger, c.client.DescribeFileSystems)(&sdk.DescribeFileSystemsRequest{
 		FileSystemId: &filesystemID,
 	})
+}
+
+func (c *NasClientV2) CreateAgenticSpace(ctx context.Context, req *sdk.CreateAgenticSpaceRequest) (*sdk.CreateAgenticSpaceResponse, error) {
+	logger := klog.FromContext(ctx)
+	if err := c.wait(ctx, logger); err != nil {
+		return nil, err
+	}
+	return wrap.V2(logger, c.client.CreateAgenticSpace)(req)
+}
+
+func (c *NasClientV2) GetAgenticSpace(ctx context.Context, req *sdk.GetAgenticSpaceRequest) (*sdk.GetAgenticSpaceResponse, error) {
+	logger := klog.FromContext(ctx)
+	if err := c.wait(ctx, logger); err != nil {
+		return nil, err
+	}
+	return wrap.V2(logger, c.client.GetAgenticSpace)(req)
+}
+
+func (c *NasClientV2) DeleteAgenticSpace(ctx context.Context, req *sdk.DeleteAgenticSpaceRequest) (*sdk.DeleteAgenticSpaceResponse, error) {
+	logger := klog.FromContext(ctx)
+	if err := c.wait(ctx, logger); err != nil {
+		return nil, err
+	}
+	return wrap.V2(logger, c.client.DeleteAgenticSpace)(req)
+}
+
+func (c *NasClientV2) SetAgenticSpaceQuota(ctx context.Context, req *sdk.SetAgenticSpaceQuotaRequest) (*sdk.SetAgenticSpaceQuotaResponse, error) {
+	logger := klog.FromContext(ctx)
+	if err := c.wait(ctx, logger); err != nil {
+		return nil, err
+	}
+	return wrap.V2(logger, c.client.SetAgenticSpaceQuota)(req)
 }

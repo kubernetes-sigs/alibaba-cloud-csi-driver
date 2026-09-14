@@ -11,6 +11,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -316,4 +317,36 @@ func TestControllerServer_ControllerGetCapabilities(t *testing.T) {
 	resp, err := cs.ControllerGetCapabilities(context.Background(), &csi.ControllerGetCapabilitiesRequest{})
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
+}
+
+// TestControllerServerCreateVolumeAgenticFsKeepsForcedMountOptions is the end-to-end half of W-1.
+// It drives the REAL generic wrapper in controllerserver.go with a StorageClass that sets
+// parameters.options, and asserts the mandatory tls/ram survive the verbatim overwrite. The wrapper
+// picks the agenticfs controller by volumeAs, calls its CreateVolume (which seeds options with
+// defaultAgenticFsMountOptions), overwrites options with the StorageClass value, and THEN calls
+// enforceAgenticFsMountOptions. Removing that hook - or moving it before the overwrite - makes the
+// final VolumeContext lose tls and ram, so this test goes red.
+func TestControllerServerCreateVolumeAgenticFsKeepsForcedMountOptions(t *testing.T) {
+	ctrl := newAgenticfsCtrl(t, newFakeNasClientV2())
+	cs := &controllerServer{
+		ControllerFactory: &internal.ControllerFactory{
+			Modes: map[string]internal.Controller{agenticFsVolumeAs: ctrl},
+		},
+		kubeClient: fake.NewSimpleClientset(),
+		locks:      utils.NewVolumeLocks(),
+	}
+
+	// A StorageClass that sets options the agenticfs defaults do not include, exactly the case that
+	// used to drop tls/ram.
+	req := agenticfsCreateReq(testAgenticFsPVName, 20*GiB, map[string]string{"options": "vers=3,noresvport"})
+	resp, err := cs.CreateVolume(context.Background(), req)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	opts := resp.Volume.VolumeContext["options"]
+	require.NotEmpty(t, opts, "the final VolumeContext must carry options")
+	for _, want := range []string{"tls", "ram", "vers=3", "noresvport"} {
+		assert.Contains(t, opts, want,
+			"W-1: the StorageClass options overwrite must not drop a mandatory agenticfs mount option")
+	}
 }

@@ -22,15 +22,15 @@ type iListRecycleBinJobsResponseBody interface {
 }
 
 type ListRecycleBinJobsResponseBody struct {
-	// The information about the jobs of the recycle bin.
+	// The collection of task information in the recycle bin.
 	Jobs []*ListRecycleBinJobsResponseBodyJobs `json:"Jobs,omitempty" xml:"Jobs,omitempty" type:"Repeated"`
-	// The page number.
+	// The page number of the returned page.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int64 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of jobs returned per page.
+	// The number of tasks per page.
 	//
 	// example:
 	//
@@ -42,7 +42,7 @@ type ListRecycleBinJobsResponseBody struct {
 	//
 	// 9E15E394-38A6-457A-A62A-D9797C9A****
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The total number of jobs.
+	// The total number of tasks in the recycle bin.
 	//
 	// example:
 	//
@@ -117,15 +117,15 @@ func (s *ListRecycleBinJobsResponseBody) Validate() error {
 }
 
 type ListRecycleBinJobsResponseBodyJobs struct {
-	// The time when the job was created.
+	// The time when the task was created. The time follows the ISO 8601 standard in UTC. Format: yyyy-MM-ddTHH:mm:ssZ.
 	//
 	// example:
 	//
 	// 2021-05-30T10:08:08Z
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The error code returned.
+	// The error code.
 	//
-	// A valid value is returned only if you set the Status parameter to Fail or PartialSuccess.
+	// This value is valid only when Status is Fail or PartialSuccess.
 	//
 	// example:
 	//
@@ -133,31 +133,31 @@ type ListRecycleBinJobsResponseBodyJobs struct {
 	ErrorCode *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
 	// The error message.
 	//
-	// A valid value is returned only if you set the Status parameter to Fail or PartialSuccess.
+	// This value is valid only when JobStatus is Fail or PartialSuccess.
 	//
 	// example:
 	//
 	// The Target File or Directory does not exist.
 	ErrorMessage *string `json:"ErrorMessage,omitempty" xml:"ErrorMessage,omitempty"`
-	// The ID of the file or directory in the job.
+	// The FileId of the file or directory associated with the task.
 	//
 	// example:
 	//
 	// 04***08
 	FileId *string `json:"FileId,omitempty" xml:"FileId,omitempty"`
-	// The name of the file or directory that is associated with the job.
+	// The name of the file or directory associated with the task.
 	//
 	// example:
 	//
 	// test001
 	FileName *string `json:"FileName,omitempty" xml:"FileName,omitempty"`
-	// The job ID.
+	// The task ID.
 	//
 	// example:
 	//
 	// 8C****C54
 	Id *string `json:"Id,omitempty" xml:"Id,omitempty"`
-	// The progress of the job.
+	// The execution progress of the task.
 	//
 	// Valid values: 1 to 100.
 	//
@@ -165,29 +165,29 @@ type ListRecycleBinJobsResponseBodyJobs struct {
 	//
 	// 100
 	Progress *string `json:"Progress,omitempty" xml:"Progress,omitempty"`
-	// The status of the job. Valid values:
+	// The task status. Valid values:
 	//
-	// 	- Running: The job is running.
+	// - Running: The task is running.
 	//
-	// 	- Defragmenting: The job is defragmenting data.
+	// - Defragmenting: Data is being defragmented.
 	//
-	// 	- PartialSuccess: The job is partially completed.
+	// - PartialSuccess: The task partially succeeded.
 	//
-	// 	- Success: The job is completed.
+	// - Success: The task succeeded.
 	//
-	// 	- Fail: The job failed.
+	// - Fail: The task failed.
 	//
-	// 	- Cancelled: The job is canceled.
+	// - Cancelled: The task is canceled.
 	//
 	// example:
 	//
 	// Fail
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The type of the job. Valid values:
+	// The task type. Valid values:
 	//
-	// 	- Restore: a file restoration job
+	// - Restore: A file restoration task.
 	//
-	// 	- Delete: a file deletion job
+	// - Delete: A file deletion task.
 	//
 	// example:
 	//

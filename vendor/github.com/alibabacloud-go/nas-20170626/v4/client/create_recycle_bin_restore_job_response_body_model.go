@@ -16,7 +16,7 @@ type iCreateRecycleBinRestoreJobResponseBody interface {
 }
 
 type CreateRecycleBinRestoreJobResponseBody struct {
-	// The job ID.
+	// The task ID.
 	//
 	// example:
 	//

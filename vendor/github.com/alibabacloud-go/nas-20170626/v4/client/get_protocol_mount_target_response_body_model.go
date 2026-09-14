@@ -18,11 +18,16 @@ type iGetProtocolMountTargetResponseBody interface {
 }
 
 type GetProtocolMountTargetResponseBody struct {
+	// If the response is truncated, you can use NextToken to send a subsequent request to retrieve the content after the current truncation point.
+	//
 	// example:
 	//
 	// M18xMA==
-	NextToken           *string                                                `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The export directory information of the protocol service.
 	ProtocolMountTarget *GetProtocolMountTargetResponseBodyProtocolMountTarget `json:"ProtocolMountTarget,omitempty" xml:"ProtocolMountTarget,omitempty" type:"Struct"`
+	// The request ID.
+	//
 	// example:
 	//
 	// 6299428C-3861-435D-AE54-9B330A00****
@@ -74,15 +79,30 @@ func (s *GetProtocolMountTargetResponseBody) Validate() error {
 }
 
 type GetProtocolMountTargetResponseBodyProtocolMountTarget struct {
+	// The permission group name.
+	//
+	// Default permission group: DEFAULT_VPC_GROUP_NAME.
+	//
 	// example:
 	//
 	// DEFAULT_VPC_GROUP_NAME
 	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
+	// The creation time.
+	//
+	// Format: yyyy-MM-dd HH:mm:ss
+	//
 	// example:
 	//
 	// 2025-12-22 17:49:25
-	CreateTime  *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	// The description of the protocol service export.
+	//
+	// example:
+	//
+	// Description of this protocol service export
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// The export directory ID.
+	//
 	// example:
 	//
 	// exp-19abf5beab8d****
@@ -93,27 +113,66 @@ type GetProtocolMountTargetResponseBodyProtocolMountTarget struct {
 	//
 	// fset-299b4ca04de8****
 	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The path of the queried CPFS directory.
+	//
+	// Format:
+	//
+	// - The path is 1 to 1,024 characters in length.
+	//
+	// - The path is encoded in UTF-8.
+	//
+	// - The path must start and end with a forward slash (/). The root directory is `/`.
+	//
 	// example:
 	//
 	// /
 	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
+	// The domain name of the protocol service export directory.
+	//
 	// example:
 	//
 	// cpfs-0229cb80bcc0****-x******.cn-*****.cpfs.aliyuncs.com
 	ProtocolMountTargetDomain *string `json:"ProtocolMountTargetDomain,omitempty" xml:"ProtocolMountTargetDomain,omitempty"`
+	// The protocol type of the file system.
+	//
+	// Valid values:
+	//
+	// - NFS: NFS protocol
+	//
+	// - SMB: SMB protocol
+	//
+	// - cpfs: the protocol type supported by CPFS file systems
+	//
 	// example:
 	//
 	// NFS
 	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
+	// The status of the protocol service export directory. Valid values:
+	//
+	// - CREATING: Being created.
+	//
+	// - AVAILABLE: Available.
+	//
+	// - MODIFYING: Being modified.
+	//
+	// - DELETING: Being deleted.
+	//
+	// - STOPPING: Being stopped.
+	//
 	// example:
 	//
 	// AVAILABLE
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The vSwitch ID of the protocol service export.
+	//
 	// example:
 	//
 	// vsw-8vb2qjnxs6hiobzve****
-	VSwitchId  *string   `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The list of vSwitch IDs of the protocol service export.
 	VSwitchIds []*string `json:"VSwitchIds,omitempty" xml:"VSwitchIds,omitempty" type:"Repeated"`
+	// The virtual private cloud (VPC) ID of the protocol service export.
+	//
 	// example:
 	//
 	// vpc-bp1h5mxoqfuo3xurf****

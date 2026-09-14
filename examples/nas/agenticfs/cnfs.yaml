@@ -1,0 +1,15 @@
+# Only the CNFS-backed variant (storageclass.yaml) needs this. The CNFS controller creates
+# the filesystem and populates status.fsAttributes, which is what the CSI driver reads.
+apiVersion: storage.alibabacloud.com/v1beta1
+kind: ContainerNetworkFileSystem
+metadata:
+  name: agenticfs-cnfs
+spec:
+  type: agenticfs
+  # Sent as CreateFileSystem.Description; spaces are not allowed.
+  description: "agenticfs"
+  # The CNFS cannot generate volumeAs plus the agenticSpace* caps: apply storageclass.yaml yourself.
+  createStorageClass: false
+  parameters:
+    # Filesystem zone, independent of the AgenticSpace zoneId in storageclass.yaml.
+    zoneId: ""

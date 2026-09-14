@@ -50,7 +50,7 @@ type DeleteProtocolMountTargetRequest struct {
 	//
 	// example:
 	//
-	// exp-123****
+	// exp-19abf5beab8d****
 	ExportId *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
 	// The ID of the file system.
 	//
@@ -58,7 +58,7 @@ type DeleteProtocolMountTargetRequest struct {
 	//
 	// example:
 	//
-	// cpfs-123****
+	// cpfs-099394bd928c****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The ID of the protocol service.
 	//
@@ -66,7 +66,7 @@ type DeleteProtocolMountTargetRequest struct {
 	//
 	// example:
 	//
-	// ptc-123****
+	// ptc-197ed6a00f2b****
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
 }
 

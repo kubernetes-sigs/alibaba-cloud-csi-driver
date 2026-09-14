@@ -12,6 +12,11 @@ type MockNasClientV2Interface struct {
 	client *cloud.MockNasInterface
 }
 
+// Compile-time proof that the hand-written delegating mock stays in sync with the
+// interface it stands in for: if NasClientV2Interface gains a method this mock does
+// not implement, the package fails to build here instead of only at the call site.
+var _ NasClientV2Interface = (*MockNasClientV2Interface)(nil)
+
 func NewMockNasClientV2Interface(ctrl *gomock.Controller) *MockNasClientV2Interface {
 	return &MockNasClientV2Interface{client: cloud.NewMockNasInterface(ctrl)}
 }
@@ -56,8 +61,28 @@ func (n *MockNasClientV2Interface) DescribeAccesspoint(ctx context.Context, file
 	})
 }
 
+func (n *MockNasClientV2Interface) ListAccesspoints(ctx context.Context, req *sdk.ListAccessPointsRequest) (*sdk.ListAccessPointsResponse, error) {
+	return n.client.ListAccessPoints(req)
+}
+
 func (n *MockNasClientV2Interface) DescribeFileSystems(ctx context.Context, filesystemID string) (*sdk.DescribeFileSystemsResponse, error) {
 	return n.client.DescribeFileSystems(&sdk.DescribeFileSystemsRequest{
 		FileSystemId: &filesystemID,
 	})
+}
+
+func (n *MockNasClientV2Interface) CreateAgenticSpace(ctx context.Context, req *sdk.CreateAgenticSpaceRequest) (*sdk.CreateAgenticSpaceResponse, error) {
+	return n.client.CreateAgenticSpace(req)
+}
+
+func (n *MockNasClientV2Interface) GetAgenticSpace(ctx context.Context, req *sdk.GetAgenticSpaceRequest) (*sdk.GetAgenticSpaceResponse, error) {
+	return n.client.GetAgenticSpace(req)
+}
+
+func (n *MockNasClientV2Interface) DeleteAgenticSpace(ctx context.Context, req *sdk.DeleteAgenticSpaceRequest) (*sdk.DeleteAgenticSpaceResponse, error) {
+	return n.client.DeleteAgenticSpace(req)
+}
+
+func (n *MockNasClientV2Interface) SetAgenticSpaceQuota(ctx context.Context, req *sdk.SetAgenticSpaceQuotaRequest) (*sdk.SetAgenticSpaceQuotaResponse, error) {
+	return n.client.SetAgenticSpaceQuota(req)
 }

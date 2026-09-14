@@ -16,7 +16,7 @@ type iCreateDataFlowSubTaskResponseBody interface {
 }
 
 type CreateDataFlowSubTaskResponseBody struct {
-	// The ID of the data streaming task.
+	// The data flow streaming task ID.
 	//
 	// example:
 	//

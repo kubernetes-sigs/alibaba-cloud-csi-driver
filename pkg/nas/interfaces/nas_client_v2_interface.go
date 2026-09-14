@@ -14,5 +14,16 @@ type NasClientV2Interface interface {
 	CreateAccesspoint(ctx context.Context, req *sdk.CreateAccessPointRequest) (*sdk.CreateAccessPointResponse, error)
 	DeleteAccesspoint(ctx context.Context, filesystemId, accessPointId string) error
 	DescribeAccesspoint(ctx context.Context, filesystemId, accessPointId string) (*sdk.DescribeAccessPointResponse, error)
+	// ListAccesspoints enumerates accesspoints, supporting the server-side Filters
+	// (AccessPointId / AgenticSpaceId / AccessGroup). Unlike the DescribeAccessPoints
+	// OpenAPI, its response items carry AgenticSpaceId, so this is the only call that
+	// can prove which AgenticSpace an accesspoint is bound to.
+	ListAccesspoints(ctx context.Context, req *sdk.ListAccessPointsRequest) (*sdk.ListAccessPointsResponse, error)
 	DescribeFileSystems(ctx context.Context, filesystemID string) (*sdk.DescribeFileSystemsResponse, error)
+
+	// AgenticSpace CRUD
+	CreateAgenticSpace(ctx context.Context, req *sdk.CreateAgenticSpaceRequest) (*sdk.CreateAgenticSpaceResponse, error)
+	GetAgenticSpace(ctx context.Context, req *sdk.GetAgenticSpaceRequest) (*sdk.GetAgenticSpaceResponse, error)
+	DeleteAgenticSpace(ctx context.Context, req *sdk.DeleteAgenticSpaceRequest) (*sdk.DeleteAgenticSpaceResponse, error)
+	SetAgenticSpaceQuota(ctx context.Context, req *sdk.SetAgenticSpaceQuotaRequest) (*sdk.SetAgenticSpaceQuotaResponse, error)
 }

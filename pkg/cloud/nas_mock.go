@@ -64,6 +64,21 @@ func (mr *MockNasInterfaceMockRecorder) CreateAccessPoint(request interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessPoint", reflect.TypeOf((*MockNasInterface)(nil).CreateAccessPoint), request)
 }
 
+// CreateAgenticSpace mocks base method.
+func (m *MockNasInterface) CreateAgenticSpace(request *client.CreateAgenticSpaceRequest) (*client.CreateAgenticSpaceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateAgenticSpace", request)
+	ret0, _ := ret[0].(*client.CreateAgenticSpaceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateAgenticSpace indicates an expected call of CreateAgenticSpace.
+func (mr *MockNasInterfaceMockRecorder) CreateAgenticSpace(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAgenticSpace", reflect.TypeOf((*MockNasInterface)(nil).CreateAgenticSpace), request)
+}
+
 // CreateDir mocks base method.
 func (m *MockNasInterface) CreateDir(request *client.CreateDirRequest) (*client.CreateDirResponse, error) {
 	m.ctrl.T.Helper()
@@ -92,6 +107,21 @@ func (m *MockNasInterface) DeleteAccessPoint(request *client.DeleteAccessPointRe
 func (mr *MockNasInterfaceMockRecorder) DeleteAccessPoint(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAccessPoint", reflect.TypeOf((*MockNasInterface)(nil).DeleteAccessPoint), request)
+}
+
+// DeleteAgenticSpace mocks base method.
+func (m *MockNasInterface) DeleteAgenticSpace(request *client.DeleteAgenticSpaceRequest) (*client.DeleteAgenticSpaceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteAgenticSpace", request)
+	ret0, _ := ret[0].(*client.DeleteAgenticSpaceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteAgenticSpace indicates an expected call of DeleteAgenticSpace.
+func (mr *MockNasInterfaceMockRecorder) DeleteAgenticSpace(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAgenticSpace", reflect.TypeOf((*MockNasInterface)(nil).DeleteAgenticSpace), request)
 }
 
 // DescribeAccessPoint mocks base method.
@@ -124,6 +154,21 @@ func (mr *MockNasInterfaceMockRecorder) DescribeFileSystems(request interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeFileSystems", reflect.TypeOf((*MockNasInterface)(nil).DescribeFileSystems), request)
 }
 
+// GetAgenticSpace mocks base method.
+func (m *MockNasInterface) GetAgenticSpace(request *client.GetAgenticSpaceRequest) (*client.GetAgenticSpaceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAgenticSpace", request)
+	ret0, _ := ret[0].(*client.GetAgenticSpaceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAgenticSpace indicates an expected call of GetAgenticSpace.
+func (mr *MockNasInterfaceMockRecorder) GetAgenticSpace(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAgenticSpace", reflect.TypeOf((*MockNasInterface)(nil).GetAgenticSpace), request)
+}
+
 // GetRecycleBinAttribute mocks base method.
 func (m *MockNasInterface) GetRecycleBinAttribute(request *client.GetRecycleBinAttributeRequest) (*client.GetRecycleBinAttributeResponse, error) {
 	m.ctrl.T.Helper()
@@ -137,6 +182,36 @@ func (m *MockNasInterface) GetRecycleBinAttribute(request *client.GetRecycleBinA
 func (mr *MockNasInterfaceMockRecorder) GetRecycleBinAttribute(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRecycleBinAttribute", reflect.TypeOf((*MockNasInterface)(nil).GetRecycleBinAttribute), request)
+}
+
+// ListAccessPoints mocks base method.
+func (m *MockNasInterface) ListAccessPoints(request *client.ListAccessPointsRequest) (*client.ListAccessPointsResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAccessPoints", request)
+	ret0, _ := ret[0].(*client.ListAccessPointsResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAccessPoints indicates an expected call of ListAccessPoints.
+func (mr *MockNasInterfaceMockRecorder) ListAccessPoints(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAccessPoints", reflect.TypeOf((*MockNasInterface)(nil).ListAccessPoints), request)
+}
+
+// SetAgenticSpaceQuota mocks base method.
+func (m *MockNasInterface) SetAgenticSpaceQuota(request *client.SetAgenticSpaceQuotaRequest) (*client.SetAgenticSpaceQuotaResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetAgenticSpaceQuota", request)
+	ret0, _ := ret[0].(*client.SetAgenticSpaceQuotaResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetAgenticSpaceQuota indicates an expected call of SetAgenticSpaceQuota.
+func (mr *MockNasInterfaceMockRecorder) SetAgenticSpaceQuota(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetAgenticSpaceQuota", reflect.TypeOf((*MockNasInterface)(nil).SetAgenticSpaceQuota), request)
 }
 
 // SetDirQuota mocks base method.

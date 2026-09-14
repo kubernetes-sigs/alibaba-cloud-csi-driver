@@ -318,3 +318,60 @@ func TestDescribeAccessPointError(t *testing.T) {
 	_, err := client.DescribeAccesspoint(t.Context(), "", "")
 	assert.Error(t, err)
 }
+
+func TestListAccessPointsSuccess(t *testing.T) {
+	t.Parallel()
+	var gotReq *nas.ListAccessPointsRequest
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
+		mockNas.EXPECT().ListAccessPoints(gomock.Any()).DoAndReturn(
+			func(request *nas.ListAccessPointsRequest) (*nas.ListAccessPointsResponse, error) {
+				gotReq = request
+				return &nas.ListAccessPointsResponse{
+					Headers:    make(map[string]*string),
+					StatusCode: tea.Int32(200),
+					Body: &nas.ListAccessPointsResponseBody{
+						RequestId: new(""),
+						AccessPoints: []*nas.ListAccessPointsResponseBodyAccessPoints{{
+							AccessPointId:  new("ap-test"),
+							AgenticSpaceId: new("as-test"),
+							DomainName:     new("ap-test.cn-hangzhou.nas.aliyuncs.com"),
+							Status:         new("Active"),
+						}},
+					},
+				}, nil
+			})
+	})
+	req := &nas.ListAccessPointsRequest{
+		FileSystemId: new("0025g9v3dzw1ozfl3w0"),
+		Filters: []*nas.ListAccessPointsRequestFilters{{
+			Name:  new("AgenticSpaceId"),
+			Value: new("as-test"),
+		}},
+		MaxResults: tea.Int32(100),
+	}
+	resp, err := client.ListAccesspoints(t.Context(), req)
+	assert.NoError(t, err)
+	// The server-side AgenticSpaceId filter is what makes a hit authoritative, so the
+	// request must reach the SDK untouched.
+	assert.Equal(t, req, gotReq)
+	assert.Len(t, resp.Body.AccessPoints, 1)
+	assert.Equal(t, "as-test", tea.StringValue(resp.Body.AccessPoints[0].AgenticSpaceId))
+}
+
+func TestListAccessPointsError(t *testing.T) {
+	t.Parallel()
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
+		mockNas.EXPECT().ListAccessPoints(gomock.Any()).Return(
+			&nas.ListAccessPointsResponse{
+				Headers:    make(map[string]*string),
+				StatusCode: tea.Int32(404),
+				Body:       &nas.ListAccessPointsResponseBody{RequestId: new("")},
+			}, &tea.SDKError{
+				Code:       new("InvalidAccessPoint.NotFound"),
+				StatusCode: new(404),
+				Message:    new("The specified access point does not exist."),
+			})
+	})
+	_, err := client.ListAccesspoints(t.Context(), &nas.ListAccessPointsRequest{})
+	assert.Error(t, err)
+}

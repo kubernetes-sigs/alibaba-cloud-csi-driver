@@ -22,13 +22,13 @@ type ModifyLifecyclePolicyResponseBody struct {
 	//
 	// BC7C825C-5F65-4B56-BEF6-98C56C7C****
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// Indicates whether the request was successful.
+	// The request status.
 	//
 	// Valid values:
 	//
-	// 	- true
+	// - true: The request was successful.
 	//
-	// 	- false
+	// - false: The request failed.
 	//
 	// example:
 	//
