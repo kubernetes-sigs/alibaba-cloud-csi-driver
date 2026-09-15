@@ -338,6 +338,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	// CSI mount flags override VolumeContext options above. AgenticFS still
+	// requires TLS and RAM authentication, even when mountOptions is "none".
+	// Enforce this before either mounting or handing options to a VM runtime;
+	// doMount's accesspoint safeguard does not apply to its "server" domain.
+	if req.VolumeContext["volumeAs"] == agenticFsVolumeAs {
+		if len(opt.Options) == 1 && strings.EqualFold(opt.Options[0], "none") {
+			opt.Options = nil
+		}
+		opt.Options = mounterutils.MergeMountOptions(opt.Options, mounterutils.SplitMountOptions(agenticFsForcedMountOptions))
+	}
+
 	readOnly := req.GetReadonly()
 	if !readOnly {
 		switch req.GetVolumeCapability().GetAccessMode().GetMode() {
