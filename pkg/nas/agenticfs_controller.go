@@ -231,6 +231,8 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 
 	agenticSpaceId := ""
 	createdAccesspointId := ""
+	// NAS requires a directory path with a trailing slash, unlike the volume ID and ClientToken.
+	fileSystemPath := "/" + req.Name + "/"
 
 	// From here on a failure can leave billable resources with no DeleteVolume ever called for them. The
 	// compensation deletes only the accesspoint this call created, and only on a terminal gRPC code.
@@ -238,15 +240,14 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 		if retErr == nil {
 			return
 		}
-		c.compensateCreateVolume(ctx, logger, filesystemId, agenticSpaceId, "/"+req.Name, createdAccesspointId, retErr, rpcStarted)
+		c.compensateCreateVolume(ctx, logger, filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId, retErr, rpcStarted)
 	}()
 
 	// 3. ClientToken = req.Name makes this idempotent: a retry replays it and gets the same AgenticSpaceId.
 	// The request has no RegionId field; region comes from the client's GlobalParameters.
 	spaceResp, err := c.nasClient.CreateAgenticSpace(ctx, &sdk.CreateAgenticSpaceRequest{
-		FileSystemId: tea.String(filesystemId),
-		// The vendor model documents a trailing slash; whether the OpenAPI requires it cannot be settled offline.
-		FileSystemPath: tea.String("/" + req.Name), // first-level directory; PV name is pvc-<uuid>
+		FileSystemId:   tea.String(filesystemId),
+		FileSystemPath: tea.String(fileSystemPath),
 		Azone:          tea.String(zoneId),
 		ClientToken:    tea.String(req.Name),
 		Quota: &sdk.CreateAgenticSpaceRequestQuota{
@@ -278,7 +279,7 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 	logger.V(2).Info(resourceCreatedLogPrefix+": agenticspace created, not delivered yet",
 		"fileSystemId", filesystemId,
 		"agenticSpaceId", agenticSpaceId,
-		"fileSystemPath", "/"+req.Name)
+		"fileSystemPath", fileSystemPath)
 
 	// 4. CreateAccessPoint has no ClientToken, so this lookup is the only thing that keeps a retried
 	// CreateVolume from stacking duplicate accesspoints on the same space.
@@ -849,7 +850,7 @@ func (c *agenticfsController) orphanLogFields(filesystemId, agenticSpaceId, file
 		"fileSystemPath", fileSystemPath,
 		"accesspointId", accesspointId,
 		"region", c.region,
-		"volumeHandle", strings.TrimPrefix(fileSystemPath, "/"),
+		"volumeHandle", strings.TrimSuffix(strings.TrimPrefix(fileSystemPath, "/"), "/"),
 	}
 }
 
@@ -1271,6 +1272,7 @@ func isAgenticSpaceNotFoundError(err error) bool {
 
 // Whole codes, lower-cased against apiErrorCode's trimmed value. InvalidArgument, so the provisioner stops.
 var permanentAPIErrorCodes = []string{
+	"invalidfilesystempath.invalidcharacters",
 	"invalidregionid.notfound",
 	"invalidzoneid.notfound",
 	"forbidden.regiondisabled",

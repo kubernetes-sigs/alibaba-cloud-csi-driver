@@ -516,7 +516,7 @@ func TestAgenticfsCreateVolumeSuccess(t *testing.T) {
 	require.Len(t, fake.createAgenticSpaceReqs, 1)
 	spaceReq := fake.createAgenticSpaceReqs[0]
 	assert.Equal(t, testAgenticFsFilesystemID, tea.StringValue(spaceReq.FileSystemId))
-	assert.Equal(t, "/"+testAgenticFsPVName, tea.StringValue(spaceReq.FileSystemPath))
+	assert.Equal(t, "/"+testAgenticFsPVName+"/", tea.StringValue(spaceReq.FileSystemPath))
 	assert.Equal(t, testAgenticFsZoneID, tea.StringValue(spaceReq.Azone))
 	assert.Equal(t, testAgenticFsPVName, tea.StringValue(spaceReq.ClientToken))
 	require.NotNil(t, spaceReq.Quota)
@@ -573,6 +573,7 @@ func TestAgenticfsCreateVolumeDirectFilesystemID(t *testing.T) {
 	assert.Equal(t, testAgenticFsDirectFilesystemID, resp.Volume.VolumeContext[filesystemIDKey])
 	require.Len(t, fake.createAgenticSpaceReqs, 1)
 	assert.Equal(t, testAgenticFsDirectFilesystemID, tea.StringValue(fake.createAgenticSpaceReqs[0].FileSystemId))
+	assert.Equal(t, "/"+testAgenticFsPVName+"/", tea.StringValue(fake.createAgenticSpaceReqs[0].FileSystemPath))
 	require.Len(t, fake.listAccessPointsReqs, 1)
 	assert.Equal(t, testAgenticFsDirectFilesystemID, tea.StringValue(fake.listAccessPointsReqs[0].FileSystemId))
 	require.Len(t, fake.createAccessPointReqs, 1)
@@ -1109,6 +1110,7 @@ func TestAgenticfsCreateVolumeCreateAgenticSpaceError(t *testing.T) {
 		wantCode codes.Code
 	}{
 		{"transientErrorIsRetryable", errors.New("dial tcp: i/o timeout"), codes.Internal},
+		{"invalidPathIsTerminal", aliErr("InvalidFileSystemPath.InvalidCharacters"), codes.InvalidArgument},
 		// TERMINAL: retrying makes external-provisioner back off to ~16 minutes and loop forever, burning quota.
 		{"regionNotSupportedIsTerminal", aliErr("OperationDenied.RegionNotSupported"), codes.InvalidArgument},
 		{"unsupportedRegionIsTerminal", aliErr("UnsupportedRegion"), codes.InvalidArgument},
@@ -2198,6 +2200,7 @@ func TestIsNotFoundError(t *testing.T) {
 		{"capacityNotfoundIsNotGone", aliErr("InvalidFileSystemCapacity.NotFound"), false},
 		{"unrelatedCode", aliErr("Throttling.User"), false},
 		{"plainErrorMentioningNotFound", errors.New("NotFound"), false},
+		{"invalidPathIsNotMissingResource", aliErr("InvalidFileSystemPath.InvalidCharacters"), false},
 		{"wrappedNamespacedCode", fmt.Errorf("outer: %w", aliErr("InvalidAgenticSpaceId.NotFound")), true},
 		// NAS pads error codes: one trailing newline defeated the exact comparisons while the substring test matched.
 		{"trailingNewlineOnANamespacedCode", aliErr("InvalidAccessPointId.NotFound\n"), true},
@@ -2225,6 +2228,9 @@ func TestIsPermanentAPIError(t *testing.T) {
 		{"invalidZone", aliErr("InvalidZoneId.NotFound"), true},
 		{"forbiddenRegionDisabled", aliErr("Forbidden.RegionDisabled"), true},
 		{"forbiddenRegion", aliErr("Forbidden.Region"), true},
+		{"invalidPath", aliErr("InvalidFileSystemPath.InvalidCharacters"), true},
+		{"paddedInvalidPath", aliErr("\tInvalidFileSystemPath.InvalidCharacters\n"), true},
+		{"unknownPathErrorIsRetryable", aliErr("InvalidFileSystemPath.NotSupported"), false},
 		// Permanent prefixes, so any suffix qualifies.
 		{"invalidParameter", aliErr("InvalidParameter.SizeLimit"), true},
 		{"invalidParamShortPrefix", aliErr("InvalidParam.Foo"), true},
@@ -2287,6 +2293,7 @@ func TestApiStatusError(t *testing.T) {
 		{"expiredContext", context.DeadlineExceeded, codes.DeadlineExceeded},
 		{"wrappedCancelledContext", fmt.Errorf("nas call: %w", context.Canceled), codes.DeadlineExceeded},
 		{"permanentOpenapiError", aliErr("InvalidParameter.Foo"), codes.InvalidArgument},
+		{"invalidPathOpenapiError", aliErr("InvalidFileSystemPath.InvalidCharacters"), codes.InvalidArgument},
 		// Terminal, so the provisioner stops instead of backing off to ~16 minutes and retrying forever.
 		{"regionNotSupportedOpenapiErrorIsTerminal", aliErr("OperationDenied.RegionNotSupported"), codes.InvalidArgument},
 		{"unsupportedRegionOpenapiErrorIsTerminal", aliErr("UnsupportedRegion"), codes.InvalidArgument},
@@ -3284,7 +3291,7 @@ func TestAgenticfsCompensateCreateVolumeWaitBudgetSplitKeepsTheDeleteInsideTheSe
 func TestAgenticfsCreateVolumeTerminalCreateSpaceRejectionIsNotAConfirmedLeak(t *testing.T) {
 	fake := newFakeNasClientV2()
 	// isPermanentAPIError -> apiStatusError -> InvalidArgument, with agenticSpaceId never set.
-	fake.createAgenticSpaceErr = aliErr("InvalidParameter.Foo")
+	fake.createAgenticSpaceErr = aliErr("InvalidFileSystemPath.InvalidCharacters")
 	require.True(t, isPermanentAPIError(fake.createAgenticSpaceErr), "the premise: the rejection is permanent")
 	ctrl := newAgenticfsCtrl(t, fake)
 	logger, ctx := newLogCapture(t)
@@ -3299,8 +3306,22 @@ func TestAgenticfsCreateVolumeTerminalCreateSpaceRejectionIsNotAConfirmedLeak(t 
 		"A terminal rejection that proves NOTHING was created is not a confirmed leak")
 	assert.Contains(t, logs, "no AgenticSpace in existence",
 		"The prefix-less diagnostic must say there is nothing to reap")
+	assert.NotContains(t, logs, retainedForRetryLogPrefix)
 	assert.Empty(t, fake.deleteAccessPointIDs, "no accesspoint was created, so none is deleted")
 	assert.Empty(t, fake.deleteAgenticSpaceReqs, "The compensation never deletes the space")
+}
+
+func TestAgenticfsOrphanLogFieldsPreserveVolumeHandle(t *testing.T) {
+	ctrl := newAgenticfsCtrl(t, newFakeNasClientV2())
+	assert.Equal(t, []any{
+		"fileSystemId", testAgenticFsFilesystemID,
+		"agenticSpaceId", testAgenticFsAgenticSpaceID,
+		"fileSystemPath", "/" + testAgenticFsPVName + "/",
+		"accesspointId", testAgenticFsAccessPointID,
+		"region", ctrl.region,
+		"volumeHandle", testAgenticFsPVName,
+	}, ctrl.orphanLogFields(testAgenticFsFilesystemID, testAgenticFsAgenticSpaceID,
+		"/"+testAgenticFsPVName+"/", testAgenticFsAccessPointID))
 }
 
 func TestAgenticfsCompensateCreateVolumeReportsExactlyOnceWhenTheGoroutinePanicsAfterTheSelectTimedOut(t *testing.T) {
