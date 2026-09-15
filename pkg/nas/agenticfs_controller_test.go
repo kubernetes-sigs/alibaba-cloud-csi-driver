@@ -3356,8 +3356,8 @@ func TestNasRateLimiterWaitPrefixMatchesTheProductionClient(t *testing.T) {
 		"the production limiter error must be recognised as 'the delete was never sent'")
 }
 
-// parameters.options makes the generic wrapper overwrite VolumeContext["options"] verbatim, which for agenticfs
-// drops tls and ram - and node-side addTLSMountOptions never fires, the domain lives in "server".
+// The controller completes missing vers/tls/ram after parameters.options
+// overwrites VolumeContext, without replacing values the caller supplied.
 func TestEnforceAgenticFsMountOptionsRestoresForcedOptions(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -3376,9 +3376,29 @@ func TestEnforceAgenticFsMountOptionsRestoresForcedOptions(t *testing.T) {
 			wantRaw: defaultAgenticFsMountOptions,
 		},
 		{
-			name:    "emptyOptionsStillGetsForcedPair",
+			name:    "emptyOptionsCompleted",
 			options: "",
-			want:    []string{"tls", "ram"},
+			wantRaw: defaultAgenticFsMountOptions,
+		},
+		{
+			name:    "explicitVersionIsNotDefaulted",
+			options: "vers=4.1,noresvport",
+			wantRaw: "vers=4.1,noresvport,tls,ram",
+		},
+		{
+			name:    "onlyMissingVersionIsAdded",
+			options: "tls,ram",
+			wantRaw: "tls,ram,vers=3",
+		},
+		{
+			name:    "allExplicitValuesPreserved",
+			options: "vers=4,tls=custom,ram=custom",
+			wantRaw: "vers=4,tls=custom,ram=custom",
+		},
+		{
+			name:    "noneIsCompletedBeforePVCreation",
+			options: "none",
+			wantRaw: defaultAgenticFsMountOptions,
 		},
 		{
 			name:    "explicitTlsValueSetByCallerIsPreservedRamStillAdded",

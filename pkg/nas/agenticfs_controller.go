@@ -66,8 +66,8 @@ const (
 	// Written explicitly: controllerserver.go does not forward it, and a "server" key does not trigger doMount's alinas branch.
 	mountProtocolAlinas = "alinas"
 
-	// Re-merged after the generic wrapper overwrites "options": an AgenticFS accesspoint requires TLS and always
-	// has EnabledRam, so neither is optional.
+	// Controller-side fallbacks: preserve every caller-supplied key and append
+	// these options only when absent. The node validates TLS/RAM without fixing them.
 	defaultAgenticFsMountOptions = "tls,vers=3,ram"
 
 	accessPointStatusActive   = "Active"
@@ -131,10 +131,6 @@ const (
 	// Mirrors the wrapper pkg/nas/cloud's wait() puts on every rate-limiter failure: the only signal
 	// distinguishing "the delete was never issued" from "it was issued and failed".
 	nasRateLimiterWaitPrefix = "error while waiting for rate limiter"
-
-	// "tls" because node-side addTLSMountOptions only fires when VolumeContext carries an "accesspoint"
-	// key, which this mode does not write; "ram" because EnabledRam is hardcoded to true.
-	agenticFsForcedMountOptions = "tls,ram"
 )
 
 func newAgenticfsController(config *internal.ControllerConfig) (internal.Controller, error) {
@@ -346,7 +342,7 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 		vcKeyServer:         server,
 		vcKeyPath:           "/",
 		vcKeyMountProtocol:  mountProtocolAlinas,
-		vcKeyOptions:        defaultAgenticFsMountOptions,
+		vcKeyOptions:        mergeAgenticFsMountOptions(parameters[vcKeyOptions], defaultAgenticFsMountOptions),
 		filesystemIDKey:     filesystemId,
 		vcKeyAccesspointId:  accesspointId,
 		vcKeyAgenticSpaceId: agenticSpaceId,
@@ -396,13 +392,14 @@ func (c *agenticfsController) filesystemIDFromCNFS(ctx context.Context, cnfsName
 	return filesystemId, nil
 }
 
-// Re-asserts the forced options after controllerserver.go has overwritten "options". Other modes: no-op.
+// Completes missing options after controllerserver.go has overwritten "options".
+// Caller-supplied values always win. Other volume modes are unchanged.
 func enforceAgenticFsMountOptions(volumeAs string, volumeContext map[string]string) {
 	if volumeAs != agenticFsVolumeAs || volumeContext == nil {
 		return
 	}
 	current := volumeContext[vcKeyOptions]
-	merged := mergeAgenticFsMountOptions(current, agenticFsForcedMountOptions)
+	merged := mergeAgenticFsMountOptions(current, defaultAgenticFsMountOptions)
 	if merged == current {
 		// Left as it was, not even re-joined: re-joining could reorder it and change the default path.
 		return
@@ -412,7 +409,12 @@ func enforceAgenticFsMountOptions(volumeAs string, volumeContext map[string]stri
 
 // Uses the same parser and key extraction as the node side, so "present" means the same on both sides.
 func mergeAgenticFsMountOptions(options, forced string) string {
-	merged := mounterutils.MergeMountOptions(mounterutils.SplitMountOptions(options), mounterutils.SplitMountOptions(forced))
+	base := mounterutils.SplitMountOptions(options)
+	// "none" suppresses optional defaults, not the AgenticFS required options.
+	if len(base) == 1 && strings.EqualFold(base[0], "none") {
+		base = nil
+	}
+	merged := mounterutils.MergeMountOptions(base, mounterutils.SplitMountOptions(forced))
 	return strings.Join(merged, ",")
 }
 

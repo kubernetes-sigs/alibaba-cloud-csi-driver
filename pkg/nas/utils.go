@@ -121,7 +121,13 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	default:
 		//NFS Mount(Capacdity/Performance Extreme Nas、Cpfs2.0, AliNas)
 		versStr := fmt.Sprintf("vers=%s", opt.Vers)
-		if !slices.Contains(opt.Options, versStr) {
+		hasVersion := slices.Contains(opt.Options, versStr)
+		if opt.VolumeAs == agenticFsVolumeAs {
+			// Preserve any explicitly supplied version; only append the NAS
+			// fallback when the key is absent, not when its value differs.
+			_, hasVersion = mounterutils.IndexMountOptions(opt.Options)["vers"]
+		}
+		if !hasVersion {
 			combinedOptions = append(combinedOptions, versStr)
 		}
 		if opt.Accesspoint != "" {
@@ -279,6 +285,12 @@ func checkSystemNasConfig() error {
 // ParseMountFlags parse mountOptions.
 // Input must be pre-split (each element is a single mount option).
 func ParseMountFlags(mntOptions []string) (vers, akID, akSecret string, otherOptions []string) {
+	return parseMountFlags(mntOptions, true)
+}
+
+// extractVersion retains the legacy version normalization for other NAS modes.
+// AgenticFS leaves vers in otherOptions verbatim while still extracting secrets.
+func parseMountFlags(mntOptions []string, extractVersion bool) (vers, akID, akSecret string, otherOptions []string) {
 	for _, option := range mntOptions {
 		if option == "" {
 			continue
@@ -290,7 +302,11 @@ func ParseMountFlags(mntOptions []string) (vers, akID, akSecret string, otherOpt
 		}
 		switch key {
 		case "vers":
-			vers = value
+			if extractVersion {
+				vers = value
+			} else {
+				otherOptions = append(otherOptions, option)
+			}
 		case "access_key_id":
 			akID = value
 		case "access_key_secret":

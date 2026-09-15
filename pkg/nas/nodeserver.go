@@ -86,6 +86,7 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 
 // Options struct definition
 type Options struct {
+	VolumeAs                string   `json:"volumeAs,omitempty"`
 	Server                  string   `json:"server"`
 	Accesspoint             string   `json:"accesspoint"`
 	Path                    string   `json:"path"`
@@ -207,6 +208,8 @@ func parseVolumeContext(volumeContext map[string]string) (*Options, string, erro
 	var cnfsName string
 	for key, value := range volumeContext {
 		switch strings.ToLower(key) {
+		case "volumeas":
+			opt.VolumeAs = value
 		case "filesystemtype":
 			opt.FSType = value
 		case "useclient": // only VK will fetch this parameter from CNFS and add it to VolumeContext
@@ -319,7 +322,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		for _, o := range req.VolumeCapability.GetMount().MountFlags {
 			mntOptions = append(mntOptions, mounterutils.SplitMountOptions(o)...)
 		}
-		parseVers, akID, akSecret, parseOptions := ParseMountFlags(mntOptions)
+		// AgenticFS keeps vers in the option list verbatim; extracting it would
+		// require the node to rebuild/normalize it later in doMount.
+		parseVers, akID, akSecret, parseOptions := parseMountFlags(mntOptions, opt.VolumeAs != agenticFsVolumeAs)
 		if parseVers != "" {
 			if opt.Vers != "" {
 				klog.Warningf("NodePublishVolume: Vers(%s) (in volumeAttributes) is ignored as Vers(%s) also configured in mountOptions", opt.Vers, parseVers)
@@ -338,15 +343,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	// CSI mount flags override VolumeContext options above. AgenticFS still
-	// requires TLS and RAM authentication, even when mountOptions is "none".
-	// Enforce this before either mounting or handing options to a VM runtime;
-	// doMount's accesspoint safeguard does not apply to its "server" domain.
-	if req.VolumeContext["volumeAs"] == agenticFsVolumeAs {
-		if len(opt.Options) == 1 && strings.EqualFold(opt.Options[0], "none") {
-			opt.Options = nil
+	// Validate the effective security options after mount flags override the PV.
+	// The node must not repair missing TLS/RAM options. Version is optional here
+	// because the ordinary NAS mount path supplies it when absent.
+	if opt.VolumeAs == agenticFsVolumeAs {
+		options := mounterutils.IndexMountOptions(opt.Options)
+		for _, key := range []string{"tls", "ram"} {
+			if _, ok := options[key]; !ok {
+				return nil, status.Errorf(codes.InvalidArgument, "AgenticFS requires mount option %q; configure it in the PV options or overriding mountOptions", key)
+			}
 		}
-		opt.Options = mounterutils.MergeMountOptions(opt.Options, mounterutils.SplitMountOptions(agenticFsForcedMountOptions))
 	}
 
 	readOnly := req.GetReadonly()

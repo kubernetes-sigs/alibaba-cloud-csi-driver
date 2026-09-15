@@ -99,9 +99,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if options := parameters["options"]; options != "" {
 		resp.Volume.VolumeContext["options"] = options
 	}
-	// Must run after the verbatim "options" overwrite above: agenticfs cannot be mounted without
-	// tls and ram, and the node-side addTLSMountOptions safety net keys off the "accesspoint"
-	// VolumeContext key, which agenticfs does not write. No-op for every other volume mode.
+	// Complete missing AgenticFS vers/tls/ram options after the overwrite above,
+	// preserving user-supplied values. The node only validates TLS/RAM.
+	// No-op for every other volume mode.
 	enforceAgenticFsMountOptions(controller.VolumeAs(), resp.Volume.VolumeContext)
 	if sysConfigs != "" {
 		resp.Volume.VolumeContext["sysConfig"] = sysConfigs
