@@ -3005,7 +3005,8 @@ func TestAgenticfsDeleteVolumePaddedNotFoundCodeIsIdempotent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := newDeleteFakeNasClientV2()
 			fake.deleteAccessPointErr = tt.err
-			fake.deleteAgenticSpaceErr = tt.err
+			// Accesspoint absence is idempotent only for the AP operation.
+			fake.deleteAgenticSpaceErr = aliErr("InvalidAgenticSpaceId.NotFound\n")
 			ctrl := newAgenticfsCtrl(t, fake)
 
 			resp, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), agenticfsDeletePV())
@@ -3054,15 +3055,8 @@ func TestAgenticfsDeleteVolumeGoneMessageNamesTheActualResource(t *testing.T) {
 			notGone:  []string{"agenticspace is gone"},
 		},
 		{
-			name:     "accesspointNotFound",
-			err:      aliErr("InvalidAccessPointId.NotFound"),
-			wantGone: "accesspoint is gone",
-			notGone:  []string{"agenticspace is gone", "filesystem is gone"},
-		},
-		{
-			// No ErrorCode() method, so apiErrorCode returns "" and isNotFoundError still matches through errors.Is.
-			name:     "noReadableCodeFallsBackToAgenticSpace",
-			err:      wrap.ErrorCode("NotFound"),
+			name:     "paddedAgenticSpaceNotFound",
+			err:      aliErr("\tInvalidAgenticSpaceId.NotFound\n"),
 			wantGone: "agenticspace is gone",
 			notGone:  []string{"filesystem is gone", "accesspoint is gone"},
 		},
@@ -3085,6 +3079,7 @@ func TestAgenticfsDeleteVolumeGoneMessageNamesTheActualResource(t *testing.T) {
 				assert.NotContains(t, logs, notWant, "the message must name the resource the cloud actually named")
 			}
 			assert.Contains(t, logs, "errorCode", "the raw code is always logged next to the interpretation")
+			assert.Empty(t, fake.getAgenticSpaceReqs, "explicit parent absence needs no verification call")
 			assert.Empty(t, fake.deleteAccessPointIDs)
 			assert.Empty(t, fake.deleteAgenticSpaceReqs)
 		})

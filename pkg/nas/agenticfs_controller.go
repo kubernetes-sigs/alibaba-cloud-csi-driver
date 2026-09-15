@@ -896,13 +896,28 @@ func (c *agenticfsController) DeleteVolume(ctx context.Context, req *csi.DeleteV
 	switch {
 	case err == nil:
 	case isNotFoundError(err):
-		// isNotFoundError accepts three resource names, so name what the cloud named: the diagnosis differs.
+		// An absent accesspoint (or an unqualified NotFound from a list) does not
+		// prove the billable space is gone. Verify it with a space-scoped call;
+		// if it still exists, retry rather than act on an incomplete AP listing.
+		code := strings.ToLower(apiErrorCode(err))
+		if !strings.Contains(code, "agenticspace") && !strings.Contains(code, "filesystem") {
+			_, getErr := c.nasClient.GetAgenticSpace(ctx, &sdk.GetAgenticSpaceRequest{
+				FileSystemId:   tea.String(filesystemId),
+				AgenticSpaceId: tea.String(agenticSpaceId),
+			})
+			if !isAgenticSpaceNotFoundError(getErr) {
+				if getErr != nil && !isNotFoundError(getErr) {
+					return nil, apiStatusError("nas:GetAgenticSpace", getErr)
+				}
+				return nil, status.Errorf(codes.Aborted,
+					"nas:ListAccesspoints: %v; agenticspace %s is not confirmed absent (GetAgenticSpace: %v), retrying the accesspoint listing",
+					err, agenticSpaceId, getErr)
+			}
+			err = getErr
+		}
 		gone := "agenticspace"
-		switch code := strings.ToLower(apiErrorCode(err)); {
-		case strings.Contains(code, "filesystem"):
+		if strings.Contains(strings.ToLower(apiErrorCode(err)), "filesystem") {
 			gone = "filesystem"
-		case strings.Contains(code, "accesspoint"):
-			gone = "accesspoint"
 		}
 		logger.Info(gone+" is gone, treating the volume as already deleted",
 			"agenticSpaceId", agenticSpaceId, "errorCode", apiErrorCode(err))
@@ -959,7 +974,11 @@ func (c *agenticfsController) DeleteVolume(ctx context.Context, req *csi.DeleteV
 		AgenticSpaceId: tea.String(agenticSpaceId),
 		ClientToken:    tea.String(req.VolumeId),
 	}); err != nil {
-		if !isNotFoundError(err) {
+		if !isAgenticSpaceNotFoundError(err) {
+			if isNotFoundError(err) {
+				return nil, status.Errorf(codes.Aborted,
+					"nas:DeleteAgenticSpace: %v; an absent accesspoint does not confirm agenticspace %s was deleted, retrying", err, agenticSpaceId)
+			}
 			return nil, apiStatusError("nas:DeleteAgenticSpace", err)
 		}
 		logger.Info("agenticspace already deleted", "agenticSpaceId", agenticSpaceId)
@@ -1236,6 +1255,16 @@ func isNotFoundError(err error) bool {
 		return true
 	}
 	return false
+}
+
+// Only for space-scoped Get/Delete calls: an unqualified NotFound refers to
+// the requested space, but an explicitly missing accesspoint never does.
+func isAgenticSpaceNotFoundError(err error) bool {
+	switch strings.ToLower(apiErrorCode(err)) {
+	case "invalidaccesspoint.notfound", "invalidaccesspointid.notfound":
+		return false
+	}
+	return isNotFoundError(err)
 }
 
 // Reads the code only, never the message; the region list lives server side, so none is hardcoded.
