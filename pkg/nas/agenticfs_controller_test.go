@@ -481,7 +481,7 @@ func assertExactlyOneCompensationReport(t *testing.T, logs string) {
 
 func TestAgenticfsVolumeAs(t *testing.T) {
 	ctrl := newAgenticfsCtrl(t, newFakeNasClientV2())
-	assert.Equal(t, "agenticfs", ctrl.VolumeAs())
+	assert.Equal(t, "Agentic", ctrl.VolumeAs())
 }
 
 func TestAgenticfsCreateVolumeSuccess(t *testing.T) {
@@ -2513,7 +2513,9 @@ func TestAgenticfsConstants(t *testing.T) {
 	assert.Equal(t, "fileSystemId", filesystemIDKey)
 	assert.Equal(t, "alinas", mountProtocolAlinas)
 	assert.Equal(t, "tls,vers=3,ram", defaultAgenticFsMountOptions)
-	assert.Equal(t, "agenticfs", cnfsSpecTypeAgenticFS)
+	assert.Equal(t, "Agentic", cloud.StorageTypeAgentic)
+	assert.Equal(t, cloud.StorageTypeAgentic, agenticFsVolumeAs)
+	assert.Equal(t, cloud.StorageTypeAgentic, cnfsSpecTypeAgenticFS)
 	assert.Equal(t, int64(10*GiB), minAgenticSpaceSizeLimit)
 	assert.Equal(t, int64(1099511627776000), maxAgenticSpaceSizeLimit)
 	assert.Equal(t, int64(10000), minAgenticSpaceFileCountLimit)
@@ -3432,7 +3434,8 @@ func TestEnforceAgenticFsMountOptionsIsANoOpForOtherVolumeModes(t *testing.T) {
 		{"volumeAsAccesspoint", "accesspoint"},
 		{"volumeAsFilesystem", "filesystem"},
 		{"volumeAsEmpty", ""},
-		{"volumeAsWrongCaseAgenticFS", "AgenticFS"},
+		{"volumeAsWrongCaseAgentic", "agentic"},
+		{"volumeAsOldSpellingAgenticFS", "agenticfs"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			vc := map[string]string{vcKeyOptions: "vers=3,noresvport", vcKeyServer: "s", vcKeyPath: "/"}

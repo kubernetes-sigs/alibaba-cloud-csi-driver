@@ -33,7 +33,7 @@ import (
 
 // AgenticFS is a serverless NAS offering where one filesystem manages up to 500k isolated
 // AgenticSpaces. Each PVC provisions one AgenticSpace plus one AccessPoint bound to it. This
-// controller implements volumeAs="agenticfs" and touches the control plane only.
+// controller implements volumeAs="Agentic" and touches the control plane only.
 //
 // CreateAgenticSpace is idempotent by ClientToken=<PV name>; CreateAccessPoint is not, so every
 // attempt lists first and reuses one - otherwise each retry orphans an accesspoint, and
@@ -41,10 +41,11 @@ import (
 // deletes only the accesspoint this call created, only on a terminal gRPC code, and reports the
 // leftover through the log prefixes below, a contract with an external reaper.
 const (
-	agenticFsVolumeAs = "agenticfs"
+	// Use the same canonical value for CSI volumeAs, CNFS spec.type and NAS StorageType.
+	agenticFsVolumeAs = cloud.StorageTypeAgentic
 
 	// cnfsSpecTypeAgenticFS is the cross-repo contract value for CNFS spec.type.
-	cnfsSpecTypeAgenticFS = "agenticfs"
+	cnfsSpecTypeAgenticFS = cloud.StorageTypeAgentic
 
 	// StorageClass parameter keys.
 	paramContainerNetworkFileSystem = "containerNetworkFileSystem"

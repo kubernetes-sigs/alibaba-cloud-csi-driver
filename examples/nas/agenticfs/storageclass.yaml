@@ -6,7 +6,7 @@ metadata:
   name: alicloud-nas-agenticfs
 provisioner: nasplugin.csi.alibabacloud.com
 parameters:
-  volumeAs: agenticfs
+  volumeAs: Agentic
   # fileSystemId wins if both are ever set.
   containerNetworkFileSystem: "agenticfs-cnfs"
   # CreateAgenticSpace.Azone.

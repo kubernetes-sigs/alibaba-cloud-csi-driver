@@ -5,7 +5,7 @@ kind: ContainerNetworkFileSystem
 metadata:
   name: agenticfs-cnfs
 spec:
-  type: agenticfs
+  type: Agentic
   # Sent as CreateFileSystem.Description; spaces are not allowed.
   description: "agenticfs"
   # The CNFS cannot generate volumeAs plus the agenticSpace* caps: apply storageclass.yaml yourself.

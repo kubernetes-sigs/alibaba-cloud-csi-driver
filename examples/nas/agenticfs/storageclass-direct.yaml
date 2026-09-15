@@ -8,7 +8,7 @@ metadata:
   name: alicloud-nas-agenticfs-direct
 provisioner: nasplugin.csi.alibabacloud.com
 parameters:
-  volumeAs: agenticfs
+  volumeAs: Agentic
   fileSystemId: "0025xxxxxxxxxxxxxxxx"
   # CreateAgenticSpace.Azone.
   zoneId: "cn-hangzhou-k"
