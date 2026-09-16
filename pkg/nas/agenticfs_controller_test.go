@@ -823,6 +823,49 @@ func TestAgenticfsCreateVolumeLimitBytes(t *testing.T) {
 	}
 }
 
+// The ordinary lifecycle is one Space with at most one AccessPoint. Retrying
+// an unavailable or pending accesspoint must not create a replacement.
+func TestAgenticfsCreateVolumeSingleAccessPointLifecycle(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		state         string
+		wantCode      codes.Code
+		wantCreates   int
+		wantDescribes int
+	}{
+		{"absent", "", codes.OK, 1, 1},
+		{"active", accessPointStatusActive, codes.OK, 0, 1},
+		{"pending", "Pending", codes.OK, 0, 2},
+		{"inactive", accessPointStatusInactive, codes.Aborted, 0, 0},
+		{"deleting", accessPointStatusDeleting, codes.Aborted, 0, 0},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFakeNasClientV2()
+			if tt.state != "" {
+				fake.listPages = []*sdk.ListAccessPointsResponseBody{
+					apPage(apItem(testAgenticFsAccessPointID, tt.state, testAgenticFsAPDomain)),
+				}
+			}
+			if tt.state == "Pending" {
+				fake.apStatuses = []string{"Pending", accessPointStatusActive}
+			}
+			ctrl := newAgenticfsCtrl(t, fake)
+			resp, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+			require.Equal(t, tt.wantCode, status.Code(err), "%v", err)
+			if tt.wantCode == codes.OK {
+				require.NotNil(t, resp)
+				assert.Equal(t, testAgenticFsAccessPointID, resp.Volume.VolumeContext[vcKeyAccesspointId])
+			} else {
+				assert.Nil(t, resp)
+			}
+			assert.Len(t, fake.createAccessPointReqs, tt.wantCreates)
+			assert.Equal(t, tt.wantDescribes, fake.describeCalls)
+			assert.Empty(t, fake.deleteAccessPointIDs)
+			assert.Empty(t, fake.deleteAgenticSpaceReqs)
+		})
+	}
+}
+
 func TestAgenticfsCreateVolumeReusesExistingAccessPoint(t *testing.T) {
 	fake := newFakeNasClientV2()
 	fake.listPages = []*sdk.ListAccessPointsResponseBody{activeApPage()}
@@ -916,6 +959,24 @@ func TestAgenticfsCreateVolumeListFilterMismatchAborts(t *testing.T) {
 
 const foreignAccessPointID = "ap-other"
 
+// Even when the first entry is Active, validate the whole listing before reusing it.
+func TestAgenticfsCreateVolumeValidatesOwnershipBeforeSelectingActiveAccessPoint(t *testing.T) {
+	fake := newFakeNasClientV2()
+	foreign := apItem("ap-foreign", accessPointStatusActive, "foreign.example.com")
+	foreign.AgenticSpaceId = tea.String("as-other-space")
+	fake.listPages = []*sdk.ListAccessPointsResponseBody{apPage(
+		apItem(testAgenticFsAccessPointID, accessPointStatusActive, testAgenticFsAPDomain), foreign,
+	)}
+	ctrl := newAgenticfsCtrl(t, fake)
+	resp, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	require.Equal(t, codes.Aborted, status.Code(err))
+	assert.Nil(t, resp)
+	assert.Empty(t, fake.createAccessPointReqs)
+	assert.Zero(t, fake.describeCalls)
+	assert.Empty(t, fake.deleteAccessPointIDs)
+	assert.Empty(t, fake.deleteAgenticSpaceReqs)
+}
+
 // AgenticSpaceId is optional on the wire; warn-and-skip was rejected, an unproven accesspoint would be reused.
 func TestAgenticfsCreateVolumeListMissingAgenticSpaceIdAborts(t *testing.T) {
 	newFake := func() *fakeNasClientV2 {
@@ -969,10 +1030,11 @@ func TestAgenticfsCreateVolumeInactiveAccessPointIsUnusable(t *testing.T) {
 	assert.Contains(t, err.Error(), "nas:ListAccesspoints:")
 	assert.Contains(t, err.Error(), "not usable yet")
 	assert.Contains(t, err.Error(), testAgenticFsAccessPointID+"("+accessPointStatusInactive+")")
-	// The message must say WHAT TO DO, not merely describe the state.
-	assert.Contains(t, err.Error(), "activate or delete accesspoint "+testAgenticFsAccessPointID)
+	// A Pending PVC may never receive DeleteVolume: direct operators to verified cleanup.
 	assert.Contains(t, err.Error(), "NAS console")
-	assert.Contains(t, err.Error(), "delete the PVC")
+	assert.Contains(t, err.Error(), "examples/nas/agenticfs/README.md §4.1")
+	assert.Contains(t, err.Error(), "deleting a Pending PVC does not guarantee cloud resource cleanup")
+	assert.NotContains(t, err.Error(), "delete the PVC to release the agenticspace")
 	assert.Empty(t, fake.createAccessPointReqs)
 	assert.Empty(t, fake.deleteAgenticSpaceReqs)
 	assert.Empty(t, fake.deleteAccessPointIDs)

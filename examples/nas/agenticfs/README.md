@@ -2,9 +2,11 @@
 
 ## 1. Prerequisites
 
-Each PVC provisions one AgenticSpace and one RAM-enabled AccessPoint on an
-existing AgenticFS filesystem (`StorageType=Agentic`). The CSI driver does not
-create or delete the filesystem in this mode.
+The normal resource model is **one PVC → one AgenticSpace → one RAM-enabled
+AccessPoint**, on an existing AgenticFS filesystem (`StorageType=Agentic`). The
+CSI driver does not create or delete the filesystem in this mode. Retries recover
+the same volume with the same placement parameters; this is not a mechanism for
+selecting among cross-VPC access points or migrating an existing volume's network.
 
 Use the canonical StorageClass value `volumeAs: Agentic` (case-sensitive).
 The filesystem, AgenticSpace zone, VPC and vSwitch must be available to your
@@ -80,6 +82,22 @@ Creation proceeds forward on retries:
    lists access points bound to the space and reuses one before attempting a new
    creation; it does not blindly create another access point on every retry.
 3. The driver waits for the access point to become Active before returning a volume.
+
+| Access point found for the Space | CreateVolume behavior |
+| --- | --- |
+| None | Create one access point. |
+| Active | Reuse it; do not create another. |
+| Pending | Reuse it and wait for Active. |
+| Inactive or Deleting | Return a retryable error; do not create a replacement. |
+
+The one-access-point model is not a claim that NAS enforces uniqueness on repeated
+CreateAccessPoint calls. If recovery encounters multiple entries, it logs the
+unexpected state and prefers an existing Active entry rather than creating more.
+Ownership validation and pagination remain in place. DeleteVolume enumerates and
+removes all access points belonging to the Space so leftovers cannot block deletion.
+
+An Inactive access point may require operator intervention; see §4.1. Deleting a
+Pending PVC alone does not guarantee that NAS resources will be released.
 
 A timeout or missing response does not prove that creation failed in NAS. Likewise,
 a later terminal error does not prove that an earlier attempt created nothing.

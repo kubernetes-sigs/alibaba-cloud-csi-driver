@@ -31,8 +31,8 @@ import (
 )
 
 // AgenticFS is a serverless NAS offering where one filesystem manages up to 500k isolated
-// AgenticSpaces. Each PVC provisions one AgenticSpace plus one AccessPoint bound to it. This
-// controller implements volumeAs="Agentic" and touches the control plane only.
+// AgenticSpaces. The normal model is one PVC -> one AgenticSpace -> one AccessPoint.
+// This controller implements volumeAs="Agentic" and touches the control plane only.
 //
 // CreateAgenticSpace is idempotent by ClientToken=<PV name>; CreateAccessPoint is not, so every
 // attempt lists first and reuses one - otherwise each retry orphans an accesspoint, and
@@ -81,7 +81,7 @@ const (
 	apListFilterAgenticSpaceId = "AgenticSpaceId"
 
 	apListMaxResults int32 = 100 // SDK maximum
-	// Hitting the cap means the AgenticSpaceId filter was not applied server-side; Aborted so the caller retries.
+	// Bound unexpected listings without acting on partial results; Aborted so the caller retries.
 	apListMaxPages = 50
 
 	defaultAgenticSpaceFileCountLimit int64 = 1000000
@@ -385,8 +385,10 @@ func mergeAgenticFsMountOptions(options, forced string) string {
 	return strings.Join(merged, ",")
 }
 
-// Returns an accesspoint already bound to agenticSpaceId, or empty strings. The filter is evaluated
-// server-side, so a hit is authoritative - a tag lookup cannot prove it.
+// Normally a space has zero or one accesspoint: create only when none exists,
+// otherwise reuse it or wait for it to become usable. Multiple entries are recovery
+// residue, not a placement-selection feature; prefer Active without creating more.
+// listAccessPointsOfSpace verifies ownership before any entry can be reused.
 func (c *agenticfsController) findReusableAccessPoint(ctx context.Context, filesystemId, agenticSpaceId string) (accesspointId, domain string, err error) {
 	logger := klog.FromContext(ctx)
 	accesspoints, err := c.listAccessPointsOfSpace(ctx, filesystemId, agenticSpaceId)
@@ -394,57 +396,41 @@ func (c *agenticfsController) findReusableAccessPoint(ctx context.Context, files
 		return "", "", apiStatusError("nas:ListAccesspoints", err)
 	}
 
-	var usable []*sdk.ListAccessPointsResponseBodyAccessPoints
-	var unavailable []*sdk.ListAccessPointsResponseBodyAccessPoints
+	if len(accesspoints) > 1 {
+		logger.Info("unexpected multiple accesspoints; recovering an existing one without creating another",
+			"agenticSpaceId", agenticSpaceId, "count", len(accesspoints))
+	}
+	var pending *sdk.ListAccessPointsResponseBodyAccessPoints
+	var unavailable []string
 	for _, ap := range accesspoints {
-		if tea.StringValue(ap.AccessPointId) == "" {
+		id := tea.StringValue(ap.AccessPointId)
+		if id == "" {
 			continue
 		}
-		// Neither can be mounted: an Inactive one would poll until the timeout, a Deleting one disappears.
 		switch tea.StringValue(ap.Status) {
+		case accessPointStatusActive:
+			return id, tea.StringValue(ap.DomainName), nil
 		case accessPointStatusDeleting, accessPointStatusInactive:
-			unavailable = append(unavailable, ap)
-			continue
-		}
-		usable = append(usable, ap)
-	}
-	if len(usable) == 0 {
-		if len(unavailable) > 0 {
-			// None can be mounted and creating a second one would stack them. Aborted converges without destroying
-			// anything: a Deleting accesspoint disappears, an Inactive one eventually becomes Active.
-			described := make([]string, 0, len(unavailable))
-			ids := make([]string, 0, len(unavailable))
-			for _, ap := range unavailable {
-				id := tea.StringValue(ap.AccessPointId)
-				described = append(described, fmt.Sprintf("%s(%s)", id, tea.StringValue(ap.Status)))
-				ids = append(ids, id)
-			}
-			logger.Info("WARNING: none of the accesspoints of the agenticspace is usable yet, retrying",
-				"agenticSpaceId", agenticSpaceId, "accesspoints", strings.Join(described, ", "))
-			// An Inactive-only space can retry forever, so the message must tell an operator what to do.
-			return "", "", status.Errorf(codes.Aborted,
-				"nas:ListAccesspoints: the accesspoint(s) of agenticspace %s are not usable yet: %s; "+
-					"activate or delete accesspoint %s in the NAS console, or delete the PVC to release the agenticspace",
-				agenticSpaceId, strings.Join(described, ", "), strings.Join(ids, ", "))
-		}
-		return "", "", nil
-	}
-
-	picked := usable[0]
-	if tea.StringValue(picked.Status) != accessPointStatusActive {
-		for _, ap := range usable {
-			if tea.StringValue(ap.Status) == accessPointStatusActive {
-				picked = ap
-				break
+			unavailable = append(unavailable, fmt.Sprintf("%s(%s)", id, tea.StringValue(ap.Status)))
+		default:
+			// Pending (or an unfamiliar state) still needs waitAccessPointActive.
+			if pending == nil {
+				pending = ap
 			}
 		}
 	}
-	if len(usable) > 1 {
-		// Should not happen, but an interrupted older build can leave several; DeleteVolume removes the set.
-		logger.Info("more than one accesspoint is bound to the agenticspace, reusing one of them",
-			"agenticSpaceId", agenticSpaceId, "count", len(usable), "reused", tea.StringValue(picked.AccessPointId))
+	if pending != nil {
+		return tea.StringValue(pending.AccessPointId), tea.StringValue(pending.DomainName), nil
 	}
-	return tea.StringValue(picked.AccessPointId), tea.StringValue(picked.DomainName), nil
+	if len(unavailable) > 0 {
+		// Never create a replacement while the existing accesspoint is unusable.
+		return "", "", status.Errorf(codes.Aborted,
+			"nas:ListAccesspoints: the accesspoint(s) of agenticspace %s are not usable yet: %s; "+
+				"inspect the NAS console and follow examples/nas/agenticfs/README.md §4.1 for recovery or cleanup; "+
+				"deleting a Pending PVC does not guarantee cloud resource cleanup",
+			agenticSpaceId, strings.Join(unavailable, ", "))
+	}
+	return "", "", nil
 }
 
 // Follows NextToken to the end: a missed accesspoint means a duplicate gets created, or a leftover
