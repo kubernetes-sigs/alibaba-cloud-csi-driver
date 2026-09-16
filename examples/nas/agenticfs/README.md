@@ -163,3 +163,8 @@ cannot safely proceed.
 These prefixes describe attempt outcomes, not globally unique resource events.
 An external reaper must correlate identifiers and current Kubernetes/NAS state;
 grepping a prefix alone is not a safe deletion policy.
+
+## Development
+
+See the [controller architecture and testing guide](../../../docs/agenticfs-controller.md)
+for module responsibilities, lifecycle contracts, and regression-test commands.
