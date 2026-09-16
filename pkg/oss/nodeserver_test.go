@@ -17,6 +17,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -368,6 +370,46 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// An unsupported fuseType (e.g. "xfs") must be rejected by parseOptions with
+// InvalidArgument instead of letting a nil fusePodManager reach makeAuthConfig
+// and panic the whole CSI process.
+func TestNodePublishVolume_UnsupportedFuseType(t *testing.T) {
+	baseDir := t.TempDir()
+	targetPath := filepath.Join(baseDir, "target")
+	require.NoError(t, os.MkdirAll(targetPath, 0o755))
+
+	ns := setupTestNodeServer(t, mountutils.NewFakeMounter(nil), true)
+
+	req := &csi.NodePublishVolumeRequest{
+		VolumeId:   "test-volume-id",
+		TargetPath: targetPath,
+		VolumeContext: map[string]string{
+			"bucket":         "test-bucket",
+			"url":            "https://oss-cn-beijing.aliyuncs.com",
+			"path":           "/test",
+			"directAssigned": "true",
+		},
+		PublishContext: map[string]string{
+			mountProxySocket: filepath.Join(baseDir, "nonexistent-mounter.sock"),
+		},
+		VolumeCapability: &csi.VolumeCapability{
+			AccessType: &csi.VolumeCapability_Mount{
+				Mount: &csi.VolumeCapability_MountVolume{FsType: "xfs"},
+			},
+		},
+		Secrets: map[string]string{
+			"akId":     "test-akid",
+			"akSecret": "test-aksecret",
+		},
+	}
+
+	_, err := ns.NodePublishVolume(context.Background(), req)
+	require.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	assert.Contains(t, err.Error(), `unsupported fuseType "xfs"`)
+	assert.Contains(t, err.Error(), mounterutils.OssFsType)
 }
 
 // An overlay merged mount is a kernel mount that stays alive after the lower FUSE dies,

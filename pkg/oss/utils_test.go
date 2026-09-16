@@ -837,6 +837,58 @@ func Test_resolveAgenticBucketOptions_prefix(t *testing.T) {
 	assert.ErrorContains(t, err, "accountId unavailable")
 }
 
+func Test_parseOptions_fuseTypeNormalization(t *testing.T) {
+	t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
+
+	tests := []struct {
+		name         string
+		fuseType     string
+		fsType       string
+		wantFuseType string
+		wantErr      string
+	}{
+		{name: "default empty", fuseType: "", wantFuseType: mounterutils.OssFsType},
+		{name: "ossfs canonical", fuseType: "ossfs", wantFuseType: mounterutils.OssFsType},
+		{name: "ossfs2 canonical", fuseType: "ossfs2", wantFuseType: mounterutils.OssFs2Type},
+		{name: "fuse compat", fuseType: "fuse", wantFuseType: mounterutils.OssFsType},
+		{name: "ossfs1 legacy", fuseType: "ossfs1", wantFuseType: mounterutils.OssFsType},
+		{name: "fsType fuse from VolumeCapability", fsType: "fuse", wantFuseType: mounterutils.OssFsType},
+		{name: "unknown rejected", fuseType: "fakefs", wantErr: `unsupported fuseType "fakefs"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			volOpts := map[string]string{
+				"bucket": "test-bucket",
+				"url":    "oss-cn-hangzhou.aliyuncs.com",
+			}
+			if tt.fuseType != "" {
+				volOpts["fuseType"] = tt.fuseType
+			}
+
+			var volCaps []*csi.VolumeCapability
+			if tt.fsType != "" {
+				volCaps = []*csi.VolumeCapability{{
+					AccessMode: &csi.VolumeCapability_AccessMode{
+						Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+					},
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{FsType: tt.fsType},
+					},
+				}}
+			}
+
+			opts, err := parseOptions(context.Background(), nil, volOpts, nil, volCaps, false, "", false, m)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantFuseType, opts.FuseType)
+		})
+	}
+}
+
 // Note: volumeAs=bucketspace is tested in Test_parseVolumeAsOptions (parsing)
 // and Test_buildVolumeContext (CreateVolume validation, currently blocked).
 // It is not tested via parseOptions because parseOptions discards the
@@ -844,16 +896,19 @@ func Test_resolveAgenticBucketOptions_prefix(t *testing.T) {
 // is only used by buildVolumeContext in the CreateVolume path.
 
 func Test_checkOssOptions_agenticBucket(t *testing.T) {
+	fakeMeta := metadata.NewMetadata()
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
+	ossfsFpm := ossfpm.NewOSSFusePodManager(ossfs, nil, false)
+
 	// BucketSpace should satisfy the "bucket not empty" check
 	err := checkOssOptions(&ossfpm.Options{
 		URL:           "http://oss-cn-hangzhou-internal.aliyuncs.com",
 		BucketSpace:   "my-bs",
 		AgenticBucket: "my-ab",
 		Path:          "/",
-		FuseType:      "ossfs",
-	}, nil)
-	// fpm is nil, but the error should be about fuseType, not bucket
-	assert.ErrorContains(t, err, "Unsupported fuseType")
+		FuseType:      mounterutils.OssFsType,
+	}, ossfsFpm)
+	assert.NoError(t, err)
 }
 
 func Test_buildVolumeContext(t *testing.T) {
@@ -1574,29 +1629,6 @@ func Test_checkOssOptions(t *testing.T) {
 		opts    *ossfpm.Options
 		errType error
 	}{
-		{
-			name: "empty fuse type",
-			opts: &ossfpm.Options{
-				URL:    "1.1.1.1",
-				Bucket: "aliyun",
-				Path:   "/path",
-				AccessKey: ossfpm.AccessKey{
-					AkID:     "11111",
-					AkSecret: "22222",
-				},
-			},
-			errType: ParamError,
-		},
-		{
-			name: "invalid fuse type",
-			opts: &ossfpm.Options{
-				URL:      "1.1.1.1",
-				Bucket:   "aliyun",
-				Path:     "abc/",
-				FuseType: "fakefs",
-			},
-			errType: ParamError,
-		},
 		{
 			name: "invalid path",
 			opts: &ossfpm.Options{

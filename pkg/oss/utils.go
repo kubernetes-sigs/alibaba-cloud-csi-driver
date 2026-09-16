@@ -286,9 +286,22 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 		opts.ReadOnly = true
 	}
 
-	// default fuseType is ossfs
-	if opts.FuseType == "" {
+	// Normalize fuseType to a canonical registered name.
+	//   ""/"ossfs"/"ossfs1" → ossfs   (ossfs1 is an alias for ossfs)
+	//   "ossfs2"            → ossfs2
+	//   "fuse"              → ossfs   (compat: microVM / inline-ephemeral volumes
+	//                          historically set VolumeCapability.fsType to "fuse")
+	// Anything else is rejected early so that a nil fusePodManager can never
+	// reach makeAuthConfig and panic the whole CSI process.
+	switch opts.FuseType {
+	case "", mounterutils.OssFsType, "ossfs1":
 		opts.FuseType = mounterutils.OssFsType
+	case mounterutils.OssFs2Type:
+	case "fuse":
+		klog.Warningf("fuseType %q is deprecated, treating as %q", opts.FuseType, mounterutils.OssFsType)
+		opts.FuseType = mounterutils.OssFsType
+	default:
+		return nil, fmt.Errorf("unsupported fuseType %q, expected one of %v", opts.FuseType, ossfpm.GetAllRegisteredFuseTypes())
 	}
 
 	// Resolve CNFS fallback before URL normalization:
@@ -606,9 +619,6 @@ func resolveBucketSpacePrefix(opts *ossfpm.Options, m metadata.MetadataProvider)
 
 // Check oss options
 func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
-	if fpm == nil {
-		return WrapOssError(ParamError, "Unsupported fuseType %s", opt.FuseType)
-	}
 	// common: either Bucket or BucketSpace must be set
 	if opt.URL == "" || opt.MountBucket() == "" {
 		return WrapOssError(ParamError, "Url/Bucket empty")

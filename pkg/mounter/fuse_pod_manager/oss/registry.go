@@ -2,6 +2,7 @@ package oss
 
 import (
 	"maps"
+	"slices"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -59,12 +60,13 @@ func GetFuseMounter(fstype string, csiCfg utils.Config, m metadata.MetadataProvi
 	return factory(csiCfg, m), nil
 }
 
-// GetAllRegisteredFuseTypes returns all registered fuse types
+// GetAllRegisteredFuseTypes returns all registered fuse types, sorted
 func GetAllRegisteredFuseTypes() []string {
 	types := make([]string, 0, len(fstypeToFactory))
 	for fstype := range fstypeToFactory {
 		types = append(types, fstype)
 	}
+	slices.Sort(types)
 	return types
 }
 
