@@ -23,9 +23,12 @@ var (
 )
 
 func SetDefaultImage(fuseType string, m metadata.MetadataProvider, config *fpm.FuseContainerConfig) {
-	// deprecated
+	// An ossfs image is derived from the release registry below, so one named in the
+	// configmap is not honoured. Discarded here rather than in the shared parser,
+	// which other fuse types use to name an image they bring themselves.
 	if config.Image != "" {
-		return
+		klog.Warning("'image' config in configmap no longer supported")
+		config.Image = ""
 	}
 	region, err := m.Get(metadata.RegionID)
 	if err != nil {

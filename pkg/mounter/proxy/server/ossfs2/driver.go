@@ -52,7 +52,7 @@ func NewDriver() *Driver {
 		m,
 		interceptors.NewOverlayInterceptor(driver.overlay),
 		interceptors.Ossfs2SecretInterceptor,
-		interceptors.OssfsMonitorInterceptor,
+		interceptors.FuseMonitorInterceptor,
 	)
 	return driver
 }
@@ -229,7 +229,7 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	})
 
 	if err == nil {
-		op.MountResult = server.OssfsMountResult{
+		op.MountResult = server.FuseMountResult{
 			PID:      pid,
 			ExitChan: ossfsExited,
 		}

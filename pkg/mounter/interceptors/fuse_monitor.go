@@ -10,14 +10,14 @@ import (
 	"k8s.io/mount-utils"
 )
 
-var _ mounter.MountInterceptor = OssfsMonitorInterceptor
+var _ mounter.MountInterceptor = FuseMonitorInterceptor
 
 var (
 	raw            = mount.NewWithoutSystemd("")
 	monitorManager = server.NewMountMonitorManager()
 )
 
-func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
+func FuseMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
 	if op == nil || op.MetricsPath == "" {
 		return handler(ctx, op)
 	}
@@ -44,9 +44,9 @@ func OssfsMonitorInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 		return err
 	}
 
-	res, ok := op.MountResult.(server.OssfsMountResult)
+	res, ok := op.MountResult.(server.FuseMountResult)
 	if !ok {
-		klog.ErrorS(errors.New("failed to assert ossfs mount result type"), "skipping monitoring of mountpoint", "mountpoint", op.Target)
+		klog.ErrorS(errors.New("failed to assert fuse mount result type"), "skipping monitoring of mountpoint", "mountpoint", op.Target)
 		return err
 	}
 

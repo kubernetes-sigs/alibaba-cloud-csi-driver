@@ -1,32 +1,28 @@
 //go:build !windows
 
-package oss
+package customfuse
 
 import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
-	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs"
-	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs2"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	mountutils "k8s.io/mount-utils"
 )
 
+// CSIAgent serves customfuse volumes in csi-agent mode (sandbox scenario only).
+// ACS GPU scenario is NOT supported — csi-agent cannot distinguish sandbox from ACS
+// since both resolve to the same runtime type.
 type CSIAgent struct {
 	csi.UnimplementedNodeServer
 	ns *nodeServer
 }
 
-func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
+func NewCSIAgent(socketPath string) *CSIAgent {
 	ns := &nodeServer{
-		metadata:        m,
 		locks:           utils.NewVolumeLocks(),
 		rawMounter:      mountutils.NewWithoutSystemd(""),
 		skipGlobalMount: utils.GetSkipGlobalMount(true),
-		fusePodManagers: ossfpm.GetAllOSSFusePodManagers(utils.Config{}, m, nil, nil),
-		ossfsPaths:      ossfpm.GetAllFuseMounterPaths(),
 		mountProxySock:  socketPath,
 	}
 	return &CSIAgent{
@@ -46,10 +42,6 @@ func (a *CSIAgent) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVo
 	return a.ns.NodeUnstageVolume(ctx, req)
 }
 
-// NodePublishVolume delegates to nodeServer, which handles socket injection
-// via ns.mountProxySock (set from the csi-agent --mount-proxy-sock flag).
-// The injection was originally done here; it was moved into nodeServer.NodePublishVolume
-// to unify the socket override logic for both csi-agent and csi-plugin binaries.
 func (a *CSIAgent) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	return a.ns.NodePublishVolume(ctx, req)
 }
