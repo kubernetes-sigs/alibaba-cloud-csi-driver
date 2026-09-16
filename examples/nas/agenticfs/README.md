@@ -22,7 +22,7 @@ these AgenticFS operations:
 | Provision a space | `nas:CreateAgenticSpace` |
 | Discover/reuse and wait for access points | `nas:ListAccessPoints`, `nas:DescribeAccessPoint` |
 | Create an access point | `nas:CreateAccessPoint` |
-| Delete a volume or compensate a failed create | `nas:DeleteAccessPoint`, `nas:DeleteAgenticSpace` |
+| Delete a volume | `nas:DeleteAccessPoint`, `nas:DeleteAgenticSpace` |
 | Read and expand quota; verify absence during deletion | `nas:GetAgenticSpace`, `nas:SetAgenticSpaceQuota` |
 
 The policy is a broad driver example using `Resource: "*"`. For a least-privilege
@@ -72,16 +72,26 @@ bound to the space, waits for them to disappear, then deletes the AgenticSpace.
 It never deletes the parent filesystem. Deletion is destructive; use `Retain`
 when data must be preserved after the PVC is removed.
 
-A retryable CreateVolume failure retains resources so the next request can reuse
-them. A terminal failure may compensate by deleting only the access point created
-by that call; it never automatically deletes the AgenticSpace.
+**CreateVolume never deletes resources on failure**, including terminal errors.
+Creation proceeds forward on retries:
 
-Compensation passes its deadline to the limiter and SDK HTTP request and waits
-synchronously for the SDK to return before releasing the volume lock. Credential
-refresh itself has no context and may exceed that deadline. After a delayed
-refresh, an expired context prevents a new delete request from being sent. If a
-request was already sent when it timed out, its server-side result is uncertain
-and must be reconciled against NAS state.
+1. `CreateAgenticSpace` reuses `ClientToken=<volume name>` to replay creation.
+2. `CreateAccessPoint` has no ClientToken in the current public API. The driver
+   lists access points bound to the space and reuses one before attempting a new
+   creation; it does not blindly create another access point on every retry.
+3. The driver waits for the access point to become Active before returning a volume.
+
+A timeout or missing response does not prove that creation failed in NAS. Likewise,
+a later terminal error does not prove that an earlier attempt created nothing.
+Failed requests log the known identifiers; a missing space ID is recorded as an
+unknown resource state. Error classification changes the diagnostics and CSI
+response, not whether resources are deleted.
+
+This deliberately leaves spaces and access points for recovery. If the PVC is
+abandoned before a PV is delivered, DeleteVolume may never be called. Retained
+resources can consume quota and incur costs: arrange external reconciliation or
+use the manual procedure below. This driver does not include an automatic reaper,
+and ClientToken idempotency does not garbage-collect abandoned resources.
 
 ### 4.1 Manual cleanup
 
@@ -125,10 +135,12 @@ cannot safely proceed.
   successful provisioning also emits this message.
 - `agenticfs-resource-retained-for-retry`: intentionally retained for a retry;
   **not** a cleanup instruction.
-- `agenticfs-orphan-resource`: a terminal attempt left resources requiring
-  reconciliation. Check live NAS and Kubernetes state before deleting anything.
-- `agenticfs-orphan-resolved`: the compensating access-point delete succeeded or
-  reported absence. **The AgenticSpace still needs reconciliation.**
+- `agenticfs-orphan-resource`: a terminal provisioning failure requires
+  reconciliation. The historical prefix does not prove a resource exists or is
+  orphaned. Check live NAS and Kubernetes state before deleting anything.
+- `agenticfs-orphan-resolved`: legacy message from versions that attempted partial
+  rollback; no longer emitted by CreateVolume. In historical logs it referred
+  only to the access point, not the AgenticSpace.
 
 These prefixes describe attempt outcomes, not globally unique resource events.
 An external reaper must correlate identifiers and current Kubernetes/NAS state;

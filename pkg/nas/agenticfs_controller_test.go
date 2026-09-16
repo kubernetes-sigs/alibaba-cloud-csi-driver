@@ -451,7 +451,7 @@ func assertOrphanLog(t *testing.T, logs string) {
 			break
 		}
 	}
-	require.NotEmpty(t, orphanLine, "a confirmed leak must be reported under the orphan prefix")
+	require.NotEmpty(t, orphanLine, "a terminal provisioning failure must be reported for reconciliation")
 	assert.Contains(t, orphanLine, "ERROR", "the orphan line must be Error level, not Info")
 	for _, field := range orphanLogFields {
 		assert.Contains(t, orphanLine, field, "every orphan line carries all contract fields on the SAME line")
@@ -470,14 +470,10 @@ func countLogLines(logs, prefix string) int {
 	return n
 }
 
-// Zero means a leak nobody can find, two means a reaper double-counts one accesspoint.
-func assertExactlyOneCompensationReport(t *testing.T, logs string) {
+func assertExactlyOneFailureReport(t *testing.T, logs string) {
 	t.Helper()
-	require.NotEmpty(t, logs, "the capture is vacuous - ktesting buffered nothing")
-	orphans := countLogLines(logs, orphanLogPrefix)
-	resolved := countLogLines(logs, orphanResolvedLogPrefix)
-	assert.Equal(t, 1, orphans+resolved,
-		"exactly one of {orphan, resolved} per terminal compensation: got %d orphan line(s) and %d resolved line(s)", orphans, resolved)
+	assert.Equal(t, 1, countLogLines(logs, orphanLogPrefix)+countLogLines(logs, retainedForRetryLogPrefix))
+	assert.NotContains(t, logs, "agenticfs-orphan-resolved", "CreateVolume never performs cleanup")
 }
 
 func TestAgenticfsVolumeAs(t *testing.T) {
@@ -890,7 +886,7 @@ func TestAgenticfsCreateVolumeDeletingAccessPointAborts(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, codes.Aborted, status.Code(err))
 	assert.Empty(t, fake.createAccessPointReqs)
-	// Retryable, so the compensation deletes nothing and the leftover is emitted as an orphan log.
+	// Retryable failures retain resources for the next request.
 	assert.Empty(t, fake.deleteAgenticSpaceReqs)
 	assert.Empty(t, fake.deleteAccessPointIDs)
 }
@@ -912,7 +908,7 @@ func TestAgenticfsCreateVolumeListFilterMismatchAborts(t *testing.T) {
 	assert.Contains(t, err.Error(), foreignAccessPointID)
 	assert.Contains(t, err.Error(), "as-someone-elses-space", "the space the accesspoint really belongs to")
 	assert.Contains(t, err.Error(), testAgenticFsAgenticSpaceID, "the space that was requested")
-	// Nothing is created and, Aborted being retryable, the compensation deletes nothing.
+	// No new accesspoint is created and the existing resources are retained.
 	assert.Empty(t, fake.createAccessPointReqs)
 	assert.Empty(t, fake.deleteAgenticSpaceReqs)
 	assert.Empty(t, fake.deleteAccessPointIDs)
@@ -1028,7 +1024,7 @@ func TestAgenticfsCreateVolumeListPaginationCapIsRetryable(t *testing.T) {
 	_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
 	require.Error(t, err)
 	assert.Equal(t, codes.Aborted, status.Code(err))
-	// The compensation never lists, so these come only from the discovery loop hitting its page cap once.
+	// These calls come only from discovery reaching its page cap.
 	assert.Len(t, fake.listAccessPointsReqs, apListMaxPages)
 	msg := err.Error()
 	assert.Contains(t, msg, fmt.Sprint(apListMaxPages), "the page count helps an operator tell a runaway listing apart")
@@ -1134,7 +1130,7 @@ func TestAgenticfsCreateVolumeCreateAgenticSpaceError(t *testing.T) {
 			_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
 			require.Error(t, err)
 			assert.Equal(t, tt.wantCode, status.Code(err))
-			assert.Empty(t, fake.deleteAgenticSpaceReqs, "nothing to compensate when the space was never created")
+			assert.Empty(t, fake.deleteAgenticSpaceReqs, "creation never performs cleanup")
 		})
 	}
 }
@@ -1158,7 +1154,7 @@ func TestAgenticfsCreateVolumeEmptyAgenticSpaceId(t *testing.T) {
 			ctrl := newAgenticfsCtrl(t, fake)
 			_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
 			require.Error(t, err)
-			// An empty ID is a cloud-side anomaly, and there is nothing to compensate because the space ID is unknown.
+			// An empty ID is ambiguous; keep the token so a later request can recover it.
 			assert.Equal(t, codes.Internal, status.Code(err))
 			assert.Contains(t, err.Error(), tt.wantMsg, "The two failure modes must be tellable apart")
 			assert.Empty(t, fake.createAccessPointReqs)
@@ -1174,7 +1170,7 @@ func TestAgenticfsCreateVolumeCreateAccessPointError(t *testing.T) {
 		wantCode codes.Code
 	}{
 		{"transientErrorIsRetryable", errors.New("connection reset"), codes.Internal},
-		// Residue of an earlier attempt that compensated the space away while CreateAgenticSpace replayed the token.
+		// An externally deleted space can still be referenced by a replayed ClientToken.
 		{"missingSpaceIsTerminal", aliErr("InvalidAgenticSpaceId.NotFound"), codes.InvalidArgument},
 		{"permanentParameterErrorIsTerminal", aliErr("InvalidParameter.VSwitchId"), codes.InvalidArgument},
 	}
@@ -1339,7 +1335,7 @@ func TestAgenticfsCreateVolumeCancelledContextChecksBeforeFirstCall(t *testing.T
 	assert.Empty(t, fake.deleteAccessPointIDs)
 }
 
-func TestAgenticfsCreateVolumeRetryablePostSpaceFailuresLeaveResources(t *testing.T) {
+func TestAgenticfsCreateVolumePostSpaceFailuresLeaveResources(t *testing.T) {
 	tests := []struct {
 		name     string
 		mutate   func(fake *fakeNasClientV2)
@@ -1348,6 +1344,9 @@ func TestAgenticfsCreateVolumeRetryablePostSpaceFailuresLeaveResources(t *testin
 		wantCreateAPCalls int
 		wantExistingAPs   int
 	}{
+		{"terminalListFailure", func(f *fakeNasClientV2) { f.listAccessPointsErr = aliErr("Forbidden.RAM") }, codes.InvalidArgument, 0, 0},
+		{"terminalCreateAPFailure", func(f *fakeNasClientV2) { f.createAccessPointErr = aliErr("InvalidParameter.VpcId") }, codes.InvalidArgument, 1, 0},
+		{"terminalDescribeFailure", func(f *fakeNasClientV2) { f.describeErr = aliErr("Forbidden.RAM") }, codes.InvalidArgument, 1, 1},
 		{"listFails", func(f *fakeNasClientV2) { f.listAccessPointsErr = errors.New("boom") }, codes.Internal, 0, 0},
 		{"createAccesspointFails", func(f *fakeNasClientV2) { f.createAccessPointErr = errors.New("boom") }, codes.Internal, 1, 0},
 		{"emptyAccesspointId", func(f *fakeNasClientV2) {
@@ -1387,14 +1386,13 @@ func TestAgenticfsCreateVolumeRetryablePostSpaceFailuresLeaveResources(t *testin
 			_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
 			require.Error(t, err)
 			assert.Equal(t, tt.wantCode, status.Code(err))
-			assert.Empty(t, fake.deleteAgenticSpaceReqs, "The compensation never deletes the space")
-			assert.Empty(t, fake.deleteAccessPointIDs, "A retryable code leaves the accesspoint for the next attempt")
+			assert.Empty(t, fake.deleteAgenticSpaceReqs, "CreateVolume never deletes the space")
+			assert.Empty(t, fake.deleteAccessPointIDs, "every failure leaves the accesspoint for recovery")
 			assert.Len(t, fake.createAccessPointReqs, tt.wantCreateAPCalls,
 				"How many accesspoints this attempt really tried to create")
 			if tt.wantExistingAPs == 1 {
-				// Makes the row non-tautological: a compensation that listed would have found and destroyed this accesspoint.
-				require.Len(t, fake.createdAccessPoints, 1,
-					"An accesspoint really exists that the old list-and-delete-all compensation would have destroyed")
+				// Verify a real fake resource remains discoverable, not just an empty delete call list.
+				require.Len(t, fake.createdAccessPoints, 1)
 				assert.Equal(t, testAgenticFsAccessPointID, tea.StringValue(fake.createdAccessPoints[0].AccessPointId))
 				assert.Equal(t, accessPointStatusActive, tea.StringValue(fake.createdAccessPoints[0].Status),
 					"the retained accesspoint is discoverable, so the next attempt reuses it instead of stacking a duplicate")
@@ -1412,6 +1410,11 @@ func TestAgenticfsCreateVolumeRetryReusesTheAccessPointTheFailedAttemptCreated(t
 		breakFirst func(f *fakeNasClientV2)
 		fixRetry   func(f *fakeNasClientV2)
 	}{
+		{
+			name:       "terminalDescribeFailureThenPermissionRestored",
+			breakFirst: func(f *fakeNasClientV2) { f.describeErr = aliErr("Forbidden.RAM") },
+			fixRetry:   func(f *fakeNasClientV2) { f.describeErr = nil },
+		},
 		{
 			name:       "neverBecameActiveThenDoes",
 			breakFirst: func(f *fakeNasClientV2) { f.apStatuses = []string{"Pending"} },
@@ -1453,14 +1456,43 @@ func TestAgenticfsCreateVolumeRetryReusesTheAccessPointTheFailedAttemptCreated(t
 			assert.Empty(t, fake.deleteAccessPointIDs)
 			assert.Empty(t, fake.deleteAgenticSpaceReqs, "the space is never deleted")
 			assert.Equal(t, testAgenticFsAccessPointID, resp.Volume.VolumeContext[vcKeyAccesspointId])
+			require.Len(t, fake.createAgenticSpaceReqs, 2)
+			for _, req := range fake.createAgenticSpaceReqs {
+				assert.Equal(t, testAgenticFsPVName, tea.StringValue(req.ClientToken), "retry must replay the same token")
+			}
 		})
 	}
 }
 
-// A failing compensating DeleteAccesspoint must still report the ORIGINAL error.
-func TestAgenticfsCreateVolumeCompensationFailureIsNotMasked(t *testing.T) {
+// A lost AccessPoint response cannot be replayed with a token. Recovery must discover
+// the resource accepted by NAS instead of creating a duplicate.
+func TestAgenticfsCreateVolumeLostAccessPointResponseIsRecoveredByDiscovery(t *testing.T) {
 	fake := newFakeNasClientV2()
-	// Terminal AFTER CreateAccesspoint succeeded, so createdAccesspointId is set and the delete branch runs.
+	fake.createAccessPointErr = errors.New("response lost after NAS accepted CreateAccessPoint")
+	ctrl := newAgenticfsCtrl(t, fake)
+	_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	require.Equal(t, codes.Internal, status.Code(err))
+	require.Len(t, fake.createAccessPointReqs, 1)
+
+	// Model the cloud-side success that the client could not observe on the first call.
+	fake.createdAccessPoints = []*sdk.ListAccessPointsResponseBodyAccessPoints{
+		apItem(testAgenticFsAccessPointID, accessPointStatusActive, testAgenticFsAPDomain),
+	}
+	fake.createAccessPointErr = nil
+	resp, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	require.NoError(t, err)
+	assert.Equal(t, testAgenticFsAccessPointID, resp.Volume.VolumeContext[vcKeyAccesspointId])
+	assert.Len(t, fake.createAccessPointReqs, 1, "recovery must not issue another CreateAccessPoint")
+	require.Len(t, fake.createAgenticSpaceReqs, 2)
+	assert.Equal(t, tea.StringValue(fake.createAgenticSpaceReqs[0].ClientToken), tea.StringValue(fake.createAgenticSpaceReqs[1].ClientToken))
+	assert.Empty(t, fake.deleteAccessPointIDs)
+	assert.Empty(t, fake.deleteAgenticSpaceReqs)
+}
+
+// A failed create must preserve its error without ever calling the delete API.
+func TestAgenticfsCreateVolumeFailureDoesNotCallDelete(t *testing.T) {
+	fake := newFakeNasClientV2()
+	// Even a terminal failure after creation must retain the accesspoint for recovery.
 	fake.describeErr = aliErr("InvalidParameter.AccessPointId")
 	fake.deleteAccessPointErr = errors.New("delete accesspoint failed")
 	ctrl := newAgenticfsCtrl(t, fake)
@@ -1469,16 +1501,16 @@ func TestAgenticfsCreateVolumeCompensationFailureIsNotMasked(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 	assert.Contains(t, err.Error(), "InvalidParameter.AccessPointId")
-	assert.NotContains(t, err.Error(), "delete accesspoint failed", "the compensation failure must not mask the original error")
-	assert.Equal(t, []string{testAgenticFsAccessPointID}, fake.deleteAccessPointIDs, "Only the accesspoint this call created is deleted")
-	assert.Empty(t, fake.deleteAgenticSpaceReqs, "The space is never deleted by the compensation")
+	assert.NotContains(t, err.Error(), "delete accesspoint failed")
+	assert.Empty(t, fake.deleteAccessPointIDs)
+	assert.Empty(t, fake.deleteAgenticSpaceReqs)
 }
 
-// The compensation deletes ONLY the accesspoint this call created; it never re-enumerates.
-func TestAgenticfsCreateVolumeCompensationOnlyDeletesOwnAccessPoint(t *testing.T) {
+// Both newly created and reused accesspoints survive terminal failures.
+func TestAgenticfsCreateVolumeRetainsNewAndReusedAccessPoints(t *testing.T) {
 	t.Run("reusedAccesspointIsNeverDeleted", func(t *testing.T) {
 		fake := newFakeNasClientV2()
-		// findReusableAccessPoint reuses it, so createdAccesspointId stays empty and a terminal failure deletes nothing.
+		// A terminal failure after discovery must not destroy the reused accesspoint.
 		fake.listPages = []*sdk.ListAccessPointsResponseBody{activeApPage()}
 		fake.describeErr = aliErr("InvalidParameter.AccessPointId") // terminal InvalidArgument
 		ctrl := newAgenticfsCtrl(t, fake)
@@ -1491,9 +1523,9 @@ func TestAgenticfsCreateVolumeCompensationOnlyDeletesOwnAccessPoint(t *testing.T
 		assert.Empty(t, fake.deleteAgenticSpaceReqs, "The space is never deleted")
 	})
 
-	t.Run("onlyAccesspointCreatedByThisCallIsDeleted", func(t *testing.T) {
+	t.Run("newAccesspointIsNeverDeleted", func(t *testing.T) {
 		fake := newFakeNasClientV2()
-		// A terminal describe failure must delete exactly the accesspoint this call created, and never list.
+		// A terminal describe failure must retain this call's newly created accesspoint.
 		fake.describeErr = aliErr("InvalidParameter.AccessPointId") // terminal InvalidArgument
 		ctrl := newAgenticfsCtrl(t, fake)
 
@@ -1501,15 +1533,14 @@ func TestAgenticfsCreateVolumeCompensationOnlyDeletesOwnAccessPoint(t *testing.T
 		require.Error(t, err)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		require.Len(t, fake.createAccessPointReqs, 1)
-		assert.Equal(t, []string{testAgenticFsAccessPointID}, fake.deleteAccessPointIDs,
-			"Exactly the accesspoint this call created is deleted")
+		assert.Empty(t, fake.deleteAccessPointIDs, "new accesspoints must also survive the failed request")
 		assert.Empty(t, fake.deleteAgenticSpaceReqs, "The space is never deleted")
-		// The compensation must not enumerate; the only ListAccesspoints call is discovery.
+		// The only ListAccesspoints call is discovery.
 		assert.Equal(t, 1, countCalls(fake, "ListAccesspoints"))
 	})
 }
 
-func TestAgenticfsCreateVolumeSuccessNeedsNoCompensation(t *testing.T) {
+func TestAgenticfsCreateVolumeSuccessNeverDeletesResources(t *testing.T) {
 	fake := newFakeNasClientV2()
 	ctrl := newAgenticfsCtrl(t, fake)
 	_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
@@ -2189,6 +2220,9 @@ func TestIsNotFoundError(t *testing.T) {
 		{"bareWrapErrorCode", wrap.ErrorCode("NotFound"), true},
 		{"wrappedWrapErrorCode", fmt.Errorf("outer: %w", wrap.ErrorCode("NotFound")), true},
 		{"exactCodeFromTheSdk", aliErr("NotFound"), true},
+		{"documentedAgenticspace", aliErr("InvalidAgenticSpace.NotFound"), true},
+		{"paddedDocumentedAgenticspace", aliErr("\tInvalidAgenticSpace.NotFound\n"), true},
+		{"wrappedDocumentedAgenticspace", fmt.Errorf("outer: %w", aliErr("INVALIDAGENTICSPACE.NOTFOUND")), true},
 		{"namespacedAgenticspace", aliErr("InvalidAgenticSpaceId.NotFound"), true},
 		{"namespacedAccesspoint", aliErr("InvalidAccessPoint.NotFound"), true},
 		{"namespacedAccesspointId", aliErr("InvalidAccessPointId.NotFound"), true},
@@ -2197,6 +2231,8 @@ func TestIsNotFoundError(t *testing.T) {
 		// Not one of the three managed resources, so it stays retryable instead of short-circuiting a delete.
 		{"unrelatedNamespacedNotfound", aliErr("Quota.NotFound"), false},
 		{"unrelatedResourceNotfound", aliErr("SomeResource.NotFound"), false},
+		{"filesetIsOnlySpaceScoped", aliErr("InvalidFilesetId.NotFound"), false},
+		{"fsetIsOnlySpaceScoped", aliErr("InvalidFsetId.NotFound"), false},
 		// Contains "FileSystem", so the old substring logic swallowed a capacity/quota verdict as "already gone".
 		{"capacityNotfoundIsNotGone", aliErr("InvalidFileSystemCapacity.NotFound"), false},
 		{"unrelatedCode", aliErr("Throttling.User"), false},
@@ -2537,29 +2573,15 @@ func TestAgenticfsConstants(t *testing.T) {
 	// Cross-component values: a silent edit would go unnoticed if only asserted indirectly.
 	assert.Equal(t, 3*time.Second, defaultApPollInterval)
 	assert.Equal(t, 45*time.Second, defaultApPollTimeout)
-	assert.Equal(t, 15*time.Second, compensationTimeout,
-		"the compensating delete bound; tests shrink agenticfsController.compTimeout, never this")
-	// Must stay below external-provisioner's default --timeout=60s, which bounds the whole RPC.
 	assert.Less(t, defaultApPollTimeout, 60*time.Second)
-	// Otherwise a stuck compensating delete outlives the call it was supposed to clean up after.
-	assert.Less(t, compensationTimeout, defaultApPollTimeout)
 
-	// HTTP timeouts do not bound credential resolution. Do not infer a total RPC
-	// or lock-hold bound from these constants: cleanup deliberately waits for the
-	// SDK call to return, even when its context expires during credential refresh.
+	// This bounds the HTTP exchange, not credential resolution or the whole RPC.
+	const nasAPICallBound = 10 * time.Second
 	sdkClient, err := cloud.NewNasClientV2("cn-hangzhou")
 	require.NoError(t, err)
 	assert.Equal(t, nasAPICallBound, time.Duration(tea.IntValue(sdkClient.ConnectTimeout))*time.Millisecond)
 	assert.Zero(t, tea.IntValue(sdkClient.ReadTimeout))
 	assert.Nil(t, sdkClient.RetryOptions)
-	assert.Equal(t, 60*time.Second, driverRPCBudget)
-	assert.Less(t, compensationTimeout, driverRPCBudget)
-	assert.Equal(t, driverRPCBudget, newAgenticfsCtrl(t, newFakeNasClientV2()).rpcBudget)
-
-	assert.False(t, isTerminalCompensationCode(codes.DeadlineExceeded))
-	assert.False(t, isTerminalCompensationCode(codes.Internal))
-	assert.False(t, isTerminalCompensationCode(codes.Aborted))
-	assert.True(t, isTerminalCompensationCode(codes.InvalidArgument))
 
 	// KNOWN DEFICIT: external-nas-resizer has no --timeout, so it inherits upstream's 10s, which EQUALS
 	// nasAPICallBound. Equality on purpose: adding --timeout must turn this red, do not weaken it to an inequality.
@@ -2577,14 +2599,11 @@ func TestAgenticfsConstants(t *testing.T) {
 	assert.Equal(t, "agenticfs-resource-created", resourceCreatedLogPrefix)
 	assert.Equal(t, "agenticfs-resource-retained-for-retry", retainedForRetryLogPrefix)
 	assert.Equal(t, "agenticfs-orphan-resource", orphanLogPrefix)
-	// It MUST NOT contain orphanLogPrefix, or a reaper counting orphan lines would be inflated by resolutions.
-	assert.Equal(t, "agenticfs-orphan-resolved", orphanResolvedLogPrefix)
-	// strings.Contains is directional, so both (a,b) and (b,a) are asserted for each of the six unordered pairs.
+	// Prefixes must remain distinguishable by log consumers.
 	prefixContract := []struct{ name, prefix string }{
 		{"resourceCreatedLogPrefix", resourceCreatedLogPrefix},
 		{"retainedForRetryLogPrefix", retainedForRetryLogPrefix},
 		{"orphanLogPrefix", orphanLogPrefix},
-		{"orphanResolvedLogPrefix", orphanResolvedLogPrefix},
 	}
 	for _, a := range prefixContract {
 		for _, b := range prefixContract {
@@ -2660,21 +2679,6 @@ func TestAgenticfsCreateVolumeListEmptyVsMalformedBody(t *testing.T) {
 	}
 }
 
-// A NotFound from the compensating delete is not an error; the caller still sees the ORIGINAL failure.
-func TestAgenticfsCreateVolumeCompensationSwallowsAccessPointDeleteNotFound(t *testing.T) {
-	fake := newFakeNasClientV2()
-	fake.describeErr = aliErr("InvalidParameter.AccessPointId") // terminal InvalidArgument after the AP was created
-	fake.deleteAccessPointErr = wrap.ErrorCode("NotFound")
-	ctrl := newAgenticfsCtrl(t, fake)
-
-	_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
-	require.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, status.Code(err))
-	assert.Contains(t, err.Error(), "InvalidParameter.AccessPointId")
-	assert.Equal(t, []string{testAgenticFsAccessPointID}, fake.deleteAccessPointIDs, "Only the accesspoint this call created is targeted")
-	assert.Empty(t, fake.deleteAgenticSpaceReqs, "The space is never deleted")
-}
-
 // The caller's deadline fires while the loop is sleeping, as opposed to the poll timeout.
 func TestAgenticfsCreateVolumeContextCancelledDuringPoll(t *testing.T) {
 	fake := newFakeNasClientV2()
@@ -2695,8 +2699,7 @@ func TestAgenticfsCreateVolumeContextCancelledDuringPoll(t *testing.T) {
 	assert.Empty(t, fake.deleteAccessPointIDs, "A retryable code leaves the created accesspoint for the next attempt")
 }
 
-// The orphan line is the only leak safety net: the compensation never calls DeleteAgenticSpace and a PVC deleted
-// while Pending never runs DeleteVolume. It also pins the prefix split.
+// Failed provisioning is observable without issuing any compensating cloud call.
 func TestAgenticfsCreateVolumeThreeTierResourceLogging(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -2705,8 +2708,6 @@ func TestAgenticfsCreateVolumeThreeTierResourceLogging(t *testing.T) {
 		wantCreated  bool
 		wantRetained bool
 		wantOrphan   bool
-		// XOR counterpart of wantOrphan for a TERMINAL failure whose compensating delete succeeded or answered NotFound.
-		wantResolved bool
 		// Two failure modes on one log line must still be tellable apart.
 		wantOrphanMsg   string
 		wantRetainedMsg string
@@ -2723,21 +2724,11 @@ func TestAgenticfsCreateVolumeThreeTierResourceLogging(t *testing.T) {
 			wantRetained: true,
 		},
 		{
-			// The delete SUCCEEDS on the default fake, so this is RECONCILED, not orphaned.
-			name:         "terminalDescribeErrorIsReconciledByCompensatingDelete",
-			mutate:       func(fake *fakeNasClientV2) { fake.describeErr = aliErr("InvalidParameter.AccessPointId") },
-			wantCreated:  true,
-			wantResolved: true,
-		},
-		{
-			name: "terminalDescribeErrorPlusFailingCompensatingDelete",
-			mutate: func(fake *fakeNasClientV2) {
-				fake.describeErr = aliErr("InvalidParameter.AccessPointId")
-				fake.deleteAccessPointErr = errors.New("delete accesspoint failed")
-			},
+			name:          "terminalDescribeErrorRequiresReconciliation",
+			mutate:        func(fake *fakeNasClientV2) { fake.describeErr = aliErr("InvalidParameter.AccessPointId") },
 			wantCreated:   true,
 			wantOrphan:    true,
-			wantOrphanMsg: "DeleteAccesspoint FAILED",
+			wantOrphanMsg: "no resources deleted",
 		},
 		{
 			// Classified as RETRYABLE codes.Internal (the ClientToken replay recovers the space), so tier-2 retained.
@@ -2815,37 +2806,12 @@ func TestAgenticfsCreateVolumeThreeTierResourceLogging(t *testing.T) {
 				assert.Contains(t, logs, tt.wantOrphanMsg, "this orphan path must be distinguishable from the others")
 			} else {
 				assert.NotContains(t, logs, orphanLogPrefix,
-					"tier 3 is for CONFIRMED leaks only; an operator who sees it deletes resources")
+					"only terminal failures use the reconciliation prefix")
 			}
-			// A resolved line means the delete reconciled the accesspoint, so the orphan stream stays countable.
-			if tt.wantResolved {
-				assert.Contains(t, logs, orphanResolvedLogPrefix,
-					"a terminal failure the compensating delete reconciled must say so, or the orphan stream cannot self-reconcile")
-				var resolvedLine string
-				for _, line := range strings.Split(logs, "\n") {
-					if strings.Contains(line, orphanResolvedLogPrefix) {
-						resolvedLine = line
-						break
-					}
-				}
-				require.NotEmpty(t, resolvedLine, "the orphan-resolved line must exist")
-				for _, field := range orphanLogFields {
-					assert.Contains(t, resolvedLine, field, "D2: orphan-resolved carries the full contract schema")
-				}
-				// Precedes every resolved/orphan terminal compensation where the delete IS attempted.
-				var preDeleteLine string
-				for _, line := range strings.Split(logs, "\n") {
-					if strings.Contains(line, "compensating: about to delete") {
-						preDeleteLine = line
-						break
-					}
-				}
-				require.NotEmpty(t, preDeleteLine, "the pre-delete announcement must exist when the delete is attempted")
-				for _, field := range orphanLogFields {
-					assert.Contains(t, preDeleteLine, field, "D2: pre-delete announcement carries the full contract schema")
-				}
-			} else {
-				assert.NotContains(t, logs, orphanResolvedLogPrefix)
+			assert.NotContains(t, logs, "agenticfs-orphan-resolved")
+			assert.Empty(t, fake.deleteAccessPointIDs)
+			if tt.wantRetained || tt.wantOrphan {
+				assertExactlyOneFailureReport(t, logs)
 			}
 			// The one value that survives every failure mode, including an unknown space ID.
 			assert.Contains(t, logs, "/"+testAgenticFsPVName, "fileSystemPath must never be dropped")
@@ -2854,58 +2820,24 @@ func TestAgenticfsCreateVolumeThreeTierResourceLogging(t *testing.T) {
 	}
 }
 
-// Even an SDK phase that ignores cancellation must finish before the real
-// controller wrapper releases the volume lock. No detached delete may survive it.
-func TestAgenticfsCreateVolumeCompensationHoldsLockUntilDeleteReturns(t *testing.T) {
+func TestAgenticfsCreateVolumeFailureReleasesLockWithoutCleanup(t *testing.T) {
 	fake := newFakeNasClientV2()
 	fake.describeErr = aliErr("InvalidParameter.AccessPointId")
-	release := make(chan struct{})
-	defer close(release)
-	deadlinePassed := make(chan struct{})
-	fake.deleteAccessPointHook = func(ctx context.Context, _, _ string) error {
-		<-ctx.Done()
-		close(deadlinePassed)
-		<-release
-		return ctx.Err()
+	fake.deleteAccessPointHook = func(context.Context, string, string) error {
+		panic("CreateVolume must never call DeleteAccesspoint")
 	}
 	ctrl := newAgenticfsCtrl(t, fake)
-	ctrl.compTimeout = 20 * time.Millisecond
 	cs := &controllerServer{
 		ControllerFactory: &internal.ControllerFactory{Modes: map[string]internal.Controller{agenticFsVolumeAs: ctrl}},
 		locks:             utils.NewVolumeLocks(),
 	}
 	logger, ctx := newLogCapture(t)
-	done := make(chan error, 1)
-	go func() {
-		_, err := cs.CreateVolume(ctx, agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
-		done <- err
-	}()
-	select {
-	case <-deadlinePassed:
-	case <-time.After(5 * time.Second):
-		t.Fatal("cleanup did not reach its deadline")
-	}
-	select {
-	case <-done:
-		t.Fatal("CreateVolume returned while the delete was still running")
-	case <-time.After(50 * time.Millisecond):
-	}
 	_, err := cs.CreateVolume(ctx, agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
-	assert.Equal(t, codes.Aborted, status.Code(err), "the same volume must remain locked")
-	release <- struct{}{}
-	select {
-	case err := <-done:
-		assert.Equal(t, codes.InvalidArgument, status.Code(err), "preserve the original failure")
-	case <-time.After(5 * time.Second):
-		t.Fatal("CreateVolume did not finish after cleanup returned")
-	}
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 	require.True(t, cs.locks.TryAcquire(testAgenticFsPVName))
 	cs.locks.Release(testAgenticFsPVName)
-	logs := logText(logger)
-	assertOrphanLog(t, logs)
-	assertExactlyOneCompensationReport(t, logs)
-	assert.Contains(t, logs, "context deadline exceeded")
-	assert.Equal(t, []string{testAgenticFsAccessPointID}, fake.deleteAccessPointIDs)
+	assertExactlyOneFailureReport(t, logText(logger))
+	assert.Empty(t, fake.deleteAccessPointIDs)
 	assert.Empty(t, fake.deleteAgenticSpaceReqs)
 }
 
@@ -3006,187 +2938,64 @@ func TestAgenticfsDeleteVolumeGoneMessageNamesTheActualResource(t *testing.T) {
 	}
 }
 
-// Unreachable through the public API, and a guard never exercised is not a guard.
-func TestAgenticfsCompensateCreateVolumeUnclassifiedCodeIsVisible(t *testing.T) {
+func TestAgenticfsCreateVolumeUnclassifiedFailureIsVisible(t *testing.T) {
 	fake := newFakeNasClientV2()
 	ctrl := newAgenticfsCtrl(t, fake)
-	logger, ctx := newLogCapture(t)
-
+	logger, _ := newLogCapture(t)
 	cause := errors.New("a bare error that never went through status.Errorf")
-	require.Equal(t, codes.Unknown, status.Code(cause), "the premise the guard exists for")
-	require.False(t, isTerminalCompensationCode(status.Code(cause)),
-		"codes.Unknown is not in the terminal set, so the compensation takes the retryable branch")
-
-	ctrl.compensateCreateVolume(ctx, logger, testAgenticFsFilesystemID, testAgenticFsAgenticSpaceID,
-		"/"+testAgenticFsPVName, testAgenticFsAccessPointID, cause, time.Now())
+	require.Equal(t, codes.Unknown, status.Code(cause))
+	ctrl.reportCreateVolumeFailure(logger, testAgenticFsFilesystemID, testAgenticFsAgenticSpaceID,
+		"/"+testAgenticFsPVName, testAgenticFsAccessPointID, cause)
 
 	logs := logText(logger)
 	require.NotEmpty(t, logs, "the capture is vacuous - ktesting buffered nothing")
-	assert.Contains(t, logs, "unclassified gRPC code Unknown; treating as retryable",
-		"A code this controller does not recognise must be made visible, not swallowed")
-	// It used to carry six contract keys plus "code" and "cause" but no reason, so a reaper saw two schemas.
-	var diagLine string
+	assert.Equal(t, 1, countLogLines(logs, retainedForRetryLogPrefix), "one retained outcome, no separate diagnostic needed")
+	var retainedLine string
 	for _, line := range strings.Split(logs, "\n") {
-		if strings.Contains(line, "unclassified gRPC code") {
-			diagLine = line
+		if strings.Contains(line, retainedForRetryLogPrefix) {
+			retainedLine = line
 			break
 		}
 	}
-	require.NotEmpty(t, diagLine, "the diagnostic line must exist before its fields can be asserted")
+	require.NotEmpty(t, retainedLine)
 	for _, field := range orphanLogFields {
-		assert.Contains(t, diagLine, field, "The unclassified-code diagnostic carries the full contract schema, reason included")
+		assert.Contains(t, retainedLine, field)
 	}
-	assert.Contains(t, diagLine, "code", "the diagnostic keeps the unclassified code as its own key")
+	assert.Contains(t, retainedLine, "code")
+	assert.Contains(t, retainedLine, "Unknown", "unclassified codes must remain visible")
+	assert.Contains(t, retainedLine, cause.Error(), "preserve the original failure")
 	// "Treating as retryable" means tier 2, never tier 3, and nothing is destroyed.
 	assert.Contains(t, logs, retainedForRetryLogPrefix)
 	assert.NotContains(t, logs, orphanLogPrefix, "an unclassified code is not a confirmed leak")
 	assert.Empty(t, fake.deleteAccessPointIDs, "a retryable classification must not delete the accesspoint")
-	assert.Empty(t, fake.deleteAgenticSpaceReqs, "The compensation never deletes the agenticspace")
+	assert.Empty(t, fake.deleteAgenticSpaceReqs, "failure reporting never deletes the agenticspace")
 }
 
-// The check sits at the terminal-branch entry, so a retryable code with a done ctx still takes tier 2.
-func TestAgenticfsCompensateCreateVolumeContextDoneSkipsTheDelete(t *testing.T) {
+// A terminal retry does not disprove creation by a previous, unacknowledged call.
+func TestAgenticfsCreateVolumeLostSpaceResponseThenTerminalRetryKeepsStateUnknown(t *testing.T) {
 	fake := newFakeNasClientV2()
 	ctrl := newAgenticfsCtrl(t, fake)
-	logger, logCtx := newLogCapture(t)
+	fake.createAgenticSpaceErr = errors.New("response lost after server accepted creation")
+	_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	require.Equal(t, codes.Internal, status.Code(err))
 
-	ctx, cancel := context.WithCancel(logCtx)
-	cancel()
-	require.Error(t, ctx.Err(), "the premise: the request context is already done")
-
-	cause := status.Error(codes.InvalidArgument, "a terminal failure")
-	require.True(t, isTerminalCompensationCode(status.Code(cause)), "the terminal branch is the one under test")
-
-	ctrl.compensateCreateVolume(ctx, logger, testAgenticFsFilesystemID, testAgenticFsAgenticSpaceID,
-		"/"+testAgenticFsPVName, testAgenticFsAccessPointID, cause, time.Now())
-
+	fake.createAgenticSpaceErr = aliErr("Forbidden.RAM")
+	logger, ctx := newLogCapture(t)
+	_, err = ctrl.CreateVolume(ctx, agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 	logs := logText(logger)
-	require.NotEmpty(t, logs, "the capture is vacuous - ktesting buffered nothing")
+	assertExactlyOneFailureReport(t, logs)
 	assertOrphanLog(t, logs)
-	assertExactlyOneCompensationReport(t, logs)
-	assert.Contains(t, logs, "context is already done",
-		"the orphan reason must say the delete was skipped because the context was done")
-	assert.Contains(t, logs, "NOT ATTEMPTED",
-		"A skipped delete must be reported as never attempted, not as a failed one")
-	assert.Contains(t, logs, "releases the per-volume lock at once instead of holding it for another",
-		"contract anchor for the CORRECTED reason (same phrase as the budget-exhaustion branch): "+
-			"it states the gate's real effect (forgoing the extra compTimeout hold). Reverting to "+
-			"the prior wording drops this phrase, so this assertion goes red — both gate branches "+
-			"are now pinned and cannot silently regress.")
-	assert.Empty(t, fake.deleteAccessPointIDs, "item 3: the compensating delete is never sent when the context is already done")
-	assert.Empty(t, fake.deleteAgenticSpaceReqs, "The compensation never deletes the agenticspace")
-}
-
-// A cleanup panic must report an orphan without replacing the original CreateVolume failure.
-func TestAgenticfsCreateVolumeCompensatingDeletePanicIsRecovered(t *testing.T) {
-	fake := newFakeNasClientV2()
-	fake.describeErr = aliErr("InvalidParameter.AccessPointId") // terminal InvalidArgument after the AP was created
-	fake.deleteAccessPointHook = func(_ context.Context, _, _ string) error {
-		panic("index out of range [0] with length 0") // exactly what sdkv2.go does on an empty error body
+	assert.Contains(t, logs, "resourceState")
+	assert.Contains(t, logs, "unknown")
+	assert.NotContains(t, logs, "nothing to reap")
+	assert.NotContains(t, logs, "no AgenticSpace in existence")
+	require.Len(t, fake.createAgenticSpaceReqs, 2)
+	for _, req := range fake.createAgenticSpaceReqs {
+		assert.Equal(t, testAgenticFsPVName, tea.StringValue(req.ClientToken))
 	}
-	ctrl := newAgenticfsCtrl(t, fake)
-	logger, ctx := newLogCapture(t)
-
-	// If the recover were missing this call would crash the whole test binary, not just fail.
-	_, err := ctrl.CreateVolume(ctx, agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
-	require.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, status.Code(err), "the original terminal failure is still what the caller sees")
-
-	logs := logText(logger)
-	require.NotEmpty(t, logs)
-	assertOrphanLog(t, logs)
-	assertExactlyOneCompensationReport(t, logs)
-	assert.Contains(t, logs, "PANICKED", "the recovered panic must be reported as an orphan")
-	assert.Equal(t, []string{testAgenticFsAccessPointID}, fake.deleteAccessPointIDs,
-		"Exactly the accesspoint this call created was targeted before the panic")
-	assert.Empty(t, fake.deleteAgenticSpaceReqs, "The space is never deleted by the compensation")
-}
-
-// A terminal verdict can land with ctx.Err() still nil, so the ctx-based early exit does not fire and the
-// compensation used to run its full C on top of a deadline the sidecar can no longer observe.
-func TestAgenticfsCreateVolumeLateTerminalVerdictSkipsTheDeleteWhenTheBudgetIsGone(t *testing.T) {
-	fake := newFakeNasClientV2()
-	// Terminal InvalidArgument AFTER the accesspoint was created, so the compensation reaches the
-	// delete branch (createdAccesspointId != "") and only the budget gate can stop it.
-	fake.describeErr = aliErr("InvalidParameter.AccessPointId")
-	ctrl := newAgenticfsCtrl(t, fake)
-	// Shrunk below compTimeout so the gate deterministically reports the budget exhausted. It is a FIELD, not the
-	// pinned driverRPCBudget constant, precisely so this test can shrink it.
-	ctrl.rpcBudget = time.Second
-	require.Less(t, ctrl.rpcBudget, ctrl.compTimeout,
-		"the premise: the budget is smaller than one compensation window, so the gate must close")
-	logger, ctx := newLogCapture(t)
-
-	start := time.Now()
-	_, err := ctrl.CreateVolume(ctx, agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
-	elapsed := time.Since(start)
-
-	require.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, status.Code(err),
-		"(iii) the caller still sees the terminal verdict - the gate changes only whether we delete")
-	assert.Less(t, elapsed, ctrl.compTimeout,
-		"(iii) the RPC must NOT spend the compensation budget: the delete was skipped, not attempted")
-	assert.Empty(t, fake.deleteAccessPointIDs,
-		"(i) with the budget gone the compensating DeleteAccesspoint is NEVER sent")
-	assert.Empty(t, fake.deleteAgenticSpaceReqs, "The space is never deleted")
-
-	logs := logText(logger)
-	require.NotEmpty(t, logs, "the capture is vacuous - ktesting buffered nothing")
-	assertOrphanLog(t, logs)
-	assertExactlyOneCompensationReport(t, logs)
-	assert.Contains(t, logs, "NOT ATTEMPTED",
-		"(ii) the reason must say the delete was never attempted, not that it failed")
-	assert.Contains(t, logs, "budget is exhausted",
-		"(ii) the reason must name the driver-side RPC budget as the cause of the skip")
-	assert.Contains(t, logs, "releases the per-volume lock at once instead of holding it for another",
-		"skipping cleanup avoids waiting for another SDK call")
-}
-
-func TestAgenticfsCompensateCreateVolumePropagatesDeadline(t *testing.T) {
-	fake := newFakeNasClientV2()
-	var hookDeadline time.Time
-	fake.deleteAccessPointHook = func(ctx context.Context, _, _ string) error {
-		hookDeadline, _ = ctx.Deadline()
-		<-ctx.Done()
-		return fmt.Errorf("%w: %w", cloud.ErrRateLimiterWait, ctx.Err())
-	}
-	ctrl := newAgenticfsCtrl(t, fake)
-	ctrl.compTimeout = 20 * time.Millisecond
-	logger, ctx := newLogCapture(t)
-	start := time.Now()
-	ctrl.compensateCreateVolume(ctx, logger, testAgenticFsFilesystemID, testAgenticFsAgenticSpaceID,
-		"/"+testAgenticFsPVName, testAgenticFsAccessPointID, status.Error(codes.InvalidArgument, "terminal failure"), start)
-	assert.False(t, hookDeadline.IsZero())
-	assert.WithinDuration(t, start.Add(ctrl.compTimeout), hookDeadline, 100*time.Millisecond)
-	assert.Less(t, time.Since(start), time.Second)
-	logs := logText(logger)
-	assertExactlyOneCompensationReport(t, logs)
-	assert.Contains(t, logs, "NEVER SENT")
-}
-
-// Only an ambiguous failure can have created a space and an ambiguous failure is retryable, so a terminal
-// rejection with an empty ID proves the API created nothing.
-func TestAgenticfsCreateVolumeTerminalCreateSpaceRejectionIsNotAConfirmedLeak(t *testing.T) {
-	fake := newFakeNasClientV2()
-	// isPermanentAPIError -> apiStatusError -> InvalidArgument, with agenticSpaceId never set.
-	fake.createAgenticSpaceErr = aliErr("InvalidFileSystemPath.InvalidCharacters")
-	require.True(t, isPermanentAPIError(fake.createAgenticSpaceErr), "the premise: the rejection is permanent")
-	ctrl := newAgenticfsCtrl(t, fake)
-	logger, ctx := newLogCapture(t)
-
-	_, err := ctrl.CreateVolume(ctx, agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
-	require.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, status.Code(err), "a permanent rejection is terminal")
-
-	logs := logText(logger)
-	require.NotEmpty(t, logs, "the capture is vacuous - ktesting buffered nothing")
-	assert.NotContains(t, logs, orphanLogPrefix,
-		"A terminal rejection that proves NOTHING was created is not a confirmed leak")
-	assert.Contains(t, logs, "no AgenticSpace in existence",
-		"The prefix-less diagnostic must say there is nothing to reap")
-	assert.NotContains(t, logs, retainedForRetryLogPrefix)
-	assert.Empty(t, fake.deleteAccessPointIDs, "no accesspoint was created, so none is deleted")
-	assert.Empty(t, fake.deleteAgenticSpaceReqs, "The compensation never deletes the space")
+	assert.Empty(t, fake.deleteAccessPointIDs)
+	assert.Empty(t, fake.deleteAgenticSpaceReqs)
 }
 
 func TestAgenticfsOrphanLogFieldsPreserveVolumeHandle(t *testing.T) {
@@ -3202,23 +3011,6 @@ func TestAgenticfsOrphanLogFieldsPreserveVolumeHandle(t *testing.T) {
 		"/"+testAgenticFsPVName+"/", testAgenticFsAccessPointID))
 }
 
-func TestAgenticfsCompensateCreateVolumeReportsPanicAfterDeadlineOnce(t *testing.T) {
-	fake := newFakeNasClientV2()
-	ctrl := newAgenticfsCtrl(t, fake)
-	ctrl.compTimeout = 20 * time.Millisecond
-	fake.deleteAccessPointHook = func(ctx context.Context, _, _ string) error {
-		<-ctx.Done()
-		panic("credential refresh panicked after deadline")
-	}
-	logger, ctx := newLogCapture(t)
-	ctrl.compensateCreateVolume(ctx, logger, testAgenticFsFilesystemID, testAgenticFsAgenticSpaceID,
-		"/"+testAgenticFsPVName, testAgenticFsAccessPointID, status.Error(codes.InvalidArgument, "terminal failure"), time.Now())
-	logs := logText(logger)
-	assert.Contains(t, logs, "PANICKED")
-	assertExactlyOneCompensationReport(t, logs)
-	assert.Equal(t, 1, countLogLines(logs, orphanLogPrefix))
-}
-
 // The production limiter exposes a typed contract, independent of message wording.
 func TestNasRateLimiterWaitErrorMatchesTheProductionClient(t *testing.T) {
 	client, err := cloud.NewNasClientFactory().V2("cn-hangzhou")
@@ -3232,8 +3024,8 @@ func TestNasRateLimiterWaitErrorMatchesTheProductionClient(t *testing.T) {
 	require.Error(t, err, "limiter.Wait on an expired ctx must fail before any wire request is built")
 	assert.ErrorIs(t, err, cloud.ErrRateLimiterWait)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.True(t, deleteNeverSent(fmt.Errorf("outer wrapper: %w", err)))
-	assert.False(t, deleteNeverSent(errors.New(cloud.ErrRateLimiterWait.Error())),
+	assert.ErrorIs(t, fmt.Errorf("outer wrapper: %w", err), cloud.ErrRateLimiterWait)
+	assert.NotErrorIs(t, errors.New(cloud.ErrRateLimiterWait.Error()), cloud.ErrRateLimiterWait,
 		"message text alone must not classify an SDK error as never sent")
 }
 

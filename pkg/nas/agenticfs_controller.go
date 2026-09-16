@@ -36,9 +36,9 @@ import (
 //
 // CreateAgenticSpace is idempotent by ClientToken=<PV name>; CreateAccessPoint is not, so every
 // attempt lists first and reuses one - otherwise each retry orphans an accesspoint, and
-// DeleteAgenticSpace requires them all detached. A failure never deletes the space: the compensation
-// deletes only the accesspoint this call created, only on a terminal gRPC code, and reports the
-// leftover through the log prefixes below, a contract with an external reaper.
+// DeleteAgenticSpace requires them all detached. CreateVolume never rolls resources back:
+// retries replay the space token and rediscover its accesspoints. Failed provisioning is
+// logged for recovery or external cleanup; only DeleteVolume destroys resources.
 const (
 	// Use the same canonical value for CSI volumeAs, CNFS spec.type and NAS StorageType.
 	agenticFsVolumeAs = cloud.StorageTypeAgentic
@@ -99,19 +99,6 @@ const (
 	// classifies the failure as retryable DeadlineExceeded, letting the next attempt reuse the space and accesspoint.
 	defaultApPollTimeout = 45 * time.Second
 
-	// Deadline for the compensating DeleteAccesspoint's limiter and HTTP request.
-	// Credential resolution may take longer; keep the volume lock until the call returns.
-	compensationTimeout = 15 * time.Second
-
-	// driverRPCBudget is the driver's model of how long a CreateVolume RPC may run before the
-	// sidecar stops listening; it gates the compensating delete so the delete is only attempted
-	// while its verdict can still be observed. It mirrors external-provisioner's 60s upstream
-	// default, not this chart's --timeout=150s: a budget that holds under 60s also holds under 150s.
-	driverRPCBudget = 60 * time.Second
-
-	// HTTP-only timeout in pkg/nas/cloud, not a bound on credential resolution or the whole SDK call.
-	nasAPICallBound = 10 * time.Second
-
 	// Marks "a billable resource now exists but has not been delivered yet": the reconciliation key for
 	// a crash window no error path can report. Not a cleanup signal - most of these end in a delivered volume.
 	resourceCreatedLogPrefix = "agenticfs-resource-created"
@@ -119,14 +106,11 @@ const (
 	// Marks "kept on purpose for the next attempt"; carries the same contract fields as the orphan line.
 	retainedForRetryLogPrefix = "agenticfs-resource-retained-for-retry"
 
-	// orphanLogPrefix is the confirmed-leak line and the primary hook for an external reaper. It
-	// always carries eight contract fields: fileSystemId, agenticSpaceId, fileSystemPath,
-	// accesspointId, region, volumeHandle, reason and cause. fileSystemPath finds a space whose ID
-	// was never read back; region is required because fileSystemId is only region-scoped.
+	// Historical prefix for terminal provisioning failures requiring reconciliation, NOT proof
+	// of a leak. Always carries fileSystemId, agenticSpaceId, fileSystemPath, accesspointId,
+	// region, volumeHandle, reason and cause. A missing ID means unknown resource state;
+	// even a rejected request may follow an earlier successful-but-unacknowledged creation.
 	orphanLogPrefix = "agenticfs-orphan-resource"
-
-	// Not a substring of orphanLogPrefix on purpose, so a reaper counts each leak exactly once.
-	orphanResolvedLogPrefix = "agenticfs-orphan-resolved"
 )
 
 func newAgenticfsController(config *internal.ControllerConfig) (internal.Controller, error) {
@@ -144,8 +128,6 @@ func newAgenticfsController(config *internal.ControllerConfig) (internal.Control
 		region:         region,
 		apPollInterval: defaultApPollInterval,
 		apPollTimeout:  defaultApPollTimeout,
-		compTimeout:    compensationTimeout,
-		rpcBudget:      driverRPCBudget,
 	}, nil
 }
 
@@ -159,12 +141,6 @@ type agenticfsController struct {
 	// AP creation is asynchronous; these tune the poll loop and are overridable in tests.
 	apPollInterval time.Duration
 	apPollTimeout  time.Duration
-
-	// A field only so tests can shrink it; production always uses compensationTimeout.
-	compTimeout time.Duration
-
-	// The delete runs only while "elapsed + compTimeout <= rpcBudget". A field for the same reason.
-	rpcBudget time.Duration
 }
 
 func (c *agenticfsController) VolumeAs() string {
@@ -173,10 +149,6 @@ func (c *agenticfsController) VolumeAs() string {
 
 func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (resp *csi.CreateVolumeResponse, retErr error) {
 	logger := klog.FromContext(ctx)
-
-	// Stamped at handler entry: inside compensateCreateVolume it would read elapsed as 0 and open the
-	// budget gate on exactly the path it exists to close, and ctx.Deadline() fails with no deadline set.
-	rpcStarted := time.Now()
 
 	// 0. req.Name ends up in FileSystemPath, ClientToken and AccessPointName, so validate it first.
 	if err := validateVolumeName(req.Name); err != nil {
@@ -225,17 +197,17 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 	}
 
 	agenticSpaceId := ""
-	createdAccesspointId := ""
+	accesspointId := ""
 	// NAS requires a directory path with a trailing slash, unlike the volume ID and ClientToken.
 	fileSystemPath := "/" + req.Name + "/"
 
-	// From here on a failure can leave billable resources with no DeleteVolume ever called for them. The
-	// compensation deletes only the accesspoint this call created, and only on a terminal gRPC code.
+	// Keep resources on every failure: the next request replays the space token and
+	// discovers its accesspoints. If provisioning is abandoned, external cleanup is
+	// still required because an undelivered volume may never receive DeleteVolume.
 	defer func() {
-		if retErr == nil {
-			return
+		if retErr != nil {
+			c.reportCreateVolumeFailure(logger, filesystemId, agenticSpaceId, fileSystemPath, accesspointId, retErr)
 		}
-		c.compensateCreateVolume(ctx, logger, filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId, retErr, rpcStarted)
 	}()
 
 	// 3. ClientToken = req.Name makes this idempotent: a retry replays it and gets the same AgenticSpaceId.
@@ -299,10 +271,10 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 		})
 		if err != nil {
 			if isNotFoundError(err) {
-				// Almost always a stale AgenticSpace id, e.g. a replay whose space an earlier attempt compensated
-				// away. Terminal on purpose: retrying cannot fix it and recreating the PVC yields a fresh ClientToken.
+				// A replay can reference a space removed externally. Recreating the PVC
+				// yields a fresh ClientToken; CreateVolume itself never deletes the space.
 				return nil, status.Errorf(codes.InvalidArgument,
-					"nas:CreateAccesspoint: agenticspace %s was rejected as missing (%v); it may have been deleted by an earlier failed attempt replaying the same ClientToken - delete and recreate the PVC",
+					"nas:CreateAccesspoint: agenticspace %s was rejected as missing (%v); it may have been deleted externally while the ClientToken still replays its ID - delete and recreate the PVC",
 					agenticSpaceId, err)
 			}
 			return nil, apiStatusError("nas:CreateAccesspoint", err)
@@ -315,8 +287,6 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 		if accesspointId == "" {
 			return nil, status.Error(codes.Internal, "nas:CreateAccesspoint: empty AccessPointId in response")
 		}
-		// The single ID the compensation is allowed to delete; the reuse branch leaves it empty.
-		createdAccesspointId = accesspointId
 		server = tea.StringValue(apResp.Body.AccessPoint.AccessPointDomain)
 	} else {
 		logger.Info("reusing the accesspoint already bound to the agenticspace",
@@ -637,172 +607,24 @@ func (c *agenticfsController) pollAccessPoint(ctx context.Context, filesystemId,
 	}
 }
 
-// The compensating action for a CreateVolume that failed after the AgenticSpace was created. It never
-// deletes the space (DeleteAgenticSpace needs every accesspoint detached, which this does not wait
-// for), deletes only the accesspoint this call created, and fires only on a terminal gRPC code.
-func (c *agenticfsController) compensateCreateVolume(ctx context.Context, logger klog.Logger, filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId string, cause error, rpcStarted time.Time) {
-	code := status.Code(cause)
-
-	// Reporting is synchronous: exactly one terminal outcome is reported after cleanup returns.
-	// logErr is attached at Error level; cause is always the CreateVolume failure, in the "cause" key.
-	reportLeak := func(reason string, logErr error) {
-		if spaceMayExist(agenticSpaceId, code) {
-			c.logOrphanResource(logger, filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId, reason, cause, logErr)
-			return
-		}
-		// A prefix-less diagnostic, not a confirmed leak; see spaceMayExist for the unconfirmed premise.
-		c.logCompensationDiagnostic(logger, filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId,
-			"terminal CreateVolume failure with no AgenticSpace in existence: nothing to reap",
-			reason, cause, "code", code)
+// Reporting only: error classification affects diagnostics, never resource deletion.
+// IDs describe what this call observed, not the full history of the ClientToken.
+func (c *agenticfsController) reportCreateVolumeFailure(logger klog.Logger, filesystemId, agenticSpaceId, fileSystemPath, accesspointId string, cause error) {
+	logger = logger.WithValues(c.orphanLogFields(filesystemId, agenticSpaceId, fileSystemPath, accesspointId)...).
+		WithValues("cause", fmt.Sprint(cause), "code", status.Code(cause))
+	if agenticSpaceId == "" {
+		logger = logger.WithValues("resourceState", "unknown")
 	}
-	reportResolved := func(reason string) {
-		c.logOrphanResolved(logger, filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId, reason, cause)
-	}
-
-	if !isTerminalCompensationCode(code) {
-		// codes.Unknown is final to external-provisioner but retryable here. Unreachable today; logged so it cannot leak.
-		switch code {
-		case codes.Internal, codes.Aborted, codes.DeadlineExceeded, codes.Unavailable, codes.Canceled:
-			// The retryable codes this controller actually emits.
-		default:
-			// Carries "reason" like every other compensation line, so a reaper sees a single schema.
-			c.logCompensationDiagnostic(logger, filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId,
-				fmt.Sprintf("unclassified gRPC code %s; treating as retryable", code),
-				fmt.Sprintf("CreateVolume failed with gRPC code %s, which this controller never emits and which is not in isTerminalCompensationCode's terminal set; it is treated as RETRYABLE, so no compensating delete was sent and the accesspoint/agenticspace are kept for the next attempt. If external-provisioner actually treats this code as final, the resources leak silently - that is what this line is for", code),
-				cause, "code", code)
-		}
-		// Leave both for the next attempt. Deliberately not the orphan prefix - cleaning these up destroys a live space.
-
-		logger.Info(retainedForRetryLogPrefix+": CreateVolume failed with a retryable code, the accesspoint/agenticspace are kept for the next attempt - NOT an orphan, do not clean them up by hand",
-			c.compensationFields(filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId,
-				fmt.Sprintf("CreateVolume failed with retryable code %s; the agenticspace and the accesspoint are retained for the next attempt, which reuses them via the CreateAgenticSpace ClientToken replay and findReusableAccessPoint", code),
-				cause)...)
-		return
-	}
-
-	// Terminal: the provisioner will not retry, so delete exactly the accesspoint this call created.
-
-	if createdAccesspointId == "" {
-		// Checked before the budget gate on purpose: when both hold, "no accesspoint exists" is the accurate reason.
-		reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s; no accesspoint was created by this call so no compensating delete was sent, the agenticspace is left to the reaper", code), nil)
-		return
-	}
-
-	// A terminal verdict can land long after the sidecar's deadline with ctx.Err() still nil.
-	if open, skipReason := c.compensationWindowOpen(ctx, rpcStarted); !open {
-		reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and %s; the compensating nas:DeleteAccesspoint was NOT ATTEMPTED, the accesspoint and the agenticspace are left to the reaper", code, skipReason), nil)
-		return
-	}
-
-	// No tier prefix: the orphan or resolved line comes only once the outcome is known, so a reaper counts one.
-	logger.Info("compensating: about to delete the accesspoint this call created (the agenticspace is left to the reaper by design)",
-		c.compensationFields(filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId,
-			fmt.Sprintf("CreateVolume failed terminally with code %s; deleting the accesspoint this call created", code),
-			cause)...)
-
-	// Independent cleanup deadline, propagated through the limiter and SDK HTTP request.
-	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), c.compTimeout)
-	defer cancel()
-
-	// Do not detach cleanup: credential refresh has no context and can exceed the
-	// HTTP timeout. Keep the volume lock until it returns. The SDK's context-aware
-	// HTTP path prevents that refresh from issuing a delete after the deadline.
-	outcome := c.compensateDelete(cleanupCtx, filesystemId, createdAccesspointId)
-	switch {
-	case outcome.state == compensatePanicked:
-		reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint PANICKED (%v); reconcile the accesspoint and agenticspace against their cloud state", code, outcome.panicValue), nil)
-	case outcome.state == compensateNeverSent:
-		reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint was NEVER SENT (%v); the accesspoint and the agenticspace are both left behind for the reaper", code, outcome.err), outcome.err)
-	case outcome.err != nil && !isNotFoundError(outcome.err):
-		// Passing the limiter does not prove transmission: credential resolution
-		// can fail, and a timeout can leave the server-side result unknown.
-		reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint FAILED (%v); reconcile the accesspoint's actual cloud state, the agenticspace is left to the reaper", code, outcome.err), outcome.err)
-	default:
-		outcomeText := "succeeded"
-		if outcome.err != nil {
-			outcomeText = fmt.Sprintf("answered NotFound (%v), the accesspoint was already gone", outcome.err)
-		}
-		reportResolved(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint %s; the accesspoint is reconciled, the agenticspace is still left to the reaper by design", code, outcomeText))
-	}
-}
-
-// Deliberately a superset of what is reachable today, so a code that becomes reachable later is still compensated.
-func isTerminalCompensationCode(code codes.Code) bool {
-	switch code {
+	switch status.Code(cause) {
 	case codes.InvalidArgument, codes.OutOfRange, codes.FailedPrecondition,
 		codes.PermissionDenied, codes.Unauthenticated, codes.Unimplemented:
-		return true
+		logger.Error(cause, orphanLogPrefix+": provisioning failed; reconcile resources before cleanup",
+			"reason", "terminal failure; no resources deleted, missing IDs do not prove absence")
 	default:
-		return false
+		// Preserve unknown-code diagnostics without guessing whether the caller will retry.
+		logger.Info(retainedForRetryLogPrefix+": resources retained for retry - NOT an orphan",
+			"reason", "retryable or unclassified failure; replay ClientToken and rediscover accesspoints")
 	}
-}
-
-type compensateState uint8
-
-const (
-	compensateNeverSent compensateState = iota
-	compensateAttempted                 // SDK entered; err determines success/failure, not whether HTTP was sent.
-	compensatePanicked
-)
-
-type compensateOutcome struct {
-	state      compensateState
-	err        error
-	panicValue any
-}
-
-// Synchronous state transitions: neverSent -> attempted -> returned or panicked.
-// A limiter error returns to neverSent. Reporting happens only in the caller,
-// after this function returns, so neither cleanup nor reporting can outlive the RPC.
-func (c *agenticfsController) compensateDelete(ctx context.Context, filesystemId, accesspointId string) (outcome compensateOutcome) {
-	defer func() {
-		if r := recover(); r != nil {
-			outcome.state = compensatePanicked
-			outcome.panicValue = r
-		}
-	}()
-	if err := ctx.Err(); err != nil {
-		outcome.err = err
-		return
-	}
-	outcome.state = compensateAttempted
-	outcome.err = c.nasClient.DeleteAccesspoint(ctx, filesystemId, accesspointId)
-	if deleteNeverSent(outcome.err) {
-		outcome.state = compensateNeverSent
-	}
-	return
-}
-
-func deleteNeverSent(err error) bool {
-	return errors.Is(err, cloud.ErrRateLimiterWait)
-}
-
-func causeText(cause error) string {
-	if cause == nil {
-		return "<nil>"
-	}
-	return cause.Error()
-}
-
-// Only an ambiguous failure can have created a space whose ID never came back, and those are all retryable.
-func spaceMayExist(agenticSpaceId string, code codes.Code) bool {
-	return agenticSpaceId != "" || !isTerminalCompensationCode(code)
-}
-
-// Elapsed comes from rpcStarted because ctx.Err() can still be nil long after the provisioner's deadline.
-func (c *agenticfsController) compensationWindowOpen(ctx context.Context, rpcStarted time.Time) (bool, string) {
-	if err := ctx.Err(); err != nil {
-		return false, fmt.Sprintf("its request context is already done (%v), so external-provisioner has cancelled or timed out this RPC and will never observe the terminal verdict; skipping the delete also releases the per-volume lock at once instead of holding it for another %s", err, c.compTimeout)
-	}
-	budget := c.rpcBudget
-	if budget <= 0 {
-		budget = driverRPCBudget
-	}
-	elapsed := time.Since(rpcStarted)
-	if remaining := budget - elapsed; remaining < c.compTimeout {
-		return false, fmt.Sprintf("the driver-side RPC budget is exhausted (%s elapsed of %s, %s remaining, and the compensating delete alone needs up to %s), so external-provisioner has already given up on this RPC and will never observe the terminal verdict; the delete is NOT ATTEMPTED because its whole premise - a terminal verdict the provisioner still observes, so that giving up means the accesspoint should be cleaned up for it - is void for a caller that is no longer listening, and running it now would only destroy a resource nobody is left to receive; skipping it also releases the per-volume lock at once instead of holding it for another %s", elapsed.Round(time.Millisecond), budget, remaining.Round(time.Millisecond), c.compTimeout, c.compTimeout)
-	}
-	return true, ""
 }
 
 // fileSystemPath is the only key that survives when the AgenticSpaceId was never read back.
@@ -815,29 +637,6 @@ func (c *agenticfsController) orphanLogFields(filesystemId, agenticSpaceId, file
 		"region", c.region,
 		"volumeHandle", strings.TrimSuffix(strings.TrimPrefix(fileSystemPath, "/"), "/"),
 	}
-}
-
-func (c *agenticfsController) compensationFields(filesystemId, agenticSpaceId, fileSystemPath, accesspointId, reason string, cause error, extra ...any) []any {
-	fields := append(c.orphanLogFields(filesystemId, agenticSpaceId, fileSystemPath, accesspointId),
-		"reason", reason, "cause", causeText(cause))
-	return append(fields, extra...)
-}
-
-// The confirmed-leak line a reaper greps for; one per terminal compensation outcome.
-func (c *agenticfsController) logOrphanResource(logger klog.Logger, filesystemId, agenticSpaceId, fileSystemPath, accesspointId, reason string, cause, logErr error) {
-	logger.Error(logErr, orphanLogPrefix+": a CreateVolume failure left cloud resources behind",
-		c.compensationFields(filesystemId, agenticSpaceId, fileSystemPath, accesspointId, reason, cause)...)
-}
-
-func (c *agenticfsController) logOrphanResolved(logger klog.Logger, filesystemId, agenticSpaceId, fileSystemPath, accesspointId, reason string, cause error) {
-	logger.Info(orphanResolvedLogPrefix+": the compensating delete reconciled the accesspoint this call created",
-		c.compensationFields(filesystemId, agenticSpaceId, fileSystemPath, accesspointId, reason, cause)...)
-}
-
-// Full contract schema but no tier prefix, where an Error-level orphan line would be a false positive.
-func (c *agenticfsController) logCompensationDiagnostic(logger klog.Logger, filesystemId, agenticSpaceId, fileSystemPath, accesspointId, msg, reason string, cause error, extra ...any) {
-	logger.Info(msg,
-		c.compensationFields(filesystemId, agenticSpaceId, fileSystemPath, accesspointId, reason, cause, extra...)...)
 }
 
 func (c *agenticfsController) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest, pv *corev1.PersistentVolume) (*csi.DeleteVolumeResponse, error) {
@@ -1220,6 +1019,7 @@ func isNotFoundError(err error) bool {
 	}
 	switch strings.ToLower(apiErrorCode(err)) {
 	case "notfound",
+		"invalidagenticspace.notfound",
 		"invalidagenticspaceid.notfound",
 		"invalidaccesspoint.notfound",
 		"invalidaccesspointid.notfound",
@@ -1232,10 +1032,15 @@ func isNotFoundError(err error) bool {
 
 // Only for space-scoped Get/Delete calls: an unqualified NotFound refers to
 // the requested space, but an explicitly missing accesspoint never does.
+// NAS also documents Fileset/Fset aliases for DeleteAgenticSpace. Keep those
+// aliases scoped here: a missing fileset from another API is not proof that
+// this AgenticSpace (or one of its accesspoints) is gone.
 func isAgenticSpaceNotFoundError(err error) bool {
 	switch strings.ToLower(apiErrorCode(err)) {
 	case "invalidaccesspoint.notfound", "invalidaccesspointid.notfound":
 		return false
+	case "invalidfilesetid.notfound", "invalidfsetid.notfound":
+		return true
 	}
 	return isNotFoundError(err)
 }
