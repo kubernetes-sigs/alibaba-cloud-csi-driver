@@ -148,8 +148,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	klog.V(4).InfoS("Determined runtime type", "runtimeType", runtimeType, "directAssigned", opts.DirectAssigned, "hasSocketPath", socketPath != "", "skipGlobalMount", ns.skipGlobalMount)
 
+	fusePodManager := ns.fusePodManagers[opts.FuseType]
+	if fusePodManager == nil {
+		return nil, status.Errorf(codes.Internal, "no fuse pod manager registered for fuseType %q", opts.FuseType)
+	}
+
 	// Check and make auth config
-	authCfg, err := makeAuthConfig(opts, ns.fusePodManagers[opts.FuseType], ns.metadata, true)
+	authCfg, err := makeAuthConfig(opts, fusePodManager, ns.metadata, true)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -207,14 +212,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if notMntTarget || opts.Overlay {
 			// case 2-1: new mount, or an overlay republish that may re-mount the lower
 			// dir and therefore needs the full option set
-			if err = checkOssOptions(opts, ns.fusePodManagers[opts.FuseType]); err != nil {
+			if err = checkOssOptions(opts, fusePodManager); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions, err = makeMountOptions(opts, ns.fusePodManagers[opts.FuseType], ns.metadata, req.VolumeCapability)
+			mountOptions, err = makeMountOptions(opts, fusePodManager, ns.metadata, req.VolumeCapability)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions = ns.fusePodManagers[opts.FuseType].AddDefaultMountOptions(mountOptions)
+			mountOptions = fusePodManager.AddDefaultMountOptions(mountOptions)
 			// only for MicroVM
 			mountOptions, err = ossfpm.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
 			if err != nil {
@@ -246,14 +251,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if notMntTarget || opts.Overlay {
 			// case 2-1: new mount, or an overlay republish that may re-mount the lower
 			// dir and therefore needs the full option set
-			if err = checkOssOptions(opts, ns.fusePodManagers[opts.FuseType]); err != nil {
+			if err = checkOssOptions(opts, fusePodManager); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions, err = makeMountOptions(opts, ns.fusePodManagers[opts.FuseType], ns.metadata, req.VolumeCapability)
+			mountOptions, err = makeMountOptions(opts, fusePodManager, ns.metadata, req.VolumeCapability)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions = ns.fusePodManagers[opts.FuseType].AddDefaultMountOptions(mountOptions)
+			mountOptions = fusePodManager.AddDefaultMountOptions(mountOptions)
 		}
 		// needRotateToken or new mount
 		// case 2 & 3: New mounter with proxy-mounter.
