@@ -4,6 +4,7 @@ import (
 	"context"
 
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 )
@@ -47,10 +48,10 @@ func (n *MockNasClientV2Interface) CreateAccesspoint(ctx context.Context, req *s
 }
 
 func (n *MockNasClientV2Interface) DeleteAccesspoint(ctx context.Context, filesystemId, accessPointId string) error {
-	_, err := n.client.DeleteAccessPoint(&sdk.DeleteAccessPointRequest{
+	_, err := n.client.DeleteAccessPointWithContext(ctx, &sdk.DeleteAccessPointRequest{
 		AccessPointId: &accessPointId,
 		FileSystemId:  &filesystemId,
-	})
+	}, &dara.RuntimeOptions{})
 	return err
 }
 

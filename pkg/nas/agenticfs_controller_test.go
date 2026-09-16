@@ -20,6 +20,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -68,7 +69,7 @@ type fakeNasClientV2 struct {
 	createAccessPointResp  *sdk.CreateAccessPointResponse
 	createAccessPointErr   error
 	deleteAccessPointErr   error
-	// Runs on the compensation's goroutine: let it return before reading the fake's recorded calls.
+	// Called synchronously; tests running CreateVolume in a goroutine must join it before reading calls.
 	deleteAccessPointHook func(ctx context.Context, filesystemId, accessPointId string) error
 	deleteAgenticSpaceErr error
 	getAgenticSpaceResp   *sdk.GetAgenticSpaceResponse
@@ -2380,6 +2381,11 @@ func TestComputeAgenticSpaceSizeLimit(t *testing.T) {
 		{"capacityHonoredBelowTheCap", &csi.CapacityRange{RequiredBytes: 20 * GiB}, "100Gi", 20 * GiB, codes.OK},
 		{"capacityEqualToTheCap", &csi.CapacityRange{RequiredBytes: 100 * GiB}, "100Gi", 100 * GiB, codes.OK},
 		{"capacityAboveTheCap", &csi.CapacityRange{RequiredBytes: 101 * GiB}, "100Gi", 0, codes.InvalidArgument},
+		{"roundedCapacityAboveFractionalCap", &csi.CapacityRange{RequiredBytes: 10*GiB + 1}, "10.5Gi", 0, codes.InvalidArgument},
+		{"fractionalCapWithoutCapacity", nil, "10.5Gi", 0, codes.InvalidArgument},
+		{"decimalCapExceededByRounding", &csi.CapacityRange{RequiredBytes: 12000000000}, "12G", 0, codes.InvalidArgument},
+		{"roundedCapacityAtCap", &csi.CapacityRange{RequiredBytes: 10*GiB + 1}, "11Gi", 11 * GiB, codes.OK},
+		{"wholeGiBBelowFractionalCap", &csi.CapacityRange{RequiredBytes: 10 * GiB}, "10.5Gi", 10 * GiB, codes.OK},
 		{"unparsableCap", &csi.CapacityRange{RequiredBytes: 20 * GiB}, "10Gib", 0, codes.InvalidArgument},
 		{"emptyCapStringIsIgnored", &csi.CapacityRange{RequiredBytes: 20 * GiB}, "", 20 * GiB, codes.OK},
 		{"limitBytesIsHonored", &csi.CapacityRange{RequiredBytes: 20 * GiB, LimitBytes: 10 * GiB}, "", 0, codes.OutOfRange},
@@ -2538,117 +2544,22 @@ func TestAgenticfsConstants(t *testing.T) {
 	// Otherwise a stuck compensating delete outlives the call it was supposed to clean up after.
 	assert.Less(t, compensationTimeout, defaultApPollTimeout)
 
-	// TERMS: S = nasAPICallBound (10s, read back from the production client below), P = defaultApPollTimeout (45s),
-	// I = defaultApPollInterval (3s), C = compensationTimeout (15s), T = driverRPCBudget (60s), A = the OpenAPI calls
-	// that must succeed before the poll is entered. A terminal verdict can land at t ~= min(A*S+P+S, T): the naive sum
-	// is bounded away by compensationWindowOpen (elapsed + C <= T), not by mutual exclusion. Supremum is T + S.
-	const (
-		// Converges onto the PRODUCTION constant, so the derivation cannot drift from what the code splits with.
-		nasSDKCallBound = nasAPICallBound
-		// external-provisioner's UPSTREAM DEFAULT --timeout, i.e. the deadline every CreateVolume runs under.
-		provisionerRPCTimeout = 60 * time.Second
-		// GetCNFS is NOT counted: it honours ctx, so it can consume budget but cannot overshoot it.
-		prePollAPICalls = 3
-	)
-
-	// --- term S, read back from production rather than assumed ---
-	// connTimeout is unexported in pkg/nas/cloud, so pin it by inspecting what the production client stored.
+	// HTTP timeouts do not bound credential resolution. Do not infer a total RPC
+	// or lock-hold bound from these constants: cleanup deliberately waits for the
+	// SDK call to return, even when its context expires during credential refresh.
 	sdkClient, err := cloud.NewNasClientV2("cn-hangzhou")
-	require.NoError(t, err, "the budget below is derived from the production NAS client's timeouts")
-	assert.Equal(t, nasSDKCallBound, time.Duration(tea.IntValue(sdkClient.ConnectTimeout))*time.Millisecond,
-		"S: pkg/nas/cloud.connTimeout is the SDK ConnectTimeout in MILLISECONDS and is the bound of "+
-			"the WHOLE HTTP exchange (the darabonba runtime sets httpClient.Timeout on every request). "+
-			"It was 10, i.e. 10ms - a unit misuse, not a missing bound. Every term below is derived "+
-			"from it; if you change it, re-derive the budget here too")
-	assert.Zero(t, tea.IntValue(sdkClient.ReadTimeout),
-		"ReadTimeout must stay unset: the runtime ADDS it to ConnectTimeout, so setting it to R "+
-			"would widen S to 10s+R and silently invalidate every assertion below. Leaving it 0 makes "+
-			"Transport.ResponseHeaderTimeout 0 (\"unset\", NOT \"unbounded\"), which is strictly "+
-			"dominated by the client-level deadline covering the same wait")
-	assert.Nil(t, sdkClient.RetryOptions,
-		"RetryOptions must stay nil so dara.ShouldRetry stops after the first attempt and one method "+
-			"call is ONE HTTP attempt. With retries enabled S would be multiplied and the whole "+
-			"derivation below would be wrong")
+	require.NoError(t, err)
+	assert.Equal(t, nasAPICallBound, time.Duration(tea.IntValue(sdkClient.ConnectTimeout))*time.Millisecond)
+	assert.Zero(t, tea.IntValue(sdkClient.ReadTimeout))
+	assert.Nil(t, sdkClient.RetryOptions)
+	assert.Equal(t, 60*time.Second, driverRPCBudget)
+	assert.Less(t, compensationTimeout, driverRPCBudget)
+	assert.Equal(t, driverRPCBudget, newAgenticfsCtrl(t, newFakeNasClientV2()).rpcBudget)
 
-	// --- driverRPCBudget IS the production constant, and equals the sidecar's upstream default ---
-	// Asserted against both the literal T used here and the constant, so the gate cannot move without the arithmetic.
-	assert.Equal(t, 60*time.Second, driverRPCBudget, "driverRPCBudget must stay the sidecar's upstream default")
-	assert.Equal(t, driverRPCBudget, provisionerRPCTimeout,
-		"the budget the gate uses must equal the T every assertion below is derived from")
-	assert.LessOrEqual(t, compensationTimeout, driverRPCBudget,
-		"the gate opens only when elapsed + C <= B; if C alone exceeded B the gate would NEVER open "+
-			"and the compensating delete would be dead code")
-	assert.Greater(t, driverRPCBudget-compensationTimeout, time.Duration(0),
-		"there must be a non-empty window in which the gate can open (elapsed can be ~0)")
-	// The constructor must actually install driverRPCBudget, or the gate would read rpcBudget == 0.
-	assert.Equal(t, driverRPCBudget, newAgenticfsCtrl(t, newFakeNasClientV2()).rpcBudget,
-		"newAgenticfsController must install driverRPCBudget into the rpcBudget field")
-
-	// --- the poll must be able to overshoot its budget by one interval + one call and still fit --
-	assert.Less(t, defaultApPollTimeout+defaultApPollInterval+nasSDKCallBound, provisionerRPCTimeout,
-		"P + I + S must stay under T: 45s is not a wall-clock bound on waitAccessPointActive, because "+
-			"ctx is never handed to the SDK and pollAccessPoint can only observe its deadline BETWEEN "+
-			"calls. The poll overshoots by at most one interval plus one in-flight call")
-
-	// --- the SHORT terminal path (terminal verdict on the first poll iteration) ---
-	// NOT the real worst case: three slow pre-poll calls, one overshooting call returning the terminal error on the
-	// first iteration, and a delete the gate lets through.
-	assert.LessOrEqual(t,
-		prePollAPICalls*nasSDKCallBound+nasSDKCallBound+compensationTimeout,
-		provisionerRPCTimeout,
-		"SHORT terminal path A*S + S + C fits inside T. This is NOT the worst case: the gate, not this "+
-			"sum, bounds the LATE-terminal path where the verdict lands near T")
-
-	// --- the select bound must stay strictly above the SDK bound ------------------------------
-	assert.Greater(t, compensationTimeout, nasSDKCallBound,
-		"C must stay STRICTLY above S. A tie would make the caller-side select and the SDK's own "+
-			"deadline race, i.e. whether the driver reports \"delete timed out\" or the delete's real "+
-			"outcome would be a coin flip. 15s over 10s leaves 5s of slack, and it is also what makes "+
-			"compensateCreateVolume's wait-budget split (C - S) strictly positive")
-	assert.Greater(t, compensationTimeout-nasAPICallBound, time.Duration(0),
-		"The wait budget compensateCreateVolume hands the goroutine is C - nasAPICallBound and "+
-			"must stay positive in production, otherwise the wait phase would be clamped to 0 and the "+
-			"delete would never be sent")
-
-	// --- DeadlineExceeded must NOT be terminal (this is what makes the long-poll path skip C) ----
-	assert.False(t, isTerminalCompensationCode(codes.DeadlineExceeded),
-		"exhausting P or ctx yields DeadlineExceeded, which must NOT be terminal - otherwise the "+
-			"long-poll path would also try to spend C. (This is NOT what bounds the late-TERMINAL path; "+
-			"the gate does. See the note above.")
+	assert.False(t, isTerminalCompensationCode(codes.DeadlineExceeded))
 	assert.False(t, isTerminalCompensationCode(codes.Internal))
 	assert.False(t, isTerminalCompensationCode(codes.Aborted))
-	assert.True(t, isTerminalCompensationCode(codes.InvalidArgument),
-		"the one terminal code this controller actually emits must stay terminal, or the compensating "+
-			"delete - and with it the C term - would disappear from the budget entirely")
-
-	// Inverse tripwire: the naive sum genuinely does NOT fit, so this goes red if someone deletes the gate.
-	assert.Greater(t,
-		prePollAPICalls*nasSDKCallBound+(defaultApPollTimeout+defaultApPollInterval+nasSDKCallBound)+compensationTimeout,
-		provisionerRPCTimeout,
-		"the naive sum of every term exceeds T (103s > 60s). It is NOT made unreachable by any mutual "+
-			"exclusion - the terminal return can co-occur with an exhausted poll budget - so "+
-			"the ONLY thing keeping the real RPC inside T is compensationWindowOpen's gate. Remove the "+
-			"gate and this is the overrun you reintroduce")
-
-	// --- what the fix cost, stated honestly ---------------------------------------------------
-	driverDecidesHeadroom := provisionerRPCTimeout - (defaultApPollTimeout + defaultApPollInterval + nasSDKCallBound)
-	assert.Equal(t, 2*time.Second, driverDecidesHeadroom,
-		"the long-poll path only beats the sidecar's deadline - i.e. only the DRIVER classifies the "+
-			"timeout as a retryable DeadlineExceeded with an actionable message - if the three pre-poll "+
-			"calls plus any rate-limiter queueing together stay under this headroom. It used to be ~15s "+
-			"when a call was assumed to return the instant its budget expired; S = 10s ate 13s of it. "+
-			"Past this headroom the sidecar's ctx deadline fires first, and the driver then overshoots "+
-			"it by at most the one in-flight call")
-
-	// cs.locks.Release is deferred ahead of the compensation, so the lock is held through the delete too.
-	lockHoldSupremum := driverRPCBudget + nasAPICallBound
-	assert.Equal(t, 70*time.Second, lockHoldSupremum,
-		"the per-volume lock-hold supremum is driverRPCBudget + nasAPICallBound (T + S = 70s), NOT the "+
-			"ungated T + max(S, C): the gate removes the +C, but the one call already in flight "+
-			"when ctx is cancelled at T is uninterruptible (the SDK never receives ctx, proved by "+
-			"ctxIsNotThreadedIntoTheSDK) and overshoots to T + S")
-	assert.Less(t, lockHoldSupremum, provisionerRPCTimeout+max(nasSDKCallBound, compensationTimeout),
-		"the gated supremum (T + S = 70s) must stay STRICTLY below the old ungated T + max(S, C) = 75s, or the gate bought nothing")
+	assert.True(t, isTerminalCompensationCode(codes.InvalidArgument))
 
 	// KNOWN DEFICIT: external-nas-resizer has no --timeout, so it inherits upstream's 10s, which EQUALS
 	// nasAPICallBound. Equality on purpose: adding --timeout must turn this red, do not weaken it to an inequality.
@@ -2826,7 +2737,7 @@ func TestAgenticfsCreateVolumeThreeTierResourceLogging(t *testing.T) {
 			},
 			wantCreated:   true,
 			wantOrphan:    true,
-			wantOrphanMsg: "was sent and FAILED",
+			wantOrphanMsg: "DeleteAccesspoint FAILED",
 		},
 		{
 			// Classified as RETRYABLE codes.Internal (the ClientToken replay recovers the space), so tier-2 retained.
@@ -2943,57 +2854,59 @@ func TestAgenticfsCreateVolumeThreeTierResourceLogging(t *testing.T) {
 	}
 }
 
-// The hook parks with no timeout, so the select is the only thing between a hung delete and an unbounded lock
-// hold. Proving the real SDK bound is pkg/nas/cloud/nas_client_v2_timeout_wire_contract_test.go.
-func TestAgenticfsCreateVolumeCompensationIsBoundedWhenTheDeleteHangs(t *testing.T) {
+// Even an SDK phase that ignores cancellation must finish before the real
+// controller wrapper releases the volume lock. No detached delete may survive it.
+func TestAgenticfsCreateVolumeCompensationHoldsLockUntilDeleteReturns(t *testing.T) {
 	fake := newFakeNasClientV2()
-	// Terminal InvalidArgument AFTER CreateAccesspoint succeeded, so the compensation reaches its
-	// delete branch.
 	fake.describeErr = aliErr("InvalidParameter.AccessPointId")
 	release := make(chan struct{})
-	hookReturned := make(chan struct{})
-	fake.deleteAccessPointHook = func(_ context.Context, _, _ string) error {
-		defer close(hookReturned)
-		<-release // hangs exactly like a silent endpoint does
-		return nil
+	defer close(release)
+	deadlinePassed := make(chan struct{})
+	fake.deleteAccessPointHook = func(ctx context.Context, _, _ string) error {
+		<-ctx.Done()
+		close(deadlinePassed)
+		<-release
+		return ctx.Err()
 	}
 	ctrl := newAgenticfsCtrl(t, fake)
-	// This field exists ONLY to keep the test fast; the production default stays compensationTimeout.
-	ctrl.compTimeout = 50 * time.Millisecond
+	ctrl.compTimeout = 20 * time.Millisecond
+	cs := &controllerServer{
+		ControllerFactory: &internal.ControllerFactory{Modes: map[string]internal.Controller{agenticFsVolumeAs: ctrl}},
+		locks:             utils.NewVolumeLocks(),
+	}
 	logger, ctx := newLogCapture(t)
-
-	start := time.Now()
-	_, err := ctrl.CreateVolume(ctx, agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
-	elapsed := time.Since(start)
-
-	require.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, status.Code(err), "the original terminal failure is still what the caller sees")
-	assert.Less(t, elapsed, 1*time.Second, "a hung compensating delete must not be able to block the RPC (and thus the per-volume lock)")
-
+	done := make(chan error, 1)
+	go func() {
+		_, err := cs.CreateVolume(ctx, agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+		done <- err
+	}()
+	select {
+	case <-deadlinePassed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("cleanup did not reach its deadline")
+	}
+	select {
+	case <-done:
+		t.Fatal("CreateVolume returned while the delete was still running")
+	case <-time.After(50 * time.Millisecond):
+	}
+	_, err := cs.CreateVolume(ctx, agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	assert.Equal(t, codes.Aborted, status.Code(err), "the same volume must remain locked")
+	release <- struct{}{}
+	select {
+	case err := <-done:
+		assert.Equal(t, codes.InvalidArgument, status.Code(err), "preserve the original failure")
+	case <-time.After(5 * time.Second):
+		t.Fatal("CreateVolume did not finish after cleanup returned")
+	}
+	require.True(t, cs.locks.TryAcquire(testAgenticFsPVName))
+	cs.locks.Release(testAgenticFsPVName)
 	logs := logText(logger)
-	require.NotEmpty(t, logs)
 	assertOrphanLog(t, logs)
 	assertExactlyOneCompensationReport(t, logs)
-	assert.Contains(t, logs, "did not return within",
-		"the timeout must be reported as a possible orphan: the delete may still be in flight")
-	assert.Contains(t, logs, "may still be in flight",
-		"The reason must not claim the delete definitely landed or definitely failed")
-	// The ctx carries a DEADLINE, so limiter.Wait returns context.DeadlineExceeded, not "context canceled".
-	assert.Contains(t, logs, "context.DeadlineExceeded",
-		"The timeout reason must name the error limiter.Wait actually returns for a deadline ctx")
-	assert.NotContains(t, logs, "returns canceled",
-		"The stale \"limiter.Wait returns canceled\" wording must not come back")
-
-	// Let the stuck delete finish before reading anything its goroutine writes.
-	close(release)
-	select {
-	case <-hookReturned:
-	case <-time.After(5 * time.Second):
-		t.Fatal("the compensating delete goroutine never returned; the channel must be buffered so it can always finish")
-	}
-	assert.Equal(t, []string{testAgenticFsAccessPointID}, fake.deleteAccessPointIDs,
-		"Exactly the accesspoint this call created was targeted before the timeout fired")
-	assert.Empty(t, fake.deleteAgenticSpaceReqs, "The space is never deleted by the compensation")
+	assert.Contains(t, logs, "context deadline exceeded")
+	assert.Equal(t, []string{testAgenticFsAccessPointID}, fake.deleteAccessPointIDs)
+	assert.Empty(t, fake.deleteAgenticSpaceReqs)
 }
 
 // One trailing newline made external-provisioner delete the PV and leak the billable AgenticSpace.
@@ -3164,8 +3077,7 @@ func TestAgenticfsCompensateCreateVolumeContextDoneSkipsTheDelete(t *testing.T) 
 	assert.Empty(t, fake.deleteAgenticSpaceReqs, "The compensation never deletes the agenticspace")
 }
 
-// The delete runs in a DETACHED goroutine that can outlive the RPC, so a panic there would take down the whole
-// csi-provisioner. It recovers, reports the orphan and unblocks the select with a sentinel.
+// A cleanup panic must report an orphan without replacing the original CreateVolume failure.
 func TestAgenticfsCreateVolumeCompensatingDeletePanicIsRecovered(t *testing.T) {
 	fake := newFakeNasClientV2()
 	fake.describeErr = aliErr("InvalidParameter.AccessPointId") // terminal InvalidArgument after the AP was created
@@ -3227,63 +3139,29 @@ func TestAgenticfsCreateVolumeLateTerminalVerdictSkipsTheDeleteWhenTheBudgetIsGo
 	assert.Contains(t, logs, "budget is exhausted",
 		"(ii) the reason must name the driver-side RPC budget as the cause of the skip")
 	assert.Contains(t, logs, "releases the per-volume lock at once instead of holding it for another",
-		"(ii) the reason states the gate's real effect (forgoing the extra compTimeout hold) rather than "+
-			"a flat budget-sized lock-hold bound, which would be false: the supremum is deployment-dependent "+
-			"(driverRPCBudget+nasAPICallBound=70s at the sidecar's 60s default, ~88s at the chart's 150s)")
+		"skipping cleanup avoids waiting for another SDK call")
 }
 
-// Only limiter.Wait honours ctx, so handing the goroutine the full C let a token granted at t=C-eps run the
-// request another S and land after the per-volume lock was released.
-func TestAgenticfsCompensateCreateVolumeWaitBudgetSplitKeepsTheDeleteInsideTheSelect(t *testing.T) {
+func TestAgenticfsCompensateCreateVolumePropagatesDeadline(t *testing.T) {
 	fake := newFakeNasClientV2()
-	hookReturned := make(chan struct{})
 	var hookDeadline time.Time
 	fake.deleteAccessPointHook = func(ctx context.Context, _, _ string) error {
-		if dl, ok := ctx.Deadline(); ok {
-			hookDeadline = dl
-		}
-		<-ctx.Done() // block until the wait budget expires, exactly like limiter.Wait with no token
-		close(hookReturned)
-		return ctx.Err()
+		hookDeadline, _ = ctx.Deadline()
+		<-ctx.Done()
+		return fmt.Errorf("%w: %w", cloud.ErrRateLimiterWait, ctx.Err())
 	}
 	ctrl := newAgenticfsCtrl(t, fake)
-	// The clamp to the full budget only fires when compTimeout <= nasAPICallBound, which would hide this split.
-	ctrl.compTimeout = nasAPICallBound + 2*time.Second
-	waitBudget := ctrl.compTimeout - nasAPICallBound
-	require.Equal(t, 2*time.Second, waitBudget, "the split must leave a positive, measurable wait budget")
+	ctrl.compTimeout = 20 * time.Millisecond
 	logger, ctx := newLogCapture(t)
-
-	cause := status.Error(codes.InvalidArgument, "a terminal failure")
 	start := time.Now()
 	ctrl.compensateCreateVolume(ctx, logger, testAgenticFsFilesystemID, testAgenticFsAgenticSpaceID,
-		"/"+testAgenticFsPVName, testAgenticFsAccessPointID, cause, start)
-	elapsed := time.Since(start)
-
-	// Load-bearing: it observes "waitCtx instead of cleanupCtx" from the deadline handed to the API call.
-	require.False(t, hookDeadline.IsZero(), "DeleteAccesspoint must receive a ctx with a deadline")
-	assert.WithinDuration(t, start.Add(waitBudget), hookDeadline, 500*time.Millisecond,
-		"The delete's ctx deadline is start + (C - nasAPICallBound), NOT start + C")
-
-	// The select unblocks on `done` at waitBudget, long before compTimeout. Floor+ceil per gate 6.
-	assert.GreaterOrEqual(t, elapsed, waitBudget-100*time.Millisecond,
-		"the hook blocks for the whole wait budget, so the select cannot return before it")
-	assert.Less(t, elapsed, nasAPICallBound,
-		"The select must unblock on the wait budget (~2s), NOT wait out the full compTimeout (~12s)")
-
-	// Nothing is still in flight when the per-volume lock is released next - this closes the reuse race.
-	select {
-	case <-hookReturned:
-	case <-time.After(time.Second):
-		t.Fatal("the delete goroutine outlived the select; the wait-budget split must keep it inside")
-	}
-	callsAfterSelect := len(fake.callOrder)
-	time.Sleep(100 * time.Millisecond)
-	assert.Equal(t, callsAfterSelect, len(fake.callOrder),
-		"No call is recorded after the select returned - nothing this compensation started outlives it")
-
+		"/"+testAgenticFsPVName, testAgenticFsAccessPointID, status.Error(codes.InvalidArgument, "terminal failure"), start)
+	assert.False(t, hookDeadline.IsZero())
+	assert.WithinDuration(t, start.Add(ctrl.compTimeout), hookDeadline, 100*time.Millisecond)
+	assert.Less(t, time.Since(start), time.Second)
 	logs := logText(logger)
-	require.NotEmpty(t, logs)
 	assertExactlyOneCompensationReport(t, logs)
+	assert.Contains(t, logs, "NEVER SENT")
 }
 
 // Only an ambiguous failure can have created a space and an ambiguous failure is retryable, so a terminal
@@ -3324,43 +3202,27 @@ func TestAgenticfsOrphanLogFieldsPreserveVolumeHandle(t *testing.T) {
 		"/"+testAgenticFsPVName+"/", testAgenticFsAccessPointID))
 }
 
-func TestAgenticfsCompensateCreateVolumeReportsExactlyOnceWhenTheGoroutinePanicsAfterTheSelectTimedOut(t *testing.T) {
+func TestAgenticfsCompensateCreateVolumeReportsPanicAfterDeadlineOnce(t *testing.T) {
 	fake := newFakeNasClientV2()
 	ctrl := newAgenticfsCtrl(t, fake)
-	ctrl.compTimeout = 100 * time.Millisecond
-	goroutineDone := make(chan struct{})
-	fake.deleteAccessPointHook = func(_ context.Context, _, _ string) error {
-		defer close(goroutineDone)
-		// The select reports the timeout orphan first; only then does the deferred recover try a second one.
-		time.Sleep(2 * ctrl.compTimeout)
-		panic("index out of range [0] with length 0")
+	ctrl.compTimeout = 20 * time.Millisecond
+	fake.deleteAccessPointHook = func(ctx context.Context, _, _ string) error {
+		<-ctx.Done()
+		panic("credential refresh panicked after deadline")
 	}
 	logger, ctx := newLogCapture(t)
-
-	cause := status.Error(codes.InvalidArgument, "a terminal failure")
 	ctrl.compensateCreateVolume(ctx, logger, testAgenticFsFilesystemID, testAgenticFsAgenticSpaceID,
-		"/"+testAgenticFsPVName, testAgenticFsAccessPointID, cause, time.Now())
-
-	// Wait for the goroutine to reach its panic so the assertion observes the latch AFTER the second report.
-	select {
-	case <-goroutineDone:
-	case <-time.After(5 * time.Second):
-		t.Fatal("the delete goroutine never reached its panic")
-	}
-	time.Sleep(200 * time.Millisecond)
-
+		"/"+testAgenticFsPVName, testAgenticFsAccessPointID, status.Error(codes.InvalidArgument, "terminal failure"), time.Now())
 	logs := logText(logger)
-	require.NotEmpty(t, logs, "the capture is vacuous - ktesting buffered nothing")
-	assert.Contains(t, logs, "did not return within", "the select's timeout branch reported the orphan")
+	assert.Contains(t, logs, "PANICKED")
 	assertExactlyOneCompensationReport(t, logs)
-	assert.Equal(t, 1, countLogLines(logs, orphanLogPrefix),
-		"The goroutine's post-timeout panic must NOT add a second orphan line")
+	assert.Equal(t, 1, countLogLines(logs, orphanLogPrefix))
 }
 
-// Pinned against the REAL client so it cannot drift from what pkg/nas/cloud.wait() wraps limiter.Wait's error with.
-func TestNasRateLimiterWaitPrefixMatchesTheProductionClient(t *testing.T) {
+// The production limiter exposes a typed contract, independent of message wording.
+func TestNasRateLimiterWaitErrorMatchesTheProductionClient(t *testing.T) {
 	client, err := cloud.NewNasClientFactory().V2("cn-hangzhou")
-	require.NoError(t, err, "the prefix is pinned against the production NAS client")
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), -time.Second) // already expired
 	defer cancel()
@@ -3368,10 +3230,11 @@ func TestNasRateLimiterWaitPrefixMatchesTheProductionClient(t *testing.T) {
 
 	err = client.DeleteAccesspoint(ctx, testAgenticFsFilesystemID, testAgenticFsAccessPointID)
 	require.Error(t, err, "limiter.Wait on an expired ctx must fail before any wire request is built")
-	assert.Contains(t, err.Error(), nasRateLimiterWaitPrefix,
-		"deleteNeverSent classifies 'never issued' by this prefix; if pkg/nas/cloud changes the wording this must go red")
-	assert.True(t, deleteNeverSent(err),
-		"the production limiter error must be recognised as 'the delete was never sent'")
+	assert.ErrorIs(t, err, cloud.ErrRateLimiterWait)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.True(t, deleteNeverSent(fmt.Errorf("outer wrapper: %w", err)))
+	assert.False(t, deleteNeverSent(errors.New(cloud.ErrRateLimiterWait.Error())),
+		"message text alone must not classify an SDK error as never sent")
 }
 
 // The controller completes missing vers/tls/ram after parameters.options

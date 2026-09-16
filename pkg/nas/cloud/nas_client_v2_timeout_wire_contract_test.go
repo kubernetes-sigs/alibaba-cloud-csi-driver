@@ -20,14 +20,14 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Pins, on a real wire, the fact the whole agenticfs timeout budget derives from: one NAS OpenAPI call through
-// NasClientV2 is bounded by the SDK's own HTTP deadline, connTimeout ms wide. The controller tests cannot prove
-// it - they park DeleteAccesspoint on a channel, with no SDK in the loop. On a real wire dara re-assigns
+// Pins the HTTP timeout using static credentials. This does NOT bound credential refresh,
+// which happens before the HTTP request; see nas_client_v2_cancel_test.go.
+// On a real wire dara re-assigns
 // httpClient.Timeout = (ConnectTimeout + ReadTimeout) ms on every DoRequest and leaves ResponseHeaderTimeout at
 // 0, so with ConnectTimeout only the bound is exactly connTimeout ms. The original defect was a unit misuse:
 // connTimeout = 10 was meant as seconds and applied as milliseconds.
 //
-// The three bound-costing subtests run in parallel, so the file is ~10s of wall clock. The elapsed floors and
+// The bound-costing subtests run in parallel, so the file is ~10s of wall clock. The elapsed floors and
 // ceilings derive from the wireSDKCallBound literal, never from connTimeout.
 const (
 	// Mirrors connTimeout in nas_client_v2.go, in the SDK's own unit. Deliberately a literal: deriving it would make
@@ -115,18 +115,15 @@ func assertHungCallTiming(t *testing.T, elapsed time.Duration, hits *atomic.Int3
 	t.Helper()
 
 	assert.Equal(t, int32(1), hits.Load(),
-		"%s: exactly ONE HTTP attempt. RetryOptions is nil in production, and dara.ShouldRetry "+
-			"(vendor/.../tea/dara/retry.go:274-281) returns false once RetriesAttempted > 0, so the "+
-			"per-call bound is connTimeout and NOT 3x connTimeout - the whole agenticfs timeout "+
-			"budget depends on this", scenario)
+		"%s: exactly ONE HTTP attempt; RetryOptions is nil in production", scenario)
 
 	assert.GreaterOrEqual(t, elapsed, wireElapsedFloor,
 		"%s: the call came back in %s, far below the %s bound. Either connTimeout regressed (it is "+
 			"%d ms; 10 was the unit-misuse bug this file exists to keep fixed) or the request never "+
 			"reached the server", scenario, elapsed, wireSDKCallBound, connTimeout)
 	assert.Less(t, elapsed, wireElapsedCeil,
-		"%s: the call took %s, above %s. connTimeout is %d ms; the agenticfs worst-case RPC "+
-			"derivation in TestAgenticfsConstants assumes a %s per-call bound",
+		"%s: the call took %s, above %s. connTimeout is %d ms; with static credentials "+
+			"the HTTP exchange should be bounded by %s",
 		scenario, elapsed, wireElapsedCeil, connTimeout, wireSDKCallBound)
 }
 
@@ -160,8 +157,7 @@ func TestNasClientV2TimeoutWireContract(t *testing.T) {
 		// of the file measures: connTimeout = 10 read as "10 seconds" but applied as 10ms.
 		assert.Equal(t, wireConnTimeoutMillis, connTimeout,
 			"connTimeout is the SDK ConnectTimeout in MILLISECONDS; %d ms is the intended 10s. "+
-				"If you changed it, the agenticfs timeout budget in TestAgenticfsConstants is "+
-				"derived from it and must be re-derived too", wireConnTimeoutMillis)
+				"If you changed it, update the HTTP timeout contract tests too", wireConnTimeoutMillis)
 		assert.Equal(t, wireSDKCallBound, time.Duration(connTimeout)*time.Millisecond,
 			"the wire-level bound this file measures must equal connTimeout expressed in milliseconds")
 	})
@@ -231,7 +227,7 @@ func TestNasClientV2TimeoutWireContract(t *testing.T) {
 		assertClientTimeoutError(t, err, "never-responding server")
 	})
 
-	t.Run("ctxIsNotThreadedIntoTheSDK", func(t *testing.T) {
+	t.Run("ctxCancelsDeleteHTTPExchange", func(t *testing.T) {
 		t.Parallel()
 		var hits atomic.Int32
 		client := newTimeoutWireNasClient(t, func(w http.ResponseWriter, r *http.Request) {
@@ -239,8 +235,7 @@ func TestNasClientV2TimeoutWireContract(t *testing.T) {
 			<-r.Context().Done()
 		})
 
-		// NasClientV2 only ever hands ctx to the rate limiter's Wait; the SDK path is dara.DoRequest's NON-ctx variant,
-		// so the wire never learns about it.
+		// DeleteAccesspoint must propagate ctx through the SDK to the HTTP exchange.
 		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 		defer cancel()
 
@@ -250,14 +245,9 @@ func TestNasClientV2TimeoutWireContract(t *testing.T) {
 
 		require.Error(t, ctx.Err(), "anti-vacuity: ctx must really have expired DURING the call")
 		assert.Equal(t, int32(1), hits.Load())
-		assert.GreaterOrEqual(t, elapsed, wireElapsedFloor,
-			"the call ran for %s even though ctx expired after 1s: ctx does NOT reach the HTTP "+
-				"layer, so cancellation and the AP-poll budget only apply BETWEEN calls and cannot "+
-				"interrupt one already in flight. This is precisely why agenticfs_controller.go "+
-				"bounds its compensating delete with a caller-side goroutine+select instead of "+
-				"relying on context.WithTimeout", elapsed)
-		assert.Less(t, elapsed, wireElapsedCeil)
-		assertClientTimeoutError(t, err, "ctx cancelled mid-call")
+		assert.Less(t, elapsed, wireElapsedFloor, "ctx must cancel the request before the SDK HTTP timeout")
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+		assert.NotContains(t, err.Error(), "Client.Timeout")
 	})
 
 	t.Run("emptyErrorBody", func(t *testing.T) {
@@ -275,10 +265,7 @@ func TestNasClientV2TimeoutWireContract(t *testing.T) {
 			_, err = callBounded(t, func(ctx context.Context) error {
 				return client.DeleteAccesspoint(ctx, wireTimeoutFileSystemID, wireTimeoutAccessPointID)
 			})
-		}, "an empty HTTP error body must never panic the shared pkg/cloud/wrap error transform - "+
-			"that runs on every SDK error of every NAS and disk volume, and on the agenticfs "+
-			"compensating delete it runs on a DETACHED goroutine whose panic would kill the whole "+
-			"csi-provisioner process")
+		}, "an empty HTTP error body must never panic the shared pkg/cloud/wrap error transform")
 
 		require.Error(t, err)
 		assert.Equal(t, int32(1), hits.Load())

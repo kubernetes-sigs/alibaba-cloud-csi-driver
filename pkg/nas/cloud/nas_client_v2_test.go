@@ -258,7 +258,7 @@ func TestCreateAccessPointError(t *testing.T) {
 func TestDeleteAccessPointSuccess(t *testing.T) {
 	t.Parallel()
 	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
-		mockNas.EXPECT().DeleteAccessPoint(gomock.Any()).Return(
+		mockNas.EXPECT().DeleteAccessPointWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(
 			&nas.DeleteAccessPointResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(201),
@@ -272,7 +272,7 @@ func TestDeleteAccessPointSuccess(t *testing.T) {
 func TestDeleteAccessPointError(t *testing.T) {
 	t.Parallel()
 	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
-		mockNas.EXPECT().DeleteAccessPoint(gomock.Any()).Return(
+		mockNas.EXPECT().DeleteAccessPointWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(
 			&nas.DeleteAccessPointResponse{
 				Headers:    make(map[string]*string),
 				StatusCode: tea.Int32(404),

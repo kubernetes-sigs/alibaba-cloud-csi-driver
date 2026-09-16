@@ -9,6 +9,7 @@ import (
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/alibabacloud-go/tea/tea"
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
@@ -23,8 +24,9 @@ import (
 const (
 	// connTimeout is the SDK ConnectTimeout, in milliseconds per the darabonba convention. The
 	// runtime uses it as the deadline of the whole HTTP call rather than only the dial, so this
-	// bounds a single NAS OpenAPI request at 10s. ReadTimeout is deliberately left unset: it is
-	// added to that deadline, and leaving it at 0 keeps the 10s bound authoritative.
+	// bounds the HTTP exchange at 10s, not credential resolution before it.
+	// ReadTimeout is deliberately left unset: it is added to that deadline,
+	// and leaving it at 0 keeps the 10s HTTP bound authoritative.
 	connTimeout = 10000
 )
 
@@ -82,10 +84,13 @@ var (
 	longThrottleLatency = 250 * time.Millisecond
 )
 
+// ErrRateLimiterWait means the request never passed the rate limiter and was not sent.
+var ErrRateLimiterWait = errors.New("error while waiting for rate limiter")
+
 func (c *NasClientV2) wait(ctx context.Context, logger klog.Logger) error {
 	t0 := time.Now()
 	if err := c.limiter.Wait(ctx); err != nil {
-		return fmt.Errorf("error while waiting for rate limiter: %w", err)
+		return fmt.Errorf("%w: %w", ErrRateLimiterWait, err)
 	}
 	t := time.Since(t0)
 	if t > longThrottleLatency {
@@ -162,7 +167,11 @@ func (c *NasClientV2) DeleteAccesspoint(ctx context.Context, filesystemId, acces
 		AccessPointId: &accessPointId,
 		FileSystemId:  &filesystemId,
 	}
-	_, err := wrap.V2(logger, c.client.DeleteAccessPoint)(req)
+	// Pass ctx all the way to HTTP, including after an uninterruptible credential
+	// refresh. An expired context must never allow a late delete onto the wire.
+	_, err := wrap.V2(logger, func(req *sdk.DeleteAccessPointRequest) (*sdk.DeleteAccessPointResponse, error) {
+		return c.client.DeleteAccessPointWithContext(ctx, req, &dara.RuntimeOptions{})
+	})(req)
 	return err
 }
 

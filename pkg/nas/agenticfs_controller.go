@@ -9,7 +9,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -100,8 +99,8 @@ const (
 	// classifies the failure as retryable DeadlineExceeded, letting the next attempt reuse the space and accesspoint.
 	defaultApPollTimeout = 45 * time.Second
 
-	// Bounds the compensating DeleteAccesspoint, which compensateCreateVolume enforces itself because ctx
-	// never reaches the SDK. Must stay strictly greater than nasAPICallBound, or the outcome is a coin flip.
+	// Deadline for the compensating DeleteAccesspoint's limiter and HTTP request.
+	// Credential resolution may take longer; keep the volume lock until the call returns.
 	compensationTimeout = 15 * time.Second
 
 	// driverRPCBudget is the driver's model of how long a CreateVolume RPC may run before the
@@ -110,7 +109,7 @@ const (
 	// default, not this chart's --timeout=150s: a budget that holds under 60s also holds under 150s.
 	driverRPCBudget = 60 * time.Second
 
-	// Mirrors connTimeout in pkg/nas/cloud; duplicated as a literal and pinned by TestAgenticfsConstants.
+	// HTTP-only timeout in pkg/nas/cloud, not a bound on credential resolution or the whole SDK call.
 	nasAPICallBound = 10 * time.Second
 
 	// Marks "a billable resource now exists but has not been delivered yet": the reconciliation key for
@@ -128,10 +127,6 @@ const (
 
 	// Not a substring of orphanLogPrefix on purpose, so a reaper counts each leak exactly once.
 	orphanResolvedLogPrefix = "agenticfs-orphan-resolved"
-
-	// Mirrors the wrapper pkg/nas/cloud's wait() puts on every rate-limiter failure: the only signal
-	// distinguishing "the delete was never issued" from "it was issued and failed".
-	nasRateLimiterWaitPrefix = "error while waiting for rate limiter"
 )
 
 func newAgenticfsController(config *internal.ControllerConfig) (internal.Controller, error) {
@@ -648,13 +643,9 @@ func (c *agenticfsController) pollAccessPoint(ctx context.Context, filesystemId,
 func (c *agenticfsController) compensateCreateVolume(ctx context.Context, logger klog.Logger, filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId string, cause error, rpcStarted time.Time) {
 	code := status.Code(cause)
 
-	// One latch for every reporting exit, so "exactly one of {orphan, resolved}" holds.
-	var reported atomic.Bool
+	// Reporting is synchronous: exactly one terminal outcome is reported after cleanup returns.
 	// logErr is attached at Error level; cause is always the CreateVolume failure, in the "cause" key.
 	reportLeak := func(reason string, logErr error) {
-		if !reported.CompareAndSwap(false, true) {
-			return
-		}
 		if spaceMayExist(agenticSpaceId, code) {
 			c.logOrphanResource(logger, filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId, reason, cause, logErr)
 			return
@@ -665,9 +656,6 @@ func (c *agenticfsController) compensateCreateVolume(ctx context.Context, logger
 			reason, cause, "code", code)
 	}
 	reportResolved := func(reason string) {
-		if !reported.CompareAndSwap(false, true) {
-			return
-		}
 		c.logOrphanResolved(logger, filesystemId, agenticSpaceId, fileSystemPath, createdAccesspointId, reason, cause)
 	}
 
@@ -712,70 +700,29 @@ func (c *agenticfsController) compensateCreateVolume(ctx context.Context, logger
 			fmt.Sprintf("CreateVolume failed terminally with code %s; deleting the accesspoint this call created", code),
 			cause)...)
 
-	// Neither inherits the (usually expired) request deadline nor can be cancelled, and is bounded.
+	// Independent cleanup deadline, propagated through the limiter and SDK HTTP request.
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), c.compTimeout)
 	defer cancel()
 
-	// ctx never reaches the SDK, so this select is what caps the per-volume lock hold.
-	waitBudget := c.compTimeout - nasAPICallBound
-	if waitBudget <= 0 {
-		// Degenerate only in tests; clamped to the full budget rather than 0 so the delete stays reachable.
-		waitBudget = c.compTimeout
-	}
-	done := make(chan compensateOutcome, 1)
-	go func() {
-		// Deliberately not nil: an early return added later would otherwise be reported as "reconciled".
-		outcome := compensateOutcome{err: errCompensateDeleteNoOutcome}
-		// Detached and can outlive the RPC; reports before sending the sentinel the select relies on.
-		defer func() {
-			r := recover()
-			if r != nil {
-				outcome.err = errCompensateDeletePanicked
-				outcome.panicValue = r
-			}
-			if r != nil {
-				func() {
-					defer func() { _ = recover() }()
-					// A no-op when the select already reported, which is the double count the latch exists to stop.
-					reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint PANICKED (%v); the accesspoint and the agenticspace are both left behind", code, r), nil)
-				}()
-			}
-			done <- outcome
-		}()
-		// waitCtx, not cleanupCtx, reaches limiter.Wait, so no token can be granted late enough to outlive this.
-		waitCtx, cancelWait := context.WithTimeout(cleanupCtx, waitBudget)
-		defer cancelWait()
-		if err := waitCtx.Err(); err != nil {
-			// No wire request exists; reported distinctly from "issued and failed", not guessed from a string.
-			outcome.err = fmt.Errorf("%w: %v", errCompensateDeleteNeverSent, err)
-			return
+	// Do not detach cleanup: credential refresh has no context and can exceed the
+	// HTTP timeout. Keep the volume lock until it returns. The SDK's context-aware
+	// HTTP path prevents that refresh from issuing a delete after the deadline.
+	outcome := c.compensateDelete(cleanupCtx, filesystemId, createdAccesspointId)
+	switch {
+	case outcome.state == compensatePanicked:
+		reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint PANICKED (%v); reconcile the accesspoint and agenticspace against their cloud state", code, outcome.panicValue), nil)
+	case outcome.state == compensateNeverSent:
+		reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint was NEVER SENT (%v); the accesspoint and the agenticspace are both left behind for the reaper", code, outcome.err), outcome.err)
+	case outcome.err != nil && !isNotFoundError(outcome.err):
+		// Passing the limiter does not prove transmission: credential resolution
+		// can fail, and a timeout can leave the server-side result unknown.
+		reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint FAILED (%v); reconcile the accesspoint's actual cloud state, the agenticspace is left to the reaper", code, outcome.err), outcome.err)
+	default:
+		outcomeText := "succeeded"
+		if outcome.err != nil {
+			outcomeText = fmt.Sprintf("answered NotFound (%v), the accesspoint was already gone", outcome.err)
 		}
-		err := c.nasClient.DeleteAccesspoint(waitCtx, filesystemId, createdAccesspointId)
-		outcome.err = err
-		// "Sent" means "got past the rate limiter", which is what deleteNeverSent recognises.
-		outcome.sent = !deleteNeverSent(err)
-	}()
-	select {
-	case outcome := <-done:
-		switch {
-		case errors.Is(outcome.err, errCompensateDeletePanicked):
-			// Already reported by the goroutine's recover above.
-		case !outcome.sent:
-			// Nothing is in flight and nothing was deleted, so the reason must not claim a failed delete.
-			reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint was NEVER SENT (%v) - it never got past the wait budget / shared rate limiter, so no wire request exists; the accesspoint and the agenticspace are both left behind for the reaper", code, outcome.err), outcome.err)
-		case outcome.err != nil && !isNotFoundError(outcome.err):
-			reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint was sent and FAILED (%v); the accesspoint and the agenticspace are both left behind", code, outcome.err), outcome.err)
-		default:
-			// Without the resolved line the orphan stream cannot self-reconcile.
-			outcomeText := "succeeded"
-			if outcome.err != nil {
-				outcomeText = fmt.Sprintf("answered NotFound (%v), the accesspoint was already gone", outcome.err)
-			}
-			reportResolved(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint %s; the accesspoint is reconciled, the agenticspace is still left to the reaper by design", code, outcomeText))
-		}
-	case <-cleanupCtx.Done():
-		// Neither can outlive this function, so the lock is never released while a delete of this volume is in flight.
-		reportLeak(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint did not return within %s (%v); the delete may still be in flight OR may never have been sent at all (the goroutine can still be queued on the shared rate limiter when the bound fires, in which case limiter.Wait returns context.DeadlineExceeded and the wire request is never issued). Neither case can outlive this call: the wait phase is capped at %s and the wire phase at %s - reconcile against the accesspoint's actual cloud state before assuming either", code, c.compTimeout, cleanupCtx.Err(), waitBudget, nasAPICallBound), cleanupCtx.Err())
+		reportResolved(fmt.Sprintf("CreateVolume failed terminally with code %s and the compensating nas:DeleteAccesspoint %s; the accesspoint is reconciled, the agenticspace is still left to the reaper by design", code, outcomeText))
 	}
 }
 
@@ -790,28 +737,44 @@ func isTerminalCompensationCode(code codes.Code) bool {
 	}
 }
 
-// Sent after the goroutine recovers, so the select does not emit a second line for the same accesspoint.
-var errCompensateDeletePanicked = errors.New("compensating DeleteAccesspoint panicked")
+type compensateState uint8
 
-// The wait phase expired before DeleteAccesspoint was called, so no wire request was ever made.
-var errCompensateDeleteNeverSent = errors.New("compensating DeleteAccesspoint was never sent")
+const (
+	compensateNeverSent compensateState = iota
+	compensateAttempted                 // SDK entered; err determines success/failure, not whether HTTP was sent.
+	compensatePanicked
+)
 
-// Unreachable: every path overwrites it. Makes a future early return loud instead of "reconciled".
-
-var errCompensateDeleteNoOutcome = errors.New("compensating DeleteAccesspoint produced no outcome")
-
-// A struct, not a bare error: a limiter.Wait error and an HTTP error look alike but mean opposites.
 type compensateOutcome struct {
-	err error
-	// True only once the call got past the rate limiter, i.e. a wire request may exist and be in flight.
-	sent bool
-	// Kept for diagnostics; the sentinel err is what the select branches on.
+	state      compensateState
+	err        error
 	panicValue any
 }
 
-// pkg/nas/cloud's wait() wraps every rate-limiter failure before the request is built - the only signal.
+// Synchronous state transitions: neverSent -> attempted -> returned or panicked.
+// A limiter error returns to neverSent. Reporting happens only in the caller,
+// after this function returns, so neither cleanup nor reporting can outlive the RPC.
+func (c *agenticfsController) compensateDelete(ctx context.Context, filesystemId, accesspointId string) (outcome compensateOutcome) {
+	defer func() {
+		if r := recover(); r != nil {
+			outcome.state = compensatePanicked
+			outcome.panicValue = r
+		}
+	}()
+	if err := ctx.Err(); err != nil {
+		outcome.err = err
+		return
+	}
+	outcome.state = compensateAttempted
+	outcome.err = c.nasClient.DeleteAccesspoint(ctx, filesystemId, accesspointId)
+	if deleteNeverSent(outcome.err) {
+		outcome.state = compensateNeverSent
+	}
+	return
+}
+
 func deleteNeverSent(err error) bool {
-	return err != nil && strings.Contains(err.Error(), nasRateLimiterWaitPrefix)
+	return errors.Is(err, cloud.ErrRateLimiterWait)
 }
 
 func causeText(cause error) string {
@@ -860,7 +823,7 @@ func (c *agenticfsController) compensationFields(filesystemId, agenticSpaceId, f
 	return append(fields, extra...)
 }
 
-// The confirmed-leak line a reaper greps for; exactly one per leak, via the reported latch.
+// The confirmed-leak line a reaper greps for; one per terminal compensation outcome.
 func (c *agenticfsController) logOrphanResource(logger klog.Logger, filesystemId, agenticSpaceId, fileSystemPath, accesspointId, reason string, cause, logErr error) {
 	logger.Error(logErr, orphanLogPrefix+": a CreateVolume failure left cloud resources behind",
 		c.compensationFields(filesystemId, agenticSpaceId, fileSystemPath, accesspointId, reason, cause)...)
@@ -1104,7 +1067,16 @@ func computeAgenticSpaceSizeLimit(cr *csi.CapacityRange, sizeLimitParam string) 
 			"requested capacity %d bytes exceeds the cap parameters.agenticSpaceSizeLimit=%q (%d bytes); lower the PVC request or raise the StorageClass cap",
 			bytes, sizeLimitParam, cap)
 	}
-	return roundUpToGiBChecked(bytes, cr.GetLimitBytes())
+	sizeLimit, err := roundUpToGiBChecked(bytes, cr.GetLimitBytes())
+	if err != nil {
+		return 0, err
+	}
+	if cap > 0 && sizeLimit > cap {
+		return 0, status.Errorf(codes.InvalidArgument,
+			"capacity %d bytes rounded up to the 1 GiB boundary (%d bytes) exceeds the cap parameters.agenticSpaceSizeLimit=%q (%d bytes)",
+			bytes, sizeLimit, sizeLimitParam, cap)
+	}
+	return sizeLimit, nil
 }
 
 // Applies the same rounding, minimum, maximum and limit_bytes checks as the create path.

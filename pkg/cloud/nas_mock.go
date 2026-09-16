@@ -5,9 +5,11 @@
 package cloud
 
 import (
+	context "context"
 	reflect "reflect"
 
 	client "github.com/alibabacloud-go/nas-20170626/v4/client"
+	dara "github.com/alibabacloud-go/tea/dara"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -94,19 +96,19 @@ func (mr *MockNasInterfaceMockRecorder) CreateDir(request interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDir", reflect.TypeOf((*MockNasInterface)(nil).CreateDir), request)
 }
 
-// DeleteAccessPoint mocks base method.
-func (m *MockNasInterface) DeleteAccessPoint(request *client.DeleteAccessPointRequest) (*client.DeleteAccessPointResponse, error) {
+// DeleteAccessPointWithContext mocks base method.
+func (m *MockNasInterface) DeleteAccessPointWithContext(ctx context.Context, request *client.DeleteAccessPointRequest, runtime *dara.RuntimeOptions) (*client.DeleteAccessPointResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteAccessPoint", request)
+	ret := m.ctrl.Call(m, "DeleteAccessPointWithContext", ctx, request, runtime)
 	ret0, _ := ret[0].(*client.DeleteAccessPointResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// DeleteAccessPoint indicates an expected call of DeleteAccessPoint.
-func (mr *MockNasInterfaceMockRecorder) DeleteAccessPoint(request interface{}) *gomock.Call {
+// DeleteAccessPointWithContext indicates an expected call of DeleteAccessPointWithContext.
+func (mr *MockNasInterfaceMockRecorder) DeleteAccessPointWithContext(ctx, request, runtime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAccessPoint", reflect.TypeOf((*MockNasInterface)(nil).DeleteAccessPoint), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAccessPointWithContext", reflect.TypeOf((*MockNasInterface)(nil).DeleteAccessPointWithContext), ctx, request, runtime)
 }
 
 // DeleteAgenticSpace mocks base method.
