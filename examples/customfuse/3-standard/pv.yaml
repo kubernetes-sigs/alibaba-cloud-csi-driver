@@ -1,0 +1,51 @@
+# Demo 3: pv.spec.mountOptions style
+#
+# Uses pv.spec.csi.fsType and pv.spec.mountOptions for the mount parameters,
+# instead of volumeAttributes. Entries the driver does not know become environment
+# variables of their own name:
+#
+#   formatOptions=...  →  $formatOptions
+#   mountOptions=...   →  $mountOptions   (this demo's own name, not a driver field)
+#
+# source= and capacity= name fields the driver does know, so they are applied to
+# the field and reach the entrypoint that way — as $source and $capacity, the same
+# two variables either channel produces. Naming a field the driver knows only
+# fills it: had volumeAttributes set one, that value would win.
+#
+# The one volumeAttribute below is there because the control fields — the ones that
+# decide how the fuse pod is built rather than what it mounts — are read from
+# volumeAttributes only. Named in mountOptions, one is logged and dropped.
+#
+# For the alternative style using volumeAttributes, see ../2-oss-compatible.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-standard-pv
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  # mountOptions: how this demo passes its parameters — see the header above for
+  # which entries become env vars directly and which the driver applies first.
+  # Ref: https://juicefs.com/docs/community/command_reference/
+  mountOptions:
+    - "source=redis://redis-host.default.svc:6379/1"
+    - "formatOptions=storage=oss,bucket=http://my-jfs-data.oss-cn-hangzhou-internal.aliyuncs.com,block-size=4096,trash-days=2"
+    - "mountOptions=cache-size=1024,cache-dir=/var/jfsCache,buffer-size=300,prefetch=1"
+    - "capacity=100"
+  csi:
+    driver: customfuseplugin.csi.alibabacloud.com
+    fsType: juicefs
+    volumeHandle: juicefs-standard-pv
+    volumeAttributes:
+      # The fuse pod is on the host network, where the default ClusterFirst resolves
+      # through the node rather than the cluster — so the in-cluster service name in
+      # mountOptions above would not resolve without this. Drop it when the endpoint
+      # is reached by IP or by a public name. This one cannot go in mountOptions:
+      # it is a control field, and those are read from volumeAttributes only.
+      dnsPolicy: "ClusterFirstWithHostNet"
+    nodePublishSecretRef:
+      name: juicefs-standard-creds
+      namespace: default
