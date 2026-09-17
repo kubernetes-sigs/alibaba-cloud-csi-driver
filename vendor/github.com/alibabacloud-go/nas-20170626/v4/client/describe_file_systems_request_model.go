@@ -19,6 +19,8 @@ type iDescribeFileSystemsRequest interface {
 	GetPageSize() *int32
 	SetResourceGroupId(v string) *DescribeFileSystemsRequest
 	GetResourceGroupId() *string
+	SetStorageType(v string) *DescribeFileSystemsRequest
+	GetStorageType() *string
 	SetTag(v []*DescribeFileSystemsRequestTag) *DescribeFileSystemsRequest
 	GetTag() []*DescribeFileSystemsRequestTag
 	SetVpcId(v string) *DescribeFileSystemsRequest
@@ -26,13 +28,15 @@ type iDescribeFileSystemsRequest interface {
 }
 
 type DescribeFileSystemsRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
-	// 	- Sample ID of a General-purpose NAS file system: 31a8e4\\*\\*\\*\\*.
+	// - General-purpose NAS: 31a8e4****.
 	//
-	// 	- The IDs of Extreme NAS file systems must start with extreme-, for example, extreme-0015\\*\\*\\*\\*.
+	// - Extreme NAS: must start with extreme-, such as extreme-0015****.
 	//
-	// 	- The IDs of CPFS file systems must start with cpfs-. Example: cpfs-125487\\*\\*\\*\\*.
+	// - CPFS (locally redundant): must start with cpfs-, such as cpfs-125487****.
+	//
+	// - CPFS SE (zone-redundant): must start with cpfsse-, such as cpfsse-022c71b134****.
 	//
 	// example:
 	//
@@ -42,51 +46,51 @@ type DescribeFileSystemsRequest struct {
 	//
 	// Valid values:
 	//
-	// 	- all (default): All types.
+	// - all (default): queries all types.
 	//
-	// 	- standard: General-purpose NAS file system.
+	// - standard: General-purpose NAS.
 	//
-	// 	- extreme: Extreme NAS file system.
+	// - extreme: Extreme NAS.
 	//
-	// 	- cpfs: CPFS file system.
+	// - cpfs: Cloud Parallel File Storage (CPFS) with locally redundant storage.
 	//
-	// >  Separate multiple data types with commas (,).
+	// - cpfsse: CPFS SE with zone-redundant storage.
+	//
+	// > To query multiple types, separate them with commas (,).
 	//
 	// example:
 	//
 	// standard
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The page number.
-	//
-	// Pages start from page 1. Default value: 1.
+	// The page number of the file system list.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of entries per page.
-	//
-	// Valid values: 1 to 100.
-	//
-	// Default value: 10.
+	// The number of file systems on each page in a paging query.
 	//
 	// example:
 	//
-	// 10
+	// 1
 	PageSize *int32 `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
 	// The resource group ID.
 	//
-	// You can log on to the [Resource Management console](https://resourcemanager.console.aliyun.com/resource-groups?) to view resource group IDs.
+	// You can view the resource group ID in the [Resource Management console](https://resourcemanager.console.aliyun.com/resource-groups?).
 	//
 	// example:
 	//
-	// rg-acfmwavnfdf****
+	// rg-acfmwavnfef****
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The details about the tags.
-	Tag []*DescribeFileSystemsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-	// The ID of the virtual private cloud (VPC).
+	// The storage type. Currently, only CPFS for Lingjun specifications are supported for a filtered query. Other FileSystemType values are not supported. The following specifications are supported:
 	//
-	// If you want to mount the file system on an Elastic Compute Service (ECS) instance, the file system and the ECS instance must reside in the same VPC.
+	// example:
+	//
+	// bm_advance_400
+	StorageType *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
+	// The tag information.
+	Tag []*DescribeFileSystemsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
+	// The VPC ID.
 	//
 	// example:
 	//
@@ -122,6 +126,10 @@ func (s *DescribeFileSystemsRequest) GetResourceGroupId() *string {
 	return s.ResourceGroupId
 }
 
+func (s *DescribeFileSystemsRequest) GetStorageType() *string {
+	return s.StorageType
+}
+
 func (s *DescribeFileSystemsRequest) GetTag() []*DescribeFileSystemsRequestTag {
 	return s.Tag
 }
@@ -155,6 +163,11 @@ func (s *DescribeFileSystemsRequest) SetResourceGroupId(v string) *DescribeFileS
 	return s
 }
 
+func (s *DescribeFileSystemsRequest) SetStorageType(v string) *DescribeFileSystemsRequest {
+	s.StorageType = &v
+	return s
+}
+
 func (s *DescribeFileSystemsRequest) SetTag(v []*DescribeFileSystemsRequestTag) *DescribeFileSystemsRequest {
 	s.Tag = v
 	return s
@@ -183,33 +196,33 @@ type DescribeFileSystemsRequestTag struct {
 	//
 	// Limits:
 	//
-	// 	- Valid values of N: 1 to 20.
+	// - Valid values of N: 1 to 20.
 	//
-	// 	- The tag key can be up to 128 characters in length.
+	// - The tag key can be up to 128 characters in length.
 	//
-	// 	- The tag key cannot start with `aliyun` or `acs:`.
+	// - The tag key cannot start with `aliyun` or `acs:`.
 	//
-	// 	- The tag key cannot contain `http://` or `https://`.
+	// - The tag key cannot contain `http://` or `https://`.
 	//
 	// example:
 	//
-	// test
+	// testKey
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	// The tag value.
 	//
 	// Limits:
 	//
-	// 	- Valid values of N: 1 to 20.
+	// - N can be an integer from 1 to 20.
 	//
-	// 	- The tag value can be up to 128 characters in length.
+	// - The tag value can be up to 128 characters in length.
 	//
-	// 	- The tag value cannot start with `aliyun` or `acs:`.
+	// - The tag value cannot start with `aliyun` or `acs:`.
 	//
-	// 	- The tag value cannot contain `http://` or `https://`.
+	// - The tag value cannot contain `http://` or `https://`.
 	//
 	// example:
 	//
-	// test-value
+	// testValue
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

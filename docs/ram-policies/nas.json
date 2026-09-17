@@ -21,12 +21,20 @@
                 "nas:DescribeProtocolMountTarget",
                 "nas:CancelDirQuota",
                 "nas:CreateDir",
-                "nas:DescribeDirQuotas"
+                "nas:DescribeDirQuotas",
+                "nas:CreateAgenticSpace",
+                "nas:GetAgenticSpace",
+                "nas:DeleteAgenticSpace",
+                "nas:SetAgenticSpaceQuota",
+                "nas:CreateAccessPoint",
+                "nas:ListAccessPoints",
+                "nas:DescribeAccessPoint",
+                "nas:DeleteAccessPoint"
             ],
             "Resource": [
                 "*"
             ],
             "Effect": "Allow"
-        },
+        }
     ]
 }

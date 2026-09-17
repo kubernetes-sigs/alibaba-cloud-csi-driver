@@ -11,6 +11,8 @@ type iModifyLifecyclePolicyRequest interface {
 	GoString() string
 	SetFileSystemId(v string) *ModifyLifecyclePolicyRequest
 	GetFileSystemId() *string
+	SetLifecyclePolicyId(v string) *ModifyLifecyclePolicyRequest
+	GetLifecyclePolicyId() *string
 	SetLifecyclePolicyName(v string) *ModifyLifecyclePolicyRequest
 	GetLifecyclePolicyName() *string
 	SetLifecycleRuleName(v string) *ModifyLifecyclePolicyRequest
@@ -22,7 +24,7 @@ type iModifyLifecyclePolicyRequest interface {
 }
 
 type ModifyLifecyclePolicyRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// This parameter is required.
 	//
@@ -30,43 +32,53 @@ type ModifyLifecyclePolicyRequest struct {
 	//
 	// 31a8e4****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The name of the lifecycle policy.
+	// The ID of the lifecycle policy.
 	//
-	// The name must be 3 to 64 characters in length and can contain letters, digits, underscores (_), and hyphens (-). The name must start with a letter.
+	// example:
 	//
-	// This parameter is required.
+	// lc-xxx
+	LifecyclePolicyId *string `json:"LifecyclePolicyId,omitempty" xml:"LifecyclePolicyId,omitempty"`
+	// The Policy Name of the lifecycle management policy.
+	//
+	// The name must be 3 to 64 characters in length, must start with an uppercase letter or lowercase letter, and can contain letters, digits, underscores (_), or hyphens (-).
 	//
 	// example:
 	//
 	// lifecyclepolicy_01
 	LifecyclePolicyName *string `json:"LifecyclePolicyName,omitempty" xml:"LifecyclePolicyName,omitempty"`
-	// The management rule that is associated with the lifecycle policy.
+	// The management rule associated with the lifecycle management policy.
 	//
 	// Valid values:
 	//
-	// 	- DEFAULT_ATIME_14: Files that are not accessed in the last 14 days are dumped to the IA storage medium.
+	// - DEFAULT_ATIME_14: files that have not been accessed for 14 days.
 	//
-	// 	- DEFAULT_ATIME_30: Files that are not accessed in the last 30 days are dumped to the IA storage medium.
+	// - DEFAULT_ATIME_30: files that have not been accessed for 30 days.
 	//
-	// 	- DEFAULT_ATIME_60: Files that are not accessed in the last 60 days are dumped to the IA storage medium.
+	// - DEFAULT_ATIME_60: files that have not been accessed for 60 days.
 	//
-	// 	- DEFAULT_ATIME_90: Files that are not accessed in the last 90 days are dumped to the IA storage medium.
+	// - DEFAULT_ATIME_90: files that have not been accessed for 90 days.
+	//
+	// - DEFAULT_ATIME_180: files that have not been accessed for 180 days. DEFAULT_ATIME_180 is supported only when StorageType is set to Archive.
+	//
+	// > If an IA storage class policy has already been configured for the directory, the time period specified for the archive policy must be longer than that of the IA storage class policy.
 	//
 	// example:
 	//
 	// DEFAULT_ATIME_14
 	LifecycleRuleName *string `json:"LifecycleRuleName,omitempty" xml:"LifecycleRuleName,omitempty"`
-	// The absolute path of a directory with which the lifecycle policy is associated.
+	// The absolute path of a single directory configured in the lifecycle management policy.
 	//
-	// The path must start with a forward slash (/) and must be a path that exists in the mount target.
+	// The path must start with a forward slash (/) and must be an existing path in the mount target.
 	//
 	// example:
 	//
 	// /pathway/to/folder
 	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
-	// The storage type of the data that is dumped to the IA storage medium.
+	// The storage type.
 	//
-	// Default value: InfrequentAccess (IA).
+	// - InfrequentAccess: IA storage class.
+	//
+	// - Archive: Archive storage class.
 	//
 	// example:
 	//
@@ -84,6 +96,10 @@ func (s ModifyLifecyclePolicyRequest) GoString() string {
 
 func (s *ModifyLifecyclePolicyRequest) GetFileSystemId() *string {
 	return s.FileSystemId
+}
+
+func (s *ModifyLifecyclePolicyRequest) GetLifecyclePolicyId() *string {
+	return s.LifecyclePolicyId
 }
 
 func (s *ModifyLifecyclePolicyRequest) GetLifecyclePolicyName() *string {
@@ -104,6 +120,11 @@ func (s *ModifyLifecyclePolicyRequest) GetStorageType() *string {
 
 func (s *ModifyLifecyclePolicyRequest) SetFileSystemId(v string) *ModifyLifecyclePolicyRequest {
 	s.FileSystemId = &v
+	return s
+}
+
+func (s *ModifyLifecyclePolicyRequest) SetLifecyclePolicyId(v string) *ModifyLifecyclePolicyRequest {
+	s.LifecyclePolicyId = &v
 	return s
 }
 

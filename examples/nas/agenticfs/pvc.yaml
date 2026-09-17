@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: agent-workspace-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: alicloud-nas-agenticfs
+  resources:
+    requests:
+      # Becomes the AgenticSpace size limit, rounded up to a GiB boundary.
+      storage: 10Gi

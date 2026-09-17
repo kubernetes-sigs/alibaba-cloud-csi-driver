@@ -22,11 +22,11 @@ type iModifyProtocolServiceRequest interface {
 }
 
 type ModifyProtocolServiceRequest struct {
-	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but make sure that the token is unique among different requests.
 	//
-	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](https://help.aliyun.com/document_detail/25693.html)
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How to ensure idempotence](https://help.aliyun.com/document_detail/25693.html).
 	//
-	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
+	// > If you do not specify this parameter, the system automatically uses the RequestId of the API request as the ClientToken. The RequestId may vary for each API request.
 	//
 	// example:
 	//
@@ -36,26 +36,30 @@ type ModifyProtocolServiceRequest struct {
 	//
 	// Limits:
 	//
-	// 	- The description must be 2 to 128 characters in length.
+	// - The description must be 2 to 128 characters in length.
 	//
-	// 	- The description must start with a letter and cannot start with `http://` or `https://`.
+	// - The description must start with a letter or a Chinese character and cannot start with `http://` or `https://`.
 	//
-	// 	- The description can contain letters, digits, colons (:), underscores (_), and hyphens (-).
+	// - The description can contain digits, colons (:), underscores (_), or hyphens (-).
+	//
+	// - **Spaces and other special characters are not allowed**. Valid example: `My-Protocol-Service_01`.
 	//
 	// if can be null:
 	// false
 	//
 	// example:
 	//
-	// test
+	// My-Protocol-Service_01
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Specifies whether to perform only a dry run, without performing the actual request. The dry run checks parameter validity and prerequisites. The dry run does not modify a file system or incur fees.
+	// Specifies whether to perform a dry run for this modification request.
+	//
+	// A dry run checks parameter validity and dependencies without actually modifying the instance or incurring charges.
 	//
 	// Valid values:
 	//
-	// 	- true: performs only a dry run and does not modify the protocol service. The system checks the request format, service limits, prerequisites, and whether the required parameters are specified. If the request fails the dry run, an error message is returned. If the request passes the dry run, a 200 HTTP status code is returned.
+	// - true: Sends a dry run request without modifying the protocol service. The dry run checks whether required parameters are specified, whether the request format is valid, and whether business constraints and dependencies are met. If the check fails, the corresponding error is returned. If the check succeeds, HTTP status code 200 is returned.
 	//
-	// 	- false (default): performs a dry run and performs the actual request. If the request passes the dry run, the service protocol is modified.
+	// - false (default): Sends a normal request. After the check succeeds, the protocol service is directly modified.
 	//
 	// example:
 	//
@@ -67,15 +71,15 @@ type ModifyProtocolServiceRequest struct {
 	//
 	// example:
 	//
-	// cpfs-123****
+	// cpfs-099394bd928c****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The ID of the protocol service.
+	// The ID of the protocol service. You can obtain the protocol service ID from the response of the [CreateProtocolService](https://www.alibabacloud.com/help/en/cpfs/cpfsonecs/developer-reference/api-nas-2017-06-26-createprotocolservice-cpfs) operation, or query it by calling the [DescribeProtocolService](https://www.alibabacloud.com/help/en/cpfs/cpfsonecs/developer-reference/api-nas-2017-06-26-describeprotocolservice-cpfs) operation.
 	//
 	// This parameter is required.
 	//
 	// example:
 	//
-	// ptc-123****
+	// ptc-197ed6a00f2b****
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
 }
 

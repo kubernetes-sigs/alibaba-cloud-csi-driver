@@ -12,6 +12,7 @@ type iThrottlingError interface {
 	GetStatusCode() *int
 	GetCode() *string
 	GetMessage() *string
+	GetDetail() *string
 	GetDescription() *string
 	GetRequestId() *string
 	GetData() map[string]interface{}
@@ -25,6 +26,7 @@ type ThrottlingError struct {
 	StatusCode         *int                   ``
 	Code               *string                ``
 	Message            *string                ``
+	Detail             *string                ``
 	Description        *string                ``
 	RequestId          *string                ``
 	Data               map[string]interface{} ``
@@ -53,6 +55,10 @@ func (s *ThrottlingError) GetCode() *string {
 
 func (s *ThrottlingError) GetMessage() *string {
 	return s.Message
+}
+
+func (s *ThrottlingError) GetDetail() *string {
+	return s.Detail
 }
 
 func (s *ThrottlingError) GetDescription() *string {

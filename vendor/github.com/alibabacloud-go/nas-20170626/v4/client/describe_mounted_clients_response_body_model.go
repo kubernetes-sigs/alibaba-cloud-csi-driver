@@ -22,7 +22,6 @@ type iDescribeMountedClientsResponseBody interface {
 }
 
 type DescribeMountedClientsResponseBody struct {
-	// The queried clients.
 	Clients *DescribeMountedClientsResponseBodyClients `json:"Clients,omitempty" xml:"Clients,omitempty" type:"Struct"`
 	// The page number.
 	//
@@ -147,11 +146,6 @@ func (s *DescribeMountedClientsResponseBodyClients) Validate() error {
 }
 
 type DescribeMountedClientsResponseBodyClientsClient struct {
-	// The IP address of the client.
-	//
-	// example:
-	//
-	// 10.10.10.1
 	ClientIP *string `json:"ClientIP,omitempty" xml:"ClientIP,omitempty"`
 }
 

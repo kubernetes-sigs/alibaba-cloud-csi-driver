@@ -41,6 +41,7 @@ func init() {
 	internal.RegisterControllerMode(newSharepathController)
 	internal.RegisterControllerMode(newFilesystemController)
 	internal.RegisterControllerMode(newAccesspointController)
+	internal.RegisterControllerMode(newAgenticfsController)
 }
 
 type controllerServer struct {
@@ -98,6 +99,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if options := parameters["options"]; options != "" {
 		resp.Volume.VolumeContext["options"] = options
 	}
+	// Complete missing AgenticFS vers/tls/ram options after the overwrite above,
+	// preserving user-supplied values. The node only validates TLS/RAM.
+	// No-op for every other volume mode.
+	enforceAgenticFsMountOptions(controller.VolumeAs(), resp.Volume.VolumeContext)
 	if sysConfigs != "" {
 		resp.Volume.VolumeContext["sysConfig"] = sysConfigs
 	}

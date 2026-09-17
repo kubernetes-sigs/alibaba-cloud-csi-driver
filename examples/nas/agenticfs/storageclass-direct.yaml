@@ -1,0 +1,27 @@
+# AgenticFS with no CNFS: fileSystemId names a filesystem managed outside the cluster - by
+# hand, by Terraform, or shared between clusters. It must already exist and be an AgenticFS
+# one (StorageType=Agentic). The driver does not check, so a wrong ID surfaces as a
+# FailedProvisioning event on the PVC.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alicloud-nas-agenticfs-direct
+provisioner: nasplugin.csi.alibabacloud.com
+parameters:
+  volumeAs: Agentic
+  fileSystemId: "0025xxxxxxxxxxxxxxxx"
+  # CreateAgenticSpace.Azone.
+  zoneId: "cn-hangzhou-k"
+  # CreateAccessPoint.VpcId / .VswId; the vSwitch must be reachable from the mounting nodes.
+  vpcId: "vpc-xxxxxxxxxxxxxxxxxxxxx"
+  vSwitchId: "vsw-xxxxxxxxxxxxxxxxxxxxx"
+  # Caps, not defaults: the PVC's requests.storage wins within them.
+  # 10Gi-1024000Gi and [10000, 100000000].
+  agenticSpaceSizeLimit: "10Gi"
+  agenticSpaceFileCountLimit: "1000000"
+  # The controller already forces "tls,ram".
+  options: "tls,vers=3,ram"
+# Deletes the AgenticSpace and its accesspoints, never the filesystem itself.
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: Immediate

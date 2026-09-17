@@ -22,17 +22,17 @@ type iDescribeAutoSnapshotTasksRequest interface {
 }
 
 type DescribeAutoSnapshotTasksRequest struct {
-	// The IDs of automatic snapshot policies.
+	// The IDs of the automatic snapshot policies.
 	//
-	// You can specify a maximum of 100 policy IDs. If you want to query the tasks of multiple automatic snapshot policies, you must separate the policy IDs with commas (,).
+	// You can specify up to 100 automatic snapshot policy IDs. To query tasks of multiple automatic snapshot policies, separate the policy IDs with commas (,).
 	//
 	// example:
 	//
 	// sp-extreme-233e6****,sp-extreme-233e6****, sp-extreme-233e6****
 	AutoSnapshotPolicyIds *string `json:"AutoSnapshotPolicyIds,omitempty" xml:"AutoSnapshotPolicyIds,omitempty"`
-	// The ID of the file system.
+	// The IDs of the file systems.
 	//
-	// You can specify a maximum of 100 file system IDs. If you want to query the snapshots of multiple file systems, you must separate the file system IDs with commas (,).
+	// You can specify up to 100 file system IDs in a single request. To query snapshots of multiple file systems, separate the file system IDs with commas (,).
 	//
 	// example:
 	//
@@ -40,7 +40,7 @@ type DescribeAutoSnapshotTasksRequest struct {
 	FileSystemIds *string `json:"FileSystemIds,omitempty" xml:"FileSystemIds,omitempty"`
 	// The type of the file system.
 	//
-	// Valid value: extreme, which indicates Extreme NAS file systems.
+	// Valid values: extreme (Extreme NAS file system)
 	//
 	// This parameter is required.
 	//
@@ -48,7 +48,7 @@ type DescribeAutoSnapshotTasksRequest struct {
 	//
 	// extreme
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The number of entries per page.
+	// The number of snapshot tasks on each page.
 	//
 	// Valid values: 1 to 100.
 	//
@@ -58,9 +58,9 @@ type DescribeAutoSnapshotTasksRequest struct {
 	//
 	// 10
 	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The page number.
+	// The page number of the automatic snapshot task list.
 	//
-	// Pages start from page 1. Default value: 1.
+	// Start value (default value): 1
 	//
 	// example:
 	//

@@ -16,7 +16,7 @@ type iCreateRecycleBinDeleteJobResponseBody interface {
 }
 
 type CreateRecycleBinDeleteJobResponseBody struct {
-	// The job ID.
+	// The task ID.
 	//
 	// example:
 	//

@@ -26,23 +26,23 @@ type DescribeAutoSnapshotPoliciesRequest struct {
 	//
 	// sp-extreme-233e6****
 	AutoSnapshotPolicyId *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
-	// The type of the file system.
+	// The file system type.
 	//
-	// Valid value: extreme, which indicates Extreme File Storage NAS (NAS) file systems.
+	// Valid value: extreme (Extreme NAS file system).
 	//
 	// example:
 	//
 	// extreme
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	// The page number.
+	// The page number of the automatic snapshot policy list.
 	//
-	// Pages start from page 1. Default value: 1.
+	// Default value: 1.
 	//
 	// example:
 	//
 	// 1
 	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of entries per page.
+	// The number of automatic snapshot policies on each page.
 	//
 	// Valid values: 1 to 100.
 	//

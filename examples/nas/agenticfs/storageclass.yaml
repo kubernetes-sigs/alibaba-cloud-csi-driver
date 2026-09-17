@@ -1,0 +1,26 @@
+# The CNFS-backed variant. For a filesystem managed outside the cluster, see
+# storageclass-direct.yaml.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alicloud-nas-agenticfs
+provisioner: nasplugin.csi.alibabacloud.com
+parameters:
+  volumeAs: Agentic
+  # fileSystemId wins if both are ever set.
+  containerNetworkFileSystem: "agenticfs-cnfs"
+  # CreateAgenticSpace.Azone.
+  zoneId: "cn-hangzhou-k"
+  # CreateAccessPoint.VpcId / .VswId; the vSwitch must be reachable from the mounting nodes.
+  vpcId: "vpc-xxxxxxxxxxxxxxxxxxxxx"
+  vSwitchId: "vsw-xxxxxxxxxxxxxxxxxxxxx"
+  # Caps, not defaults: the PVC's requests.storage wins within them.
+  # 10Gi-1024000Gi and [10000, 100000000].
+  agenticSpaceSizeLimit: "10Gi"
+  agenticSpaceFileCountLimit: "1000000"
+  # The controller already forces "tls,ram".
+  options: "tls,vers=3,ram"
+# Deletes the AgenticSpace and its accesspoints; the filesystem is owned by the CNFS.
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: Immediate

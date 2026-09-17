@@ -18,27 +18,27 @@ type iModifyFileSystemShrinkRequest interface {
 }
 
 type ModifyFileSystemShrinkRequest struct {
-	// The description of the file system.
+	// The file system description.
 	//
 	// Limits:
 	//
-	// 	- The description must be 2 to 128 characters in length.
+	// - The description must be 2 to 128 characters in length.
 	//
-	// 	- It must start with a letter but cannot start with `http://` or `https://`.
+	// - The description must start with a letter or Chinese character and cannot start with `http://` or `https://`.
 	//
-	// 	- The description can contain letters, digits, colons (:), underscores (_), and hyphens (-).
+	// - The description can contain digits, colons (:), underscores (_), or hyphens (-).
 	//
 	// example:
 	//
 	// NAS-test-1
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the file system.
+	// The file system ID.
 	//
-	// 	- Sample ID of a General-purpose NAS file system: `31a8e4****`.
+	// - General-purpose NAS: `31a8e4****`.
 	//
-	// 	- The IDs of Extreme NAS file systems must start with `extreme-`. Example: `extreme-0015****`.
+	// - Extreme NAS: must start with `extreme-`, for example, `extreme-0015****`.
 	//
-	// 	- The IDs of Cloud Paralleled File System (CPFS) file systems must start with `cpfs-`. Example: `cpfs-125487****`.
+	// - CPFS: must start with `cpfs-`, for example, `cpfs-125487****`.
 	//
 	// This parameter is required.
 	//

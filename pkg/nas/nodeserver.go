@@ -86,6 +86,7 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 
 // Options struct definition
 type Options struct {
+	VolumeAs                string   `json:"volumeAs,omitempty"`
 	Server                  string   `json:"server"`
 	Accesspoint             string   `json:"accesspoint"`
 	Path                    string   `json:"path"`
@@ -207,6 +208,8 @@ func parseVolumeContext(volumeContext map[string]string) (*Options, string, erro
 	var cnfsName string
 	for key, value := range volumeContext {
 		switch strings.ToLower(key) {
+		case "volumeas":
+			opt.VolumeAs = value
 		case "filesystemtype":
 			opt.FSType = value
 		case "useclient": // only VK will fetch this parameter from CNFS and add it to VolumeContext
@@ -319,7 +322,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		for _, o := range req.VolumeCapability.GetMount().MountFlags {
 			mntOptions = append(mntOptions, mounterutils.SplitMountOptions(o)...)
 		}
-		parseVers, akID, akSecret, parseOptions := ParseMountFlags(mntOptions)
+		// AgenticFS keeps vers in the option list verbatim; extracting it would
+		// require the node to rebuild/normalize it later in doMount.
+		parseVers, akID, akSecret, parseOptions := parseMountFlags(mntOptions, opt.VolumeAs != agenticFsVolumeAs)
 		if parseVers != "" {
 			if opt.Vers != "" {
 				klog.Warningf("NodePublishVolume: Vers(%s) (in volumeAttributes) is ignored as Vers(%s) also configured in mountOptions", opt.Vers, parseVers)
@@ -335,6 +340,18 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if akID != "" && akSecret != "" {
 			opt.AkID = akID
 			opt.AkSecret = akSecret
+		}
+	}
+
+	// Validate the effective security options after mount flags override the PV.
+	// The node must not repair missing TLS/RAM options. Version is optional here
+	// because the ordinary NAS mount path supplies it when absent.
+	if opt.VolumeAs == agenticFsVolumeAs {
+		options := mounterutils.IndexMountOptions(opt.Options)
+		for _, key := range []string{"tls", "ram"} {
+			if _, ok := options[key]; !ok {
+				return nil, status.Errorf(codes.InvalidArgument, "AgenticFS requires mount option %q; configure it in the PV options or overriding mountOptions", key)
+			}
 		}
 	}
 

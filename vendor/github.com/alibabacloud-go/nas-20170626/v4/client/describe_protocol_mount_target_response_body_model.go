@@ -18,13 +18,13 @@ type iDescribeProtocolMountTargetResponseBody interface {
 }
 
 type DescribeProtocolMountTargetResponseBody struct {
-	// A pagination token. It can be used in the next request to retrieve a new page of results.
+	// The marker used to retrieve the remaining export directories in subsequent queries.
 	//
 	// example:
 	//
 	// aBcdeg==
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The export directories of the protocol service.
+	// The collection of protocol service export directories.
 	ProtocolMountTargets []*DescribeProtocolMountTargetResponseBodyProtocolMountTargets `json:"ProtocolMountTargets,omitempty" xml:"ProtocolMountTargets,omitempty" type:"Repeated"`
 	// The request ID.
 	//
@@ -83,49 +83,49 @@ func (s *DescribeProtocolMountTargetResponseBody) Validate() error {
 }
 
 type DescribeProtocolMountTargetResponseBodyProtocolMountTargets struct {
-	// The permission group that is associated with the export directory of the protocol service.
+	// The permission group associated with the protocol service export directory.
 	//
 	// example:
 	//
 	// DEFAULT_VPC_GROUP_NAME
 	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	// The time when the export directory of the protocol service was created.
+	// The time when the protocol service export directory was created. The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format.
 	//
 	// example:
 	//
 	// 2018-12-12T07:28:38Z
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The description of the export directory for the protocol service.
+	// The description of the protocol service export directory.
 	//
 	// example:
 	//
-	// test
+	// 此协议服务导出目录的描述。
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// The ID of the export directory for the protocol service.
+	// The ID of the protocol service export directory.
 	//
 	// example:
 	//
 	// exp-19abf5beab8d****
 	ExportId *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
-	// The fileset ID of the export directory for the protocol service.
+	// The fileset ID of the protocol service export directory.
 	//
 	// example:
 	//
 	// fset-1902718ea0ae****
 	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
-	// The export directory of the protocol service.
+	// The exported directory of the protocol service.
 	//
 	// example:
 	//
 	// /path/
 	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
-	// The domain name of the export directory for the protocol service.
+	// The domain name of the protocol service export directory.
 	//
 	// example:
 	//
 	// cpfs-123****.cn-hangzhou.cpfs.aliyuncs.com
 	ProtocolMountTargetDomain *string `json:"ProtocolMountTargetDomain,omitempty" xml:"ProtocolMountTargetDomain,omitempty"`
-	// The ID of the protocol service.
+	// The protocol service ID.
 	//
 	// example:
 	//
@@ -137,20 +137,21 @@ type DescribeProtocolMountTargetResponseBodyProtocolMountTargets struct {
 	//
 	// NFS
 	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-	// The status of the mount target.
+	// The mount target status.
 	//
 	// example:
 	//
 	// CREATING
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	// The vSwitch ID of the export directory for the protocol service.
+	// The vSwitch ID of the protocol service export directory.
 	//
 	// example:
 	//
 	// vsw-2vc3c2lybvdllxyq4****
-	VSwitchId  *string   `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The list of zone-redundant vSwitch IDs.
 	VSwitchIds []*string `json:"VSwitchIds,omitempty" xml:"VSwitchIds,omitempty" type:"Repeated"`
-	// The VPC ID of the export directory for the protocol service.
+	// The VPC ID of the protocol service export directory.
 	//
 	// example:
 	//

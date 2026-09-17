@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: agent-sandbox
+spec:
+  containers:
+    - name: agent
+      image: busybox:1.36
+      command: ["sleep", "infinity"]
+      volumeMounts:
+        - name: workspace
+          # The PV's volumeAttributes.path is always "/", so this is the AgenticSpace root.
+          mountPath: /mnt/agenticspace
+  volumes:
+    - name: workspace
+      persistentVolumeClaim:
+        claimName: agent-workspace-pvc

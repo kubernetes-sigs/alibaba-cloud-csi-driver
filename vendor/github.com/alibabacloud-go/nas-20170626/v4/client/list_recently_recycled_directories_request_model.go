@@ -18,7 +18,7 @@ type iListRecentlyRecycledDirectoriesRequest interface {
 }
 
 type ListRecentlyRecycledDirectoriesRequest struct {
-	// The ID of the file system.
+	// The file system ID.
 	//
 	// This parameter is required.
 	//
@@ -26,7 +26,7 @@ type ListRecentlyRecycledDirectoriesRequest struct {
 	//
 	// 1ca404****
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The number of directories to return for each query.
+	// The maximum number of directories to return per query.
 	//
 	// Valid values: 10 to 1000.
 	//
@@ -36,9 +36,9 @@ type ListRecentlyRecycledDirectoriesRequest struct {
 	//
 	// 100
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request.
+	// The pagination token for the next page. You do not need to specify this parameter for the first request.
 	//
-	// If not all directories are returned in a query, the return value of the NextToken parameter is not empty. In this case, you can specify a valid value for the NextToken parameter to continue the query.
+	// If a single query does not return all directories, the NextToken parameter is returned with a value. You can specify a valid NextToken value in subsequent requests to continue the query.
 	//
 	// example:
 	//

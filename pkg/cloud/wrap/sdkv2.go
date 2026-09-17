@@ -43,7 +43,8 @@ func transformV2ErrorForLog(errIn error) (code, requestID string, err error) {
 		if teaerr.Code != nil {
 			code = *teaerr.Code
 		}
-		if teaerr.Data != nil && (*teaerr.Data)[0] == '{' { // likely a json object
+		// Data can point at an empty string, which would panic on the index below.
+		if teaerr.Data != nil && len(*teaerr.Data) > 0 && (*teaerr.Data)[0] == '{' { // likely a json object
 			var data struct {
 				Message   string
 				RequestId string

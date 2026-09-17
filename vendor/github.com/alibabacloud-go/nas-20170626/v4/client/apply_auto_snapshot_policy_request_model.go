@@ -24,15 +24,15 @@ type ApplyAutoSnapshotPolicyRequest struct {
 	//
 	// sp-extreme-233e6****
 	AutoSnapshotPolicyId *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
-	// The IDs of advanced Extreme NAS file systems.
+	// The IDs of the Advanced Extreme NAS file systems.
 	//
-	// You can specify a maximum of 100 file system IDs at a time. If you want to apply an automatic snapshot policy to multiple file systems, separate the file system IDs with commas (,).
+	// You can specify up to 100 file system IDs in a single request. Separate multiple file system IDs with commas (,).
 	//
 	// This parameter is required.
 	//
 	// example:
 	//
-	// extreme-233e6****,extreme -23vbp****,extreme -23vas****
+	// extreme-233e6****,extreme-23vbp****,extreme-23vas****
 	FileSystemIds *string `json:"FileSystemIds,omitempty" xml:"FileSystemIds,omitempty"`
 }
 
