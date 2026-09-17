@@ -1,13 +1,25 @@
 package customfuse
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
+	"syscall"
 	"testing"
+	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/mount-utils"
 )
 
 func TestBuildEnvVars(t *testing.T) {
@@ -338,4 +350,290 @@ func envSliceToMap(envs []string) map[string]string {
 		}
 	}
 	return m
+}
+
+type fakeMountChecker struct {
+	mount.Interface
+	notMnt bool
+}
+
+func (f *fakeMountChecker) IsLikelyNotMountPoint(string) (bool, error) {
+	return f.notMnt, nil
+}
+
+// newTestMounter builds an extendedMounter whose mountpoint check is scripted and
+// whose entrypoint is replaced for the duration of the test, so no test needs a
+// script at either of the two fixed paths this container looks at.
+//
+// Cleanup signals whole process groups the same way the driver does. A stand-in
+// entrypoint that forks leaves something behind, and killing only the pid the
+// driver recorded is exactly the mistake under test here.
+func newTestMounter(t *testing.T, notMnt bool, entrypoint func(path string) *exec.Cmd) *extendedMounter {
+	t.Helper()
+	original := newEntrypointCmd
+	newEntrypointCmd = entrypoint
+	m := &extendedMounter{
+		driver: &Driver{
+			monitorManager: server.NewMountMonitorManager(),
+		},
+		Interface: &fakeMountChecker{notMnt: notMnt},
+	}
+	t.Cleanup(func() {
+		newEntrypointCmd = original
+		m.driver.pids.Range(func(key, _ any) bool {
+			_ = signalGroup(key.(int), syscall.SIGKILL)
+			return true
+		})
+		// Also an assertion, not just hygiene: killing the group is what releases the
+		// stderr pipe cmd.Wait is blocked on, so a wait group that does not drain here
+		// means the driver is leaking a goroutine per mount.
+		if !waitGroupTimeout(&m.driver.wg, 10*time.Second) {
+			t.Error("a goroutine was still blocked in cmd.Wait after its process group was killed")
+		}
+	})
+	return m
+}
+
+// processAlive reports whether pid is still running. A zombie counts as dead: it is
+// no longer executing, and the kernel has already released its descriptors, which is
+// the only thing the driver waits on. Nothing here is obliged to reap a grandchild,
+// so insisting the pid vanish entirely would be waiting on something the code under
+// test does not control.
+func processAlive(pid int) bool {
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
+	if err != nil {
+		return false
+	}
+	s := string(data)
+	// The state byte follows the command name, which is parenthesised and may itself
+	// contain spaces and parentheses, so only the last ')' is a delimiter.
+	i := strings.LastIndex(s, ")")
+	if i < 0 || i+2 >= len(s) {
+		return false
+	}
+	return s[i+2] != 'Z'
+}
+
+// waitForPid blocks until the stand-in entrypoint has recorded the pid of the
+// subprocess it forked. That file is how a test learns about a process the driver
+// itself never sees, and which is the reason the cleanup has to reach past the pid
+// it started.
+func waitForPid(t *testing.T, path string) int {
+	t.Helper()
+	var content string
+	require.Eventually(t, func() bool {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return false
+		}
+		if strings.TrimSpace(string(b)) == "" {
+			return false
+		}
+		content = string(b)
+		return true
+	}, 10*time.Second, 20*time.Millisecond, "the entrypoint never recorded its subprocess")
+	pid, err := strconv.Atoi(strings.TrimSpace(content))
+	require.NoError(t, err)
+	return pid
+}
+
+func TestExtendedMount(t *testing.T) {
+	t.Run("the entrypoint's stderr reaches the returned error", func(t *testing.T) {
+		m := newTestMounter(t, true, func(string) *exec.Cmd {
+			return exec.Command("sh", "-c", `echo "myfuse: mount failed: connection refused" >&2; exit 1`)
+		})
+
+		err := m.ExtendedMount(context.Background(), &mounter.MountOperation{Target: t.TempDir()})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "myfuse: mount failed: connection refused")
+		assert.Contains(t, err.Error(), "exit status 1")
+	})
+
+	// The entrypoint is a script the customer wrote, so how much it prints before
+	// failing is not knowable from here. What is knowable is that the error carrying
+	// it has to stay sendable: the proxy caps a message at proxy.MaxMsgSize and
+	// refuses the request outright past that, so an unbounded capture can destroy the
+	// very diagnosis it exists to deliver.
+	t.Run("an oversized stderr keeps its end and says it was cut", func(t *testing.T) {
+		// ExtendedMount mirrors the entrypoint's stderr to os.Stderr, which under a
+		// test is the test log. Sending it away keeps this about what was retained
+		// rather than about pages of filler in the output.
+		devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		require.NoError(t, err)
+		original := os.Stderr
+		os.Stderr = devNull
+		t.Cleanup(func() {
+			os.Stderr = original
+			_ = devNull.Close()
+		})
+
+		const last = "myfuse: the reason is on the last line"
+		m := newTestMounter(t, true, func(string) *exec.Cmd {
+			return exec.Command("sh", "-c", fmt.Sprintf(
+				`head -c %d /dev/zero | tr '\0' 'x' >&2; echo %q >&2; exit 1`,
+				stderrTailLimit*3, last))
+		})
+
+		err = m.ExtendedMount(context.Background(), &mounter.MountOperation{Target: t.TempDir()})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), last, "what a caller acts on is at the end of the stream")
+		assert.Contains(t, err.Error(), "earlier byte(s) dropped",
+			"a partial stream must not read as the whole of what the client said")
+		assert.Less(t, len(err.Error()), stderrTailLimit+2048,
+			"the error stays well inside the %d byte message cap", proxy.MaxMsgSize)
+	})
+
+	t.Run("a successful mount reports the pid and a channel to watch", func(t *testing.T) {
+		m := newTestMounter(t, false, func(string) *exec.Cmd {
+			return exec.Command("sleep", "30")
+		})
+		op := &mounter.MountOperation{Target: t.TempDir()}
+
+		require.NoError(t, m.ExtendedMount(context.Background(), op))
+
+		res, ok := op.MountResult.(server.FuseMountResult)
+		require.True(t, ok, "MountResult must carry FuseMountResult")
+		assert.NotZero(t, res.PID)
+		assert.NotNil(t, res.ExitChan)
+	})
+
+	t.Run("an entrypoint that cannot start is reported as such", func(t *testing.T) {
+		missing := filepath.Join(t.TempDir(), "no-such-entrypoint")
+		m := newTestMounter(t, true, func(string) *exec.Cmd {
+			return exec.Command(missing)
+		})
+
+		err := m.ExtendedMount(context.Background(), &mounter.MountOperation{Target: t.TempDir()})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "start entrypoint failed")
+	})
+
+	t.Run("the caller's deadline bounds the attempt", func(t *testing.T) {
+		m := newTestMounter(t, true, func(string) *exec.Cmd {
+			return exec.Command("sleep", "300")
+		})
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+
+		start := time.Now()
+		err := m.ExtendedMount(ctx, &mounter.MountOperation{Target: t.TempDir()})
+		elapsed := time.Since(start)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "mount timeout after")
+		assert.Less(t, elapsed, 5*time.Second, "the attempt must stop at the deadline it was given")
+	})
+}
+
+// The examples all fork a preparation subprocess before exec'ing the client, to
+// format a volume or set a quota. Signalling the pid the driver started leaves that
+// subprocess behind holding the inherited stderr pipe open, so cmd.Wait never
+// returns, so the goroutine owning the pid map entry never finishes, and the wait
+// group shutdown blocks on never drains. Killing the group ends all three.
+func TestExtendedMountTimeoutKillsTheWholeProcessGroup(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	m := newTestMounter(t, true, func(string) *exec.Cmd {
+		// `wait` keeps the entrypoint alive and holding the pipe open, which is the
+		// arrangement that deadlocks a pid-only cleanup. The subprocess outliving it
+		// is the point, not an accident of the script.
+		return exec.Command("sh", "-c", "sleep 300 & echo $! > "+pidFile+"; wait")
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := m.ExtendedMount(ctx, &mounter.MountOperation{Target: t.TempDir()})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "process group terminated with SIGTERM")
+	child := waitForPid(t, pidFile)
+	require.Eventually(t, func() bool { return !processAlive(child) },
+		10*time.Second, 50*time.Millisecond,
+		"the subprocess the entrypoint forked must not outlive the mount attempt")
+	assert.True(t, waitGroupTimeout(&m.driver.wg, 10*time.Second),
+		"cmd.Wait is still blocked on a stderr pipe somebody left open")
+
+	var tracked int
+	m.driver.pids.Range(func(_, _ any) bool { tracked++; return true })
+	assert.Zero(t, tracked, "a stale entry gets signalled again on the next shutdown")
+}
+
+// A driver that ignores SIGTERM must still return within the grace the deadline
+// arithmetic reserves for it, or a timed-out mount reports into a connection the
+// caller has already abandoned.
+func TestExtendedMountTimeoutHonoursShutdownGrace(t *testing.T) {
+	m := newTestMounter(t, true, func(string) *exec.Cmd {
+		// The shell itself ignores SIGTERM and is the process being waited on, so
+		// only SIGKILL ends it. Its sleeps are short so it never blocks on a child.
+		return exec.Command("sh", "-c", "trap '' TERM; while :; do sleep 0.1; done")
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	err := m.ExtendedMount(ctx, &mounter.MountOperation{Target: t.TempDir()})
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	t.Logf("returned after %v", elapsed)
+	assert.Less(t, elapsed, 200*time.Millisecond+proxy.MountShutdownGrace+time.Second,
+		"winding down took longer than the reserved grace")
+	assert.Greater(t, elapsed, proxy.MountShutdownGrace,
+		"SIGKILL came early, so the grace is not the one the deadline reserves")
+}
+
+// Shutdown has to end on the driver's terms rather than the entrypoint's. An
+// entrypoint that ignores SIGTERM keeps its subprocess alive too, since SIG_IGN
+// survives both fork and exec, so nothing here would end without escalating.
+func TestTerminateEscalatesPastAnEntrypointThatIgnoresSIGTERM(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	m := newTestMounter(t, true, func(string) *exec.Cmd {
+		return exec.Command("sh", "-c", "trap '' TERM; sleep 300 & echo $! > "+pidFile+"; wait")
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	mountErr := make(chan error, 1)
+	go func() {
+		mountErr <- m.ExtendedMount(ctx, &mounter.MountOperation{Target: t.TempDir()})
+	}()
+
+	child := waitForPid(t, pidFile)
+	require.True(t, processAlive(child), "the subprocess has to be running for this to mean anything")
+	require.Eventually(t, func() bool {
+		tracked := false
+		m.driver.pids.Range(func(_, _ any) bool {
+			tracked = true
+			return false
+		})
+		return tracked
+	}, 10*time.Second, 10*time.Millisecond,
+		"the driver has to be tracking the mount before shutdown means anything")
+
+	start := time.Now()
+	m.driver.Terminate()
+	elapsed := time.Since(start)
+
+	t.Logf("Terminate returned after %v", elapsed)
+	assert.Greater(t, elapsed, proxy.MountShutdownGrace,
+		"it escalated before waiting out the grace it is supposed to give")
+	assert.Less(t, elapsed, proxy.MountShutdownGrace+3*time.Second,
+		"shutdown must end on its own terms, not on the entrypoint's")
+	require.Eventually(t, func() bool { return !processAlive(child) },
+		10*time.Second, 50*time.Millisecond,
+		"the subprocess the entrypoint forked must not outlive shutdown")
+	assert.Error(t, <-mountErr, "the mount attempt it interrupted has to report that")
+}
+
+// A group that has already exited is, from the driver's side, indistinguishable from
+// one that never started. Reporting either as a failure would put a spurious error in
+// the log of every shutdown that races a normal unmount.
+func TestSignalGroupToleratesAProcessAlreadyGone(t *testing.T) {
+	// Well above any pid the kernel hands out, so this cannot reach a process that
+	// exists and cannot land on one whose pid was recycled.
+	const absent = 1 << 30
+	assert.NoError(t, signalGroup(absent, syscall.SIGTERM))
+	assert.NoError(t, signalGroup(absent, syscall.SIGKILL))
 }

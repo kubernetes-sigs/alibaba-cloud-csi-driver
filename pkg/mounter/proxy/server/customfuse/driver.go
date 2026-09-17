@@ -1,7 +1,6 @@
 package customfuse
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -35,6 +34,9 @@ func init() {
 
 type Driver struct {
 	mounter.Mounter
+	// pids holds the pid of every entrypoint this driver started that has not yet
+	// exited. Each is its own process group leader, so the pid is also the group id
+	// to signal, and nothing else about the process is needed after it starts.
 	pids           sync.Map
 	monitorManager *server.MountMonitorManager
 	wg             sync.WaitGroup
@@ -70,19 +72,75 @@ func (h *Driver) ApplyOptionDefaults(options []string) []string {
 	return options
 }
 
+// signalGroup signals the whole process group the entrypoint leads, rather than the
+// entrypoint's pid. Signalling the pid alone leaves behind whatever it started
+// before exec'ing the client — the examples all do, to format a volume or set a
+// quota — and a leftover child holding the inherited stderr pipe keeps cmd.Wait
+// blocked on a write end that never closes, which is what the driver's wait group
+// then waits on.
+//
+// A group that is already gone is not an error: from here that is indistinguishable
+// from a clean exit, and is what os.Process.Signal reported as os.ErrProcessDone.
+//
+// What this kills becomes zombies reparented to this process, which is PID 1 of the
+// fuse pod container, and nothing reaps them. That is deliberate. A SIGCHLD handler
+// calling Wait4(-1, ...) would race os/exec for the driver's own children and turn a
+// clean exit into ECHILD, which the mount monitor reads as a failure; and an init in
+// front, the usual alternative, cannot be added because the entrypoint runs in an
+// image the customer builds. Zombies cost a pid slot and nothing that grows — the
+// kernel has already released their descriptors, including that pipe.
+func signalGroup(pid int, sig syscall.Signal) error {
+	err := syscall.Kill(-pid, sig)
+	if errors.Is(err, syscall.ESRCH) {
+		return nil
+	}
+	return err
+}
+
+// waitGroupTimeout waits for wg, giving up after d, and reports whether it drained.
+func waitGroupTimeout(wg *sync.WaitGroup, d time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return true
+	case <-time.After(d):
+		return false
+	}
+}
+
 func (h *Driver) Terminate() {
 	h.monitorManager.StopAllMonitoring()
 
-	h.pids.Range(func(key, value any) bool {
-		if err := value.(*exec.Cmd).Process.Signal(syscall.SIGTERM); err != nil {
-			klog.ErrorS(err, "Failed to terminate customfuse process", "pid", key)
+	h.pids.Range(func(key, _ any) bool {
+		pid := key.(int)
+		if err := signalGroup(pid, syscall.SIGTERM); err != nil {
+			klog.ErrorS(err, "Failed to terminate customfuse process group", "pid", pid)
 		}
-		klog.V(4).InfoS("Sent sigterm to customfuse process", "pid", key)
+		klog.V(4).InfoS("Sent sigterm to customfuse process group", "pid", pid)
 		return true
 	})
 
 	h.monitorManager.WaitForAllMonitoring()
-	h.wg.Wait()
+
+	// Bounded, where a plain Wait is not: an entrypoint that ignores SIGTERM would
+	// otherwise hold this shutdown open indefinitely. Escalating to the groups ends
+	// it, because the kernel closes every member's descriptors, and that is what
+	// releases the stderr pipe cmd.Wait is blocked on.
+	if !waitGroupTimeout(&h.wg, proxy.MountShutdownGrace) {
+		klog.InfoS("customfuse processes outlived SIGTERM, escalating", "grace", proxy.MountShutdownGrace)
+		h.pids.Range(func(key, _ any) bool {
+			pid := key.(int)
+			if err := signalGroup(pid, syscall.SIGKILL); err != nil {
+				klog.ErrorS(err, "Failed to kill customfuse process group", "pid", pid)
+			}
+			return true
+		})
+		h.wg.Wait()
+	}
 	klog.InfoS("All customfuse processes and monitoring goroutines exited")
 }
 
@@ -103,6 +161,13 @@ type extendedMounter struct {
 
 var _ mounter.Mounter = &extendedMounter{}
 
+// newEntrypointCmd builds the command that runs the entrypoint. It is a package
+// variable so tests can drive ExtendedMount with a stand-in process instead of a
+// script at one of the two fixed paths this container looks at.
+var newEntrypointCmd = func(path string) *exec.Cmd {
+	return exec.Command(path)
+}
+
 func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) error {
 	startTime := time.Now()
 	logger := klog.FromContext(ctx)
@@ -120,15 +185,18 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	}
 	logger.Info("Using entrypoint", "path", entrypoint)
 
-	var stderrBuf bytes.Buffer
-	multiWriter := io.MultiWriter(os.Stderr, &stderrBuf)
+	stderrBuf := newStderrTail(stderrTailLimit)
+	multiWriter := io.MultiWriter(os.Stderr, stderrBuf)
 	sw := server.NewSwitchableWriter(multiWriter)
-	cmd := exec.Command(entrypoint)
+	cmd := newEntrypointCmd(entrypoint)
 	// Safe to append after the inherited environment: buildEnvVars refuses any
 	// name it already defines, so nothing here can shadow it.
 	cmd.Env = append(os.Environ(), env...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = sw
+	// Its own process group, so that cleanup reaches what the entrypoint starts
+	// before exec'ing the client, and not just the entrypoint. See signalGroup.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	defer func() {
 		sw.SwitchTarget(os.Stderr)
 	}()
@@ -142,7 +210,7 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 
 	exited := make(chan error, 1)
 	m.driver.wg.Add(1)
-	m.driver.pids.Store(pid, cmd)
+	m.driver.pids.Store(pid, struct{}{})
 	go func() {
 		defer m.driver.wg.Done()
 		defer m.driver.pids.Delete(pid)
@@ -192,15 +260,15 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	}
 
 	if wait.Interrupted(err) {
-		err = fmt.Errorf("customfuse mount timeout after %s, pid=%d, mountpoint=%s, process terminated with SIGTERM",
+		err = fmt.Errorf("customfuse mount timeout after %s, pid=%d, mountpoint=%s, process group terminated with SIGTERM",
 			time.Since(startTime).Round(time.Second), pid, target)
-		if terr := cmd.Process.Signal(syscall.SIGTERM); terr != nil {
+		if terr := signalGroup(pid, syscall.SIGTERM); terr != nil {
 			logger.Error(err, "Failed to terminate entrypoint", "pid", pid, "signalErr", terr)
 		}
 		select {
 		case <-exited:
 		case <-time.After(proxy.MountShutdownGrace):
-			if kerr := cmd.Process.Kill(); kerr != nil && !errors.Is(kerr, os.ErrProcessDone) {
+			if kerr := signalGroup(pid, syscall.SIGKILL); kerr != nil {
 				logger.Error(err, "Failed to kill entrypoint", "pid", pid, "killErr", kerr)
 			}
 		}
