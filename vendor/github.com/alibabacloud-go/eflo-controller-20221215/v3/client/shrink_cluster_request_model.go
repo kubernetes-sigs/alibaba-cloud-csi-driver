@@ -24,13 +24,13 @@ type ShrinkClusterRequest struct {
 	//
 	// i15dfa12e8f27c44f4a006c2c8bb
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// Specifies whether to allow skipping failed nodes. Default value: False.
+	// Specifies whether to skip failed nodes. The default value is False.
 	//
 	// example:
 	//
 	// False
 	IgnoreFailedNodeTasks *bool `json:"IgnoreFailedNodeTasks,omitempty" xml:"IgnoreFailedNodeTasks,omitempty"`
-	// The node groups.
+	// The information about the node groups.
 	NodeGroups []*ShrinkClusterRequestNodeGroups `json:"NodeGroups,omitempty" xml:"NodeGroups,omitempty" type:"Repeated"`
 }
 
@@ -83,6 +83,7 @@ func (s *ShrinkClusterRequest) Validate() error {
 }
 
 type ShrinkClusterRequestNodeGroups struct {
+	// The list of hyper nodes.
 	HyperNodes []*ShrinkClusterRequestNodeGroupsHyperNodes `json:"HyperNodes,omitempty" xml:"HyperNodes,omitempty" type:"Repeated"`
 	// The node group ID.
 	//
@@ -90,7 +91,7 @@ type ShrinkClusterRequestNodeGroups struct {
 	//
 	// ng-3b6fbd24b1b845a0
 	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
-	// The nodes.
+	// The list of nodes.
 	Nodes []*ShrinkClusterRequestNodeGroupsNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
 }
 
@@ -152,6 +153,11 @@ func (s *ShrinkClusterRequestNodeGroups) Validate() error {
 }
 
 type ShrinkClusterRequestNodeGroupsHyperNodes struct {
+	// The hyper node ID.
+	//
+	// example:
+	//
+	// e01-cn-zvp2tgykr08
 	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
 }
 

@@ -46,69 +46,102 @@ type iDescribeHyperNodeResponseBody interface {
 }
 
 type DescribeHyperNodeResponseBody struct {
+	// The cluster ID.
+	//
 	// example:
 	//
 	// i119982311660892626523
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
+	// The cluster name.
+	//
 	// example:
 	//
 	// Standard_Cluster
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
+	// The time when the hyper node was created.
+	//
 	// example:
 	//
 	// 2022-11-30T02:00:00.852Z
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	// The expiration time.
+	//
 	// example:
 	//
 	// 2125-06-24T16:52:44.318000
 	ExpireTime *string `json:"ExpireTime,omitempty" xml:"ExpireTime,omitempty"`
+	// Indicates whether file storage mounting is supported.
+	//
 	// example:
 	//
 	// True
 	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
+	// The hostname.
+	//
 	// example:
 	//
 	// alywlcb-lingjun-gpu-0025
 	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
+	// The cluster number.
+	//
 	// example:
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// The ID of the hyper node.
+	//
 	// example:
 	//
 	// e01-cn-zvp2tgykr08
 	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
+	// The machine type.
+	//
 	// example:
 	//
 	// efg1.nvga1
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
+	// The node group ID.
+	//
 	// example:
 	//
 	// ng-ec3c96ff0aa4c60d
 	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	// The name of the node group.
+	//
 	// example:
 	//
 	// lisan-nodegroup
-	NodeGroupName *string                               `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
-	Nodes         []*DescribeHyperNodeResponseBodyNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
+	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
+	// The list of nodes.
+	Nodes []*DescribeHyperNodeResponseBodyNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
+	// The state of the hyper node.
+	//
 	// example:
 	//
 	// Using
 	OperatingState *string `json:"OperatingState,omitempty" xml:"OperatingState,omitempty"`
+	// The request ID.
+	//
 	// example:
 	//
 	// D6058705-1C45-35C9-9461-02504897D4D0
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// The resource group ID.
+	//
 	// example:
 	//
 	// rg-acfmxno4vh5****
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 	// Deprecated
 	//
+	// The state of the node.
+	//
 	// example:
 	//
 	// Operating
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The zone ID.
+	//
 	// example:
 	//
 	// cn-wulanchabu-c
@@ -290,34 +323,50 @@ func (s *DescribeHyperNodeResponseBody) Validate() error {
 }
 
 type DescribeHyperNodeResponseBodyNodes struct {
+	// The disk information.
 	Disks []*DescribeHyperNodeResponseBodyNodesDisks `json:"Disks,omitempty" xml:"Disks,omitempty" type:"Repeated"`
+	// The hostname.
+	//
 	// example:
 	//
 	// 457db5ca-241d-11ed-9fd7-acde48001122
 	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
+	// The image ID.
+	//
 	// example:
 	//
 	// i190297201669099844192
 	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
+	// The image name.
+	//
 	// example:
 	//
 	// Alinux3_x86_gu8xf_P_Host_D3_C7E3_550.127_Legacy_N_241230
-	ImageName *string                                     `json:"ImageName,omitempty" xml:"ImageName,omitempty"`
-	Networks  *DescribeHyperNodeResponseBodyNodesNetworks `json:"Networks,omitempty" xml:"Networks,omitempty" type:"Struct"`
+	ImageName *string `json:"ImageName,omitempty" xml:"ImageName,omitempty"`
+	// The network information.
+	Networks *DescribeHyperNodeResponseBodyNodesNetworks `json:"Networks,omitempty" xml:"Networks,omitempty" type:"Struct"`
+	// The node ID.
+	//
 	// example:
 	//
 	// e01-cn-zvp2tgykr0b
 	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	// The state of the node.
+	//
 	// example:
 	//
 	// Using
 	OperatingState *string `json:"OperatingState,omitempty" xml:"OperatingState,omitempty"`
 	// Deprecated
 	//
+	// The state.
+	//
 	// example:
 	//
 	// InProgress
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The user-defined script.
+	//
 	// example:
 	//
 	// #!/bin/bash
@@ -436,22 +485,44 @@ func (s *DescribeHyperNodeResponseBodyNodes) Validate() error {
 }
 
 type DescribeHyperNodeResponseBodyNodesDisks struct {
+	// The packet classification. Valid values:
+	//
+	// - **DOWNLINK_PACKET**: downlink packet
+	//
+	// - **UPLINK_PACKET**: uplink packet
+	//
 	// example:
 	//
 	// DOWNLINK_PACKET
 	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	// The disk ID.
+	//
 	// example:
 	//
 	// d-bp1564bcc2306uui4zpk
 	DiskId *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
+	// When you create an enhanced SSD (ESSD) to use as a system disk, set the performance level of the disk. Valid values:
+	//
+	// - PL0: A maximum of 10,000 random read/write input/output operations per second (IOPS) per disk.
+	//
+	// - PL1: A maximum of 50,000 random read/write IOPS per disk.
+	//
 	// example:
 	//
 	// PL0
 	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
+	// The disk size. Unit: GiB.
+	//
 	// example:
 	//
 	// 5
 	Size *int32 `json:"Size,omitempty" xml:"Size,omitempty"`
+	// The disk type. Valid values:
+	//
+	// - system: system disk.
+	//
+	// - data: data disk.
+	//
 	// example:
 	//
 	// system
@@ -516,10 +587,14 @@ func (s *DescribeHyperNodeResponseBodyNodesDisks) Validate() error {
 }
 
 type DescribeHyperNodeResponseBodyNodesNetworks struct {
+	// The name of the network interface on the machine.
+	//
 	// example:
 	//
 	// bond0
 	BondName *string `json:"BondName,omitempty" xml:"BondName,omitempty"`
+	// The IP address of the machine in the virtual private cloud (VPC).
+	//
 	// example:
 	//
 	// 192.168.22.2

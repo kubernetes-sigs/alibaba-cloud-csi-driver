@@ -20,15 +20,28 @@ type iListFreeHyperNodesResponseBody interface {
 }
 
 type ListFreeHyperNodesResponseBody struct {
+	// The list of nodes.
 	HyperNodes []*ListFreeHyperNodesResponseBodyHyperNodes `json:"HyperNodes,omitempty" xml:"HyperNodes,omitempty" type:"Repeated"`
+	// The number of entries returned on each page. The maximum value is 100.
+	//
+	// Default value:
+	//
+	// • If you do not set this parameter or you set a value less than 20, the default value is 20.
+	//
+	// • If you set a value greater than 100, the default value is 100.
+	//
 	// example:
 	//
 	// 20
 	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// The token to retrieve the next page of results. If this parameter is empty, no more results are available.
+	//
 	// example:
 	//
 	// 563d42ae0b17572449ec8c97f7f66069
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The request ID.
+	//
 	// example:
 	//
 	// A511C02A-0127-51AA-A9F9-966382C9A1B5
@@ -93,49 +106,72 @@ func (s *ListFreeHyperNodesResponseBody) Validate() error {
 }
 
 type ListFreeHyperNodesResponseBodyHyperNodes struct {
+	// The commodity code.
+	//
 	// example:
 	//
 	// bccluster_eflocomputing_public_cn
 	CommodityCode *string `json:"CommodityCode,omitempty" xml:"CommodityCode,omitempty"`
+	// The time when the node was created.
+	//
 	// example:
 	//
 	// 2025-08-06T10:11:41.569
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	// The expiration time of the machine.
+	//
 	// example:
 	//
 	// 2025-01-22T23:59:59Z
 	ExpireTime *string `json:"ExpireTime,omitempty" xml:"ExpireTime,omitempty"`
+	// The hostname.
+	//
 	// example:
 	//
 	// alywlcb-lingjun-gpu-0025
 	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
+	// The cluster ID.
+	//
 	// example:
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// The node ID.
+	//
 	// example:
 	//
 	// e01-cn-7pp2x193801
 	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
+	// The machine type.
+	//
 	// example:
 	//
 	// efg2.ks01L20Z2
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
+	// The status of the hypernode.
+	//
 	// example:
 	//
 	// Using
 	OperatingState *string `json:"OperatingState,omitempty" xml:"OperatingState,omitempty"`
+	// The resource group ID.
+	//
 	// example:
 	//
 	// rg-acfmwaateahzoii
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 	// Deprecated
 	//
+	// The status of the hypernode.
+	//
 	// example:
 	//
 	// Using
-	Status *string                                         `json:"Status,omitempty" xml:"Status,omitempty"`
-	Tags   []*ListFreeHyperNodesResponseBodyHyperNodesTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The list of tags.
+	Tags []*ListFreeHyperNodesResponseBodyHyperNodesTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	// The zone ID.
+	//
 	// example:
 	//
 	// cn-wulanchabu-a
@@ -272,10 +308,14 @@ func (s *ListFreeHyperNodesResponseBodyHyperNodes) Validate() error {
 }
 
 type ListFreeHyperNodesResponseBodyHyperNodesTags struct {
+	// The tag key.
+	//
 	// example:
 	//
 	// Cpu_Usage
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The tag value.
+	//
 	// example:
 	//
 	// on
