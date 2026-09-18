@@ -11,13 +11,18 @@ RUN --mount=type=bind,target=. \
     go build -o /out/csi-mount-proxy-client ./cmd/mount-proxy-client
 
 
-FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS rpm-builder
-RUN yum install -y rpm-build
-RUN --mount=type=bind,source=build/mount-proxy/python3-provider.spec,target=/tmp/python3-provider.spec \
-    rpmbuild -bb /tmp/python3-provider.spec
-
-
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:4-update AS alinux-install
+
+#################### TINI (PID 1 REAPER) ####################
+# tini is not packaged in the alinux4 repos; pull it from EPEL 9. Only the binary is
+# copied into the runtime stages so the EPEL repo config stays out of the final images.
+
+FROM alinux-install AS tini-builder
+RUN yum install -y https://mirrors.aliyun.com/epel/epel-release-latest-9.noarch.rpm && \
+    yum install -y tini && \
+    yum clean all
+
+#################### TINI (PID 1 REAPER) ####################
 
 #################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
 
@@ -134,21 +139,17 @@ ARG ALINAS_UTILS_VERSION=2.6-0.20261008193659.3491d1.generic
 ARG EFC_VERSION=2.6-20261008165411.3de2c9.b247282.release
 ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.6
 
-RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
-    echo 'install_weak_deps=False' >> /etc/yum.conf; \
+RUN echo 'install_weak_deps=False' >> /etc/yum.conf; \
     set -ex; \
     case "${TARGETPLATFORM}" in \
         linux/amd64) ARCH="x86_64" ;; \
         linux/arm64) ARCH="aarch64" ;; \
         *) echo "unsupported platform"; exit 1 ;; \
     esac; \
-    yum install -y /tmp/rpms/python3-provider-*.rpm util-linux procps tini openssl; \
+    yum install -y util-linux procps openssl; \
     yum install -y ${ALINAS_RPM_BASE_URL}/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.${ARCH}.rpm; \
     yum install -y ${ALINAS_RPM_BASE_URL}/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
-    yum clean all; \
-    # python3-pyyaml is only used by nfsdclnts (NFS server diagnostic tool, irrelevant here).
-    # Remove it to silence CVE scans.
-    rpm -e --nodeps python3-pyyaml
+    yum clean all
 # alinas-utils generates some dynamic configuration files (such as TLS keys, etc.) under /etc/aliyun/{alinas,cpfs}.
 # So we will mount a hostPath to prevent the loss of these files when the container restarts.
 # On the first launch, /etc/aliyun-defaults will be used to initialize the configurations under /etc/aliyun/{alinas,cpfs}.
@@ -158,6 +159,7 @@ RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=
 RUN cp -r /etc/aliyun /etc/aliyun-defaults
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
+COPY --link --from=tini-builder /usr/bin/tini /usr/bin/tini
 ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas" ]
 
 #################### ALINAS MOUNT-PROXY IMAGE ####################
@@ -189,26 +191,23 @@ ARG ALINAS_UTILS_VERSION=2.6-0.20261008193659.3491d1.generic
 ARG EFC_VERSION=2.6-20261008165411.3de2c9.b247282.release
 ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.6
 
-RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
-    echo 'install_weak_deps=False' >> /etc/yum.conf; \
+RUN echo 'install_weak_deps=False' >> /etc/yum.conf; \
     set -ex; \
     case "${TARGETPLATFORM}" in \
         linux/amd64) OSSFS_ARCH="x86_64"; ALINAS_ARCH="x86_64" ;; \
         linux/arm64) OSSFS_ARCH="aarch_64"; ALINAS_ARCH="aarch64" ;; \
         *) echo "unknown platform"; exit 1 ;; \
     esac; \
-    yum install -y /tmp/rpms/python3-provider-*.rpm fuse-devel util-linux mailcap procps tini openssl; \
+    yum install -y fuse-devel util-linux mailcap procps openssl; \
     yum install -y ${OSSFS_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
     yum install -y ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
     yum install -y ${ALINAS_RPM_BASE_URL}/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.${ALINAS_ARCH}.rpm; \
     yum install -y ${ALINAS_RPM_BASE_URL}/alinas-efc-${EFC_VERSION}.${ALINAS_ARCH}.rpm; \
     cp -r /etc/aliyun /etc/aliyun-defaults; \
-    yum clean all; \
-    # python3-pyyaml is only used by nfsdclnts (NFS server diagnostic tool, irrelevant here).
-    # Remove it to silence CVE scans.
-    rpm -e --nodeps python3-pyyaml
+    yum clean all
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
+COPY --link --from=tini-builder /usr/bin/tini /usr/bin/tini
 ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas,ossfs,ossfs2" ]
 
 #################### ALL-IN-ONE MOUNT-PROXY IMAGE ####################
