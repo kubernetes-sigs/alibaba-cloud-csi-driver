@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOssfsMonitorInterceptor(t *testing.T) {
+func TestFuseMonitorInterceptor(t *testing.T) {
 	metricsDir := t.TempDir()
 	tests := []struct {
 		name      string
@@ -58,7 +58,7 @@ func TestOssfsMonitorInterceptor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := OssfsMonitorInterceptor(context.Background(), tt.op, tt.handler)
+			err := FuseMonitorInterceptor(context.Background(), tt.op, tt.handler)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return
@@ -86,12 +86,12 @@ func TestOssfsMonitorInterceptor(t *testing.T) {
 	op := &mounter.MountOperation{
 		Target:      "volume1",
 		MetricsPath: metricsDir,
-		MountResult: server.OssfsMountResult{
+		MountResult: server.FuseMountResult{
 			PID:      123,
 			ExitChan: make(chan error),
 		},
 	}
-	err := OssfsMonitorInterceptor(context.Background(), op, successMountHandler)
+	err := FuseMonitorInterceptor(context.Background(), op, successMountHandler)
 	assert.NoError(t, err)
 	monitor, found := monitorManager.GetMountMonitor(op.Target, op.MetricsPath, raw, false)
 	assert.True(t, found)
@@ -99,7 +99,7 @@ func TestOssfsMonitorInterceptor(t *testing.T) {
 	assertMountMetricValue(t, op.MetricsPath, utils.MetricsMountPointStatus, "0")
 	assertMountMetricValue(t, op.MetricsPath, utils.MetricsMountRetryCount, "0")
 
-	err = OssfsMonitorInterceptor(context.Background(), op, failureMountHandler)
+	err = FuseMonitorInterceptor(context.Background(), op, failureMountHandler)
 	assert.Error(t, err)
 	assertMountMetricValue(t, op.MetricsPath, utils.MetricsMountPointStatus, "1")
 	assertMountMetricValue(t, op.MetricsPath, utils.MetricsMountRetryCount, "1")

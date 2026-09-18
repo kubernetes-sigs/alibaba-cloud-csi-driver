@@ -1,0 +1,41 @@
+# Demo 4: Production ConfigMap
+#
+# Hardcodes production-grade format and mount options.
+# PV only needs to provide instance-specific values (source, bucket, url).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-production
+  namespace: ack-csi-customfuse
+data:
+  entrypoint.sh: |
+    #!/bin/bash
+    set -e
+
+    # ── 1. Format ──
+    # production: disable trash (dev uses 2)
+    juicefs format \
+        --storage=oss \
+        --bucket="http://$bucket.$url" \
+        --access-key="$accessKeyId" \
+        --secret-key="$accessKeySecret" \
+        --block-size=4096 \
+        --trash-days=0 \
+        "$source" myjfs
+
+    # ── 2. Credential cleanup ──
+    unset accessKeyId accessKeySecret akId akSecret
+
+    # ── 3. Mount ──
+    # production: large read cache (dev uses cache-size=256). No writeback — the
+    # fuse pod mounts no cache volume, so /var/jfsCache dies with the pod.
+    MOUNT_OPTS="cache-size=4096,cache-dir=/var/jfsCache,buffer-size=300,prefetch=1"
+    [ -n "$path" ] && MOUNT_OPTS="${MOUNT_OPTS},subdir=${path}"
+    [ "$readOnly" = "true" ] && MOUNT_OPTS="${MOUNT_OPTS},ro"
+
+    echo "Mounting at $mountpoint with options: ${MOUNT_OPTS:-none}"
+    # Absolute path: JuiceFS only acts as the mount helper when argv[0] ends in
+    # "/mount.juicefs". JFS_FOREGROUND: the helper daemonizes otherwise, and
+    # mount-proxy tracks the entrypoint process.
+    export JFS_FOREGROUND=1
+    exec /bin/mount.juicefs "$source" "$mountpoint" ${MOUNT_OPTS:+-o "$MOUNT_OPTS"}

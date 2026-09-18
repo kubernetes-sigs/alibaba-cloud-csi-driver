@@ -1,0 +1,60 @@
+# Demo 2: OSS-compatible PV
+#
+# This PV follows the same pattern as OSS static volumes:
+# all parameters are in volumeAttributes (fuseType, source, bucket, url, otherOpts).
+# No pv.spec.mountOptions needed.
+#
+# For the alternative style using pv.spec.csi.fsType and pv.spec.mountOptions,
+# see ../3-standard.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-oss-pv
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: customfuseplugin.csi.alibabacloud.com
+    volumeHandle: juicefs-oss-pv
+    volumeAttributes:
+      # fuseType: identifies the FUSE client for metrics and image resolution.
+      # Maps to ConfigMap key "fuse-<fuseType>" in csi-plugin.
+      fuseType: "juicefs"
+
+      # source: opaque mount source passed to entrypoint as $source.
+      # Configuration only — credentials belong in the Secret, not here.
+      source: "redis://redis-host.default.svc:6379/1"
+
+      # dnsPolicy: the fuse pod is on the host network, where the default
+      # ClusterFirst resolves through the node rather than the cluster — so the
+      # in-cluster service name above would not resolve without this. Drop it when
+      # the endpoint is reached by IP or by a public name.
+      dnsPolicy: "ClusterFirstWithHostNet"
+
+      # bucket: passed to entrypoint as $bucket.
+      bucket: "my-jfs-data"
+
+      # url: passed to entrypoint as $url.
+      url: "oss-cn-hangzhou-internal.aliyuncs.com"
+
+      # otherOpts: comma-separated mount options passed as $otherOpts, one whole
+      # string the driver never splits. It cannot be extended later from
+      # spec.mountOptions; entrypoint.sh also appends $extraOpts, so an existing
+      # volume gains an option through an "extraOpts=..." entry there instead.
+      otherOpts: "cache-size=1024,buffer-size=300"
+
+      # capacity: volume quota, passed as $capacity to entrypoint.
+      # Plain integer or Kubernetes Quantity (e.g. 100, 100Gi, 1Ti).
+      # Entrypoint strips suffix if needed: capacity=${capacity%Gi}
+      # volumeAttributes cannot be edited after the PV is created; to raise the
+      # quota later, put "capacity=<value>" in spec.mountOptions, which is
+      # editable. It may only go up — a smaller value is ignored and logged, as
+      # Kubernetes itself refuses to shrink a claim.
+      capacity: "100Gi"
+
+    nodePublishSecretRef:
+      name: juicefs-oss-creds
+      namespace: default

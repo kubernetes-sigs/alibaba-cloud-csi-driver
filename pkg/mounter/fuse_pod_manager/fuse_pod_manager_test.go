@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	k8sver "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes/fake"
 	clientgotesting "k8s.io/client-go/testing"
 	"k8s.io/klog/v2/ktesting"
@@ -45,7 +47,7 @@ func Test_ExtractFuseContainerConfig(t *testing.T) {
 				corev1.ResourceMemory: resource.MustParse("500Mi"),
 			},
 		},
-		Image:    "",
+		Image:    "ossfs:latest",
 		Dbglevel: "info",
 		Extra: map[string]string{
 			"mime-support": "false",
@@ -163,6 +165,69 @@ func TestDelete(t *testing.T) {
 			pods, err := client.CoreV1().Pods("test-fuse").List(ctx, metav1.ListOptions{})
 			require.NoError(t, err)
 			assert.Empty(t, pods.Items)
+		})
+	}
+}
+
+func TestShouldConstrainResourceVersion(t *testing.T) {
+	tests := []struct {
+		name             string
+		k8sVersion       *k8sver.Version
+		featureGateValue string // "true", "false", or "" (not set)
+		expectedResult   bool
+	}{
+		{
+			name:           "K8s 1.31 should not constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 31),
+			expectedResult: false,
+		},
+		{
+			name:           "K8s 1.32 should not constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 32),
+			expectedResult: false,
+		},
+		{
+			name:           "K8s 1.30 should constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 30),
+			expectedResult: true,
+		},
+		{
+			name:           "K8s 1.28 should constrain RV",
+			k8sVersion:     k8sver.MajorMinor(1, 28),
+			expectedResult: true,
+		},
+		{
+			name:           "nil version should constrain RV",
+			k8sVersion:     nil,
+			expectedResult: true,
+		},
+		{
+			name:             "FeatureGate=true should override K8s 1.31",
+			k8sVersion:       k8sver.MajorMinor(1, 31),
+			featureGateValue: "true",
+			expectedResult:   true,
+		},
+		{
+			name:             "FeatureGate=false should override K8s 1.30",
+			k8sVersion:       k8sver.MajorMinor(1, 30),
+			featureGateValue: "false",
+			expectedResult:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.featureGateValue != "" {
+				assert.NoError(t, features.FunctionalMutableFeatureGate.SetFromMap(map[string]bool{
+					string(features.ConstrainFusePodDeleteRV): tt.featureGateValue == "true",
+				}))
+				t.Cleanup(func() {
+					assert.NoError(t, features.FunctionalMutableFeatureGate.ResetFeatureValueToDefault(features.ConstrainFusePodDeleteRV))
+				})
+			}
+
+			result := ShouldConstrainResourceVersion(tt.k8sVersion)
+			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
 }

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juicefs-baked-in-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  volumeName: juicefs-baked-in-pv
+  storageClassName: ""

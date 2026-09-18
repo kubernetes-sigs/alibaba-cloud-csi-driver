@@ -27,12 +27,12 @@ func TestSetDefaultImage(t *testing.T) {
 		expectedImage    string
 	}{
 		{
-			name:     "ImageAlreadySet",
-			fuseType: mounterutils.OssFsType,
-			config: &fpm.FuseContainerConfig{
-				Image: "custom-image",
-			},
-			expectedImage: "custom-image",
+			// The shared parser hands over whatever the configmap named. ossfs derives
+			// its image from the release registry instead, so the name is dropped.
+			name:          "ConfigMapImageDiscarded",
+			fuseType:      mounterutils.OssFsType,
+			config:        &fpm.FuseContainerConfig{Image: "custom-image"},
+			expectedImage: fmt.Sprintf("%s/%s/csi-ossfs:%s", utils.DefImageRegistry, utils.DefImageNamespace, defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:             "PrefixSet",

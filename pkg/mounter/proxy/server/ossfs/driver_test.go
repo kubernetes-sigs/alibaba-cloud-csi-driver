@@ -135,8 +135,8 @@ func TestExtendedMount(t *testing.T) {
 
 		require.NoError(t, m.ExtendedMount(context.Background(), op))
 
-		res, ok := op.MountResult.(server.OssfsMountResult)
-		require.True(t, ok, "MountResult must carry OssfsMountResult")
+		res, ok := op.MountResult.(server.FuseMountResult)
+		require.True(t, ok, "MountResult must carry FuseMountResult")
 		assert.NotZero(t, res.PID)
 	})
 

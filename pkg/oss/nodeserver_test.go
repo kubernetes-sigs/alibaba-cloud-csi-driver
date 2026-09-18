@@ -23,6 +23,12 @@ import (
 )
 
 // setupTestNodeServer creates a test nodeServer with minimal required fields
+func setupTestNodeServerWithProxySock(t *testing.T, mounter mountutils.Interface, skipGlobalMount bool, mountProxySock string) *nodeServer {
+	ns := setupTestNodeServer(t, mounter, skipGlobalMount)
+	ns.mountProxySock = mountProxySock
+	return ns
+}
+
 func setupTestNodeServer(t *testing.T, mounter mountutils.Interface, skipGlobalMount bool) *nodeServer {
 	fakeMeta := &metadata.FakeProvider{
 		Values: map[metadata.MetadataKey]string{
@@ -255,7 +261,7 @@ func TestNodePublishVolume_RuntimeTypes(t *testing.T) {
 			// Get attachPath after setting fuse attach base dir
 			var attachPath string
 			if tt.runtimeType == RuntimeTypeRunC {
-				attachPath = mounterutils.GetAttachPath("test-volume-id")
+				attachPath = mounterutils.GetAttachPath("test-volume-id", mounterutils.OssFuseAttachDir)
 				// Create parent directories for attachPath
 				require.NoError(t, os.MkdirAll(filepath.Dir(attachPath), 0o755))
 				// If attachPath should be mounted, create the attachPath directory itself
@@ -627,4 +633,95 @@ func TestNodePublishVolume_RunC_BindMount(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The dial error names the socket it tried, which is the only observable difference
+// between the two settings: nothing is listening at either path in a unit test, so
+// "call mounter daemon" alone is what every case produces and tells you nothing
+// about which one won.
+func TestNodePublishVolume_SocketPathPriority(t *testing.T) {
+	const (
+		fromPublishContext = "/run/fuse.ossfs/abc/mounter.sock"
+		fromFlag           = "/run/cnfs/alinas-mounter.sock"
+	)
+	tests := []struct {
+		name               string
+		publishContextSock string
+		flagSock           string
+		dialed             string
+	}{
+		{
+			name:               "the flag wins over PublishContext",
+			publishContextSock: fromPublishContext,
+			flagSock:           fromFlag,
+			dialed:             fromFlag,
+		},
+		{
+			name:     "the flag is used when PublishContext carries nothing",
+			flagSock: fromFlag,
+			dialed:   fromFlag,
+		},
+		{
+			name:               "PublishContext is used when the flag is empty",
+			publishContextSock: fromPublishContext,
+			dialed:             fromPublishContext,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeMounter := mountutils.NewFakeMounter(nil)
+			ns := setupTestNodeServerWithProxySock(t, fakeMounter, false, tt.flagSock)
+
+			req := &csi.NodePublishVolumeRequest{
+				VolumeId:   "test-volume-id",
+				TargetPath: t.TempDir(),
+				VolumeContext: map[string]string{
+					"bucket":   "test-bucket",
+					"url":      "https://oss-cn-beijing.aliyuncs.com",
+					"path":     "/",
+					"fuseType": "ossfs",
+				},
+				VolumeCapability: &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{},
+					},
+				},
+				Secrets: map[string]string{
+					"akId":     "test-akid",
+					"akSecret": "test-aksecret",
+				},
+			}
+			if tt.publishContextSock != "" {
+				req.PublishContext = map[string]string{
+					mountProxySocket: tt.publishContextSock,
+				}
+			}
+
+			_, err := ns.NodePublishVolume(context.Background(), req)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.dialed, "the socket that was dialed")
+		})
+	}
+}
+
+// With neither channel set the request is refused before anything is dialed: OSS
+// cannot tell which runtime it is on without knowing where the mount-proxy is.
+func TestNodePublishVolume_NoSocketAnywhere(t *testing.T) {
+	ns := setupTestNodeServerWithProxySock(t, mountutils.NewFakeMounter(nil), false, "")
+
+	_, err := ns.NodePublishVolume(context.Background(), &csi.NodePublishVolumeRequest{
+		VolumeId:   "test-volume-id",
+		TargetPath: t.TempDir(),
+		VolumeContext: map[string]string{
+			"bucket":   "test-bucket",
+			"url":      "https://oss-cn-beijing.aliyuncs.com",
+			"fuseType": "ossfs",
+		},
+		VolumeCapability: &csi.VolumeCapability{
+			AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{}},
+		},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "socket path is empty")
 }
