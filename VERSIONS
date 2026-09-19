@@ -19,6 +19,11 @@ OSSFS_IMAGE_TAG=v1.91.12.ack.2-5cf3371
 # The RPM version (v<version>) will be extracted automatically
 OSSFS2_IMAGE_TAG=v2.0.9.ack.3-a1f29fc
 
+# OSSFS2 failover image tag (used in Go code only, with fd-passing/recovery feature gates)
+# Format: v<version>-<commit_hash>
+# The RPM version (v<version>) will be extracted automatically
+OSSFS2_FAILOVER_IMAGE_TAG=v2.0.8.ack.1.failover-1fd839a
+
 # ALINAS and EFC Version Configuration
 # This file is the single source of truth for alinas-utils and efc RPM package versions.
 # When updating versions, please update all references:

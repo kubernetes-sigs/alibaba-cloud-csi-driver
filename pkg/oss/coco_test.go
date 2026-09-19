@@ -10,9 +10,12 @@ import (
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/kata/directvolume"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_nodeServer_publishDirectVolume(t *testing.T) {
+	restore := directvolume.SetRootPathForTesting(t.TempDir())
+	defer restore()
 	ns := &nodeServer{}
 	req := &csi.NodePublishVolumeRequest{
 		VolumeId:          "test-id",
@@ -34,16 +37,16 @@ func Test_nodeServer_publishDirectVolume(t *testing.T) {
 		OtherOpts: "-o test -w abc",
 	}
 	resp, err := ns.publishDirectVolume(context.TODO(), req, opts)
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 
 	defer directvolume.Remove(req.TargetPath)
 	ret := isDirectVolumePath(req.TargetPath)
 	assert.True(t, ret)
 
 	info, err := directvolume.VolumeMountInfo(req.TargetPath)
-	assert.NoError(t, err)
-	assert.NotNil(t, info)
+	require.NoError(t, err)
+	require.NotNil(t, info)
 	assert.Equal(t, "alibaba-cloud-oss", info.VolumeType)
 	assert.Equal(t, "secure_mount", info.FsType)
 	assert.Equal(t, []string{"-o", "test", "-w", "abc"}, info.Options)
@@ -62,6 +65,8 @@ func Test_nodeServer_publishDirectVolume(t *testing.T) {
 }
 
 func Test_nodeServer_publishDirectVolume_overwrite_annotations(t *testing.T) {
+	restore := directvolume.SetRootPathForTesting(t.TempDir())
+	defer restore()
 	ns := &nodeServer{}
 	req := &csi.NodePublishVolumeRequest{
 		VolumeId:          "test-id",
@@ -77,16 +82,16 @@ func Test_nodeServer_publishDirectVolume_overwrite_annotations(t *testing.T) {
 	}
 	opts := &ossfpm.Options{}
 	resp, err := ns.publishDirectVolume(context.TODO(), req, opts)
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 
 	defer directvolume.Remove(req.TargetPath)
 	ret := isDirectVolumePath(req.TargetPath)
 	assert.True(t, ret)
 
 	info, err := directvolume.VolumeMountInfo(req.TargetPath)
-	assert.NoError(t, err)
-	assert.NotNil(t, info)
+	require.NoError(t, err)
+	require.NotNil(t, info)
 	assert.Equal(t, "volume_type_v", info.VolumeType)
 	assert.Equal(t, "type_v2", info.FsType)
 	assert.Equal(t, "kata_device_vv", info.Device)
@@ -98,6 +103,8 @@ func Test_nodeServer_publishDirectVolume_overwrite_annotations(t *testing.T) {
 }
 
 func Test_nodeServer_unPublishDirectVolume(t *testing.T) {
+	restore := directvolume.SetRootPathForTesting(t.TempDir())
+	defer restore()
 	ns := &nodeServer{}
 	req := &csi.NodeUnpublishVolumeRequest{
 		VolumeId:   "test-id",

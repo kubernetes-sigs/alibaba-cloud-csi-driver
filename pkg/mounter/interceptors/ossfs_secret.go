@@ -46,24 +46,29 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 		return fmt.Errorf("prepare credential files failed: %w", err)
 	}
 
-	// Check if mount point already exists for token rotation scenario.
+	// Check if we should skip mount for token rotation.
 	// In token rotation (republish), we only need to update the token files,
-	// and the running ossfs client will automatically reload the new token.
-	// We skip the mount operation to avoid creating duplicate mount points.
+	// and the running FUSE client will automatically reload the new token.
 	//
-	// Note: IsNotMountPoint handles path not existing by creating the directory
-	// and returning (true, nil). If it returns an error, it's a real error
-	// (e.g., permission denied, mkdir failed, unmount failed) that should be returned.
-	// Only check mount point if mountInterface is available (not nil).
-	if mountInterface != nil {
-		notMnt, err := mounterutils.IsNotMountPoint(mountInterface, op.Target)
+	// Detection strategy depends on the mount mode:
+	//   - HasActiveDaemon (server-side): the Driver tracks running daemons per target.
+	//     If set, a daemon is already serving this target → token rotation.
+	//   - Legacy mode (FuseFd <= 0): use mount point existence as proxy for
+	//     "daemon already running", since the two are equivalent in legacy mode.
+	//   - Fd-passing first mount (FuseFd > 0, HasActiveDaemon false): the mount point
+	//     exists (created by client's kernel mount) but no daemon is running yet.
+	//     Must NOT skip — fall through to start the daemon.
+	if op.HasActiveDaemon {
+		klog.V(4).InfoS("daemon already active, skipping mount for token rotation", "target", op.Target)
+		return mounter.ErrSkipMount
+	}
+	if mountInterface != nil && op.FuseFd <= 0 {
+		// fuseUnsafe=false: legacy mode (FuseFd <= 0), no fd-passing, daemon death closes connection
+		notMnt, err := mounterutils.SafeIsNotMountPoint(mountInterface, op.Target, false)
 		if err != nil {
 			return fmt.Errorf("failed to check if target %s is a mountpoint: %w", op.Target, err)
 		}
 		if !notMnt {
-			// Mount point already exists, this is a token rotation scenario.
-			// Token files have already been updated by rotateTokenFiles above.
-			// Skip mount operation and let the existing ossfs client reload the new token.
 			klog.V(4).InfoS("mount point already exists, skipping mount for token rotation", "target", op.Target)
 			return mounter.ErrSkipMount
 		}

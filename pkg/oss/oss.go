@@ -96,6 +96,7 @@ func NewServers(endpoint string, m metadata.MetadataProvider, serviceType utils.
 			GenericNodeServer: common.GenericNodeServer{
 				NodeID: nodeName,
 			},
+			kernelSupportsRecovery: detectKernelRecoverySupport(),
 		}
 	}
 

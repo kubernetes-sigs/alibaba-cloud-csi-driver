@@ -19,12 +19,12 @@ type fakeUnmountDriver struct {
 	err       error
 }
 
-func (d *fakeUnmountDriver) Name() string                                     { return d.name }
-func (d *fakeUnmountDriver) Fstypes() []string                                { return nil }
-func (d *fakeUnmountDriver) Init()                                            {}
-func (d *fakeUnmountDriver) Terminate()                                       {}
-func (d *fakeUnmountDriver) Mount(context.Context, *proxy.MountRequest) error { return nil }
-func (d *fakeUnmountDriver) ApplyOptionDefaults(o []string) []string          { return o }
+func (d *fakeUnmountDriver) Name() string                                          { return d.name }
+func (d *fakeUnmountDriver) Fstypes() []string                                     { return nil }
+func (d *fakeUnmountDriver) Init()                                                 {}
+func (d *fakeUnmountDriver) Terminate()                                            {}
+func (d *fakeUnmountDriver) Mount(context.Context, *proxy.MountRequest, int) error { return nil }
+func (d *fakeUnmountDriver) ApplyOptionDefaults(o []string) []string               { return o }
 
 func (d *fakeUnmountDriver) Unmount(target string) (bool, error) {
 	if d.err != nil {
@@ -99,7 +99,7 @@ func TestHandleUnmountViaHandle_BadBody(t *testing.T) {
 	resp := handle(context.Background(), &rawRequest{
 		Header: proxy.Header{Method: proxy.Unmount},
 		Body:   json.RawMessage(`{bad`),
-	})
+	}, 0)
 	assert.NotEmpty(t, resp.Error)
 }
 
@@ -107,16 +107,16 @@ func TestHandleUnmountViaHandle_EmptyTarget(t *testing.T) {
 	resp := handle(context.Background(), &rawRequest{
 		Header: proxy.Header{Method: proxy.Unmount},
 		Body:   json.RawMessage(`{}`),
-	})
+	}, 0)
 	assert.Contains(t, resp.Error, "empty unmount target")
 }
 
 // basicDriver implements Driver but NOT Unmounter.
 type basicDriver struct{ name string }
 
-func (d *basicDriver) Name() string                                     { return d.name }
-func (d *basicDriver) Fstypes() []string                                { return nil }
-func (d *basicDriver) Init()                                            {}
-func (d *basicDriver) Terminate()                                       {}
-func (d *basicDriver) Mount(context.Context, *proxy.MountRequest) error { return nil }
-func (d *basicDriver) ApplyOptionDefaults(o []string) []string          { return o }
+func (d *basicDriver) Name() string                                          { return d.name }
+func (d *basicDriver) Fstypes() []string                                     { return nil }
+func (d *basicDriver) Init()                                                 {}
+func (d *basicDriver) Terminate()                                            {}
+func (d *basicDriver) Mount(context.Context, *proxy.MountRequest, int) error { return nil }
+func (d *basicDriver) ApplyOptionDefaults(o []string) []string               { return o }
