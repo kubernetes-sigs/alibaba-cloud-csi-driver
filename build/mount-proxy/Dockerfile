@@ -17,7 +17,7 @@ RUN --mount=type=bind,source=build/mount-proxy/python3-provider.spec,target=/tmp
     rpmbuild -bb /tmp/python3-provider.spec
 
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS alinux-install
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:4-update AS alinux-install
 
 #################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
 
