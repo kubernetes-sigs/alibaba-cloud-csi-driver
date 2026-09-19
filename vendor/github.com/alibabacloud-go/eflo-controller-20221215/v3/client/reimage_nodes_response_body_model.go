@@ -22,7 +22,7 @@ type ReimageNodesResponseBody struct {
 	//
 	// 15FBCD9B-C93F-54E8-A168-AADE7E66DAD2
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The job ID.
+	// The task ID.
 	//
 	// example:
 	//

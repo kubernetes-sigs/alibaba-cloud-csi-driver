@@ -22,11 +22,11 @@ type iUntagResourcesRequest interface {
 }
 
 type UntagResourcesRequest struct {
-	// Specifies whether to remove all tags. This parameter takes effect only when TagKey.N is not specified. Valid values:
+	// Specifies whether to remove all tags from the resources. This parameter takes effect only if you do not specify the TagKey.N parameter. Valid values:
 	//
-	// 	- True
+	// - true: Removes all tags.
 	//
-	// 	- False
+	// - false: Does not remove all tags.
 	//
 	// Default value: false.
 	//
@@ -42,17 +42,11 @@ type UntagResourcesRequest struct {
 	//
 	// cn-hangzhou
 	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The resource IDs.
+	// The list of resource IDs.
 	//
 	// This parameter is required.
 	ResourceId []*string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty" type:"Repeated"`
 	// The resource type.
-	//
-	// Valid values:
-	//
-	// 	- Node
-	//
-	// 	- Cluster
 	//
 	// This parameter is required.
 	//
@@ -60,7 +54,7 @@ type UntagResourcesRequest struct {
 	//
 	// Cluster
 	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
-	// The tag keys.
+	// The list of tag keys.
 	TagKey []*string `json:"TagKey,omitempty" xml:"TagKey,omitempty" type:"Repeated"`
 }
 

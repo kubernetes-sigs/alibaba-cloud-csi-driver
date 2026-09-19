@@ -20,27 +20,27 @@ type iDescribeInvocationsRequest interface {
 }
 
 type DescribeInvocationsRequest struct {
-	// The encoding mode of the `CommandContent` and `Output` response parameters. Valid values:
+	// The encoding mode of the `CommandContent` and `Output` fields in the response. Valid values:
 	//
-	// 	- PlainText: returns the original command content and command outputs.
+	// - PlainText: Returns the original command content and output.
 	//
-	// 	- Base64 (default): returns the Base64-encoded command content and command output.
+	// - Base64 (default): Returns the Base64-encoded command content and output.
 	//
 	// example:
 	//
 	// PlainText
 	ContentEncoding *string `json:"ContentEncoding,omitempty" xml:"ContentEncoding,omitempty"`
-	// Specifies whether to return the command outputs in the response.
+	// Specifies whether to include the command output in the response.
 	//
-	// 	- true: returns the command outputs. When this parameter is set to true, you must specify `InvokeId`, `InstanceId`, or both.
+	// - true: Returns the output. You must specify the `InvokeId` or `NodeId` parameter.
 	//
-	// 	- false (default)
+	// - false (default): Does not return the output.
 	//
 	// example:
 	//
 	// true
 	IncludeOutput *bool `json:"IncludeOutput,omitempty" xml:"IncludeOutput,omitempty"`
-	// The execution ID.
+	// The ID of the command execution.
 	//
 	// This parameter is required.
 	//
@@ -48,7 +48,7 @@ type DescribeInvocationsRequest struct {
 	//
 	// t-cd03crwys0lrls0
 	InvokeId *string `json:"InvokeId,omitempty" xml:"InvokeId,omitempty"`
-	// The instance ID.
+	// The ID of the instance.
 	//
 	// example:
 	//

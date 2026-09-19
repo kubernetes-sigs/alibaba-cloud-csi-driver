@@ -14,7 +14,7 @@ type iListMachineNetworkInfoRequest interface {
 }
 
 type ListMachineNetworkInfoRequest struct {
-	// hpn information of machine
+	// The information about the machine types.
 	MachineHpnInfo []*ListMachineNetworkInfoRequestMachineHpnInfo `json:"MachineHpnInfo,omitempty" xml:"MachineHpnInfo,omitempty" type:"Repeated"`
 }
 
@@ -49,19 +49,19 @@ func (s *ListMachineNetworkInfoRequest) Validate() error {
 }
 
 type ListMachineNetworkInfoRequestMachineHpnInfo struct {
-	// hpn zone infomation
+	// The cluster ID.
 	//
 	// example:
 	//
 	// C1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
-	// The type of machine.
+	// The machine type.
 	//
 	// example:
 	//
 	// efg2.C48cNHmcn
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
-	// The ID of the region in which the application is located.
+	// The region ID.
 	//
 	// example:
 	//

@@ -18,19 +18,19 @@ type iCreateNodeGroupResponseBody interface {
 }
 
 type CreateNodeGroupResponseBody struct {
-	// Node group ID
+	// The node group ID.
 	//
 	// example:
 	//
 	// ng-ec3c96ff0aa4c60d
 	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
-	// NodeGroupName
+	// The node group name.
 	//
 	// example:
 	//
 	// emr-default
 	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
-	// ID of the request
+	// Id of the request
 	//
 	// example:
 	//

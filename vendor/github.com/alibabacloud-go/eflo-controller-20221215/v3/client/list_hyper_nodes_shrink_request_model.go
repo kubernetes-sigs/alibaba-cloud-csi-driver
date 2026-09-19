@@ -38,42 +38,74 @@ type iListHyperNodesShrinkRequest interface {
 }
 
 type ListHyperNodesShrinkRequest struct {
+	// The name of the cluster.
+	//
 	// example:
 	//
 	// Standard_Cluster
-	ClusterName   *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
+	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
+	// The commodity code.
+	//
+	// example:
+	//
+	// rds_machineinstanceba_public_cn
 	CommodityCode *string `json:"CommodityCode,omitempty" xml:"CommodityCode,omitempty"`
+	// The cluster number.
+	//
 	// example:
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// The ID of the node.
+	//
 	// example:
 	//
 	// e01-cn-zvp2tgykr08
-	HyperNodeId        *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
+	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
+	// The list of node IDs.
 	HyperNodeIdsShrink *string `json:"HyperNodeIds,omitempty" xml:"HyperNodeIds,omitempty"`
+	// The machine type.
+	//
 	// example:
 	//
 	// efg1.nvga1
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
+	// The number of entries to return on each page. The maximum value is 100.
+	//
+	// Default values:
+	//
+	// • If you do not specify this parameter or you specify a value that is less than 20, the default value is 20.
+	//
+	// • If you specify a value that is greater than 100, the default value is 100.
+	//
 	// example:
 	//
 	// 100
 	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// The pagination token that is used in the next request to retrieve a new page of results. Set this parameter to the NextToken value that is returned from a previous call.
+	//
 	// example:
 	//
 	// 3a6b93229825ac667104463b56790c91
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The name of the node group.
+	//
 	// example:
 	//
 	// emr-default
-	NodeGroupName         *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
+	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
+	// The state of the node. If you do not specify this parameter, nodes in all states are returned. Valid values: Extending, UnusedNodeStopped, UnusedNodeStopping, Unused, Using, ReleaseLocking, Operating, Cutting, ClusterNodeStopped, UnusedNodeRecovering, ClusterNodeStopping, ClusterNodeRecovering, and Replacing.
 	OperatingStatesShrink *string `json:"OperatingStates,omitempty" xml:"OperatingStates,omitempty"`
+	// The ID of the resource group.
+	//
 	// example:
 	//
 	// rg-acfmwfm33rlt6zi
-	ResourceGroupId *string                            `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	Tags            []*ListHyperNodesShrinkRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	// The tags.
+	Tags []*ListHyperNodesShrinkRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	// The ID of the zone.
+	//
 	// example:
 	//
 	// cn-hangzhou-i
@@ -219,10 +251,14 @@ func (s *ListHyperNodesShrinkRequest) Validate() error {
 }
 
 type ListHyperNodesShrinkRequestTags struct {
+	// The tag key.
+	//
 	// example:
 	//
 	// alarm_xdc
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The tag value.
+	//
 	// example:
 	//
 	// 129
