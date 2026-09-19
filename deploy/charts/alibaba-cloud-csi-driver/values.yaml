@@ -116,7 +116,7 @@ deploy:
     enabled: false
     secretName: csi-access-key
     idKey: id # the key of AccessKey id in the k8s Secret
-    secretkey: secret # the key of AccessKey secret in the k8s Secret
+    secretKey: secret # the key of AccessKey secret in the k8s Secret
 
   labeler:
     # Run centralized node metadata labeler sidecar in csi-provisioner Deployment.
