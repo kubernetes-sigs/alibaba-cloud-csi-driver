@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -96,20 +97,23 @@ type rawRequest struct {
 
 // recvMsgWithFd reads a JSON message from conn and extracts the FUSE fd from OOB data if present.
 // Returns fuseFd=0 when no fd is received (backward compatible with old clients).
+//
+// SCM_RIGHTS (the fd) is only delivered with the first ReadMsgUnix, but on a
+// SOCK_STREAM socket a single client Write does not guarantee a single server
+// Read receives the entire message. We therefore do a small initial ReadMsgUnix
+// to capture the OOB fd, then replay the received bytes together with the rest
+// of the stream through proxy.ReadMsg (json.Decoder) which handles framing.
 func recvMsgWithFd(conn *net.UnixConn, req *rawRequest) (fuseFd int, err error) {
 	fuseFd = 0
-	// Buffer must be large enough for an entire request in one ReadMsgUnix call,
-	// because SCM_RIGHTS (fd) is only delivered with the first read.
-	const maxBufSize = 1 << 20 // 1MB — typical requests are <10KB; 1MB covers extreme cases
-	buf := make([]byte, maxBufSize)
+	// Initial buffer: only needs to capture the OOB data; the JSON payload may
+	// arrive across multiple reads and proxy.ReadMsg handles that.
+	const initialBufSize = 64 * 1024
+	buf := make([]byte, initialBufSize)
 	oob := make([]byte, unix.CmsgSpace(4)) // space for one fd
 
 	n, oobn, _, _, err := conn.ReadMsgUnix(buf, oob)
 	if err != nil {
 		return -1, fmt.Errorf("readmsg: %w", err)
-	}
-	if n == maxBufSize {
-		return -1, fmt.Errorf("message too large (exceeded %d bytes)", maxBufSize)
 	}
 
 	// Parse OOB to extract fd
@@ -120,7 +124,6 @@ func recvMsgWithFd(conn *net.UnixConn, req *rawRequest) (fuseFd int, err error) 
 				fds, err := unix.ParseUnixRights(&scm)
 				if err == nil && len(fds) > 0 {
 					fuseFd = fds[0]
-					// Close any extra fds we don't need
 					for _, fd := range fds[1:] {
 						_ = unix.Close(fd)
 					}
@@ -130,16 +133,14 @@ func recvMsgWithFd(conn *net.UnixConn, req *rawRequest) (fuseFd int, err error) 
 		}
 	}
 
-	// Parse JSON payload — strip trailing MessageEnd
-	data := buf[:n]
-	if len(data) > 0 && data[len(data)-1] == proxy.MessageEnd {
-		data = data[:len(data)-1]
-	}
-	if err := json.Unmarshal(data, req); err != nil {
+	// Replay the bytes already read, then continue reading from the connection.
+	// proxy.ReadMsg uses json.Decoder which handles streaming/fragmented reads.
+	reader := io.MultiReader(bytes.NewReader(buf[:n]), conn)
+	if err := proxy.ReadMsg(reader, req); err != nil {
 		if fuseFd > 0 {
 			_ = unix.Close(fuseFd)
 		}
-		return -1, fmt.Errorf("unmarshal request: %w", err)
+		return -1, fmt.Errorf("read request message: %w", err)
 	}
 	return fuseFd, nil
 }

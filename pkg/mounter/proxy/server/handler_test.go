@@ -107,8 +107,7 @@ func TestNoMessageEnd(t *testing.T) {
 	conn := dialTestServer(t, socketPath)
 
 	// Send valid JSON without the trailing newline delimiter.
-	// With ReadMsgUnix, the entire message is received in one call,
-	// so missing MessageEnd is no longer an error.
+	// proxy.ReadMsg expects MessageEnd after the JSON value.
 	data, err := json.Marshal(&proxy.Request{
 		Header: proxy.Header{Method: proxy.Ping},
 	})
@@ -116,9 +115,67 @@ func TestNoMessageEnd(t *testing.T) {
 	_, err = conn.Write(data)
 	require.NoError(t, err)
 
-	// Server now accepts the message and responds successfully.
-	var resp proxy.Response
-	err = proxy.ReadMsg(conn, &resp)
-	require.NoError(t, err, "read response")
-	assert.Empty(t, resp.Error)
+	resp := readResponse(t, conn)
+	assert.Contains(t, resp.Error, "read request")
+}
+
+func TestFragmentedRequest(t *testing.T) {
+	t.Parallel()
+	socketPath := newTestServer(t)
+
+	conn := dialTestServer(t, socketPath)
+
+	data, err := json.Marshal(&proxy.Request{
+		Header: proxy.Header{Method: proxy.Ping},
+	})
+	require.NoError(t, err)
+	msg := append(data, proxy.MessageEnd)
+
+	// Send the message in two fragments with a delay between them.
+	mid := len(msg) / 2
+	_, err = conn.Write(msg[:mid])
+	require.NoError(t, err)
+	time.Sleep(10 * time.Millisecond)
+	_, err = conn.Write(msg[mid:])
+	require.NoError(t, err)
+
+	resp := readResponse(t, conn)
+	assert.Empty(t, resp.Error, "fragmented request should succeed")
+}
+
+func TestLargeRequest(t *testing.T) {
+	t.Parallel()
+	socketPath := newTestServer(t)
+
+	conn := dialTestServer(t, socketPath)
+
+	// Build a request larger than the initial 64KB recv buffer.
+	largeSource := make([]byte, 128*1024)
+	for i := range largeSource {
+		largeSource[i] = 'a'
+	}
+	req := proxy.Request{
+		Header: proxy.Header{Method: proxy.Mount},
+		Body: json.RawMessage(mustMarshal(t, proxy.MountRequest{
+			Source: string(largeSource),
+			Target: "/tmp/fake",
+			Fstype: "nonexistent",
+		})),
+	}
+	data, err := json.Marshal(req)
+	require.NoError(t, err)
+
+	_, err = conn.Write(append(data, proxy.MessageEnd))
+	require.NoError(t, err)
+
+	resp := readResponse(t, conn)
+	// Mount will fail (unsupported fstype) but the request was parsed successfully.
+	assert.Contains(t, resp.Error, "not supported")
+}
+
+func mustMarshal(t *testing.T, v any) []byte {
+	t.Helper()
+	data, err := json.Marshal(v)
+	require.NoError(t, err)
+	return data
 }
