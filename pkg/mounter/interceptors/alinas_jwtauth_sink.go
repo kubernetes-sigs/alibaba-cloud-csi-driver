@@ -28,13 +28,11 @@ const (
 // pushes each rotated STS credential to a live alinas mount by executing
 // alinas-tls-cert-refresh. Nothing is written to disk, so Cleanup is a no-op.
 //
-// The vendor CLI only accepts the credential via argv, which is briefly
-// visible in /proc/<pid>/cmdline while the command runs; that is a constraint
-// of the CLI interface. Beyond that, no part of the credential must escape
-// this sink: the arguments are never logged, and because the CLI echoes the
-// arguments it received back into its own output (argparse-style
-// "unrecognized arguments: ..."), that output is redacted before it is wrapped
-// into an error that the refresh loop logs.
+// The credential goes on argv, which is briefly visible in /proc/<pid>/cmdline
+// while the command runs; the CLI also reads it as JSON on stdin, which would
+// avoid that. Either way it must not escape this sink: the arguments are never
+// logged, and the CLI echoes arguments it does not recognize back into its own
+// output, so that output is redacted before it reaches an error.
 type alinasCertRefreshSink struct {
 	mountPoint string
 
@@ -57,20 +55,40 @@ func newAlinasCertRefreshSink(mountPoint string) *alinasCertRefreshSink {
 func (s *alinasCertRefreshSink) Apply(cred *jwtauth.STSToken) error {
 	ctx, cancel := context.WithTimeout(context.Background(), alinasCertRefreshTimeout)
 	defer cancel()
+	return refreshAlinasCredential(ctx, s.runCommand, s.mountPoint, cred)
+}
 
+// RefreshAlinasCredential installs cred on a live alinas/cpfs mount by executing
+// the vendor refresh command. Shared with the jwtauth refresh loop, so a rotated
+// credential reaches a mount the same way whoever decided to rotate it.
+func RefreshAlinasCredential(ctx context.Context, mountPoint string, cred *jwtauth.STSToken) error {
+	run := func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	}
+	ctx, cancel := context.WithTimeout(ctx, alinasCertRefreshTimeout)
+	defer cancel()
+	return refreshAlinasCredential(ctx, run, mountPoint, cred)
+}
+
+func refreshAlinasCredential(
+	ctx context.Context,
+	runCommand func(ctx context.Context, name string, args ...string) ([]byte, error),
+	mountPoint string,
+	cred *jwtauth.STSToken,
+) error {
 	// SECURITY: never log these arguments; they contain the credential.
 	args := []string{
-		"--mount-point", s.mountPoint,
+		"--mount-point", mountPoint,
 		"--ak", cred.AccessKeyID,
 		"--sk", cred.AccessKeySecret,
 		"--token", cred.SecurityToken,
 	}
-	output, err := s.runCommand(ctx, alinasCertRefreshCommand, args...)
+	output, err := runCommand(ctx, alinasCertRefreshCommand, args...)
 	if err != nil {
 		return fmt.Errorf("%s failed for mount point %s: %w, output: %s",
-			alinasCertRefreshCommand, s.mountPoint, err, redactCredential(string(output), cred))
+			alinasCertRefreshCommand, mountPoint, err, redactCredential(string(output), cred))
 	}
-	klog.V(4).InfoS("refreshed alinas mount credential", "command", alinasCertRefreshCommand, "mountpoint", s.mountPoint)
+	klog.V(4).InfoS("refreshed alinas mount credential", "command", alinasCertRefreshCommand, "mountpoint", mountPoint)
 	return nil
 }
 

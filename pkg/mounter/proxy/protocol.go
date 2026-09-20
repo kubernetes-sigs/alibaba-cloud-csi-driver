@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 
 	"k8s.io/klog/v2"
 )
@@ -21,14 +22,21 @@ const (
 	Mount   Method = "mount"
 	Unmount Method = "unmount"
 	Ping    Method = "ping"
+	Refresh Method = "refresh"
 )
 
-// ErrTargetNotManaged is the error string returned by mount-proxy-server when an
-// Unmount request targets a mount point that was NOT mounted through the broker
-// (i.e. the broker has no record of it). The client uses this sentinel to fall
-// back to a local unmount. It is intentionally matched by string because the
-// error crosses the proxy socket as plain text (see Response.Error).
+// ErrTargetNotManaged is the error string returned by mount-proxy-server when a
+// request targets a mount point that was NOT mounted through the broker (i.e.
+// the broker has no record of it). The client uses this sentinel to fall back to
+// a local unmount. It is intentionally matched by string because the error
+// crosses the proxy socket as plain text (see Response.Error).
 const ErrTargetNotManaged = "target not managed by mount broker"
+
+// ErrInvalidMethod is the error string returned by mount-proxy-server for a
+// method it does not implement. csi-plugin and mount-proxy-server ship in
+// separate images and are upgraded independently, so a client must be able to
+// tell "I am newer than the server" from every other failure.
+const ErrInvalidMethod = "invalid method"
 
 type Header struct {
 	Method Method `json:"method,omitempty"`
@@ -53,6 +61,12 @@ type Request struct {
 type Response struct {
 	Seq   int64  `json:"seq,omitempty"`
 	Error string `json:"error,omitempty"`
+
+	// Methods lists the methods the server implements. Only Ping fills it, so a
+	// client can ask what the server can do before committing to a mount that
+	// depends on it. A server predating this field omits it, which is the signal
+	// for "assume nothing beyond Mount/Unmount/Ping".
+	Methods []Method `json:"methods,omitempty"`
 }
 
 func (r *Response) ToError() error {
@@ -60,6 +74,11 @@ func (r *Response) ToError() error {
 		return nil
 	}
 	return errors.New(r.Error)
+}
+
+// HasMethod reports whether a Ping response advertises method.
+func (r *Response) HasMethod(m Method) bool {
+	return slices.Contains(r.Methods, m)
 }
 
 type MountRequest struct {
@@ -95,6 +114,25 @@ type MountRequest struct {
 // and the caller falls back to a local unmount.
 type UnmountRequest struct {
 	Target string `json:"target,omitempty"`
+}
+
+// RefreshRequest asks mount-proxy-server to install a rotated cloud credential on
+// a mount point it already owns, without remounting. It runs there because only
+// that image ships the vendor tooling that can apply a credential to a live mount.
+//
+// This is a method rather than a flag on MountRequest because an old
+// mount-proxy-server ignores unknown JSON fields: a flag would be dropped
+// silently and the server would remount a live target, while an unknown method is
+// rejected loudly (ErrInvalidMethod) and advertised by Ping in advance.
+type RefreshRequest struct {
+	Target string `json:"target,omitempty"`
+	// Fstype names the driver that mounted Target, exactly as MountRequest did.
+	// Routing on it rather than on what the server remembers mounting is what
+	// keeps rotation working across a mount-proxy-server restart, which loses that
+	// memory: a refresh needs nothing but the mount point, so the driver that owns
+	// the fstype can always carry it out.
+	Fstype  string            `json:"fstype,omitempty"`
+	Secrets map[string]string `json:"secrets,omitempty"`
 }
 
 func ReadMsg(r io.Reader, msg any) error {
