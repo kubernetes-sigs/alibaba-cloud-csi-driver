@@ -206,8 +206,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	//   cached, making the mount look healthy. IsNotLiveMountPoint adds a statfs probe that
 	//   reaches the daemon and detects this, auto-unmounting unserviced mounts so they can be
 	//   repaired. This is safe because there is no open FUSE fd keeping the connection alive.
+	// fd-passing is only effective for RunC; RunD/MicroVM use per-pod daemons
+	// without fd-passing and must retain the legacy statfs liveness probe.
+	fdPassingEffective := runtimeType == RuntimeTypeRunC && opts.FdPassing
+
 	var notMntTarget bool
-	if opts.FdPassing {
+	if fdPassingEffective {
 		notMntTarget, err = checkMountPointFdPassing(ns.rawMounter, targetPath)
 	} else {
 		notMntTarget, err = checkMountPointLegacy(ns.rawMounter, targetPath)
@@ -337,7 +341,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			Target:      targetPath,
 			FsType:      opts.FuseType,
 			Options:     mountOptions,
-			Args:        mountFlags,
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
 			Overlay:     opts.Overlay,
@@ -358,7 +361,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	attachPath := mounterutils.GetAttachPath(req.VolumeId, mounterutils.OssFuseAttachDir)
 	// fuseUnsafe=true: in fd-passing mode, attachPath may be a FUSE mount with dead daemon
 	// but alive connection (fuse pod holds /dev/fuse fd), stat would D-state hang
-	notMntAttach, err := mounterutils.SafeIsNotMountPoint(ns.rawMounter, attachPath, opts.FdPassing)
+	notMntAttach, err := mounterutils.SafeIsNotMountPoint(ns.rawMounter, attachPath, fdPassingEffective)
 	if err != nil {
 		return nil, err
 	}
@@ -385,10 +388,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			Target:      attachPath,
 			FsType:      opts.FuseType,
 			Options:     mountOptions,
-			Args:        mountFlags,
+			Args:        mountFlags, // consumed by proxy client for kernel mount in fd-passing mode; ignored otherwise
 			Secrets:     authCfg.Secrets,
 			MetricsPath: metricsPath,
-			FdPassing:   opts.FdPassing && notMntAttach,
+			FdPassing:   fdPassingEffective && notMntAttach,
 			Recovery:    opts.Recovery && notMntAttach,
 		})
 		if err != nil {

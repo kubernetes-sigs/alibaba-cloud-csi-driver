@@ -736,6 +736,7 @@ func TestNodePublishVolume_LivenessProbeDispatch(t *testing.T) {
 		enableFdPass    bool
 		enableRecovery  bool
 		wantFdPassProbe bool
+		skipGlobalMount bool
 	}{
 		{
 			name:            "legacy ossfs2 without gates uses statfs probe",
@@ -765,6 +766,22 @@ func TestNodePublishVolume_LivenessProbeDispatch(t *testing.T) {
 			enableRecovery:  true,
 			wantFdPassProbe: false,
 		},
+		{
+			name:            "RunD with fd-passing gate uses legacy probe (fd-passing not effective for RunD)",
+			fuseType:        mounterutils.OssFs2Type,
+			enableFdPass:    true,
+			enableRecovery:  false,
+			wantFdPassProbe: false,
+			skipGlobalMount: true,
+		},
+		{
+			name:            "RunD with both gates uses legacy probe",
+			fuseType:        mounterutils.OssFs2Type,
+			enableFdPass:    true,
+			enableRecovery:  true,
+			wantFdPassProbe: false,
+			skipGlobalMount: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -793,7 +810,7 @@ func TestNodePublishVolume_LivenessProbeDispatch(t *testing.T) {
 			require.NoError(t, os.MkdirAll(targetPath, 0o755))
 
 			fakeMounter := mountutils.NewFakeMounter(nil)
-			ns := setupTestNodeServer(t, fakeMounter, false)
+			ns := setupTestNodeServer(t, fakeMounter, tt.skipGlobalMount)
 			ns.kernelSupportsRecovery = true
 
 			req := &csi.NodePublishVolumeRequest{
