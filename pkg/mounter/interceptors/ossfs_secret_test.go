@@ -1249,6 +1249,78 @@ func TestRotateTokenFiles_SymlinkAtomicUpdate(t *testing.T) {
 	})
 }
 
+// TestRotateTokenFiles_PublishedGenerationIsNeverRewritten covers the read pattern the
+// credential examples rely on: resolve the credential directory once, then read every
+// field through that one resolution. That is safe only because rotation publishes a
+// fresh directory and swaps the symlink onto it, so a generation that has been
+// published is never written again. A reader holding a resolution therefore either
+// keeps seeing its own generation or finds the files gone — the old generation being
+// cleaned up, which is why a reader verifies what it got — and never finds another
+// generation's values in them.
+func TestRotateTokenFiles_PublishedGenerationIsNeverRewritten(t *testing.T) {
+	baseDir := t.TempDir()
+	dir := filepath.Join(baseDir, "sts")
+	keys := getTokenKeys()
+
+	const generations = 20
+
+	// Every field of a generation carries the same value, so a read that turns up
+	// a different one needs no further interpretation.
+	valueOf := func(gen int) string { return fmt.Sprintf("credential-%d", gen) }
+	secretsOf := func(gen int) map[string]string {
+		secrets := make(map[string]string, len(keys))
+		for _, key := range keys {
+			secrets[key] = valueOf(gen)
+		}
+		return secrets
+	}
+	readThrough := func(root string) map[string]string {
+		values := make(map[string]string, len(keys))
+		for _, key := range keys {
+			content, err := os.ReadFile(filepath.Join(root, key))
+			if err != nil {
+				continue
+			}
+			values[key] = string(content)
+		}
+		return values
+	}
+
+	_, err := rotateTokenFiles(dir, secretsOf(0))
+	require.NoError(t, err)
+
+	// Pin the published generation the way a reader does: readlink -f, once.
+	pinned, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	pinnedValues := readThrough(pinned)
+	require.Len(t, pinnedValues, len(keys), "the published generation must be readable in full")
+	for _, key := range keys {
+		require.Equal(t, valueOf(0), pinnedValues[key], key)
+	}
+
+	for gen := 1; gen <= generations; gen++ {
+		rotated, err := rotateTokenFiles(dir, secretsOf(gen))
+		require.NoError(t, err)
+		require.True(t, rotated, "generation %d differs from the one before it, so it must rotate", gen)
+	}
+
+	// Whatever is still reachable through the pin belongs to the pin.
+	for key, value := range readThrough(pinned) {
+		assert.Equal(t, valueOf(0), value, "%s was published at %s, but reading it back through that pin returned another generation's credential", key, pinned)
+	}
+
+	// Rotation moved off the pin, and where the volume now points holds the newest
+	// generation in full.
+	live, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	assert.NotEqual(t, pinned, live, "rotation must move the credential directory onto a new generation directory")
+	currentValues := readThrough(dir)
+	require.Len(t, currentValues, len(keys), "the live generation must be readable in full")
+	for _, key := range keys {
+		assert.Equal(t, valueOf(generations), currentValues[key], key)
+	}
+}
+
 func TestRotatePasswdFile(t *testing.T) {
 	tests := []struct {
 		name           string
