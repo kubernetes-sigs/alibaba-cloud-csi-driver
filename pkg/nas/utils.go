@@ -76,13 +76,21 @@ type RoleAuth struct {
 	Code            string
 }
 
-func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
+// prepareMount derives everything a mount of opt consists of, without performing
+// it. Anything that has to agree with a mount after the fact goes through here
+// rather than being recomputed: the fstype identifies the mount-proxy-server
+// driver that owns the mount, and Secrets is the credential to install on it, so
+// a later credential rotation asks this function what the mount was made of
+// instead of deriving it a second time.
+//
+// isPathNotFound recognizes the "subpath does not exist" error of whichever client
+// this mount uses, and is nil when that client has none.
+func prepareMount(opt *Options, targetPath, volumeId, podUid string, agentMode bool) (op *mounter.MountOperation, isPathNotFound func(error) bool, err error) {
 	var (
 		mountFstype     string
 		source          string
 		combinedOptions []string
 		secrets         map[string]string
-		isPathNotFound  func(error) bool
 	)
 	if opt.Accesspoint != "" {
 		source = fmt.Sprintf("%s:%s", opt.Accesspoint, opt.Path)
@@ -106,16 +114,15 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		case "cpfs":
 			combinedOptions = append(combinedOptions, "protocol=nfs3")
 		default:
-			return errors.New("EFC Client don't support this storage type:" + opt.FSType)
+			return nil, nil, errors.New("EFC Client don't support this storage type:" + opt.FSType)
 		}
 		mountFstype = "alinas"
-		// err = mounter.Mount(source, mountPoint, "alinas", combinedOptions)
 		isPathNotFound = isEFCPathNotFoundError
 	case NativeClient:
 		switch opt.FSType {
 		case "cpfs":
 		default:
-			return errors.New("Native Client don't support this storage type:" + opt.FSType)
+			return nil, nil, errors.New("Native Client don't support this storage type:" + opt.FSType)
 		}
 		mountFstype = "cpfs"
 	default:
@@ -151,14 +158,23 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		}
 	}
 
-	err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
+	return &mounter.MountOperation{
 		Source:   source,
 		Target:   targetPath,
 		FsType:   mountFstype,
 		Options:  combinedOptions,
 		Secrets:  secrets,
 		VolumeID: volumeId,
-	})
+	}, isPathNotFound, nil
+}
+
+func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
+	op, isPathNotFound, err := prepareMount(opt, targetPath, volumeId, podUid, agentMode)
+	if err != nil {
+		return err
+	}
+
+	err = m.ExtendedMount(context.Background(), op)
 	if err == nil {
 		return nil
 	}
@@ -166,8 +182,15 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		return err
 	}
 
-	rootSource, relPath := getMountRootAndRelPath(mountFstype, opt)
+	rootSource, relPath := getMountRootAndRelPath(op.FsType, opt)
 	if rootSource == "" {
+		return err
+	}
+	// The failed attempt leaves op enriched by the interceptors that ran on it
+	// (AlinasSecretInterceptor appends ram_config_file), so everything below starts
+	// from a freshly prepared operation instead of a used one.
+	op, _, err = prepareMount(opt, targetPath, volumeId, podUid, agentMode)
+	if err != nil {
 		return err
 	}
 	klog.Infof("trying to create subpath %s in %s", opt.Path, opt.Server)
@@ -181,15 +204,15 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	}
 	defer os.Remove(tmpPath)
 	// mount without "ro" since we need to create the subpath directory
-	rwOptions := slices.DeleteFunc(slices.Clone(combinedOptions), func(s string) bool {
+	rwOptions := slices.DeleteFunc(slices.Clone(op.Options), func(s string) bool {
 		return s == "ro"
 	})
 	if err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
 		Source:   rootSource,
 		Target:   tmpPath,
-		FsType:   mountFstype,
+		FsType:   op.FsType,
 		Options:  rwOptions,
-		Secrets:  secrets,
+		Secrets:  op.Secrets,
 		VolumeID: volumeId,
 	}); err != nil {
 		return err
@@ -208,14 +231,7 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	if err := cleanupMountpoint(m, tmpPath); err != nil {
 		klog.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
 	}
-	return m.ExtendedMount(context.Background(), &mounter.MountOperation{
-		Source:   source,
-		Target:   targetPath,
-		FsType:   mountFstype,
-		Options:  combinedOptions,
-		Secrets:  secrets,
-		VolumeID: volumeId,
-	})
+	return m.ExtendedMount(context.Background(), op)
 }
 
 func getMountRootAndRelPath(mountFsType string, opt *Options) (rootSource, relPath string) {
