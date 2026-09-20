@@ -113,4 +113,10 @@ for i in "${!variant_args[@]}"; do
         kubectl apply --dry-run=server --validate=strict -f -
 done
 
+# customfuse must stay out of the workloads shared with the other drivers. That
+# is a rendering property, not something the API server can reject, so it is
+# checked separately.
+echo "=== Checking customfuse component isolation ==="
+bash "$PROJECT_ROOT/test/helm/customfuse-isolation.sh"
+
 echo "=== All validations passed ==="
