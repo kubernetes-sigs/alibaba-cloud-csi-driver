@@ -227,7 +227,15 @@ func applyMountOptions(opts *fuseOptions) error {
 			klog.Warningf("mountOptions %s is ignored: readOnly comes from the PV's accessModes and from the publish request, not from a volume parameter (currently %v)", key, opts.ReadOnly)
 		case "mountpoint":
 			klog.Warningf("mountOptions %s is ignored: mountpoint is the path the driver tells the client to mount on, not a volume parameter", key)
-		case "fusetype", "entrypointconfig", "entrypointkey", "dnspolicy", "serviceaccountname", "authtype":
+		// The agent-identity settings join the six above for a stronger reason than
+		// "nothing would read them": makeMountOptions emits sandboxId,
+		// sandboxCredProviderName and credentialDir ahead of the entries left here,
+		// and IndexMountOptions keeps the last value for a repeated key. Left
+		// unrecognised, one of them in this editable PV field would redefine the
+		// setting the credential exchange is resolved from, on a volume whose
+		// volumeAttributes can no longer be edited.
+		case "fusetype", "entrypointconfig", "entrypointkey", "dnspolicy", "serviceaccountname", "authtype",
+			"sandboxid", "sandboxcredprovidername", "credentialprovidername", "credentialdir", "credentialrefreshhookkey":
 			klog.Warningf("mountOptions %s is ignored: set %s in volumeAttributes instead", key, key)
 		default:
 			unrecognized = append(unrecognized, entry)
