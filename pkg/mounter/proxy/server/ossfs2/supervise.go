@@ -76,20 +76,7 @@ func (m *extendedMounter) superviseProcess(
 			op.OnProcessExit(exitErr)
 		}
 
-		flushFn := flushFuseConnection
-		if m.flushFunc != nil {
-			flushFn = m.flushFunc
-		}
-		if ferr := flushFn(chanId); ferr != nil {
-			logger.Error(ferr, "Failed to flush FUSE connection, cannot recover", "chanId", chanId)
-			if op.OnRecoveryFailed != nil {
-				op.OnRecoveryFailed(exitErr, ferr, 0)
-			}
-			break
-		}
-		logger.Info("Flushed FUSE connection", "chanId", chanId)
-
-		newProc, attempts, err := m.recoveryRestart(op, target)
+		newProc, attempts, err := m.recoveryRestart(op, target, chanId)
 		if err != nil {
 			logger.Error(err, "Recovery failed permanently, giving up", "target", target)
 			if op.OnRecoveryFailed != nil {
@@ -120,6 +107,7 @@ func (m *extendedMounter) superviseProcess(
 func (m *extendedMounter) recoveryRestart(
 	op *mounter.MountOperation,
 	target string,
+	chanId uint64,
 ) (*startedProcess, int, error) {
 	logger := klog.FromContext(context.Background())
 
@@ -133,6 +121,11 @@ func (m *extendedMounter) recoveryRestart(
 		}
 	}
 
+	flushFn := flushFuseConnection
+	if m.flushFunc != nil {
+		flushFn = m.flushFunc
+	}
+
 	var lastErr error
 	for attempt := 0; attempt < recoveryMaxAttempts; attempt++ {
 		if m.driver.terminating.Load() {
@@ -142,13 +135,18 @@ func (m *extendedMounter) recoveryRestart(
 		if attempt > 0 {
 			delay := backoff.Step()
 			logger.Info("Recovery attempt backing off", "attempt", attempt, "delay", delay, "target", target)
-			// NOTE: this sleep is not interruptible by Terminate(). If a crash coincides
-			// with shutdown, Terminate()'s wg.Wait() blocks until this sleep finishes
-			// (worst case ~15s across all retries). Probability is very low and the delay
-			// is within typical pod terminationGracePeriodSeconds. Replace with a select
-			// on a terminate channel if faster shutdown is needed in the future.
 			time.Sleep(delay)
+			if m.driver.terminating.Load() {
+				return nil, attempt, fmt.Errorf("server terminating during recovery backoff")
+			}
 		}
+
+		if ferr := flushFn(chanId); ferr != nil {
+			logger.Error(ferr, "Failed to flush FUSE connection", "chanId", chanId, "attempt", attempt)
+			lastErr = fmt.Errorf("flush fuse connection: %w", ferr)
+			continue
+		}
+		logger.Info("Flushed FUSE connection", "chanId", chanId, "attempt", attempt)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		logger.Info("Restarting ossfs2 for recovery", "attempt", attempt, "target", target)

@@ -194,6 +194,7 @@ func TestRecoveryRestart_MaxAttemptsExhausted(t *testing.T) {
 			Factor:   1.0,
 			Steps:    recoveryMaxAttempts,
 		},
+		flushFunc: func(chanId uint64) error { return nil },
 		statFunc: func(name string) (os.FileInfo, error) {
 			time.Sleep(30 * time.Second)
 			return nil, fmt.Errorf("should not reach here")
@@ -209,7 +210,7 @@ func TestRecoveryRestart_MaxAttemptsExhausted(t *testing.T) {
 	}
 
 	op := &mounter.MountOperation{Target: target, FuseFd: 5}
-	proc, attempts, err := m.recoveryRestart(op, target)
+	proc, attempts, err := m.recoveryRestart(op, target, 0)
 	assert.Nil(t, proc)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf("recovery failed after %d attempts", recoveryMaxAttempts))
@@ -238,6 +239,7 @@ func TestRecoveryRestart_SucceedsAfterRetries(t *testing.T) {
 			Factor:   1.0,
 			Steps:    recoveryMaxAttempts,
 		},
+		flushFunc: func(chanId uint64) error { return nil },
 		statFunc: func(name string) (os.FileInfo, error) {
 			if attemptCount.Load() <= 2 {
 				time.Sleep(5 * time.Second)
@@ -267,7 +269,7 @@ func TestRecoveryRestart_SucceedsAfterRetries(t *testing.T) {
 		Target: target,
 		FuseFd: 5,
 	}
-	proc, attempts, err := m.recoveryRestart(op, target)
+	proc, attempts, err := m.recoveryRestart(op, target, 0)
 	require.NoError(t, err)
 	require.NotNil(t, proc)
 	defer func() { _ = proc.cmd.Process.Kill() }()
@@ -301,7 +303,7 @@ func TestRecoveryRestart_TerminatingStopsRecovery(t *testing.T) {
 	}
 
 	op := &mounter.MountOperation{Target: target, FuseFd: 5}
-	proc, attempts, err := m.recoveryRestart(op, target)
+	proc, attempts, err := m.recoveryRestart(op, target, 0)
 	assert.Nil(t, proc)
 	assert.Equal(t, 0, attempts)
 	require.Error(t, err)
@@ -412,11 +414,18 @@ func TestSuperviseProcess_FlushFailureAbortsRecovery(t *testing.T) {
 	var processExitCalled atomic.Bool
 	var recoveryFailedCalled atomic.Bool
 	var recoveryFailedAttempts atomic.Int32
+	var flushCount atomic.Int32
 
 	m := &extendedMounter{
 		driver: driver,
 		flushFunc: func(chanId uint64) error {
+			flushCount.Add(1)
 			return fmt.Errorf("no such file or directory")
+		},
+		recoveryBackoff: wait.Backoff{
+			Duration: 1 * time.Millisecond,
+			Factor:   1.0,
+			Steps:    recoveryMaxAttempts,
 		},
 	}
 
@@ -428,7 +437,7 @@ func TestSuperviseProcess_FlushFailureAbortsRecovery(t *testing.T) {
 		OnRecoveryFailed: func(exitErr error, recoveryErr error, attempts int) {
 			recoveryFailedCalled.Store(true)
 			recoveryFailedAttempts.Store(int32(attempts))
-			assert.Contains(t, recoveryErr.Error(), "no such file or directory")
+			assert.Contains(t, recoveryErr.Error(), "flush fuse connection")
 		},
 	}
 	driver.pids.Store(cmd.Process.Pid, cmd)
@@ -438,13 +447,16 @@ func TestSuperviseProcess_FlushFailureAbortsRecovery(t *testing.T) {
 
 	select {
 	case <-trulyExited:
-	case <-time.After(3 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("timeout waiting for supervision to finish")
 	}
 
 	assert.True(t, processExitCalled.Load(), "OnProcessExit should be called")
-	assert.True(t, recoveryFailedCalled.Load(), "OnRecoveryFailed should be called on flush failure")
-	assert.Equal(t, int32(0), recoveryFailedAttempts.Load(), "attempts should be 0 for flush failure")
+	assert.True(t, recoveryFailedCalled.Load(), "OnRecoveryFailed should be called")
+	assert.Equal(t, int32(recoveryMaxAttempts), recoveryFailedAttempts.Load(),
+		"all attempts should be exhausted when flush keeps failing")
+	assert.Equal(t, int32(recoveryMaxAttempts), flushCount.Load(),
+		"flush should be called once per attempt")
 }
 
 func TestSuperviseProcess_TerminatingDuringRecovery(t *testing.T) {
@@ -523,6 +535,7 @@ func TestRecoveryRestart_UsesRecoveryFlag(t *testing.T) {
 			},
 		},
 		recoveryBackoff: wait.Backoff{Duration: time.Millisecond, Factor: 1, Steps: 1},
+		flushFunc:       func(chanId uint64) error { return nil },
 		statFunc: func(name string) (os.FileInfo, error) {
 			return os.Stat(name)
 		},
@@ -537,7 +550,7 @@ func TestRecoveryRestart_UsesRecoveryFlag(t *testing.T) {
 	}
 
 	op := &mounter.MountOperation{Target: target, FuseFd: 5}
-	proc, _, err := m.recoveryRestart(op, target)
+	proc, _, err := m.recoveryRestart(op, target, 0)
 	require.NoError(t, err)
 	require.NotNil(t, proc)
 	defer func() { _ = proc.cmd.Process.Kill() }()
@@ -844,8 +857,12 @@ func TestSuperviseProcess_FdClosedDuringRecovery(t *testing.T) {
 	m := &extendedMounter{
 		driver: driver,
 		flushFunc: func(chanId uint64) error {
-			// Simulate: fuse pod deleted → fd already closed → flush fails
 			return fmt.Errorf("flush failed: EBADF")
+		},
+		recoveryBackoff: wait.Backoff{
+			Duration: 1 * time.Millisecond,
+			Factor:   1.0,
+			Steps:    recoveryMaxAttempts,
 		},
 	}
 
@@ -856,7 +873,6 @@ func TestSuperviseProcess_FdClosedDuringRecovery(t *testing.T) {
 		Target: target,
 		FuseFd: fuseFd,
 		OnProcessExit: func(exitErr error) {
-			// Simulate external fd close (fuse pod deletion) between crash and flush
 			_ = unix.Close(fuseFd)
 		},
 		OnRecoveryFailed: func(exitErr error, recoveryErr error, attempts int) {
@@ -872,7 +888,7 @@ func TestSuperviseProcess_FdClosedDuringRecovery(t *testing.T) {
 
 	select {
 	case <-trulyExited:
-	case <-time.After(3 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("timeout waiting for supervision to finish")
 	}
 
@@ -1056,4 +1072,120 @@ func TestSuperviseProcess_TerminateDuringBackoffSleep(t *testing.T) {
 
 	_, loaded := driver.activeTargets.Load(target)
 	assert.False(t, loaded, "activeTargets must be cleared")
+	assert.Equal(t, int32(1), attemptCount.Load(),
+		"only one restart attempt should run; terminating during backoff must prevent the next attempt")
+}
+
+func TestRecoveryRestart_FlushesBeforeEachAttempt(t *testing.T) {
+	driver := &Driver{pids: new(sync.Map)}
+
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "mount")
+	require.NoError(t, os.Mkdir(target, 0o755))
+
+	var flushCount atomic.Int32
+	var attemptCount atomic.Int32
+
+	m := &extendedMounter{
+		driver: driver,
+		Interface: &mockMounter{
+			isLikelyNotMountPointFunc: func(path string) (bool, error) {
+				return false, nil
+			},
+		},
+		recoveryBackoff: wait.Backoff{
+			Duration: 1 * time.Millisecond,
+			Factor:   1.0,
+			Steps:    recoveryMaxAttempts,
+		},
+		flushFunc: func(chanId uint64) error {
+			flushCount.Add(1)
+			return nil
+		},
+		statFunc: func(name string) (os.FileInfo, error) {
+			time.Sleep(30 * time.Second)
+			return nil, fmt.Errorf("unreachable")
+		},
+		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
+			attemptCount.Add(1)
+			cmd := exec.Command("/bin/sh", "-c", "exit 1")
+			require.NoError(t, cmd.Start())
+			return cmd, nil
+		},
+	}
+
+	op := &mounter.MountOperation{Target: target, FuseFd: 5}
+	_, attempts, err := m.recoveryRestart(op, op.Target, 42)
+
+	require.Error(t, err)
+	assert.Equal(t, recoveryMaxAttempts, attempts)
+	assert.Equal(t, int32(recoveryMaxAttempts), flushCount.Load(),
+		"flush should be called before every attempt, not just the first")
+	assert.Equal(t, int32(recoveryMaxAttempts), attemptCount.Load())
+}
+
+func TestRecoveryRestart_TerminateDuringBackoffPreventsNextAttempt(t *testing.T) {
+	driver := &Driver{pids: new(sync.Map)}
+
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "mount")
+	require.NoError(t, os.Mkdir(target, 0o755))
+
+	var attemptCount atomic.Int32
+	firstAttemptDone := make(chan struct{}, 1)
+
+	m := &extendedMounter{
+		driver: driver,
+		Interface: &mockMounter{
+			isLikelyNotMountPointFunc: func(path string) (bool, error) {
+				return false, nil
+			},
+		},
+		recoveryBackoff: wait.Backoff{
+			Duration: 500 * time.Millisecond,
+			Factor:   1.0,
+			Steps:    recoveryMaxAttempts,
+		},
+		flushFunc: func(chanId uint64) error { return nil },
+		statFunc: func(name string) (os.FileInfo, error) {
+			time.Sleep(30 * time.Second)
+			return nil, fmt.Errorf("unreachable")
+		},
+		runCmdOverride: func(op *mounter.MountOperation, recovery bool, sw switchWriter) (*exec.Cmd, error) {
+			count := attemptCount.Add(1)
+			if count == 1 {
+				select {
+				case firstAttemptDone <- struct{}{}:
+				default:
+				}
+			}
+			cmd := exec.Command("/bin/sh", "-c", "exit 1")
+			require.NoError(t, cmd.Start())
+			return cmd, nil
+		},
+	}
+
+	op := &mounter.MountOperation{Target: target, FuseFd: 5}
+
+	done := make(chan struct{})
+	var result error
+	go func() {
+		_, _, result = m.recoveryRestart(op, op.Target, 42)
+		close(done)
+	}()
+
+	<-firstAttemptDone
+	time.Sleep(50 * time.Millisecond)
+	driver.terminating.Store(true)
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("recoveryRestart did not exit after terminating was set during backoff")
+	}
+
+	require.Error(t, result)
+	assert.Contains(t, result.Error(), "server terminating during recovery backoff")
+	assert.Equal(t, int32(1), attemptCount.Load(),
+		"only one attempt should run; terminating during backoff must prevent further attempts")
 }
