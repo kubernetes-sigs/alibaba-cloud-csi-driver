@@ -263,3 +263,55 @@ func TestSyncMountCredentialsSkipsMountsTheBrokerDoesNotHold(t *testing.T) {
 	_, known := ns.installed.get(credTarget)
 	assert.False(t, known)
 }
+
+// TestCheckExpiringCredential pins which volumes a node that cannot install
+// credentials may still mount. What decides it is whether the credential expires,
+// not where it came from: an STS credential in a publish secret is as doomed on such
+// a node as an rrsa one, while a long-term access key never needed rotation and must
+// keep working.
+func TestCheckExpiringCredential(t *testing.T) {
+	tests := []struct {
+		name    string
+		opt     *Options
+		wantErr bool
+	}{
+		{
+			name:    "rrsa exchanges a credential that expires",
+			opt:     &Options{AuthType: AuthTypeRRSA},
+			wantErr: true,
+		},
+		{
+			name:    "publish secret carrying a security token",
+			opt:     apOptions("STS.user-supplied"),
+			wantErr: true,
+		},
+		{
+			name: "long-term access key is exempt",
+			opt:  longTermOptions("LTAI.user"),
+		},
+		{
+			name: "no credential at all",
+			opt:  &Options{Accesspoint: "ap-xxx.nas.aliyuncs.com", Path: "/"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// A node in connector mode: nothing here can reach a live mount.
+			ns := &nodeServer{mounter: &recordingMounter{}, config: &internal.NodeConfig{}}
+			err := ns.checkExpiringCredential(t.Context(), tt.opt)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+			assert.Contains(t, err.Error(), "AlinasMountProxy")
+		})
+	}
+
+	t.Run("a node that can install accepts either", func(t *testing.T) {
+		ns := &nodeServer{mounter: &fakeRefreshMounter{can: true}, config: brokerConfig()}
+		assert.NoError(t, ns.checkExpiringCredential(t.Context(), &Options{AuthType: AuthTypeRRSA}))
+		assert.NoError(t, ns.checkExpiringCredential(t.Context(), apOptions("STS.x")))
+	})
+}

@@ -61,9 +61,15 @@ const (
 	TcpSlotTableEntries      = "/proc/sys/sunrpc/tcp_slot_table_entries"
 	TcpSlotTableEntriesValue = "128\n"
 
-	akIDKey           = interceptors.SecretKeyAccessKeyID
-	akSecretKey       = interceptors.SecretKeyAccessKeySecret
-	securityTokenKey  = interceptors.SecretKeySecurityToken
+	// Keys of the publish secret (nodePublishSecretRef on the PV). They are a
+	// user-facing contract shared with the OSS driver and documented as such, so
+	// renaming one breaks every Secret already written. They spell the same words as
+	// the keys the mount broker reads (interceptors.SecretKey*) by history, not by
+	// agreement: neither side may be renamed to follow the other.
+	publishSecretAkID          = "akId"
+	publishSecretAkSecret      = "akSecret"
+	publishSecretSecurityToken = "securityToken"
+
 	filesystemIDKey   = "fileSystemId"
 	filesystemTypeKey = "fileSystemType"
 )
@@ -101,14 +107,16 @@ func prepareMount(opt *Options, targetPath, volumeId, podUid string, agentMode b
 	}
 	combinedOptions = append(combinedOptions, opt.Options...)
 	combinedOptions = appendJWTAuthOptions(combinedOptions, opt)
+	// A lone token is never forwarded: mount.alinas reads it as its ID token-only
+	// mode and then hangs against a server that rejects it.
 	if opt.AkID != "" && opt.AkSecret != "" {
 		secrets = map[string]string{
-			akIDKey:     opt.AkID,
-			akSecretKey: opt.AkSecret,
+			interceptors.SecretKeyAccessKeyID:     opt.AkID,
+			interceptors.SecretKeyAccessKeySecret: opt.AkSecret,
 		}
 		// STS credentials only; mount.alinas needs it to sign.
 		if opt.SecurityToken != "" {
-			secrets[securityTokenKey] = opt.SecurityToken
+			secrets[interceptors.SecretKeySecurityToken] = opt.SecurityToken
 		}
 	}
 
