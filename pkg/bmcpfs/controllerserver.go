@@ -323,7 +323,10 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 // KubernetesAlicloudIdentity is the user agent string for Eflo client
 var KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Bmcpfs-%s", version.VERSION)
 
-const efloConnTimeout = 10
+// efloConnTimeout is the SDK ConnectTimeout in milliseconds (darabonba convention). The runtime
+// applies it to the whole HTTP call, not just the dial, so it bounds the exchange at 10s.
+// ReadTimeout is deliberately left unset: it would be added to that deadline.
+const efloConnTimeout = 10000
 
 func newEfloClient(region string) (*efloclient.Client, error) {
 	// lingjun region could be different from ack region
