@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
@@ -751,6 +752,11 @@ func TestParseOptionsMountOptionsCannotSetControlFields(t *testing.T) {
 		"dnsPolicy=Default",
 		"serviceAccountName=other-sa",
 		"authType=rrsa",
+		"sandboxId=other-sandbox",
+		"sandboxCredProviderName=other-provider",
+		"credentialProviderName=other-provider",
+		"credentialDir=/tmp/other",
+		"credentialRefreshHookKey=other.sh",
 	))
 	assert.NoError(t, err)
 	assert.Empty(t, opts.MountOptions, "an ignored entry must not reach the entrypoint as an env var nothing reads")
@@ -760,6 +766,37 @@ func TestParseOptionsMountOptionsCannotSetControlFields(t *testing.T) {
 	assert.Empty(t, opts.DnsPolicy)
 	assert.Empty(t, opts.ServiceAccountName)
 	assert.Empty(t, opts.AuthType, "precheckAuthConfig must see the default, not a value from an editable PV field")
+	assert.Empty(t, opts.SandboxId)
+	assert.Empty(t, opts.SandboxCredProviderName)
+	assert.Empty(t, opts.CredentialDir)
+	assert.Empty(t, opts.CredentialRefreshHookKey)
+}
+
+// The agent-identity settings are refused on stronger grounds than the rest of the
+// control fields, and the consequence is only visible past makeMountOptions: three
+// of them are emitted there ahead of the entries left in MountOptions, and
+// IndexMountOptions keeps the last value for a repeated key. An entry that survived
+// would therefore not sit unread in the environment — it would be the value the
+// credential exchange is resolved from. So the assertion goes through the same two
+// functions the mount does, rather than stopping at the struct fields.
+func TestParseOptionsMountOptionsCannotOverrideTheAgentIdentitySettings(t *testing.T) {
+	req := mountFlagsReq(
+		"sandboxId=other-sandbox",
+		"credentialDir=/tmp/other",
+		"sandboxCredProviderName=other-provider",
+	)
+	req.VolumeContext = map[string]string{
+		"sandboxId":     "real-sandbox",
+		"credentialDir": "/var/run/secrets/credentials",
+	}
+	opts, err := parseOptions(req)
+	require.NoError(t, err)
+	assert.Empty(t, opts.MountOptions, "nothing may be appended after the driver's own emissions")
+
+	idx := mounterutils.IndexMountOptions(opts.makeMountOptions())
+	assert.Equal(t, "real-sandbox", idx[jwtauth.OptSandboxId])
+	assert.Equal(t, "/var/run/secrets/credentials", idx[interceptors.OptCredentialDir])
+	assert.NotContains(t, idx, jwtauth.OptSandboxCredProviderName)
 }
 
 // mountpoint is the driver's own output: the path it tells the client to mount on
