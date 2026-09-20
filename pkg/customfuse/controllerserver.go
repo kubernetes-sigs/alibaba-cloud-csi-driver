@@ -57,15 +57,16 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	controllerPublishPath := mounterutils.GetAttachPath(req.VolumeId, mounterutils.CustomFuseAttachDir)
 
 	fusePod, err := cs.fusePodManager.Create(&fpm.FusePodContext{
-		Context:           ctx,
-		Namespace:         fusePodNamespace,
-		NodeName:          req.NodeId,
-		VolumeId:          req.VolumeId,
-		AuthConfig:        authCfg,
-		PodTemplateConfig: ptCfg,
-		FuseType:          opts.FuseType,
-		EntrypointConfig:  opts.EntrypointConfig,
-		EntrypointKey:     opts.EntrypointKey,
+		Context:                  ctx,
+		Namespace:                fusePodNamespace,
+		NodeName:                 req.NodeId,
+		VolumeId:                 req.VolumeId,
+		AuthConfig:               authCfg,
+		PodTemplateConfig:        ptCfg,
+		FuseType:                 opts.FuseType,
+		EntrypointConfig:         opts.EntrypointConfig,
+		EntrypointKey:            opts.EntrypointKey,
+		CredentialRefreshHookKey: opts.CredentialRefreshHookKey,
 	}, controllerPublishPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create fuse pod: %v", err)
