@@ -1,7 +1,9 @@
 package interceptors
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -28,17 +30,27 @@ const (
 // pushes each rotated STS credential to a live alinas mount by executing
 // alinas-tls-cert-refresh. Nothing is written to disk, so Cleanup is a no-op.
 //
-// The credential goes on argv, which is briefly visible in /proc/<pid>/cmdline
-// while the command runs; the CLI also reads it as JSON on stdin, which would
-// avoid that. Either way it must not escape this sink: the arguments are never
-// logged, and the CLI echoes arguments it does not recognize back into its own
-// output, so that output is redacted before it reaches an error.
+// The credential goes in on stdin, never on argv: argv is world-readable through
+// /proc/<pid>/cmdline for as long as the command runs, which is enough for any
+// process on the node (and anything sampling ps) to lift an AK/SK/token. It must
+// not escape through the command's output either: the CLI echoes arguments it
+// does not recognize, so its output is redacted before reaching an error.
 type alinasCertRefreshSink struct {
 	mountPoint string
 
-	// runCommand runs the refresh command and returns its combined output.
-	// It is a field so tests can inject a fake runner.
-	runCommand func(ctx context.Context, name string, args ...string) ([]byte, error)
+	// runCommand runs the refresh command with stdin and returns its combined
+	// output. It is a field so tests can inject a fake runner.
+	runCommand runner
+}
+
+// runner executes the refresh command, feeding it stdin, and returns its combined
+// output.
+type runner func(ctx context.Context, stdin []byte, name string, args ...string) ([]byte, error)
+
+func execCommand(ctx context.Context, stdin []byte, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdin = bytes.NewReader(stdin)
+	return cmd.CombinedOutput()
 }
 
 var _ jwtauth.CredentialSink = &alinasCertRefreshSink{}
@@ -46,9 +58,7 @@ var _ jwtauth.CredentialSink = &alinasCertRefreshSink{}
 func newAlinasCertRefreshSink(mountPoint string) *alinasCertRefreshSink {
 	return &alinasCertRefreshSink{
 		mountPoint: mountPoint,
-		runCommand: func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			return exec.CommandContext(ctx, name, args...).CombinedOutput()
-		},
+		runCommand: execCommand,
 	}
 }
 
@@ -62,28 +72,28 @@ func (s *alinasCertRefreshSink) Apply(cred *jwtauth.STSToken) error {
 // the vendor refresh command. Shared with the jwtauth refresh loop, so a rotated
 // credential reaches a mount the same way whoever decided to rotate it.
 func RefreshAlinasCredential(ctx context.Context, mountPoint string, cred *jwtauth.STSToken) error {
-	run := func(ctx context.Context, name string, args ...string) ([]byte, error) {
-		return exec.CommandContext(ctx, name, args...).CombinedOutput()
-	}
 	ctx, cancel := context.WithTimeout(ctx, alinasCertRefreshTimeout)
 	defer cancel()
-	return refreshAlinasCredential(ctx, run, mountPoint, cred)
+	return refreshAlinasCredential(ctx, execCommand, mountPoint, cred)
 }
 
 func refreshAlinasCredential(
 	ctx context.Context,
-	runCommand func(ctx context.Context, name string, args ...string) ([]byte, error),
+	runCommand runner,
 	mountPoint string,
 	cred *jwtauth.STSToken,
 ) error {
-	// SECURITY: never log these arguments; they contain the credential.
-	args := []string{
-		"--mount-point", mountPoint,
-		"--ak", cred.AccessKeyID,
-		"--sk", cred.AccessKeySecret,
-		"--token", cred.SecurityToken,
+	// SECURITY: this JSON is the credential; never log it. The CLI prefers it here
+	// precisely so it stays out of argv.
+	stdin, err := json.Marshal(map[string]string{
+		"ak":    cred.AccessKeyID,
+		"sk":    cred.AccessKeySecret,
+		"token": cred.SecurityToken,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal credential for %s: %w", alinasCertRefreshCommand, err)
 	}
-	output, err := runCommand(ctx, alinasCertRefreshCommand, args...)
+	output, err := runCommand(ctx, stdin, alinasCertRefreshCommand, "--mount-point", mountPoint)
 	if err != nil {
 		return fmt.Errorf("%s failed for mount point %s: %w, output: %s",
 			alinasCertRefreshCommand, mountPoint, err, redactCredential(string(output), cred))
