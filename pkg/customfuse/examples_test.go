@@ -20,6 +20,12 @@ import (
 // volume that will not come up.
 const examplesDir = "../../examples/customfuse"
 
+// entrypointName is the script mount-proxy execs to bring a mount up, and the name
+// every demo script in that role carries: in an image as /entrypoint.sh, in a
+// ConfigMap as the key projected onto it. A demo can ship scripts in other roles —
+// a credential refresh hook, a checker — and those run and return instead.
+const entrypointName = "entrypoint.sh"
+
 // danglingContinuation matches a line-continuation backslash with something after it.
 // Bash takes the backslash literally there, so the arguments on the following lines are
 // dropped from the command rather than passed to it. `bash -n` accepts that, so it needs
@@ -72,14 +78,25 @@ func TestExampleEntrypointsHandOverToTheClient(t *testing.T) {
 	scripts := exampleScripts(t)
 	require.NotEmpty(t, scripts, "no script found under %s", examplesDir)
 
+	entrypoints := 0
 	for _, script := range scripts {
+		if script.entrypoint {
+			entrypoints++
+		}
 		t.Run(script.name, func(t *testing.T) {
 			assert.Regexp(t, shebang, strings.Split(script.body, "\n")[0],
 				"the first line has to name an interpreter")
+			if !script.entrypoint {
+				// A hook or a checker runs after the mount is up, or apart from
+				// it, and returns. Only the entrypoint has to become the client.
+				return
+			}
 			assert.Regexp(t, clientAsLastAct, lastCommand(script.body),
 				"the client has to be the entrypoint's last act, so it is the process mount-proxy waits on")
 		})
 	}
+	assert.Positive(t, entrypoints,
+		"nothing was swept as an entrypoint, so the check above has stopped running")
 }
 
 // lastCommand is the final line that is neither blank nor a comment: what the script
@@ -122,11 +139,15 @@ func TestExampleChecksRejectABrokenScript(t *testing.T) {
 type exampleScript struct {
 	name string
 	body string
+	// entrypoint marks the scripts mount-proxy execs to bring the mount up, which
+	// are the only ones that have to hand the process over to the client.
+	entrypoint bool
 }
 
-// exampleScripts collects every script a demo can hand to the driver: the entrypoint.sh
-// files sitting next to their Dockerfile, and the ones embedded in a ConfigMap's data,
-// which is how an administrator supplies a script without building an image at all.
+// exampleScripts collects every shell script a demo ships: the ones sitting next to
+// their Dockerfile, and the ones embedded in a ConfigMap's data, which is how an
+// administrator supplies a script without building an image at all. Not all of them
+// are the mount's entrypoint, so each is labelled with the role its name gives it.
 func exampleScripts(t *testing.T) []exampleScript {
 	var scripts []exampleScript
 	require.NoError(t, filepath.WalkDir(examplesDir, func(path string, entry fs.DirEntry, err error) error {
@@ -142,7 +163,7 @@ func exampleScripts(t *testing.T) []exampleScript {
 		}
 
 		if filepath.Ext(path) == ".sh" {
-			scripts = append(scripts, exampleScript{path, string(raw)})
+			scripts = append(scripts, exampleScript{path, string(raw), filepath.Base(path) == entrypointName})
 			return nil
 		}
 		if ext := filepath.Ext(path); ext != ".yaml" && ext != ".yml" {
@@ -158,7 +179,7 @@ func exampleScripts(t *testing.T) []exampleScript {
 			}
 			for key, body := range manifest.Data {
 				if filepath.Ext(key) == ".sh" {
-					scripts = append(scripts, exampleScript{path + ":" + key, body})
+					scripts = append(scripts, exampleScript{path + ":" + key, body, key == entrypointName})
 				}
 			}
 		}
