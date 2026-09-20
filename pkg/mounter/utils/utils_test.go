@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 	mountutils "k8s.io/mount-utils"
 )
@@ -363,4 +364,73 @@ func TestIsNotLiveMountPoint(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResolveRRSAArns(t *testing.T) {
+	const (
+		account = "1857989822569166"
+		cluster = "c1253d96488944ed868b8901f859877c"
+	)
+	tests := []struct {
+		name            string
+		roleName        string
+		roleArn         string
+		oidcProviderArn string
+		wantRole        string
+		wantProvider    string
+		errLike         string
+	}{
+		{
+			name:         "roleName is completed from this cluster",
+			roleName:     "my-role",
+			wantRole:     "acs:ram::" + account + ":role/my-role",
+			wantProvider: "acs:ram::" + account + ":oidc-provider/ack-rrsa-" + cluster,
+		},
+		{
+			// A role in another account, whose provider is named by that account.
+			name:            "both ARNs are taken as given",
+			roleArn:         "acs:ram::222:role/other",
+			oidcProviderArn: "acs:ram::222:oidc-provider/custom",
+			wantRole:        "acs:ram::222:role/other",
+			wantProvider:    "acs:ram::222:oidc-provider/custom",
+		},
+		{
+			// Completing one from cluster metadata would silently pair ARNs from
+			// two different accounts, so it is refused instead.
+			name:    "roleArn alone",
+			roleArn: "acs:ram::222:role/other",
+			errLike: "one of the ARNs is empty",
+		},
+		{
+			name:            "oidcProviderArn alone",
+			oidcProviderArn: "acs:ram::222:oidc-provider/custom",
+			errLike:         "one of the ARNs is empty",
+		},
+		{
+			name:    "nothing at all",
+			errLike: "roleName is empty",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			arns, err := ResolveRRSAArns(tt.roleName, tt.roleArn, tt.oidcProviderArn, account, cluster)
+			if tt.errLike != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errLike)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantRole, arns.RoleArn)
+			assert.Equal(t, tt.wantProvider, arns.OidcProviderArn)
+		})
+	}
+}
+
+// A bare roleName cannot be completed without cluster metadata, and guessing an
+// account would produce a role ARN that silently belongs to someone else.
+func TestResolveRRSAArnsWithoutMetadata(t *testing.T) {
+	_, err := ResolveRRSAArns("my-role", "", "", "", "cluster")
+	assert.ErrorContains(t, err, "account or cluster ID unknown")
+	_, err = ResolveRRSAArns("my-role", "", "", "account", "")
+	assert.ErrorContains(t, err, "account or cluster ID unknown")
 }

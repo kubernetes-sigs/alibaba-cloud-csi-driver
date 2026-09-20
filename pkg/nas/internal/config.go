@@ -3,8 +3,10 @@ package internal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
@@ -22,6 +24,9 @@ import (
 const (
 	configMapName      = "csi-plugin"
 	configMapNamespace = "kube-system"
+
+	// defaultRRSACAFile is where the chart projects the oidc-proxy CA secret.
+	defaultRRSACAFile = "/etc/csi-plugin/oidc-proxy-ca/ca.crt"
 )
 
 type ControllerConfig struct {
@@ -85,12 +90,33 @@ type NodeConfig struct {
 	MountProxySocket string
 	AgentMode        bool
 
+	// RRSACAFile is the trust anchor for the oidc-proxy serving certificate used by
+	// authType=rrsa volumes. Empty means the system pool, for a proxy behind a
+	// publicly trusted certificate.
+	RRSACAFile string
+
+	// Region is used to build the default STS endpoint for authType=rrsa volumes
+	// that name no rrsaEndpoint.
+	Region string
+
+	// AccountID and ClusterID complete an authType=rrsa volume that names only a
+	// roleName, the way the OSS driver does.
+	AccountID string
+	ClusterID string
+
+	// RRSADuration is the credential lifetime to ask for. Short means a small
+	// window in which a credential outlives its Pod; long means fewer
+	// AssumeRoleWithOIDC calls, which matters once a cluster has many volumes.
+	// Zero leaves the choice to the endpoint, and the role's MaxSessionDuration
+	// caps it either way.
+	RRSADuration time.Duration
+
 	// clients for kubernetes
 	KubeClient kubernetes.Interface
 	CNFSGetter cnfsv1beta1.CNFSGetter
 }
 
-func GetNodeConfig(csiCfg utils.Config, mountProxySock string) (*NodeConfig, error) {
+func GetNodeConfig(meta metadata.MetadataProvider, csiCfg utils.Config, mountProxySock string) (*NodeConfig, error) {
 	kubeClient, cnfsGetter := getKubeClients()
 	config := &NodeConfig{
 		// enable nfs port check by default
@@ -102,9 +128,45 @@ func GetNodeConfig(csiCfg utils.Config, mountProxySock string) (*NodeConfig, err
 			csiCfg.Get("nas-efc-cache", "NAS_EFC_CACHE", "") != "",
 	}
 
+	// Only used to build a default STS endpoint, so a provider that cannot supply
+	// the region is not fatal: GetSTSEndpoint falls back to the public endpoint.
+	if region, err := meta.Get(metadata.RegionID); err != nil {
+		klog.V(4).InfoS("region unavailable, rrsa volumes without rrsaEndpoint will use the public STS endpoint", "error", err)
+	} else {
+		config.Region = region
+	}
+	// Only needed to complete a bare roleName, so a volume naming both ARNs works
+	// without them.
+	if accountID, err := meta.Get(metadata.AccountID); err != nil {
+		klog.V(4).InfoS("account ID unavailable, rrsa volumes must name both ARNs", "error", err)
+	} else {
+		config.AccountID = accountID
+	}
+	if clusterID, err := meta.Get(metadata.ClusterID); err != nil {
+		klog.V(4).InfoS("cluster ID unavailable, rrsa volumes must name both ARNs", "error", err)
+	} else {
+		config.ClusterID = clusterID
+	}
+
 	// check if enable nfs port check
 	if value := os.Getenv("NAS_PORT_CHECK"); value != "" {
 		config.EnablePortCheck, _ = parseBool(value)
+	}
+
+	// Mounted optionally, so the default path may not exist; mounts that need it
+	// report that themselves.
+	config.RRSACAFile = csiCfg.Get("nas-rrsa-ca-file", "NAS_RRSA_CA_FILE", defaultRRSACAFile)
+
+	if v := csiCfg.Get("nas-rrsa-duration", "NAS_RRSA_DURATION", ""); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil || d <= 0 {
+			// Refuse to start rather than fall back to the endpoint's default: this
+			// value is how long a credential may outlive its Pod, and silently
+			// granting a different lifetime than asked for is not something an
+			// operator would notice.
+			return nil, fmt.Errorf("invalid nas-rrsa-duration %q: want a positive duration such as 15m", v)
+		}
+		config.RRSADuration = d
 	}
 
 	if config.EnableVolumeStats {

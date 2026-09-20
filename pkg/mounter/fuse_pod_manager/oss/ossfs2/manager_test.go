@@ -696,6 +696,9 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 			wantOptions: []string{
 				"rrsa_endpoint=https://sts-vpc.cn-hangzhou.aliyuncs.com",
 			},
+			setupEnv: func(t *testing.T) {
+				t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
+			},
 		},
 		{
 			name: "rrsa with AssumeRoleArn and ExternalId",
@@ -709,6 +712,9 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 				"rrsa_endpoint=https://sts-vpc.cn-hangzhou.aliyuncs.com",
 				"assume_role_arn=test-assume-role-arn",
 				"assume_role_external_id=test-external-id",
+			},
+			setupEnv: func(t *testing.T) {
+				t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
 			},
 		},
 		{
@@ -748,7 +754,8 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 				tt.setupEnv(t)
 			}
 			fakeOssfs := &fuseOssfs{}
-			opts := fakeOssfs.getAuthOptions(tt.opts, "cn-hangzhou")
+			opts, err := fakeOssfs.getAuthOptions(tt.opts, "cn-hangzhou")
+			assert.NoError(t, err)
 			assert.Equal(t, tt.wantOptions, opts)
 		})
 	}

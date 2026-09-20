@@ -32,6 +32,7 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
@@ -60,8 +61,9 @@ const (
 	TcpSlotTableEntries      = "/proc/sys/sunrpc/tcp_slot_table_entries"
 	TcpSlotTableEntriesValue = "128\n"
 
-	akIDKey           = "akId"
-	akSecretKey       = "akSecret"
+	akIDKey           = interceptors.SecretKeyAccessKeyID
+	akSecretKey       = interceptors.SecretKeyAccessKeySecret
+	securityTokenKey  = interceptors.SecretKeySecurityToken
 	filesystemIDKey   = "fileSystemId"
 	filesystemTypeKey = "fileSystemType"
 )
@@ -103,6 +105,10 @@ func prepareMount(opt *Options, targetPath, volumeId, podUid string, agentMode b
 		secrets = map[string]string{
 			akIDKey:     opt.AkID,
 			akSecretKey: opt.AkSecret,
+		}
+		// STS credentials only; mount.alinas needs it to sign.
+		if opt.SecurityToken != "" {
+			secrets[securityTokenKey] = opt.SecurityToken
 		}
 	}
 
@@ -166,6 +172,25 @@ func prepareMount(opt *Options, targetPath, volumeId, podUid string, agentMode b
 		Secrets:  secrets,
 		VolumeID: volumeId,
 	}, isPathNotFound, nil
+}
+
+// prepareRefresh derives the credential refresh of an existing mount of opt from
+// the very preparation that mount is made with, so the fstype the broker routes
+// on and the credential installed cannot drift from what was mounted.
+//
+// Only the fields a refresh acts on are carried over: it replaces a credential
+// and changes no mount option, which is also why podUid (an EFC mount option) is
+// not needed here.
+func prepareRefresh(opt *Options, targetPath, volumeId string, agentMode bool) (*mounter.RefreshOperation, error) {
+	op, _, err := prepareMount(opt, targetPath, volumeId, "", agentMode)
+	if err != nil {
+		return nil, err
+	}
+	return &mounter.RefreshOperation{
+		Target:  op.Target,
+		FsType:  op.FsType,
+		Secrets: op.Secrets,
+	}, nil
 }
 
 func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
@@ -347,7 +372,16 @@ func addTLSMountOptions(baseOptions []string) []string {
 	return append(baseOptions, "tls")
 }
 
+// appendJWTAuthOptions forwards the agent-identity settings to the mount broker,
+// which exchanges that credential itself and strips them before mounting.
+//
+// No other auth type may be forwarded: its credential is already resolved here, so
+// nothing would strip the options again, and mount.nfs rejects anything it does
+// not know with "an incorrect mount option was specified".
 func appendJWTAuthOptions(options []string, opt *Options) []string {
+	if !jwtauth.IsAgentIdentity(opt.AuthType) {
+		return options
+	}
 	hasKey := func(k string) bool {
 		for _, o := range options {
 			for _, part := range mounterutils.SplitMountOptions(o) {

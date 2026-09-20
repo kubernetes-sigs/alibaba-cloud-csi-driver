@@ -61,6 +61,10 @@ spec:
           args:
             - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
           env:
+{{- if and $nodePool.csi.nas.enabled $nodePool.csi.nas.rrsaDuration }}
+            - name: NAS_RRSA_DURATION
+              value: {{ $nodePool.csi.nas.rrsaDuration | quote }}
+{{- end }}
             {{- include "kubeletDirEnv" $nodePool.deploy.kubeletRootDir | nindent 12 }}
           securityContext:
             privileged: true
@@ -206,6 +210,11 @@ spec:
 {{- if $nodePool.csi.nas.enabled }}
             - mountPath: /host/var/run/efc
               name: efc-metrics-dir
+{{- if (include "nasNeedsOidcProxyCA" $nodePool.csi.nas) }}
+            - mountPath: /etc/csi-plugin/oidc-proxy-ca
+              name: oidc-proxy-ca
+              readOnly: true
+{{- end }}
 {{- end }}
             - mountPath: /host/run/csi-tool
               name: run-csi
@@ -343,6 +352,16 @@ spec:
           hostPath:
             path: /var/run/efc
             type: DirectoryOrCreate
+{{- if (include "nasNeedsOidcProxyCA" $nodePool.csi.nas) }}
+        # Trust anchor for the credential broker behind a non-sts.aliyuncs.com
+        # tokenRequests audience (authType=rrsa). Plain RRSA hits STS directly,
+        # whose root is already in the system trust store. Optional: a mount that
+        # needs it reports the Secret missing if absent.
+        - name: oidc-proxy-ca
+          secret:
+            secretName: oidc-proxy-ca
+            optional: true
+{{- end }}
 {{- end }}
         - name: run-csi
           hostPath:

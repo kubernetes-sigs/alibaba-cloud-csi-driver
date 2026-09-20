@@ -177,7 +177,10 @@ func (f *fuseOssfs) MakeMountOptions(o *ossfpm.Options, m metadata.MetadataProvi
 		)
 	}
 
-	authOptions := f.getAuthOptions(o, region)
+	authOptions, err := f.getAuthOptions(o, region)
+	if err != nil {
+		return nil, err
+	}
 	mountOptions = append(mountOptions, authOptions...)
 
 	return
@@ -197,10 +200,14 @@ func (f *fuseOssfs) PodTemplateSpec(c *fpm.FusePodContext, target string) (*core
 	return pod, nil
 }
 
-func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptions []string) {
+func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptions []string, err error) {
 	switch o.AuthType {
 	case ossfpm.AuthTypeRRSA:
-		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", ossfpm.GetSTSEndpoint(region)))
+		ep, err := utils.GetSTSEndpoint(region)
+		if err != nil {
+			return nil, fmt.Errorf("sts endpoint: %w", err)
+		}
+		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", ep))
 		if o.AssumeRoleArn != "" {
 			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", o.AssumeRoleArn))
 			if o.ExternalId != "" {
@@ -231,8 +238,6 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 
 		// republish token retoate for STS.Token
 		// it will make passwd_file option in mount-proxy server as it's under a tempdir
-	default:
-		return nil
 	}
 	return
 }

@@ -310,19 +310,26 @@ func (f *fuseOssfs) MakeMountOptions(o *ossfpm.Options, m metadata.MetadataProvi
 		)
 	}
 
-	authOptions := f.getAuthOptions(o, region)
+	authOptions, err := f.getAuthOptions(o, region)
+	if err != nil {
+		return nil, err
+	}
 	mountOptions = append(mountOptions, authOptions...)
 
 	return mountOptions, nil
 
 }
 
-func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptions []string) {
+func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptions []string, err error) {
 	switch o.AuthType {
 	case ossfpm.AuthTypePublic:
 		mountOptions = append(mountOptions, "public_bucket=1")
 	case ossfpm.AuthTypeRRSA:
-		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", ossfpm.GetSTSEndpoint(region)))
+		ep, err := utils.GetSTSEndpoint(region)
+		if err != nil {
+			return nil, fmt.Errorf("sts endpoint: %w", err)
+		}
+		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", ep))
 		if o.AssumeRoleArn != "" {
 			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", o.AssumeRoleArn))
 			if o.ExternalId != "" {
