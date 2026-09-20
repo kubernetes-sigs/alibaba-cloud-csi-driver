@@ -322,6 +322,8 @@ spec:
             - --feature-gates=CSIVolumeGroupSnapshot=true
             - --snapshot-name-prefix=alibabacloud-disk
             - --groupsnapshot-name-prefix=alibabacloud-disk
+            - --kube-api-qps=100
+            - --kube-api-burst=200
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -351,6 +353,8 @@ spec:
             - --http-endpoint=:10080
             - --leader-election=true
             - --feature-gates=CSIVolumeGroupSnapshot=true
+            - --kube-api-qps=100
+            - --kube-api-burst=200
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
