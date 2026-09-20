@@ -19,29 +19,32 @@ func TestAlinasCertRefreshSinkApply(t *testing.T) {
 		Expiration:      "2026-01-01T00:00:00Z",
 	}
 
-	t.Run("runs the refresh command with the expected arguments", func(t *testing.T) {
+	// The credential must reach the command on stdin and nowhere else: argv is
+	// readable through /proc/<pid>/cmdline by anything else on the node.
+	t.Run("passes the credential on stdin, never on argv", func(t *testing.T) {
 		var gotName string
 		var gotArgs []string
+		var gotStdin []byte
 		sink := newAlinasCertRefreshSink("/mnt/nas")
-		sink.runCommand = func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			gotName = name
-			gotArgs = args
+		sink.runCommand = func(ctx context.Context, stdin []byte, name string, args ...string) ([]byte, error) {
+			gotName, gotArgs, gotStdin = name, args, stdin
 			return nil, nil
 		}
 
 		require.NoError(t, sink.Apply(cred))
 		assert.Equal(t, "alinas-tls-cert-refresh", gotName)
-		assert.Equal(t, []string{
-			"--mount-point", "/mnt/nas",
-			"--ak", "AKID",
-			"--sk", "AKSECRET",
-			"--token", "STOKEN",
-		}, gotArgs)
+		assert.Equal(t, []string{"--mount-point", "/mnt/nas"}, gotArgs)
+		assert.JSONEq(t, `{"ak":"AKID","sk":"AKSECRET","token":"STOKEN"}`, string(gotStdin))
+		for _, arg := range gotArgs {
+			assert.NotContains(t, arg, cred.AccessKeyID)
+			assert.NotContains(t, arg, cred.AccessKeySecret)
+			assert.NotContains(t, arg, cred.SecurityToken)
+		}
 	})
 
 	t.Run("propagates command failure with a diagnosable message", func(t *testing.T) {
 		sink := newAlinasCertRefreshSink("/mnt/nas")
-		sink.runCommand = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		sink.runCommand = func(ctx context.Context, stdin []byte, name string, args ...string) ([]byte, error) {
 			return []byte("boom"), errors.New("exit status 1")
 		}
 
@@ -57,7 +60,7 @@ func TestAlinasCertRefreshSinkApply(t *testing.T) {
 		// A version-mismatched CLI echoes the arguments it did not recognize,
 		// which is how the credential would otherwise reach the refresh loop's
 		// error log.
-		sink.runCommand = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		sink.runCommand = func(ctx context.Context, stdin []byte, name string, args ...string) ([]byte, error) {
 			return []byte(fmt.Sprintf("usage: %s\n%s: error: unrecognized arguments: --ak %s --sk %s --token %s",
 				name, name, cred.AccessKeyID, cred.AccessKeySecret, cred.SecurityToken)), errors.New("exit status 2")
 		}
@@ -77,11 +80,11 @@ func TestAlinasCertRefreshSinkApply(t *testing.T) {
 		sink.Cleanup() // must not panic
 	})
 
-	t.Run("default runner executes a real command", func(t *testing.T) {
+	t.Run("default runner executes a real command and feeds it stdin", func(t *testing.T) {
 		sink := newAlinasCertRefreshSink("/mnt/nas")
-		out, err := sink.runCommand(context.Background(), "echo", "ok")
+		out, err := sink.runCommand(t.Context(), []byte("from-stdin"), "cat")
 		require.NoError(t, err)
-		assert.Equal(t, "ok\n", string(out))
+		assert.Equal(t, "from-stdin", string(out))
 	})
 }
 
