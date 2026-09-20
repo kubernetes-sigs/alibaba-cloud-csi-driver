@@ -980,18 +980,16 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 			want:    []string{"others", "allow_other", "dbglevel=warn", "use_metrics", "listobjectsv2"},
 		},
 		{
-			// ossfs appends mountFlags to options (legacy behavior); a deprecation warning is logged.
-			name:       "non-empty mountFlags appended to options",
-			options:    []string{"others"},
-			mountFlags: []string{"flag1", "flag2=value"},
-			want:       []string{"others", "flag1", "flag2=value", "dbglevel=warn", "allow_other", "use_metrics", "listobjectsv2"},
+			// mountFlags are merged into options by makeMountOptionsAndFlags,
+			// so AddDefaultMountOptions receives them already in options.
+			name:    "mountFlags already in options (merged upstream)",
+			options: []string{"flag1", "flag2=value", "others"},
+			want:    []string{"flag1", "flag2=value", "others", "dbglevel=warn", "allow_other", "use_metrics", "listobjectsv2"},
 		},
 		{
-			// mountFlags can also satisfy default-fill keys (e.g. allow_other) so defaults are not re-added.
-			name:       "mountFlags satisfies default-fill key",
-			options:    []string{"others"},
-			mountFlags: []string{"allow_other"},
-			want:       []string{"others", "allow_other", "dbglevel=warn", "use_metrics", "listobjectsv2"},
+			name:    "mountFlags in options satisfies default-fill key",
+			options: []string{"allow_other", "others"},
+			want:    []string{"allow_other", "others", "dbglevel=warn", "use_metrics", "listobjectsv2"},
 		},
 	}
 	for _, tt := range tests {

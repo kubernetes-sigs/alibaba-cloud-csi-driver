@@ -366,9 +366,7 @@ const (
 	KeyListObjectsV2 = "listobjectsv2"
 )
 
-func (f *fuseOssfs) AddDefaultMountOptions(options []string, mountFlags []string) []string {
-	// For ossfs, mountFlags (from PV spec mountOptions) are appended to daemon options.
-	options = append(options, mountFlags...)
+func (f *fuseOssfs) AddDefaultMountOptions(options []string, _ []string) []string {
 
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS_OPTIONS")
 	if defaultOSSFSOptions != "" {

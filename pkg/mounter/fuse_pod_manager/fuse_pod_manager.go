@@ -126,10 +126,9 @@ type FusePodContext struct {
 type FuseMounterType interface {
 	Name() string
 	PodTemplateSpec(c *FusePodContext, target string) (*corev1.PodTemplateSpec, error)
-	// AddDefaultMountOptions appends default mount options to the given options.
-	// mountFlags are the PV spec mount flags.
-	// For ossfs: flags are appended to options, then defaults are applied.
-	// For ossfs2: if flags is non-empty, a warning is logged (flags are not passed to the daemon).
+	// AddDefaultMountOptions returns the final daemon mount options.
+	// mountFlags are PV spec.mountOptions (kernel-level flags like ro, nodev).
+	// Each implementation decides how to incorporate mountFlags and defaults.
 	AddDefaultMountOptions(options []string, mountFlags []string) []string
 }
 

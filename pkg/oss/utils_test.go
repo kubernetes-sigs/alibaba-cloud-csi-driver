@@ -1794,15 +1794,12 @@ func TestMakeMountOptionsAndFlags(t *testing.T) {
 			},
 		},
 	}
-	// makeMountOptionsAndFlags now returns mountOptions and mountFlags as two
-	// separate slices. mountOptions = parseOtherOpts(opt.OtherOpts) ++
-	// fpm.MakeMountOptions(opt, m). mountFlags is taken verbatim from the
-	// volumeCapability's MountFlags (regardless of fuseType — the legacy
-	// fuseType-specific filtering and the "ossfs2 ignores MountFlags" warning
-	// have been removed; downstream consumers decide how to use mountFlags).
+	// ossfs 1.x: mountFlags are merged into options by makeMountOptionsAndFlags
+	// (otherOpts → mountFlags → generated).
 	wantOptions := []string{
 		"allow_other",
 		"max_stat_cache_size=0",
+		"ro",
 		"url=1.1.1.1",
 		"use_sse=kmsid",
 		"sigv4",
@@ -2751,6 +2748,142 @@ func Test_checkOssOptions_fdPassingRecoveryCapability(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := checkOssOptions(tt.opts, fusePodManagers[tt.opts.FuseType])
 			assert.ErrorIs(t, err, tt.errType)
+		})
+	}
+}
+
+func TestMountOptionsPipeline_Regression(t *testing.T) {
+	t.Setenv("REGION_ID", "cn-beijing")
+	fakeMeta := metadata.NewMetadata()
+
+	ossfs1Fuse, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
+	ossfs1Fpm := ossfpm.NewOSSFusePodManager(ossfs1Fuse, nil, false)
+	ossfs2Fuse, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
+	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2Fuse, nil, false)
+
+	tests := []struct {
+		name       string
+		fuseType   string
+		fpm        *ossfpm.OSSFusePodManager
+		otherOpts  string
+		mountFlags []string
+		readOnly   bool
+		check      func(t *testing.T, options []string, mountFlags []string)
+	}{
+		{
+			name:       "ossfs1: Readonly + MountFlags=[rw] — rw before ro (libfuse2 last-wins → readonly)",
+			fuseType:   mounterutils.OssFsType,
+			fpm:        ossfs1Fpm,
+			mountFlags: []string{"rw"},
+			readOnly:   true,
+			check: func(t *testing.T, options []string, _ []string) {
+				rwIdx, roIdx := -1, -1
+				for i, o := range options {
+					if o == "rw" {
+						rwIdx = i
+					}
+					if o == "ro" {
+						roIdx = i
+					}
+				}
+				assert.True(t, rwIdx >= 0, "rw should be in options: %v", options)
+				assert.True(t, roIdx >= 0, "ro should be in options: %v", options)
+				assert.True(t, rwIdx < roIdx,
+					"rw (MountFlags) must precede ro (generated) for libfuse2 last-wins: %v", options)
+			},
+		},
+		{
+			name:     "ossfs1: no MountFlags + Readonly — only ro, no rw",
+			fuseType: mounterutils.OssFsType,
+			fpm:      ossfs1Fpm,
+			readOnly: true,
+			check: func(t *testing.T, options []string, _ []string) {
+				for _, o := range options {
+					assert.NotEqual(t, "rw", o, "no rw without MountFlags: %v", options)
+				}
+				assert.Contains(t, options, "ro")
+			},
+		},
+		{
+			name:       "ossfs1: MountFlags=[nodev,nosuid] — flags present in options",
+			fuseType:   mounterutils.OssFsType,
+			fpm:        ossfs1Fpm,
+			mountFlags: []string{"nodev", "nosuid"},
+			check: func(t *testing.T, options []string, _ []string) {
+				assert.Contains(t, options, "nodev")
+				assert.Contains(t, options, "nosuid")
+			},
+		},
+		{
+			name:       "ossfs2: MountFlags=[rw] — NOT in daemon options, returned separately",
+			fuseType:   mounterutils.OssFs2Type,
+			fpm:        ossfs2Fpm,
+			mountFlags: []string{"rw"},
+			check: func(t *testing.T, options []string, flags []string) {
+				for _, o := range options {
+					assert.NotEqual(t, "rw", o, "ossfs2 daemon options must not contain mountFlags: %v", options)
+				}
+				assert.Equal(t, []string{"rw"}, flags)
+			},
+		},
+		{
+			name:       "ossfs2: MountFlags=[nodev,nosuid] — not in daemon options",
+			fuseType:   mounterutils.OssFs2Type,
+			fpm:        ossfs2Fpm,
+			mountFlags: []string{"nodev", "nosuid"},
+			check: func(t *testing.T, options []string, flags []string) {
+				for _, o := range options {
+					assert.NotEqual(t, "nodev", o, "ossfs2 must not contain nodev: %v", options)
+					assert.NotEqual(t, "nosuid", o, "ossfs2 must not contain nosuid: %v", options)
+				}
+				assert.Equal(t, []string{"nodev", "nosuid"}, flags)
+			},
+		},
+		{
+			name:     "ossfs2: no MountFlags — empty flags",
+			fuseType: mounterutils.OssFs2Type,
+			fpm:      ossfs2Fpm,
+			check: func(t *testing.T, _ []string, flags []string) {
+				assert.Empty(t, flags)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opt := &ossfpm.Options{
+				URL:    "1.1.1.1",
+				Bucket: "test-bucket",
+				Path:   "/",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "ak",
+					AkSecret: "sk",
+				},
+				FuseType:   tt.fuseType,
+				OtherOpts:  tt.otherOpts,
+				ReadOnly:   tt.readOnly,
+				SigVersion: "v4",
+			}
+			var cap *csi.VolumeCapability
+			if len(tt.mountFlags) > 0 || tt.readOnly {
+				mount := &csi.VolumeCapability_MountVolume{MountFlags: tt.mountFlags}
+				cap = &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{Mount: mount},
+				}
+				if tt.readOnly {
+					cap.AccessMode = &csi.VolumeCapability_AccessMode{
+						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
+					}
+				}
+			}
+
+			options, flags, err := makeMountOptionsAndFlags(opt, tt.fpm, fakeMeta, cap)
+			require.NoError(t, err)
+			options = tt.fpm.AddDefaultMountOptions(options, flags)
+
+			t.Logf("options: %v", options)
+			t.Logf("flags: %v", flags)
+			tt.check(t, options, flags)
 		})
 	}
 }
