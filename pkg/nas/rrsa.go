@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -17,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/ttlcache"
@@ -368,8 +366,7 @@ func podServiceAccountToken(audience string, volumeContext, secrets map[string]s
 // puts it where doMount passes credentials to the mount broker.
 //
 // Every failure here fails the publish: mount.alinas accepts a partial credential
-// and then hangs against a server that rejects it, and a volume whose credential
-// can never be rotated is refused before it mounts rather than after it expires.
+// and then hangs against a server that rejects it.
 func (ns *nodeServer) prepareRRSACredentials(ctx context.Context, volumeID, target string, opt *Options, volumeContext, secrets map[string]string) error {
 	if opt.RoleName == "" && opt.RoleArn == "" {
 		return status.Errorf(codes.InvalidArgument,
@@ -384,43 +381,11 @@ func (ns *nodeServer) prepareRRSACredentials(ctx context.Context, volumeID, targ
 	if ns.rrsa == nil {
 		return status.Error(codes.FailedPrecondition, "no kube client: cannot exchange the Pod token for credentials")
 	}
-	// An rrsa credential expires, so a node that could never install the next one is
-	// refused here rather than one credential lifetime later, from inside the Pod.
-	if err := ns.checkCredentialInstallSupport(ctx); err != nil {
-		return status.Errorf(codes.FailedPrecondition,
-			"authType %s needs a node that can rotate credentials: %v", AuthTypeRRSA, err)
-	}
 
 	cred, err := ns.rrsa.credentialFor(ctx, volumeID, target, opt, volumeContext, secrets)
 	if err != nil {
 		return status.Errorf(codes.Internal, "get NAS credentials: %v", err)
 	}
 	opt.stsCredential = cred.stsCredential
-	return nil
-}
-
-// checkCredentialInstallSupport reports why this node cannot install a credential
-// on a live mount, or nil when it can.
-//
-// The mount broker is the only mounter that can do it, and it ships in its own
-// image, so its support is asked over the socket rather than assumed from this
-// process being built with the client half.
-func (ns *nodeServer) checkCredentialInstallSupport(ctx context.Context) error {
-	// NasMounter satisfies ProxyRefresher whichever mounter it wraps, so which mode
-	// NAS is in has to be read from the configuration.
-	if ns.config.MountProxySocket == "" {
-		return errors.New("NAS is not using the mount broker: enable the AlinasMountProxy feature gate on csi-plugin")
-	}
-	refresher, ok := ns.mounter.(mounter.ProxyRefresher)
-	if !ok {
-		return errors.New("this mounter cannot install a credential on a live mount")
-	}
-	can, err := refresher.CanRefresh(ctx)
-	if err != nil {
-		return fmt.Errorf("ask the mount broker whether it can refresh credentials: %w", err)
-	}
-	if !can {
-		return errors.New("the mount broker does not support credential refresh: upgrade mount-proxy-server")
-	}
 	return nil
 }

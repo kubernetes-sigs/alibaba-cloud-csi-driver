@@ -546,10 +546,12 @@ func TestCheckCredentialInstallSupport(t *testing.T) {
 			errLike: "upgrade mount-proxy-server",
 		},
 		{
-			name:    "broker unreachable",
-			mounter: &fakeRefreshMounter{canErr: errors.New("dial unix: no such file")},
+			// A broker busy with a mount answers nothing for a moment. Saying so
+			// fails this publish, and kubelet retries it.
+			name:    "broker did not answer",
+			mounter: &fakeRefreshMounter{canErr: errors.New("dial unix: i/o timeout")},
 			socket:  "/run/cnfs/alinas-mounter.sock",
-			errLike: "no such file",
+			errLike: "i/o timeout",
 		},
 		{
 			name:    "broker supports refresh",
@@ -568,10 +570,9 @@ func TestCheckCredentialInstallSupport(t *testing.T) {
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.errLike)
 
-			// An rrsa volume turns it into a publish failure that names the fix.
-			ns.rrsa = newRRSAExchanger(fake.NewSimpleClientset(), "cn-beijing", "1857989822569166", "c123", "", 0)
-			gateErr := ns.prepareRRSACredentials(t.Context(), "vol", "/target",
-				&Options{RoleName: "test-role"}, nil, nil)
+			// A volume whose credential expires turns it into a publish failure that
+			// names the fix.
+			gateErr := ns.checkExpiringCredential(t.Context(), &Options{AuthType: AuthTypeRRSA})
 			require.Error(t, gateErr)
 			assert.Equal(t, codes.FailedPrecondition, status.Code(gateErr))
 			assert.Contains(t, gateErr.Error(), tt.errLike)

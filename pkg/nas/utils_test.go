@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	mountutils "k8s.io/mount-utils"
@@ -253,8 +254,8 @@ func TestDoMount_AccesspointWithAkSkFromMountOptions(t *testing.T) {
 
 	assert.Equal(t, "ap-xxx.nas.aliyuncs.com:/", m.lastOp.Source)
 	assert.Equal(t, "alinas", m.lastOp.FsType)
-	assert.Equal(t, "test-ak-id", m.lastOp.Secrets[akIDKey])
-	assert.Equal(t, "test-ak-secret", m.lastOp.Secrets[akSecretKey])
+	assert.Equal(t, "test-ak-id", m.lastOp.Secrets[interceptors.SecretKeyAccessKeyID])
+	assert.Equal(t, "test-ak-secret", m.lastOp.Secrets[interceptors.SecretKeyAccessKeySecret])
 	assert.Contains(t, m.lastOp.Options, "tls")
 }
 
@@ -375,4 +376,31 @@ func TestPrepareRefreshRejectsWhatWouldNotMount(t *testing.T) {
 	_, err := prepareRefresh(&Options{ClientType: NativeClient, FSType: "standard"}, "/target", "vol-123", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Native Client don't support this storage type")
+}
+
+// TestPrepareMountForwardsSTSCredential covers a credential a user rotates
+// themselves: an STS token in the publish secret has to reach mount.alinas, which
+// needs all three parts to sign. A lone token is not forwarded at all, because that
+// selects the CLI's ID token-only mode and then hangs against a server that
+// rejects it.
+func TestPrepareMountForwardsSTSCredential(t *testing.T) {
+	base := func() *Options {
+		return &Options{Accesspoint: "ap-xxx.nas.aliyuncs.com", Path: "/", Vers: "3", MountProtocol: MountProtocolNFS}
+	}
+
+	opt := base()
+	opt.AkID, opt.AkSecret, opt.SecurityToken = "STS.ak", "sk", "token"
+	op, _, err := prepareMount(opt, "/mnt/target", "vol-123", "pod-uid", false)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{
+		interceptors.SecretKeyAccessKeyID:     "STS.ak",
+		interceptors.SecretKeyAccessKeySecret: "sk",
+		interceptors.SecretKeySecurityToken:   "token",
+	}, op.Secrets)
+
+	opt = base()
+	opt.SecurityToken = "token"
+	op, _, err = prepareMount(opt, "/mnt/target", "vol-123", "pod-uid", false)
+	require.NoError(t, err)
+	assert.Empty(t, op.Secrets, "a token without an access key must not reach mount.alinas")
 }

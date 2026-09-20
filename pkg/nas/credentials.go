@@ -2,6 +2,8 @@ package nas
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
@@ -47,6 +49,53 @@ func (c *installedCredentials) record(target, akID string) {
 // not inherit the credential of an unmounted one.
 func (c *installedCredentials) forget(target string) {
 	c.akIDs.Delete(target)
+}
+
+// checkCredentialInstallSupport reports why this node cannot install a credential
+// on a live mount, or nil when it can.
+//
+// The mount broker is the only mounter that can do it, and it ships in its own
+// image, so its support is asked over the socket rather than assumed from this
+// process being built with the client half.
+func (ns *nodeServer) checkCredentialInstallSupport(ctx context.Context) error {
+	// NasMounter satisfies ProxyRefresher whichever mounter it wraps, so which mode
+	// NAS is in has to be read from the configuration.
+	if ns.config.MountProxySocket == "" {
+		return errors.New("NAS is not using the mount broker: enable the AlinasMountProxy feature gate on csi-plugin")
+	}
+	refresher, ok := ns.mounter.(mounter.ProxyRefresher)
+	if !ok {
+		return errors.New("this mounter cannot install a credential on a live mount")
+	}
+	can, err := refresher.CanRefresh(ctx)
+	if err != nil {
+		return fmt.Errorf("ask the mount broker whether it can refresh credentials: %w", err)
+	}
+	if !can {
+		return errors.New("the mount broker does not support credential refresh: upgrade mount-proxy-server")
+	}
+	return nil
+}
+
+// checkExpiringCredential refuses a volume whose credential expires on a node that
+// could never install the next one. Such a mount works, right up to the moment the
+// credential expires, and then turns into EACCES on lookups and hanging writes with
+// nothing left to connect it to the cause; saying so before anything is mounted is
+// the only useful moment.
+//
+// Whether the credential expires is known before it exists: authType rrsa always
+// exchanges an STS credential, and a publish secret carries one when it has a
+// security token. A long-term access key is exempt, which is what keeps volumes
+// that never needed rotation working on nodes that cannot rotate.
+func (ns *nodeServer) checkExpiringCredential(ctx context.Context, opt *Options) error {
+	if opt.AuthType != AuthTypeRRSA && opt.SecurityToken == "" {
+		return nil
+	}
+	if err := ns.checkCredentialInstallSupport(ctx); err != nil {
+		return status.Errorf(codes.FailedPrecondition,
+			"this volume uses a credential that expires, and this node cannot install its replacement on a live mount: %v", err)
+	}
+	return nil
 }
 
 // syncMountCredentials installs the credential opt now carries when the mount at

@@ -312,8 +312,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		return nil, err
 	}
-	opt.AkID = req.Secrets[akIDKey]
-	opt.AkSecret = req.Secrets[akSecretKey]
+	opt.AkID = req.Secrets[publishSecretAkID]
+	opt.AkSecret = req.Secrets[publishSecretAkSecret]
+	// An STS credential is the reason this is read on every republish: kubelet
+	// resolves the secret each time, so replacing the token in it is how a user
+	// rotates one, and syncMountCredentials installs it on the live mount.
+	opt.SecurityToken = req.Secrets[publishSecretSecurityToken]
 
 	opt.SysConfigs, err = utilsio.ParseSysConfigs(req.VolumeContext["sysConfig"], allowSysConfigKey)
 	if err != nil {
@@ -515,6 +519,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
+	// Checked before the Pod token is spent on an exchange, and before a mount that
+	// would outlive its own credential.
+	if err := ns.checkExpiringCredential(ctx, opt); err != nil {
+		return nil, err
+	}
 	if opt.AuthType == AuthTypeRRSA {
 		if err := ns.prepareRRSACredentials(ctx, req.VolumeId, mountPath, opt, req.VolumeContext, req.Secrets); err != nil {
 			return nil, err
