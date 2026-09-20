@@ -120,3 +120,14 @@ func TestEfloControllerConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSTSEndpoint(t *testing.T) {
+	t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
+	endpoint, err := GetSTSEndpoint("cn-beijing")
+	assert.NoError(t, err)
+	assert.Equal(t, "https://sts-vpc.cn-beijing.aliyuncs.com", endpoint)
+
+	endpoint, err = GetSTSEndpoint("")
+	assert.NoError(t, err)
+	assert.Equal(t, "https://sts.aliyuncs.com", endpoint)
+}

@@ -604,6 +604,9 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 				"rrsa_endpoint=https://sts-vpc.us-east-1.aliyuncs.com",
 				"assume_role_arn=arn:acs:ram::123456789012:role/role-name",
 			},
+			setupEnv: func(t *testing.T) {
+				t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
+			},
 		},
 		{
 			name: "SigV4",
@@ -824,6 +827,9 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 				"assume_role_arn=acs:ram::account-id:role/test-role",
 				"assume_role_external_id=test-external-id",
 			},
+			setupEnv: func(t *testing.T) {
+				t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
+			},
 		},
 		{
 			name: "rrsa - empty region",
@@ -914,7 +920,8 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 				tt.setupEnv(t)
 			}
 			fakeOssfs := &fuseOssfs{}
-			opts := fakeOssfs.getAuthOptions(tt.opts, tt.region)
+			opts, err := fakeOssfs.getAuthOptions(tt.opts, tt.region)
+			assert.NoError(t, err)
 			assert.Equal(t, tt.wantOptions, opts)
 		})
 	}

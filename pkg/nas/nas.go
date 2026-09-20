@@ -49,7 +49,7 @@ func NewServers(meta *metadata.Metadata, endpoint string, serviceType utils.Serv
 		servers.ControllerServer = cs
 	}
 	if serviceType&utils.Node != 0 {
-		config, err := internal.GetNodeConfig(csiCfg, mountProxySock)
+		config, err := internal.GetNodeConfig(meta, csiCfg, mountProxySock)
 		if err != nil {
 			klog.Fatalf("Get nas node config: %v", err)
 		}

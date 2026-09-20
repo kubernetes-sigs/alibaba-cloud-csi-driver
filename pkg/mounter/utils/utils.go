@@ -441,3 +441,44 @@ func IsNotMountPoint(mounter mountutils.Interface, target string) (notMnt bool, 
 	}
 	return notMnt, nil
 }
+
+// RRSAArns is the pair of ARNs an RRSA credential exchange needs: the role to
+// assume, and the OIDC provider that vouches for the ServiceAccount token.
+type RRSAArns struct {
+	RoleArn         string
+	OidcProviderArn string
+}
+
+// CheckRRSAArns applies the rule OSS established for naming an RRSA role, so
+// every driver accepts the same volume attributes: a bare roleName, completed
+// from the account and cluster of the node that mounts it, or both ARNs for a role
+// in another account (or a provider under a non-default name). One ARN alone is
+// rejected rather than half-guessed, since the two have to agree on the account.
+//
+// It needs no cluster metadata, so it can run wherever the attributes are
+// accepted, ahead of ResolveRRSAArns.
+func CheckRRSAArns(roleName, roleArn, oidcProviderArn string) error {
+	if (roleArn == "") != (oidcProviderArn == "") {
+		return fmt.Errorf("use RRSA but one of the ARNs is empty, roleArn: %s, oidcProviderArn: %s", roleArn, oidcProviderArn)
+	}
+	if roleArn == "" && roleName == "" {
+		return fmt.Errorf("use RRSA but roleName is empty")
+	}
+	return nil
+}
+
+// ResolveRRSAArns returns the ARNs the attributes name, completing a bare roleName
+// from accountID and clusterID. See CheckRRSAArns for the rule.
+func ResolveRRSAArns(roleName, roleArn, oidcProviderArn, accountID, clusterID string) (RRSAArns, error) {
+	if err := CheckRRSAArns(roleName, roleArn, oidcProviderArn); err != nil {
+		return RRSAArns{}, err
+	}
+	if roleArn != "" {
+		return RRSAArns{RoleArn: roleArn, OidcProviderArn: oidcProviderArn}, nil
+	}
+	if accountID == "" || clusterID == "" {
+		return RRSAArns{}, fmt.Errorf("cannot build ARNs for roleName %s: account or cluster ID unknown", roleName)
+	}
+	derivedProvider, derivedRole := GetArn(GetOIDCProvider(clusterID), accountID, roleName)
+	return RRSAArns{RoleArn: derivedRole, OidcProviderArn: derivedProvider}, nil
+}

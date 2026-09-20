@@ -24,6 +24,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -245,8 +246,7 @@ func TestDoMount_AccesspointWithAkSkFromMountOptions(t *testing.T) {
 		Vers:          "3",
 		Options:       []string{"nolock"},
 		MountProtocol: MountProtocolNFS,
-		AkID:          "test-ak-id",
-		AkSecret:      "test-ak-secret",
+		stsCredential: stsCredential{AkID: "test-ak-id", AkSecret: "test-ak-secret"},
 	}
 	err := doMount(m, opt, "/mnt/target", "vol-123", "pod-uid", false)
 	assert.NoError(t, err)
@@ -320,4 +320,59 @@ func TestAppendJWTAuthOptions(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// TestPrepareRefreshMatchesTheMount is the invariant the prepare/do split exists
+// for: what a refresh tells the mount broker has to be what the mount was made
+// of. A stale fstype would route the rotation to the wrong driver (or to none),
+// and stale secrets would install a credential the mount never used.
+func TestPrepareRefreshMatchesTheMount(t *testing.T) {
+	cred := stsCredential{AkID: "ak", AkSecret: "sk", SecurityToken: "token"}
+	tests := []struct {
+		name       string
+		opt        *Options
+		wantFsType string
+	}{
+		{
+			name:       "accesspoint mounts through alinas",
+			opt:        &Options{Accesspoint: "ap-xxx.nas.aliyuncs.com", Path: "/", Vers: "3", MountProtocol: MountProtocolNFS, stsCredential: cred},
+			wantFsType: "alinas",
+		},
+		{
+			name:       "plain NAS keeps its protocol",
+			opt:        &Options{Server: "xxx.nas.aliyuncs.com", Path: "/", Vers: "3", MountProtocol: MountProtocolNFS},
+			wantFsType: MountProtocolNFS,
+		},
+		{
+			name:       "EFC client mounts through alinas",
+			opt:        &Options{Server: "xxx.cpfs.nas.aliyuncs.com", Path: "/", FSType: "cpfs", ClientType: EFCClient, MountProtocol: MountProtocolEFC},
+			wantFsType: "alinas",
+		},
+		{
+			name:       "native cpfs client",
+			opt:        &Options{Server: "xxx.cpfs.aliyuncs.com", Path: "/", FSType: "cpfs", ClientType: NativeClient},
+			wantFsType: "cpfs",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mountOp, _, err := prepareMount(tt.opt, "/target", "vol-123", "pod-uid", false)
+			require.NoError(t, err)
+			refreshOp, err := prepareRefresh(tt.opt, "/target", "vol-123", false)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantFsType, mountOp.FsType)
+			assert.Equal(t, mountOp.FsType, refreshOp.FsType)
+			assert.Equal(t, mountOp.Secrets, refreshOp.Secrets)
+			assert.Equal(t, mountOp.Target, refreshOp.Target)
+		})
+	}
+}
+
+// TestPrepareRefreshRejectsWhatWouldNotMount keeps a refresh from inventing a
+// mount the driver would have refused.
+func TestPrepareRefreshRejectsWhatWouldNotMount(t *testing.T) {
+	_, err := prepareRefresh(&Options{ClientType: NativeClient, FSType: "standard"}, "/target", "vol-123", false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Native Client don't support this storage type")
 }
