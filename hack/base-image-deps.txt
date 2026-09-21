@@ -1,4 +1,5 @@
-base-files 12.4+deb12u14
+base-files 12.4+deb12u15
+ca-certificates 20250419~deb12u1
 coreutils 9.1-1
 e2fsprogs 1.47.0-2+b2
 fdisk 2.38.1-5+deb12u3
@@ -15,7 +16,7 @@ libkeyutils1 1.6.3-2
 libkrb5-3 1.20.1-2+deb12u5
 libkrb5support0 1.20.1-2+deb12u5
 libmount1 2.38.1-5+deb12u3
-libpcre2-8-0 10.42-1
+libpcre2-8-0 10.42-1+deb12u1
 libreadline8 8.2-1.3
 libselinux1 3.4-1+b6
 libsmartcols1 2.38.1-5+deb12u3

@@ -15,7 +15,7 @@ RUN --mount=type=bind,target=. \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -trimpath -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12:latest@sha256:e7e678c88c59e70e105a46549bb3fbfb3d732ee3b4afd3a19fdab2e15afaa6b3 as distroless-base
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12:latest@sha256:fabbf1c0c357a3d42550111351daed089b20a2c954df13ee2fcff60602515e84 as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 ARG OSSFS_IMAGE_TAG=v1.91.12.ack.2-5cf3371
 ARG OSSFS2_IMAGE_TAG=v2.0.9.ack.3-a1f29fc
@@ -25,7 +25,7 @@ FROM distroless-base as csi-base
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20260623-slim as debian
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20260918-slim as debian
 
 ARG TARGETARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$TARGETARCH \
@@ -46,7 +46,7 @@ COPY --link --from=debian /staging-node /
 
 # blkid from source: newer libblkid mistakes non-filesystem data for a filesystem less often than
 # the one Debian stable ships, and a false positive makes us refuse to format an empty disk.
-FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20260623-slim as build-util-linux
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20260918-slim as build-util-linux
 ARG BUILDARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
     --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH \
