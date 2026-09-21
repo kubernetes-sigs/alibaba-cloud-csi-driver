@@ -111,6 +111,8 @@ type FusePodContext struct {
 	NodeName          string
 	VolumeId          string
 	FuseType          string
+	FdPassing         bool
+	Recovery          bool
 	AuthConfig        *AuthConfig
 	PodTemplateConfig *PodTemplateConfig
 	// EntrypointConfig is the name of a ConfigMap (in the fuse pod namespace)
@@ -124,7 +126,10 @@ type FusePodContext struct {
 type FuseMounterType interface {
 	Name() string
 	PodTemplateSpec(c *FusePodContext, target string) (*corev1.PodTemplateSpec, error)
-	AddDefaultMountOptions(options []string) []string
+	// AddDefaultMountOptions returns the final daemon mount options.
+	// mountFlags are PV spec.mountOptions (kernel-level flags like ro, nodev).
+	// Each implementation decides how to incorporate mountFlags and defaults.
+	AddDefaultMountOptions(options []string, mountFlags []string) []string
 }
 
 type FuseContainerConfig struct {

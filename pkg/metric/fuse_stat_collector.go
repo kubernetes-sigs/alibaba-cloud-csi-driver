@@ -328,6 +328,11 @@ var (
 		".",
 		usFsStatLabelNames, nil,
 	)
+	recoveryDegradedDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, utils.MetricsRecoveryDegraded),
+		"1 if FUSE recovery was requested but unavailable on this node, 0 otherwise.",
+		usFsStatLabelNames, nil,
+	)
 )
 
 type fuseInfo struct {
@@ -375,6 +380,7 @@ type usFsStatCollector struct {
 	mountPointStatus                      *typedFactorDesc
 	mountPointFailoverTotalCounter        *typedFactorDesc
 	lastFuseClientExitReason              *typedFactorDesc
+	recoveryDegraded                      *typedFactorDesc
 }
 
 type capacityBytesCounterDesc struct {
@@ -526,6 +532,7 @@ func NewFuseStatCollector() (Collector, error) {
 		mountPointStatus:               &typedFactorDesc{desc: mountPointStatusDesc, valueType: prometheus.GaugeValue},
 		mountPointFailoverTotalCounter: &typedFactorDesc{desc: mountPointFailoverTotalCountDesc, valueType: prometheus.CounterValue},
 		lastFuseClientExitReason:       &typedFactorDesc{desc: lastFuseClientExitReasonDesc, valueType: prometheus.GaugeValue},
+		recoveryDegraded:               &typedFactorDesc{desc: recoveryDegradedDesc, valueType: prometheus.GaugeValue},
 	}, nil
 }
 
@@ -680,6 +687,8 @@ func (p *usFsStatCollector) postMountPointStatusMetrics(statusType string, fsCli
 			ch <- p.mountPointStatus.mustNewConstMetric(valueFloat64, labels...)
 		case utils.MetricsMountPointFailoverCount:
 			ch <- p.mountPointFailoverTotalCounter.mustNewConstMetric(valueFloat64, labels...)
+		case utils.MetricsRecoveryDegraded:
+			ch <- p.recoveryDegraded.mustNewConstMetric(valueFloat64, labels...)
 		}
 	}
 }

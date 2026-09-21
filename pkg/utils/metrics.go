@@ -70,6 +70,7 @@ const (
 	MetricsMountPointStatus         = "mount_point_status"
 	MetricsMountPointFailoverCount  = "mount_point_failover_count"
 	MetricsLastFuseClientExitReason = "last_fuse_client_exit_reason"
+	MetricsRecoveryDegraded         = "recovery_degraded"
 
 	MetricsHotSpotReadFileTop  = "hot_spot_read_file_top"
 	MetricsHotSpotWriteFileTop = "hot_spot_write_file_top"
@@ -89,6 +90,7 @@ var MountpointMetricsArray = []string{
 	MetricsMountPointStatus,
 	MetricsMountPointFailoverCount,
 	MetricsLastFuseClientExitReason,
+	MetricsRecoveryDegraded,
 }
 
 var CounterTypeMetricsArray = []string{

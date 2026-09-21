@@ -930,6 +930,7 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 	tests := []struct {
 		name        string
 		options     []string
+		mountFlags  []string
 		cfglevel    string
 		enabledMime bool
 		want        []string
@@ -978,6 +979,18 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 			options: []string{"others", "allow_other"},
 			want:    []string{"others", "allow_other", "dbglevel=warn", "use_metrics", "listobjectsv2"},
 		},
+		{
+			// mountFlags are merged into options by makeMountOptionsAndFlags,
+			// so AddDefaultMountOptions receives them already in options.
+			name:    "mountFlags already in options (merged upstream)",
+			options: []string{"flag1", "flag2=value", "others"},
+			want:    []string{"flag1", "flag2=value", "others", "dbglevel=warn", "allow_other", "use_metrics", "listobjectsv2"},
+		},
+		{
+			name:    "mountFlags in options satisfies default-fill key",
+			options: []string{"allow_other", "others"},
+			want:    []string{"allow_other", "others", "dbglevel=warn", "use_metrics", "listobjectsv2"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -985,7 +998,7 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 			fakeOssfs.config.Extra = map[string]string{
 				"mime-support": fmt.Sprintf("%t", tt.enabledMime),
 			}
-			got := fakeOssfs.AddDefaultMountOptions(tt.options)
+			got := fakeOssfs.AddDefaultMountOptions(tt.options, tt.mountFlags)
 			assert.Equal(t, tt.want, got)
 		})
 	}

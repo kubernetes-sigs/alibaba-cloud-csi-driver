@@ -7,12 +7,14 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/component-base/featuregate"
+	featuregatetesting "k8s.io/component-base/featuregate/testing"
 )
 
 func TestSetDefaultImage(t *testing.T) {
@@ -95,6 +97,66 @@ func TestSetDefaultImage(t *testing.T) {
 			assert.Equal(t, test.expectedImage, test.config.Image)
 		})
 	}
+}
+
+func TestSetDefaultImage_Ossfs2FailoverGate(t *testing.T) {
+	tests := []struct {
+		name           string
+		enableRecovery bool
+		enableFdPass   bool
+		wantTag        string
+	}{
+		{
+			name:           "both gates off uses normal ossfs2 image",
+			enableRecovery: false,
+			enableFdPass:   false,
+			wantTag:        defaultOssfs2ImageTag,
+		},
+		{
+			name:           "recovery gate on selects failover image",
+			enableRecovery: true,
+			enableFdPass:   false,
+			wantTag:        defaultOssfs2FailoverImageTag,
+		},
+		{
+			name:           "fd-passing gate on selects failover image",
+			enableRecovery: false,
+			enableFdPass:   true,
+			wantTag:        defaultOssfs2FailoverImageTag,
+		},
+		{
+			name:           "both gates on selects failover image",
+			enableRecovery: true,
+			enableFdPass:   true,
+			wantTag:        defaultOssfs2FailoverImageTag,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableOssfs2Recovery, tt.enableRecovery)
+			featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableFUSEFdPassing, tt.enableFdPass)
+
+			config := &fpm.FuseContainerConfig{}
+			fakeMeta := metadata.NewMetadata()
+			SetDefaultImage(mounterutils.OssFs2Type, fakeMeta, config)
+			assert.Contains(t, config.Image, tt.wantTag,
+				"image %q should contain tag %q", config.Image, tt.wantTag)
+		})
+	}
+}
+
+func TestSetDefaultImage_OssfsIgnoresFailoverGate(t *testing.T) {
+	featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableOssfs2Recovery, true)
+	featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableFUSEFdPassing, true)
+
+	config := &fpm.FuseContainerConfig{}
+	fakeMeta := metadata.NewMetadata()
+	SetDefaultImage(mounterutils.OssFsType, fakeMeta, config)
+	assert.Contains(t, config.Image, defaultOssfsUpdatedImageTag,
+		"ossfs image should use normal tag even when failover gates are on")
+	assert.NotContains(t, config.Image, "failover",
+		"ossfs image must never use failover tag")
 }
 
 func Test_checkRRSAParams(t *testing.T) {

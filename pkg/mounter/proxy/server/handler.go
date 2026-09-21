@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
+	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 )
@@ -26,8 +28,8 @@ func Handle(conn *net.UnixConn, timeout time.Duration, seq int64) error {
 	}
 	logger.V(4).Info("Start to recvmsg")
 	var req rawRequest
-	err := proxy.ReadMsg(conn, &req)
-	logger.V(4).Info("finished recvmsg")
+	fuseFd, err := recvMsgWithFd(conn, &req)
+	logger.V(4).Info("finished recvmsg", "fuseFd", fuseFd)
 
 	// The connection keeps the timeout it was given so the answer still has a
 	// window to be written; the work stops earlier. See proxy/deadline.go.
@@ -67,7 +69,7 @@ func Handle(conn *net.UnixConn, timeout time.Duration, seq int64) error {
 			Error: fmt.Sprintf("read request: %v", err),
 		}
 	} else {
-		resp = handle(ctx, &req)
+		resp = handle(ctx, &req, fuseFd)
 	}
 	resp.Seq = seq
 	if resp.Error != "" {
@@ -93,7 +95,57 @@ type rawRequest struct {
 	Body   json.RawMessage `json:"body,omitempty"`
 }
 
-func handle(ctx context.Context, req *rawRequest) proxy.Response {
+// recvMsgWithFd reads a JSON message from conn and extracts the FUSE fd from OOB data if present.
+// Returns fuseFd=0 when no fd is received (backward compatible with old clients).
+//
+// SCM_RIGHTS (the fd) is only delivered with the first ReadMsgUnix, but on a
+// SOCK_STREAM socket a single client Write does not guarantee a single server
+// Read receives the entire message. We therefore do a small initial ReadMsgUnix
+// to capture the OOB fd, then replay the received bytes together with the rest
+// of the stream through proxy.ReadMsg (json.Decoder) which handles framing.
+func recvMsgWithFd(conn *net.UnixConn, req *rawRequest) (fuseFd int, err error) {
+	fuseFd = 0
+	// Initial buffer: only needs to capture the OOB data; the JSON payload may
+	// arrive across multiple reads and proxy.ReadMsg handles that.
+	const initialBufSize = 64 * 1024
+	buf := make([]byte, initialBufSize)
+	oob := make([]byte, unix.CmsgSpace(4)) // space for one fd
+
+	n, oobn, _, _, err := conn.ReadMsgUnix(buf, oob)
+	if err != nil {
+		return -1, fmt.Errorf("readmsg: %w", err)
+	}
+
+	// Parse OOB to extract fd
+	if oobn > 0 {
+		scms, err := unix.ParseSocketControlMessage(oob[:oobn])
+		if err == nil {
+			for _, scm := range scms {
+				fds, err := unix.ParseUnixRights(&scm)
+				if err == nil && len(fds) > 0 {
+					fuseFd = fds[0]
+					for _, fd := range fds[1:] {
+						_ = unix.Close(fd)
+					}
+					break
+				}
+			}
+		}
+	}
+
+	// Replay the bytes already read, then continue reading from the connection.
+	// proxy.ReadMsg uses json.Decoder which handles streaming/fragmented reads.
+	reader := io.MultiReader(bytes.NewReader(buf[:n]), conn)
+	if err := proxy.ReadMsg(reader, req); err != nil {
+		if fuseFd > 0 {
+			_ = unix.Close(fuseFd)
+		}
+		return -1, fmt.Errorf("read request message: %w", err)
+	}
+	return fuseFd, nil
+}
+
+func handle(ctx context.Context, req *rawRequest, fuseFd int) proxy.Response {
 	switch req.Header.Method {
 	case proxy.Mount:
 		var mountReq proxy.MountRequest
@@ -103,8 +155,15 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 				Error: err.Error(),
 			}
 		}
-		err = handleMountRequest(ctx, &mountReq)
+		err = handleMountRequest(ctx, &mountReq, fuseFd)
 		if err != nil {
+			// Close the received FUSE fd on mount failure to prevent fd leak.
+			// When fd-passing is used, the fd was received via SCM_RIGHTS and exists
+			// independently in this process's fd table — the client closing its copy
+			// does NOT close ours.
+			if fuseFd > 0 {
+				_ = unix.Close(fuseFd)
+			}
 			return proxy.Response{
 				Error: err.Error(),
 			}

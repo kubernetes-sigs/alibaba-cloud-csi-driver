@@ -28,6 +28,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss/ossfs"
@@ -37,6 +38,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	featuregatetesting "k8s.io/component-base/featuregate/testing"
 )
 
 type fakeCNFSGetter struct {
@@ -58,7 +60,9 @@ var m = &metadata.FakeProvider{
 func mustParseOptions(t *testing.T, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
 	readOnly bool, reqName string, onNode bool, provider metadata.MetadataProvider) *ossfpm.Options {
 	t.Helper()
-	opts, err := parseOptions(context.Background(), nil, volOptions, secrets, volCaps, readOnly, reqName, onNode, provider)
+	// Default test assumption: node kernel supports recovery. Tests that need to
+	// exercise the unsupported-kernel fallback path must call parseOptions directly.
+	opts, err := parseOptions(context.Background(), nil, volOptions, secrets, volCaps, readOnly, reqName, onNode, true, provider)
 	require.NoError(t, err)
 	return opts
 }
@@ -66,14 +70,14 @@ func mustParseOptions(t *testing.T, volOptions, secrets map[string]string, volCa
 func mustParseOptionsWithCNFS(t *testing.T, getter cnfsv1beta1.CNFSGetter, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
 	readOnly bool, reqName string, onNode bool, provider metadata.MetadataProvider) *ossfpm.Options {
 	t.Helper()
-	opts, err := parseOptions(context.Background(), getter, volOptions, secrets, volCaps, readOnly, reqName, onNode, provider)
+	opts, err := parseOptions(context.Background(), getter, volOptions, secrets, volCaps, readOnly, reqName, onNode, true, provider)
 	require.NoError(t, err)
 	return opts
 }
 
 func parseOptionsWithCNFSError(getter cnfsv1beta1.CNFSGetter, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
 	readOnly bool, reqName string, onNode bool, provider metadata.MetadataProvider) (*ossfpm.Options, error) {
-	return parseOptions(context.Background(), getter, volOptions, secrets, volCaps, readOnly, reqName, onNode, provider)
+	return parseOptions(context.Background(), getter, volOptions, secrets, volCaps, readOnly, reqName, onNode, true, provider)
 }
 
 func TestParseCredentialsFromSecret(t *testing.T) {
@@ -789,7 +793,7 @@ func Test_parseOptions_agenticBucket(t *testing.T) {
 		"bucketSpace":   "my-bs",
 		"bucket":        "my-bucket",
 		"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
-	}, nil, nil, false, "", false, m)
+	}, nil, nil, false, "", false, true, m)
 	require.NoError(t, err) // parseOptions itself should succeed
 	err = resolveAgenticBucketOptions(opts2, m)
 	assert.ErrorContains(t, err, "mutually exclusive")
@@ -798,7 +802,7 @@ func Test_parseOptions_agenticBucket(t *testing.T) {
 	opts3, err := parseOptions(context.Background(), nil, map[string]string{
 		"agenticBucket": "my-ab",
 		"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
-	}, nil, nil, false, "", false, m)
+	}, nil, nil, false, "", false, true, m)
 	require.NoError(t, err)
 	err = resolveAgenticBucketOptions(opts3, m)
 	assert.ErrorContains(t, err, "bucketSpace or bucketSpacePrefix is required")
@@ -831,7 +835,7 @@ func Test_resolveAgenticBucketOptions_prefix(t *testing.T) {
 		"agenticBucket":     "my-ab",
 		"bucketSpacePrefix": "sandbox-a",
 		"url":               "oss-cn-hangzhou-internal.aliyuncs.com",
-	}, nil, nil, false, "", false, noAccountMeta)
+	}, nil, nil, false, "", false, true, noAccountMeta)
 	require.NoError(t, err)
 	err = resolveAgenticBucketOptions(opts2, noAccountMeta)
 	assert.ErrorContains(t, err, "accountId unavailable")
@@ -877,7 +881,7 @@ func Test_parseOptions_fuseTypeNormalization(t *testing.T) {
 				}}
 			}
 
-			opts, err := parseOptions(context.Background(), nil, volOpts, nil, volCaps, false, "", false, m)
+			opts, err := parseOptions(context.Background(), nil, volOpts, nil, volCaps, false, "", false, true, m)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -1765,7 +1769,7 @@ func TestMakeAuthConfig(t *testing.T) {
 	assert.Equal(t, want2, authCfg2)
 }
 
-func TestMakeMountOptions(t *testing.T) {
+func TestMakeMountOptionsAndFlags(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-beijing")
 	fakeMeta := metadata.NewMetadata()
 	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
@@ -1790,7 +1794,9 @@ func TestMakeMountOptions(t *testing.T) {
 			},
 		},
 	}
-	want := []string{
+	// ossfs 1.x: mountFlags are merged into options by makeMountOptionsAndFlags
+	// (otherOpts → mountFlags → generated).
+	wantOptions := []string{
 		"allow_other",
 		"max_stat_cache_size=0",
 		"ro",
@@ -1799,9 +1805,11 @@ func TestMakeMountOptions(t *testing.T) {
 		"sigv4",
 		"region=cn-beijing",
 	}
-	got, err := makeMountOptions(opt, ossfsFpm, fakeMeta, cap)
+	wantFlags := []string{"ro"}
+	gotOptions, gotFlags, err := makeMountOptionsAndFlags(opt, ossfsFpm, fakeMeta, cap)
 	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	assert.Equal(t, wantOptions, gotOptions)
+	assert.Equal(t, wantFlags, gotFlags)
 
 	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
 	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2, nil, false)
@@ -1817,16 +1825,22 @@ func TestMakeMountOptions(t *testing.T) {
 		OtherOpts:  "-o attr_timeout=60",
 		SigVersion: "v4",
 	}
-	want2 := []string{
+	wantOptions2 := []string{
 		"attr_timeout=60",
 		"oss_endpoint=1.1.1.1",
 		"oss_bucket=aliyun",
 		"oss_bucket_prefix=/path",
 		"oss_region=cn-beijing",
 	}
-	got2, err := makeMountOptions(opt2, ossfs2Fpm, fakeMeta, cap)
+	// For ossfs2 the legacy code dropped MountFlags entirely (with a warning).
+	// The new contract returns them as a separate slice so the caller can
+	// route them appropriately (e.g. into FUSE kernel options via
+	// splitFuseOptions in the proxy client).
+	wantFlags2 := []string{"ro"}
+	gotOptions2, gotFlags2, err := makeMountOptionsAndFlags(opt2, ossfs2Fpm, fakeMeta, cap)
 	assert.NoError(t, err)
-	assert.Equal(t, want2, got2)
+	assert.Equal(t, wantOptions2, gotOptions2)
+	assert.Equal(t, wantFlags2, gotFlags2)
 }
 
 func TestMakePodTemplateConfig(t *testing.T) {
@@ -2570,6 +2584,306 @@ func TestParseOptions_SandboxCredProviderName(t *testing.T) {
 				assert.Equal(t, tt.wantCredProvider, opts.SandboxCredProviderName)
 			}
 			assert.Equal(t, tt.wantSandboxId, opts.SandboxId)
+		})
+	}
+}
+
+func TestParseOptions_FeatureGate_FdPassingAndRecovery(t *testing.T) {
+	baseOpts := map[string]string{
+		"bucket":   "test-bucket",
+		"url":      "oss-cn-hangzhou.aliyuncs.com",
+		"fuseType": mounterutils.OssFs2Type,
+	}
+	baseSecrets := map[string]string{
+		AkID:     "test-akid",
+		AkSecret: "test-aksecret",
+	}
+
+	tests := []struct {
+		name           string
+		enableRecovery bool
+		enableFdPass   bool
+		wantRecovery   bool
+		wantFdPassing  bool
+	}{
+		{
+			name:           "both gates disabled",
+			enableRecovery: false,
+			enableFdPass:   false,
+			wantRecovery:   false,
+			wantFdPassing:  false,
+		},
+		{
+			name:           "recovery gate enabled implies fd-passing",
+			enableRecovery: true,
+			enableFdPass:   false,
+			wantRecovery:   true,
+			wantFdPassing:  true,
+		},
+		{
+			name:           "fd-passing gate enabled without recovery",
+			enableRecovery: false,
+			enableFdPass:   true,
+			wantRecovery:   false,
+			wantFdPassing:  true,
+		},
+		{
+			name:           "both gates enabled",
+			enableRecovery: true,
+			enableFdPass:   true,
+			wantRecovery:   true,
+			wantFdPassing:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableOssfs2Recovery, tt.enableRecovery)
+			featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableFUSEFdPassing, tt.enableFdPass)
+
+			result := mustParseOptions(t, baseOpts, baseSecrets, nil, false, "vol-1", true, m)
+			assert.Equal(t, tt.wantRecovery, result.Recovery)
+			assert.Equal(t, tt.wantFdPassing, result.FdPassing)
+		})
+	}
+}
+
+func TestParseOptions_FeatureGate_OssfsBypass(t *testing.T) {
+	// For ossfs, feature gates should NOT set recovery/fd-passing
+	featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableOssfs2Recovery, true)
+	featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableFUSEFdPassing, true)
+
+	opts := map[string]string{
+		"bucket":   "test-bucket",
+		"url":      "oss-cn-hangzhou.aliyuncs.com",
+		"fuseType": mounterutils.OssFsType,
+	}
+	secrets := map[string]string{
+		AkID:     "test-akid",
+		AkSecret: "test-aksecret",
+	}
+
+	result := mustParseOptions(t, opts, secrets, nil, false, "vol-1", true, m)
+	assert.False(t, result.Recovery)
+	assert.False(t, result.FdPassing)
+}
+
+func Test_checkOssOptions_fdPassingRecoveryCapability(t *testing.T) {
+	fakeMeta := metadata.NewMetadata()
+	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
+	ossfs2, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
+	fusePodManagers := map[string]*ossfpm.OSSFusePodManager{
+		mounterutils.OssFsType:  ossfpm.NewOSSFusePodManager(ossfs, nil, false),
+		mounterutils.OssFs2Type: ossfpm.NewOSSFusePodManager(ossfs2, nil, false),
+	}
+
+	tests := []struct {
+		name    string
+		opts    *ossfpm.Options
+		errType error
+	}{
+		{
+			name: "ossfs with fd-passing should fail",
+			opts: &ossfpm.Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				FuseType:  mounterutils.OssFsType,
+				FdPassing: true,
+				AccessKey: ossfpm.AccessKey{AkID: "11111", AkSecret: "22222"},
+			},
+			errType: ParamError,
+		},
+		{
+			name: "ossfs with recovery should fail",
+			opts: &ossfpm.Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				FuseType:  mounterutils.OssFsType,
+				Recovery:  true,
+				AccessKey: ossfpm.AccessKey{AkID: "11111", AkSecret: "22222"},
+			},
+			errType: ParamError,
+		},
+		{
+			name: "ossfs2 with fd-passing should pass",
+			opts: &ossfpm.Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				FuseType:  mounterutils.OssFs2Type,
+				FdPassing: true,
+				AccessKey: ossfpm.AccessKey{AkID: "11111", AkSecret: "22222"},
+			},
+			errType: nil,
+		},
+		{
+			name: "ossfs2 with recovery should pass",
+			opts: &ossfpm.Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				FuseType:  mounterutils.OssFs2Type,
+				Recovery:  true,
+				FdPassing: true,
+				AccessKey: ossfpm.AccessKey{AkID: "11111", AkSecret: "22222"},
+			},
+			errType: nil,
+		},
+		{
+			name: "ossfs without fd-passing or recovery should pass",
+			opts: &ossfpm.Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				FuseType:  mounterutils.OssFsType,
+				AccessKey: ossfpm.AccessKey{AkID: "11111", AkSecret: "22222"},
+			},
+			errType: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkOssOptions(tt.opts, fusePodManagers[tt.opts.FuseType])
+			assert.ErrorIs(t, err, tt.errType)
+		})
+	}
+}
+
+func TestMountOptionsPipeline_Regression(t *testing.T) {
+	t.Setenv("REGION_ID", "cn-beijing")
+	fakeMeta := metadata.NewMetadata()
+
+	ossfs1Fuse, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
+	ossfs1Fpm := ossfpm.NewOSSFusePodManager(ossfs1Fuse, nil, false)
+	ossfs2Fuse, _ := ossfpm.GetFuseMounter(mounterutils.OssFs2Type, utils.Config{}, fakeMeta)
+	ossfs2Fpm := ossfpm.NewOSSFusePodManager(ossfs2Fuse, nil, false)
+
+	tests := []struct {
+		name       string
+		fuseType   string
+		fpm        *ossfpm.OSSFusePodManager
+		otherOpts  string
+		mountFlags []string
+		readOnly   bool
+		check      func(t *testing.T, options []string, mountFlags []string)
+	}{
+		{
+			name:       "ossfs1: Readonly + MountFlags=[rw] — rw before ro (libfuse2 last-wins → readonly)",
+			fuseType:   mounterutils.OssFsType,
+			fpm:        ossfs1Fpm,
+			mountFlags: []string{"rw"},
+			readOnly:   true,
+			check: func(t *testing.T, options []string, _ []string) {
+				rwIdx, roIdx := -1, -1
+				for i, o := range options {
+					if o == "rw" {
+						rwIdx = i
+					}
+					if o == "ro" {
+						roIdx = i
+					}
+				}
+				assert.True(t, rwIdx >= 0, "rw should be in options: %v", options)
+				assert.True(t, roIdx >= 0, "ro should be in options: %v", options)
+				assert.True(t, rwIdx < roIdx,
+					"rw (MountFlags) must precede ro (generated) for libfuse2 last-wins: %v", options)
+			},
+		},
+		{
+			name:     "ossfs1: no MountFlags + Readonly — only ro, no rw",
+			fuseType: mounterutils.OssFsType,
+			fpm:      ossfs1Fpm,
+			readOnly: true,
+			check: func(t *testing.T, options []string, _ []string) {
+				for _, o := range options {
+					assert.NotEqual(t, "rw", o, "no rw without MountFlags: %v", options)
+				}
+				assert.Contains(t, options, "ro")
+			},
+		},
+		{
+			name:       "ossfs1: MountFlags=[nodev,nosuid] — flags present in options",
+			fuseType:   mounterutils.OssFsType,
+			fpm:        ossfs1Fpm,
+			mountFlags: []string{"nodev", "nosuid"},
+			check: func(t *testing.T, options []string, _ []string) {
+				assert.Contains(t, options, "nodev")
+				assert.Contains(t, options, "nosuid")
+			},
+		},
+		{
+			name:       "ossfs2: MountFlags=[rw] — NOT in daemon options, returned separately",
+			fuseType:   mounterutils.OssFs2Type,
+			fpm:        ossfs2Fpm,
+			mountFlags: []string{"rw"},
+			check: func(t *testing.T, options []string, flags []string) {
+				for _, o := range options {
+					assert.NotEqual(t, "rw", o, "ossfs2 daemon options must not contain mountFlags: %v", options)
+				}
+				assert.Equal(t, []string{"rw"}, flags)
+			},
+		},
+		{
+			name:       "ossfs2: MountFlags=[nodev,nosuid] — not in daemon options",
+			fuseType:   mounterutils.OssFs2Type,
+			fpm:        ossfs2Fpm,
+			mountFlags: []string{"nodev", "nosuid"},
+			check: func(t *testing.T, options []string, flags []string) {
+				for _, o := range options {
+					assert.NotEqual(t, "nodev", o, "ossfs2 must not contain nodev: %v", options)
+					assert.NotEqual(t, "nosuid", o, "ossfs2 must not contain nosuid: %v", options)
+				}
+				assert.Equal(t, []string{"nodev", "nosuid"}, flags)
+			},
+		},
+		{
+			name:     "ossfs2: no MountFlags — empty flags",
+			fuseType: mounterutils.OssFs2Type,
+			fpm:      ossfs2Fpm,
+			check: func(t *testing.T, _ []string, flags []string) {
+				assert.Empty(t, flags)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opt := &ossfpm.Options{
+				URL:    "1.1.1.1",
+				Bucket: "test-bucket",
+				Path:   "/",
+				AccessKey: ossfpm.AccessKey{
+					AkID:     "ak",
+					AkSecret: "sk",
+				},
+				FuseType:   tt.fuseType,
+				OtherOpts:  tt.otherOpts,
+				ReadOnly:   tt.readOnly,
+				SigVersion: "v4",
+			}
+			var cap *csi.VolumeCapability
+			if len(tt.mountFlags) > 0 || tt.readOnly {
+				mount := &csi.VolumeCapability_MountVolume{MountFlags: tt.mountFlags}
+				cap = &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{Mount: mount},
+				}
+				if tt.readOnly {
+					cap.AccessMode = &csi.VolumeCapability_AccessMode{
+						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
+					}
+				}
+			}
+
+			options, flags, err := makeMountOptionsAndFlags(opt, tt.fpm, fakeMeta, cap)
+			require.NoError(t, err)
+			options = tt.fpm.AddDefaultMountOptions(options, flags)
+
+			t.Logf("options: %v", options)
+			t.Logf("flags: %v", flags)
+			tt.check(t, options, flags)
 		})
 	}
 }

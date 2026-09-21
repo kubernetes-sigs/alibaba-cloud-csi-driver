@@ -26,6 +26,7 @@ echo "OSSFS_RPM_VERSION: ${OSSFS_RPM_VERSION}"
 echo "OSSFS2_RPM_VERSION: ${OSSFS2_RPM_VERSION}"
 echo "OSSFS_IMAGE_TAG: ${OSSFS_IMAGE_TAG}"
 echo "OSSFS2_IMAGE_TAG: ${OSSFS2_IMAGE_TAG}"
+echo "OSSFS2_FAILOVER_IMAGE_TAG: ${OSSFS2_FAILOVER_IMAGE_TAG}"
 echo "ALINAS_UTILS_VERSION: ${ALINAS_UTILS_VERSION}"
 echo "EFC_VERSION: ${EFC_VERSION}"
 echo "ALINAS_RPM_BASE_URL: ${ALINAS_RPM_BASE_URL}"
@@ -41,22 +42,27 @@ GO_FILE="${ROOT_DIR}/pkg/mounter/fuse_pod_manager/oss/utils.go"
 echo "Updating ${GO_FILE}..."
 OSSFS_IMAGE_TAG_ESC=$(escape_sed "${OSSFS_IMAGE_TAG}")
 OSSFS2_IMAGE_TAG_ESC=$(escape_sed "${OSSFS2_IMAGE_TAG}")
-sed -i '' "s/defaultOssfsUpdatedImageTag = \".*\"/defaultOssfsUpdatedImageTag = \"${OSSFS_IMAGE_TAG_ESC}\"/" "${GO_FILE}"
-sed -i '' "s/defaultOssfs2ImageTag.*= \".*\"/defaultOssfs2ImageTag       = \"${OSSFS2_IMAGE_TAG_ESC}\"/" "${GO_FILE}"
+OSSFS2_FAILOVER_IMAGE_TAG_ESC=$(escape_sed "${OSSFS2_FAILOVER_IMAGE_TAG}")
+sed -i '' "s/defaultOssfsUpdatedImageTag[[:space:]]*= \".*\"/defaultOssfsUpdatedImageTag = \"${OSSFS_IMAGE_TAG_ESC}\"/" "${GO_FILE}"
+sed -i '' "s/defaultOssfs2ImageTag[[:space:]]*= \".*\"/defaultOssfs2ImageTag = \"${OSSFS2_IMAGE_TAG_ESC}\"/" "${GO_FILE}"
+sed -i '' "s/defaultOssfs2FailoverImageTag[[:space:]]*= \".*\"/defaultOssfs2FailoverImageTag = \"${OSSFS2_FAILOVER_IMAGE_TAG_ESC}\"/" "${GO_FILE}"
 
 # Update mount-proxy Dockerfile
 MOUNT_PROXY_DOCKERFILE="${ROOT_DIR}/build/mount-proxy/Dockerfile"
 echo "Updating ${MOUNT_PROXY_DOCKERFILE}..."
 OSSFS_RPM_VERSION_ESC=$(escape_sed "${OSSFS_RPM_VERSION}")
 OSSFS2_RPM_VERSION_ESC=$(escape_sed "${OSSFS2_RPM_VERSION}")
+OSSFS2_FAILOVER_RPM_VERSION_ESC=$(escape_sed "${OSSFS2_FAILOVER_RPM_VERSION}")
 ALINAS_UTILS_VERSION_ESC=$(escape_sed "${ALINAS_UTILS_VERSION}")
 EFC_VERSION_ESC=$(escape_sed "${EFC_VERSION}")
 ALINAS_RPM_BASE_URL_ESC=$(escape_sed "${ALINAS_RPM_BASE_URL}")
 
 # Update OSSFS_VERSION for ossfs stage
 sed -i '' "/^FROM.*AS ossfs$/,/^FROM.*AS ossfs-1.88$/ s/^ARG OSSFS_VERSION=.*/ARG OSSFS_VERSION=${OSSFS_RPM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
-# Update OSSFS_VERSION for ossfs2 stage
-sed -i '' "/^FROM.*AS ossfs2$/,/^FROM.*AS alinas$/ s/^ARG OSSFS2_VERSION=.*/ARG OSSFS2_VERSION=${OSSFS2_RPM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
+# Update OSSFS2_VERSION for ossfs2 stage
+sed -i '' "/^FROM.*AS ossfs2$/,/^FROM.*AS ossfs2-failover$/ s/^ARG OSSFS2_VERSION=.*/ARG OSSFS2_VERSION=${OSSFS2_RPM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
+# Update OSSFS2_VERSION for ossfs2-failover stage
+sed -i '' "/^FROM.*AS ossfs2-failover$/,/^FROM.*AS alinas$/ s/^ARG OSSFS2_VERSION=.*/ARG OSSFS2_VERSION=${OSSFS2_FAILOVER_RPM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
 # Update OSSFS_VERSION and OSSFS2_VERSION for aio stage
 sed -i '' "/^FROM.*AS aio$/,\$ s/^ARG OSSFS_VERSION=.*/ARG OSSFS_VERSION=${OSSFS_RPM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"
 sed -i '' "/^FROM.*AS aio$/,\$ s/^ARG OSSFS2_VERSION=.*/ARG OSSFS2_VERSION=${OSSFS2_RPM_VERSION_ESC}/" "${MOUNT_PROXY_DOCKERFILE}"

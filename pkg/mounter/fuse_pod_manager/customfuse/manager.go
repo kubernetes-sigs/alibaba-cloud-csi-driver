@@ -153,7 +153,7 @@ func (f *CustomFuse) PodTemplateSpec(c *fpm.FusePodContext, target string) (*cor
 	return pod, nil
 }
 
-func (f *CustomFuse) AddDefaultMountOptions(options []string) []string {
+func (f *CustomFuse) AddDefaultMountOptions(options []string, mountFlags []string) []string {
 	return options
 }
 

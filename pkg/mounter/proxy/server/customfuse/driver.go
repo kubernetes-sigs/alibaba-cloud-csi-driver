@@ -144,7 +144,7 @@ func (h *Driver) Terminate() {
 	klog.InfoS("All customfuse processes and monitoring goroutines exited")
 }
 
-func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
+func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest, _ int) error {
 	return h.ExtendedMount(ctx, &mounter.MountOperation{
 		Source:      req.Source,
 		Target:      req.Target,
