@@ -74,7 +74,7 @@ EOF
 # kernel.org takes ten minutes to serve this file to us.
 # The checksum is what makes the source trustworthy; the SBOM below names the canonical URL.
 ADD --link --checksum=sha256:f586e35d320ff537aab3ffeca37e9ecd482ccbe013590db4429a414d8aa6a728 \
-    https://mirrors.cernet.edu.cn/kernel.org/linux/utils/util-linux/v2.41/util-linux-2.41.5.tar.xz /src.tar.xz
+    https://mirrors.ustc.edu.cn/kernel.org/linux/utils/util-linux/v2.41/util-linux-2.41.5.tar.xz /src.tar.xz
 RUN mkdir -p /src && tar -C /src --strip-components=1 -xf /src.tar.xz
 
 RUN <<EOF
