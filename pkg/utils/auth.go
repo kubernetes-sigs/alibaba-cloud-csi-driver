@@ -17,13 +17,11 @@ limitations under the License.
 package utils
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
@@ -32,6 +30,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials/provider"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/crypto"
 	"k8s.io/klog/v2"
+	"k8s.io/mount-utils"
 )
 
 const (
@@ -98,49 +97,17 @@ func isUnderPATH(resolved string) (string, bool) {
 	return "", false
 }
 
-// evalSymlinks is a package variable so tests can simulate a mount point whose
-// filesystem is dead; that state cannot be created from a unit test.
-var evalSymlinks = filepath.EvalSymlinks
-
-// resolveSymlinks resolves symlinks for cleaned.
-//
-// A mount point whose filesystem is dead answers every lookup with ENOTCONN, which
-// would otherwise fail validation and stop the caller from ever unmounting it. Such a
-// component can only be the path we were asked about: mount(2) resolves symlinks
-// before mounting, so a mount point is always the leaf and always a directory.
-// Resolve its parent instead, which is an ordinary directory, and re-append the base
-// name. Ancestors go through resolveExistingAncestor untouched, so an ENOTCONN there
-// stays a hard error and no unverifiable suffix is ever re-appended.
-//
-// Only ENOTCONN is treated this way. That is narrower than mount-utils
-// IsCorruptedMnt, which also covers EACCES, EIO and ESTALE; ESTALE in particular means
-// the object may have been replaced, so it is not the crashed-daemon case.
+// resolveSymlinks resolves symlinks for cleaned, tolerating non-existent
+// trailing components. It first tries to resolve the full path. Only when
+// that fails because the path does not exist yet does it recursively resolve
+// the parent directory, then re-append the missing trailing component, so the
+// result is the resolved deepest existing ancestor joined with the full
+// non-existent suffix. Symlinks in any existing ancestor directory are still
+// followed and cannot be used to bypass the sensitive-path checks. Any
+// resolution error other than non-existence is returned as-is, and an error
+// is also returned if no ancestor up to the root can be resolved.
 func resolveSymlinks(cleaned string) (string, error) {
-	resolved, err := evalSymlinks(cleaned)
-	if err == nil {
-		return resolved, nil
-	}
-	if errors.Is(err, syscall.ENOTCONN) {
-		resolvedParent, perr := resolveExistingAncestor(filepath.Dir(cleaned))
-		if perr != nil {
-			return "", perr
-		}
-		return filepath.Join(resolvedParent, filepath.Base(cleaned)), nil
-	}
-	return resolveExistingAncestor(cleaned)
-}
-
-// resolveExistingAncestor resolves symlinks for cleaned, tolerating non-existent
-// trailing components. It first tries to resolve the full path. Only when that fails
-// because the path does not exist yet does it recursively resolve the parent
-// directory, then re-append the missing trailing component, so the result is the
-// resolved deepest existing ancestor joined with the full non-existent suffix.
-// Symlinks in any existing ancestor directory are still followed and cannot be used to
-// bypass the sensitive-path checks. Any resolution error other than non-existence is
-// returned as-is, and an error is also returned if no ancestor up to the root can be
-// resolved.
-func resolveExistingAncestor(cleaned string) (string, error) {
-	resolved, err := evalSymlinks(cleaned)
+	resolved, err := filepath.EvalSymlinks(cleaned)
 	if err == nil {
 		return resolved, nil
 	}
@@ -152,7 +119,7 @@ func resolveExistingAncestor(cleaned string) (string, error) {
 		// Reached the root without resolving any ancestor.
 		return "", fmt.Errorf("cannot resolve any ancestor of %s: %w", cleaned, err)
 	}
-	resolvedParent, err := resolveExistingAncestor(parent)
+	resolvedParent, err := resolveSymlinks(parent)
 	if err != nil {
 		return "", err
 	}
@@ -169,7 +136,10 @@ func resolveExistingAncestor(cleaned string) (string, error) {
 //  2. Resolves symlinks and rejects paths whose real location is under /proc.
 //  3. Resolves symlinks and rejects paths whose real location is under a PATH directory.
 //
-// Note: the kubelet root dir containment check is done by the caller.
+// Only meaningful for a path that is about to be mounted onto; an already-mounted
+// target was validated when it was first created, so callers should reach it through
+// ValidateMountTarget. Note: the kubelet root dir containment check is done by the
+// caller.
 func ValidatePath(path string) (bool, error) {
 	if !filepath.IsAbs(path) {
 		return false, fmt.Errorf("path %s must be an absolute path", path)
@@ -205,6 +175,32 @@ func ValidatePath(path string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// ValidateMountTarget validates path as a mount target, skipping the check when path
+// is already a mount point.
+//
+// The validation only protects the creation of a new mount: it stops a target whose
+// real location is under /proc or a PATH directory from overlaying binaries the driver
+// runs privileged. Once something is mounted at path the driver never mounts over it,
+// so re-validating buys nothing and only causes harm: resolving the path calls into
+// the mounted filesystem, which blocks or errors when that filesystem is dead (a
+// crashed FUSE daemon, an expired NAS credential). Both NodePublishVolume and
+// NodeUnpublishVolume validate first, so such a mount could then neither be refreshed
+// nor unmounted without manual intervention on the node.
+//
+// IsLikelyNotMountPoint uses statx(AT_STATX_DONT_SYNC), which reads the cached
+// mount-root attributes without contacting the server or daemon, so it reports those
+// dead mounts as mount points instead of hanging. The skip is deliberately narrow:
+// only a confirmed mount point (err == nil && !notMnt) waives validation. Any error,
+// including a corrupted-mount errno, falls through to ValidatePath and fails closed, so
+// validation is never skipped for a path that was not proven to be an existing mount.
+func ValidateMountTarget(m mount.Interface, path string) (bool, error) {
+	notMnt, err := m.IsLikelyNotMountPoint(path)
+	if err == nil && !notMnt {
+		return true, nil
+	}
+	return ValidatePath(path)
 }
 
 func getManagedAddonToken() AccessControl {

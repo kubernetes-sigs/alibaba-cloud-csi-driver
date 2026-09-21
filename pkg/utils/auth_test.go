@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"k8s.io/mount-utils"
 )
 
 func TestGetAccessControl(t *testing.T) {
@@ -343,46 +343,41 @@ func TestResolveSymlinks(t *testing.T) {
 	assert.Empty(t, got)
 }
 
-// A mount point whose filesystem is dead must not fail validation: both
-// NodePublishVolume and NodeUnpublishVolume resolve the target path first, so the
-// driver could neither re-establish nor clean up such a mount.
-func TestResolveSymlinks_DeadMountPoint(t *testing.T) {
-	// Resolve the temp dir up front: on macOS /var is a symlink to /private/var.
-	base, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
-	dead := filepath.Join(base, "deadmount")
-	require.NoError(t, os.MkdirAll(dead, 0o755))
+// fakeMountChecker answers IsLikelyNotMountPoint from fixed values; the embedded
+// nil Interface makes it satisfy mount.Interface without implementing the rest.
+type fakeMountChecker struct {
+	mount.Interface
+	notMnt bool
+	err    error
+}
 
-	orig := evalSymlinks
-	defer func() { evalSymlinks = orig }()
-	failWith := func(target string, errno syscall.Errno) {
-		evalSymlinks = func(path string) (string, error) {
-			if path == target {
-				return "", &os.PathError{Op: "lstat", Path: path, Err: errno}
-			}
-			return orig(path)
-		}
-	}
+func (f fakeMountChecker) IsLikelyNotMountPoint(string) (bool, error) {
+	return f.notMnt, f.err
+}
 
-	// Dead leaf: resolve the healthy parent and re-append the base name.
-	failWith(dead, syscall.ENOTCONN)
-	got, err := resolveSymlinks(dead)
+func TestValidateMountTarget(t *testing.T) {
+	// A path ValidatePath rejects on its literal form, before any filesystem access.
+	const unsafe = "/proc/self"
+	safe := t.TempDir()
+
+	// A confirmed mount point waives validation, even for a path that would be
+	// rejected: it was validated when first created, and a dead filesystem must stay
+	// refreshable and unmountable.
+	ok, err := ValidateMountTarget(fakeMountChecker{notMnt: false}, unsafe)
+	assert.True(t, ok)
 	assert.NoError(t, err)
-	assert.Equal(t, dead, got)
 
-	// A mount point is always the leaf, so an ENOTCONN ancestor is not tolerated:
-	// its contents are unreadable and the suffix could hide a symlink.
-	failWith(dead, syscall.ENOTCONN)
-	got, err = resolveSymlinks(filepath.Join(dead, "leaf"))
+	// Not a mount point: fall through to ValidatePath.
+	ok, err = ValidateMountTarget(fakeMountChecker{notMnt: true}, unsafe)
+	assert.False(t, ok)
 	assert.Error(t, err)
-	assert.Empty(t, got)
+	ok, err = ValidateMountTarget(fakeMountChecker{notMnt: true}, safe)
+	assert.True(t, ok)
+	assert.NoError(t, err)
 
-	// Errors IsCorruptedMnt would accept but that are not the crashed-daemon case
-	// stay hard failures.
-	for _, errno := range []syscall.Errno{syscall.ESTALE, syscall.EACCES, syscall.EIO, syscall.EPERM} {
-		failWith(dead, errno)
-		got, err = resolveSymlinks(dead)
-		assert.Error(t, err, "errno %v must not be resolved around", errno)
-		assert.Empty(t, got)
-	}
+	// Any error, including a corrupted-mount errno, fails closed to ValidatePath
+	// rather than waiving validation on an unproven path.
+	ok, err = ValidateMountTarget(fakeMountChecker{err: syscall.ENOTCONN}, unsafe)
+	assert.False(t, ok)
+	assert.Error(t, err)
 }

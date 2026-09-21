@@ -108,8 +108,8 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 	}}, nil
 }
 
-func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
-	valid, err := utils.ValidatePath(req.GetTargetPath())
+func validateNodePublishVolumeRequest(m mountutils.Interface, req *csi.NodePublishVolumeRequest) error {
+	valid, err := utils.ValidateMountTarget(m, req.GetTargetPath())
 	if !valid {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -149,7 +149,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	defer ns.locks.Release(req.VolumeId)
 
 	targetPath := req.GetTargetPath()
-	if err := validateNodePublishVolumeRequest(req); err != nil {
+	if err := validateNodePublishVolumeRequest(ns.rawMounter, req); err != nil {
 		return nil, err
 	}
 
@@ -416,8 +416,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
-	valid, err := utils.ValidatePath(req.GetTargetPath())
+func validateNodeUnpublishVolumeRequest(m mountutils.Interface, req *csi.NodeUnpublishVolumeRequest) error {
+	valid, err := utils.ValidateMountTarget(m, req.GetTargetPath())
 	if !valid {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -431,7 +431,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	defer ns.locks.Release(req.VolumeId)
 	targetPath := req.TargetPath
-	err := validateNodeUnpublishVolumeRequest(req)
+	err := validateNodeUnpublishVolumeRequest(ns.rawMounter, req)
 	if err != nil {
 		return nil, err
 	}
