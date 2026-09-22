@@ -71,6 +71,15 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 		return nil, err
 	}
 
+	// When a server (AccessPoint domain) is provided, the AgenticSpace and
+	// AccessPoint already exist externally. No NAS API calls are made;
+	// server + path are passed through to the volumeContext for NodePublishVolume.
+	if args.serverPresent() {
+		logger.V(2).Info("AgenticFS: server provided, using existing AccessPoint",
+			"server", args.Server, "path", args.Path)
+		return &csi.CreateVolumeResponse{Volume: args.passthroughVolume()}, nil
+	}
+
 	var agenticSpaceID, accesspointID string
 	// Observe failures only after validation. Never roll back a resource that the
 	// next request can recover via its ClientToken or accesspoint discovery.
@@ -105,6 +114,14 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 
 func (c *agenticfsController) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest, pv *corev1.PersistentVolume) (*csi.DeleteVolumeResponse, error) {
 	attributes := pv.Spec.CSI.VolumeAttributes
+
+	// When the volume was created with an existing server (passthrough mode),
+	// no cloud resources were created by CreateVolume, so nothing to delete.
+	if attributes[vcKeyServer] != "" && attributes[vcKeyAgenticSpaceId] == "" {
+		klog.InfoS("DeleteVolume: AgenticFS passthrough volume, no resources to delete", "volumeId", req.VolumeId)
+		return &csi.DeleteVolumeResponse{}, nil
+	}
+
 	filesystemID := agenticfsFilesystemID(attributes)
 	if filesystemID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "missing %s in volume attributes", filesystemIDKey)

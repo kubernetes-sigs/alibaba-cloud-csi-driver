@@ -460,16 +460,25 @@ func getCPFSIDFromMapOrServer(params map[string]string, server string) string {
 	}
 }
 
-func getFilesystemTypeFromAPIOrServer(filesystemID, server string, client interfaces.NasClientV2Interface) string {
+func describeFileSystemAttrs(filesystemID string, client interfaces.NasClientV2Interface) (filesystemType, storageType string) {
 	fs, err := client.DescribeFileSystems(context.TODO(), filesystemID)
 	if err != nil {
 		klog.ErrorS(err, "DescribeFileSystems failed")
+		return "", ""
 	}
 	if fs != nil && fs.Body != nil && fs.Body.FileSystems != nil && len(fs.Body.FileSystems.FileSystem) > 0 {
-		fs := fs.Body.FileSystems.FileSystem[0]
-		if fs != nil && fs.FileSystemType != nil {
-			return tea.StringValue(fs.FileSystemType)
+		f := fs.Body.FileSystems.FileSystem[0]
+		if f != nil {
+			return tea.StringValue(f.FileSystemType), tea.StringValue(f.StorageType)
 		}
+	}
+	return "", ""
+}
+
+func getFilesystemTypeFromAPIOrServer(filesystemID, server string, client interfaces.NasClientV2Interface) string {
+	fsType, _ := describeFileSystemAttrs(filesystemID, client)
+	if fsType != "" {
+		return fsType
 	}
 	return cloud.GetFilesystemTypeByMountTargetDomain(server)
 }
