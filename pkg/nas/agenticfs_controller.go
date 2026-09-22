@@ -5,6 +5,7 @@ package nas
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
@@ -181,6 +182,21 @@ func (c *agenticfsController) createAgenticSpace(ctx context.Context, args *agen
 		},
 	})
 	if err != nil {
+		// WORKAROUND: NAS CreateAgenticSpace does not honor ClientToken for
+		// idempotency. When the same ClientToken+Path is retried (e.g. after a
+		// gRPC timeout where the server accepted but the client lost the
+		// response), the API returns InvalidArgument with message "Path already
+		// used" instead of returning the existing AgenticSpaceId.
+		//
+		// We fall back to discovering the space via ListAccesspoints, which costs
+		// extra API calls on this error-recovery path only (never on first
+		// creation). Remove the workaround once NAS supports proper ClientToken
+		// idempotency for CreateAgenticSpace.
+		if strings.Contains(err.Error(), "Path already used") {
+			klog.InfoS("CreateAgenticSpace: path already exists, discovering existing space",
+				"fileSystemId", args.FileSystemID, "path", args.FileSystemPath)
+			return c.discoverAgenticSpaceByPath(ctx, args.FileSystemID, args.FileSystemPath)
+		}
 		return "", apiStatusError("nas:CreateAgenticSpace", err)
 	}
 	if resp == nil || resp.Body == nil {
@@ -191,6 +207,58 @@ func (c *agenticfsController) createAgenticSpace(ctx context.Context, args *agen
 		return "", status.Error(codes.Internal, "nas:CreateAgenticSpace: empty AgenticSpaceId in response")
 	}
 	return id, nil
+}
+
+// discoverAgenticSpaceByPath scans the filesystem's accesspoints for one rooted
+// at path and returns the AgenticSpace owning it. ListAccesspoints has no
+// RootPath filter, so the scan must follow every page: stopping early would
+// report "no matching AgenticSpace" for a space that does exist and leave it
+// orphaned, which is exactly what this recovery path is meant to avoid.
+func (c *agenticfsController) discoverAgenticSpaceByPath(ctx context.Context, filesystemID, path string) (string, error) {
+	// The service echoes RootPath back in whatever trailing-slash form it stored,
+	// which need not match the form this driver requested.
+	want := strings.TrimSuffix(path, "/")
+	nextToken := ""
+	for page := 1; ; page++ {
+		if page > apListMaxPages {
+			return "", status.Errorf(codes.Aborted,
+				"nas:ListAccesspoints: gave up after %d pages of %d while searching for the AgenticSpace owning %s on filesystem %s; retry later",
+				apListMaxPages, apListMaxResults, path, filesystemID)
+		}
+		listReq := &sdk.ListAccessPointsRequest{
+			FileSystemId: tea.String(filesystemID),
+			MaxResults:   tea.Int32(apListMaxResults),
+		}
+		if nextToken != "" {
+			listReq.NextToken = tea.String(nextToken)
+		}
+		listResp, err := c.nasClient.ListAccesspoints(ctx, listReq)
+		if err != nil {
+			return "", fmt.Errorf("nas:ListAccesspoints failed while discovering existing AgenticSpace: %w", err)
+		}
+		if listResp == nil || listResp.Body == nil {
+			return "", status.Errorf(codes.Aborted,
+				"nas:ListAccesspoints: page %d of the AgenticSpace discovery for %s returned a malformed response (nil body); refusing to conclude the space is absent from a partial list",
+				page, path)
+		}
+		for _, ap := range listResp.Body.AccessPoints {
+			if strings.TrimSuffix(tea.StringValue(ap.RootPath), "/") != want {
+				continue
+			}
+			spaceID := tea.StringValue(ap.AgenticSpaceId)
+			if spaceID == "" {
+				continue
+			}
+			klog.InfoS("Discovered existing AgenticSpace via AccessPoint",
+				"agenticSpaceId", spaceID, "accessPointId", tea.StringValue(ap.AccessPointId), "path", path)
+			return spaceID, nil
+		}
+		nextToken = tea.StringValue(listResp.Body.NextToken)
+		if nextToken == "" {
+			break
+		}
+	}
+	return "", fmt.Errorf("nas:CreateAgenticSpace reported Path already used for %s but no matching AgenticSpace found via ListAccesspoints", path)
 }
 
 func (c *agenticfsController) deleteAgenticSpace(ctx context.Context, filesystemID, agenticSpaceID, volumeID string) error {
