@@ -5,6 +5,7 @@ package nas
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
@@ -181,6 +182,21 @@ func (c *agenticfsController) createAgenticSpace(ctx context.Context, args *agen
 		},
 	})
 	if err != nil {
+		// WORKAROUND: NAS CreateAgenticSpace does not honor ClientToken for
+		// idempotency. When the same ClientToken+Path is retried (e.g. after a
+		// gRPC timeout where the server accepted but the client lost the
+		// response), the API returns InvalidArgument with message "Path already
+		// used" instead of returning the existing AgenticSpaceId.
+		//
+		// We fall back to discovering the space via ListAccesspoints. This adds
+		// an extra API call on the error-recovery path only (not on first
+		// creation). Remove this workaround once NAS supports proper ClientToken
+		// idempotency for CreateAgenticSpace.
+		if strings.Contains(err.Error(), "Path already used") {
+			klog.InfoS("CreateAgenticSpace: path already exists, discovering existing space",
+				"fileSystemId", args.FileSystemID, "path", args.FileSystemPath)
+			return c.discoverAgenticSpaceByPath(ctx, args.FileSystemID, args.FileSystemPath)
+		}
 		return "", apiStatusError("nas:CreateAgenticSpace", err)
 	}
 	if resp == nil || resp.Body == nil {
@@ -191,6 +207,27 @@ func (c *agenticfsController) createAgenticSpace(ctx context.Context, args *agen
 		return "", status.Error(codes.Internal, "nas:CreateAgenticSpace: empty AgenticSpaceId in response")
 	}
 	return id, nil
+}
+
+func (c *agenticfsController) discoverAgenticSpaceByPath(ctx context.Context, filesystemID, path string) (string, error) {
+	listResp, err := c.nasClient.ListAccesspoints(ctx, &sdk.ListAccessPointsRequest{
+		FileSystemId: tea.String(filesystemID),
+		MaxResults:   tea.Int32(100),
+	})
+	if err != nil {
+		return "", fmt.Errorf("nas:ListAccesspoints failed while discovering existing AgenticSpace: %w", err)
+	}
+	for _, ap := range listResp.Body.AccessPoints {
+		if tea.StringValue(ap.RootPath) == path || tea.StringValue(ap.RootPath)+"/" == path || path+"/" == tea.StringValue(ap.RootPath) {
+			spaceID := tea.StringValue(ap.AgenticSpaceId)
+			if spaceID != "" {
+				klog.InfoS("Discovered existing AgenticSpace via AccessPoint",
+					"agenticSpaceId", spaceID, "accessPointId", tea.StringValue(ap.AccessPointId), "path", path)
+				return spaceID, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("nas:CreateAgenticSpace reported Path already used for %s but no matching AgenticSpace found via ListAccesspoints", path)
 }
 
 func (c *agenticfsController) deleteAgenticSpace(ctx context.Context, filesystemID, agenticSpaceID, volumeID string) error {

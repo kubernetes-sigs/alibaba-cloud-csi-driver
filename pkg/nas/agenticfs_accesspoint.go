@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	accessPointStatusActive   = "Active"
-	accessPointStatusDeleting = "Deleting"
-	accessPointStatusInactive = "Inactive"
+	accessPointStatusActive   = "active"
+	accessPointStatusDeleting = "deleting"
+	accessPointStatusInactive = "inactive"
 
 	// Tags aid observation; only the AgenticSpaceId relationship proves ownership.
 	apTagKeyVolumeID                 = "csi.alibabacloud.com/volume-id"
@@ -94,7 +94,7 @@ func (c *agenticfsController) findReusableAccessPoint(ctx context.Context, files
 		if id == "" {
 			continue
 		}
-		switch tea.StringValue(ap.Status) {
+		switch strings.ToLower(tea.StringValue(ap.Status)) {
 		case accessPointStatusActive:
 			return id, tea.StringValue(ap.DomainName), nil
 		case accessPointStatusDeleting, accessPointStatusInactive:
@@ -262,7 +262,7 @@ func (c *agenticfsController) waitAccessPointActive(ctx context.Context, filesys
 			}
 		},
 		done: func(ap *sdk.DescribeAccessPointResponseBodyAccessPoint, notFound bool) bool {
-			return !notFound && ap != nil && tea.StringValue(ap.Status) == accessPointStatusActive
+			return !notFound && ap != nil && strings.ToLower(tea.StringValue(ap.Status)) == accessPointStatusActive
 		},
 		timeout: func(lastStatus string) error {
 			return status.Errorf(codes.DeadlineExceeded,
