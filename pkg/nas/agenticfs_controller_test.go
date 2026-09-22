@@ -3302,3 +3302,122 @@ func TestAgenticfsCreateVolumePathAlreadyUsedEmptyAgenticSpaceIdSkipped(t *testi
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no matching AgenticSpace found")
 }
+
+func TestAgenticfsCreateVolumeServerPresentPassthrough(t *testing.T) {
+	fake := newFakeNasClientV2()
+	ctrl := newAgenticfsCtrl(t, fake)
+
+	req := &csi.CreateVolumeRequest{
+		Name:          testAgenticFsPVName,
+		CapacityRange: &csi.CapacityRange{RequiredBytes: 10 * GiB},
+		Parameters: map[string]string{
+			"volumeAs": agenticFsVolumeAs,
+			"server":   "ap-existing.nas.aliyuncs.com",
+			"path":     "/user-data",
+			"options":  "tls,vers=3,ram",
+		},
+	}
+
+	resp, err := ctrl.CreateVolume(context.Background(), req)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "ap-existing.nas.aliyuncs.com", resp.Volume.VolumeContext[vcKeyServer])
+	assert.Equal(t, "/user-data", resp.Volume.VolumeContext[vcKeyPath])
+	assert.Equal(t, mountProtocolAlinas, resp.Volume.VolumeContext[vcKeyMountProtocol])
+	assert.Empty(t, resp.Volume.VolumeContext[vcKeyAgenticSpaceId])
+	assert.Empty(t, resp.Volume.VolumeContext[vcKeyAccesspointId])
+	assert.Empty(t, fake.createAgenticSpaceReqs, "no NAS API calls when server is provided")
+	assert.Empty(t, fake.createAccessPointReqs, "no NAS API calls when server is provided")
+}
+
+func TestAgenticfsCreateVolumeServerPresentDefaultPath(t *testing.T) {
+	fake := newFakeNasClientV2()
+	ctrl := newAgenticfsCtrl(t, fake)
+
+	req := &csi.CreateVolumeRequest{
+		Name:          testAgenticFsPVName,
+		CapacityRange: &csi.CapacityRange{RequiredBytes: 10 * GiB},
+		Parameters: map[string]string{
+			"volumeAs": agenticFsVolumeAs,
+			"server":   "ap-existing.nas.aliyuncs.com",
+		},
+	}
+
+	resp, err := ctrl.CreateVolume(context.Background(), req)
+	require.NoError(t, err)
+	assert.Equal(t, "/", resp.Volume.VolumeContext[vcKeyPath])
+}
+
+func TestAgenticfsCreateVolumeServerPresentWithFilesystemID(t *testing.T) {
+	fake := newFakeNasClientV2()
+	ctrl := newAgenticfsCtrl(t, fake)
+
+	req := &csi.CreateVolumeRequest{
+		Name:          testAgenticFsPVName,
+		CapacityRange: &csi.CapacityRange{RequiredBytes: 10 * GiB},
+		Parameters: map[string]string{
+			"volumeAs":      agenticFsVolumeAs,
+			"server":        "ap-existing.nas.aliyuncs.com",
+			filesystemIDKey: "011wozfr3hjd4jxhdbz",
+		},
+	}
+
+	resp, err := ctrl.CreateVolume(context.Background(), req)
+	require.NoError(t, err)
+	assert.Equal(t, "011wozfr3hjd4jxhdbz", resp.Volume.VolumeContext[filesystemIDKey])
+}
+
+func TestAgenticfsDeleteVolumeServerPresentSkipsDeletion(t *testing.T) {
+	fake := newFakeNasClientV2()
+	ctrl := newAgenticfsCtrl(t, fake)
+
+	pv := &corev1.PersistentVolume{
+		Spec: corev1.PersistentVolumeSpec{
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				CSI: &corev1.CSIPersistentVolumeSource{
+					VolumeAttributes: map[string]string{
+						vcKeyServer:        "ap-existing.nas.aliyuncs.com",
+						vcKeyPath:          "/user-data",
+						vcKeyMountProtocol: mountProtocolAlinas,
+					},
+				},
+			},
+		},
+	}
+
+	resp, err := ctrl.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{VolumeId: testAgenticFsPVName}, pv)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Empty(t, fake.deleteAccessPointIDs, "no NAS API calls for passthrough volume deletion")
+	assert.Empty(t, fake.deleteAgenticSpaceReqs, "no NAS API calls for passthrough volume deletion")
+}
+
+func TestAgenticfsDeleteVolumeCreatedModeStillDeletes(t *testing.T) {
+	fake := newFakeNasClientV2()
+	// After DeleteAccessPoint is called, DescribeAccessPoint should return NotFound
+	// so waitAccessPointDeleted succeeds.
+	fake.deleteAccessPointHook = func(_ context.Context, _, _ string) error {
+		fake.apStatuses = []string{fakeStatusNotFound}
+		return nil
+	}
+	ctrl := newAgenticfsCtrl(t, fake)
+
+	pv := &corev1.PersistentVolume{
+		Spec: corev1.PersistentVolumeSpec{
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				CSI: &corev1.CSIPersistentVolumeSource{
+					VolumeAttributes: map[string]string{
+						vcKeyServer:         testAgenticFsAPDomain,
+						vcKeyAgenticSpaceId: testAgenticFsAgenticSpaceID,
+						vcKeyAccesspointId:  testAgenticFsAccessPointID,
+						filesystemIDKey:     testAgenticFsFilesystemID,
+					},
+				},
+			},
+		},
+	}
+
+	_, err := ctrl.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{VolumeId: testAgenticFsPVName}, pv)
+	require.NoError(t, err)
+	assert.NotEmpty(t, fake.deleteAccessPointIDs, "created-mode volumes must be cleaned up")
+}
