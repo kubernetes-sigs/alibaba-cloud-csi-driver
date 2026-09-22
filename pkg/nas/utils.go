@@ -20,8 +20,11 @@ package nas
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -540,4 +543,43 @@ func setSysConfigs(mountPath string, sysConfigs []utilsio.SysConfig) error {
 func allowSysConfigKey(key string) bool {
 	// only support setting bdi/read_ahead_kb
 	return key == bdiReadAheadKB
+}
+
+type nodeSTSToken struct {
+	AccessKeyID     string `json:"AccessKeyId"`
+	AccessKeySecret string `json:"AccessKeySecret"`
+	SecurityToken   string `json:"SecurityToken"`
+}
+
+func fetchNodeSTSToken() (*nodeSTSToken, error) {
+	metaBase := "http://100.100.100.200/latest/meta-data/ram/security-credentials/"
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	resp, err := client.Get(metaBase)
+	if err != nil {
+		return nil, fmt.Errorf("list RAM roles: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read RAM role list: %w", err)
+	}
+	roleName := strings.TrimSpace(string(body))
+	if roleName == "" {
+		return nil, fmt.Errorf("no RAM role attached to this node")
+	}
+
+	resp2, err := client.Get(metaBase + roleName)
+	if err != nil {
+		return nil, fmt.Errorf("fetch STS token for role %s: %w", roleName, err)
+	}
+	defer resp2.Body.Close()
+	var token nodeSTSToken
+	if err := json.NewDecoder(resp2.Body).Decode(&token); err != nil {
+		return nil, fmt.Errorf("decode STS token: %w", err)
+	}
+	if token.AccessKeyID == "" {
+		return nil, fmt.Errorf("empty AccessKeyId in STS response")
+	}
+	return &token, nil
 }

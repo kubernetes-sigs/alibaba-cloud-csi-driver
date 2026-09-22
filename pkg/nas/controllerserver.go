@@ -29,6 +29,7 @@ import (
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -120,6 +121,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 	pv, err := cs.kubeClient.CoreV1().PersistentVolumes().Get(ctx, req.VolumeId, metav1.GetOptions{})
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.InfoS("DeleteVolume: PV not found, skipping deletion (substrate mode or already cleaned up)", "volumeId", req.VolumeId)
+			return &csi.DeleteVolumeResponse{}, nil
+		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

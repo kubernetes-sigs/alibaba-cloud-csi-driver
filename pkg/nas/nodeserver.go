@@ -364,8 +364,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	substrateMode := req.VolumeContext["csi.alibabacloud.com/substrate-mode"] == "true"
+
 	var runtimeVal string
-	if ns.config.KubeClient != nil {
+	if substrateMode {
+		klog.InfoS("NodePublishVolume: substrate mode detected, skipping pod runtime lookup")
+	} else if ns.config.KubeClient != nil {
 		runtimeVal = utils.GetPodRunTime(ctx, req, ns.config.KubeClient)
 	}
 
@@ -526,7 +530,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		defer conn.Close()
 	}
 
-	//mount nas client
+	// Substrate mode: inject STS token from node metadata service when no
+	// credentials are provided. This is a POC workaround until Agent Identity
+	// credential chain is fully integrated.
+	if substrateMode && opt.AkID == "" && opt.MountProtocol == MountProtocolAliNas {
+		token, err := fetchNodeSTSToken()
+		if err != nil {
+			klog.ErrorS(err, "NodePublishVolume: failed to fetch STS token from metadata service")
+		} else {
+			opt.AkID = token.AccessKeyID
+			opt.AkSecret = token.AccessKeySecret
+			opt.Options = append(opt.Options, "security_token="+token.SecurityToken)
+			klog.InfoS("NodePublishVolume: substrate mode: injected STS token from node metadata service")
+		}
+	}
+
 	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, podUID, ns.config.AgentMode); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
