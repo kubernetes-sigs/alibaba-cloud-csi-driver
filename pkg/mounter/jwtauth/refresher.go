@@ -51,9 +51,57 @@ func NewRefresher(opts Opts, sink CredentialSink) (*Refresher, error) {
 	}, nil
 }
 
-// FetchCredentials performs a single exchange of the jwtauth token for an STS
-// credential, without delivering it to the sink.
-func (r *Refresher) FetchCredentials(ctx context.Context) (*STSToken, error) {
+func (r *Refresher) Start(ctx context.Context) error {
+	client, err := buildHTTPClient(r.opts)
+	if err != nil {
+		return fmt.Errorf("build http client: %w", err)
+	}
+	r.client = client
+
+	cred, err := r.fetchCredentials(ctx)
+	if err != nil {
+		return fmt.Errorf("initial credential fetch: %w", err)
+	}
+	if err := r.sink.Apply(cred); err != nil {
+		return fmt.Errorf("apply initial credentials: %w", err)
+	}
+
+	go r.refreshLoop(cred)
+	return nil
+}
+
+func (r *Refresher) StartWith(cred *STSToken) error {
+	client, err := buildHTTPClient(r.opts)
+	if err != nil {
+		return fmt.Errorf("build http client: %w", err)
+	}
+	r.client = client
+
+	go r.refreshLoop(cred)
+	return nil
+}
+
+func (r *Refresher) Stop() {
+	r.mu.Lock()
+	select {
+	case <-r.stopCh:
+	default:
+		close(r.stopCh)
+	}
+	r.mu.Unlock()
+
+	select {
+	case <-r.done:
+	case <-time.After(stopWaitTimeout):
+		klog.Warningf("jwtauth refresher: Stop timed out after %v, goroutine may still be running", stopWaitTimeout)
+	}
+}
+
+func (r *Refresher) Cleanup() {
+	r.sink.Cleanup()
+}
+
+func (r *Refresher) fetchCredentials(ctx context.Context) (*STSToken, error) {
 	return exchangeSTSToken(ctx, r.client, r.opts)
 }
 
