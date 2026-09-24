@@ -23,6 +23,11 @@ import (
 	"k8s.io/utils/clock"
 )
 
+const (
+	spaceListMaxResults = 100
+	spaceListMaxPages   = 50
+)
+
 // agenticfsController orchestrates one PVC -> one AgenticSpace -> one AccessPoint.
 // The outer controllerServer owns per-volume locking and PV lookup. This mode
 // depends only on NAS, CNFS lookup and a clock; it does not retain RPC-local state.
@@ -183,6 +188,18 @@ func (c *agenticfsController) createAgenticSpace(ctx context.Context, args *agen
 		},
 	})
 	if err != nil {
+		// WORKAROUND: NAS CreateAgenticSpace does not honor ClientToken for
+		// idempotency. Retrying the same ClientToken+Path after a partial
+		// CreateVolume attempt can return InvalidArgument with "Path already
+		// used" instead of the existing AgenticSpaceId.
+		//
+		// DescribeAgenticSpaces recovers the ID even if no AccessPoint was
+		// created. Remove this workaround once NAS replays the ClientToken.
+		if strings.Contains(err.Error(), "Path already used") {
+			klog.InfoS("CreateAgenticSpace: path already exists, discovering existing space",
+				"fileSystemId", args.FileSystemID, "path", args.FileSystemPath)
+			return c.discoverAgenticSpaceByPath(ctx, args.FileSystemID, args.FileSystemPath)
+		}
 		return "", apiStatusError("nas:CreateAgenticSpace", err)
 	}
 	if resp == nil || resp.Body == nil {
@@ -193,6 +210,61 @@ func (c *agenticfsController) createAgenticSpace(ctx context.Context, args *agen
 		return "", status.Error(codes.Internal, "nas:CreateAgenticSpace: empty AgenticSpaceId in response")
 	}
 	return id, nil
+}
+
+func (c *agenticfsController) discoverAgenticSpaceByPath(ctx context.Context, filesystemID, path string) (string, error) {
+	nextToken := ""
+	matchedID := ""
+	seenTokens := make(map[string]struct{})
+	for page := 1; page <= spaceListMaxPages; page++ {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		req := &sdk.DescribeAgenticSpacesRequest{
+			FileSystemId: tea.String(filesystemID),
+			MaxResults:   tea.Int64(spaceListMaxResults),
+		}
+		if nextToken != "" {
+			req.NextToken = tea.String(nextToken)
+		}
+		listResp, err := c.nasClient.DescribeAgenticSpaces(ctx, req)
+		if err != nil {
+			return "", apiStatusError("nas:DescribeAgenticSpaces failed while discovering existing AgenticSpace", err)
+		}
+		if listResp == nil || listResp.Body == nil || listResp.Body.AgenticSpaces == nil {
+			return "", status.Errorf(codes.Aborted, "nas:DescribeAgenticSpaces: malformed response on discovery page %d; retry later", page)
+		}
+		for _, space := range listResp.Body.AgenticSpaces.AgenticSpace {
+			if space == nil || tea.StringValue(space.FileSystemId) != filesystemID {
+				return "", status.Errorf(codes.Aborted, "nas:DescribeAgenticSpaces: missing record or mismatched filesystem on discovery page %d; refusing to reuse", page)
+			}
+			if strings.TrimSuffix(tea.StringValue(space.FileSystemPath), "/") != strings.TrimSuffix(path, "/") {
+				continue
+			}
+			spaceID := tea.StringValue(space.AgenticSpaceId)
+			if spaceID == "" {
+				return "", status.Errorf(codes.Aborted, "nas:DescribeAgenticSpaces: empty AgenticSpaceId for path %s; refusing to reuse", path)
+			}
+			if matchedID != "" && matchedID != spaceID {
+				return "", status.Errorf(codes.Aborted, "nas:DescribeAgenticSpaces: conflicting AgenticSpaces for path %s; refusing to choose", path)
+			}
+			matchedID = spaceID
+		}
+		nextToken = tea.StringValue(listResp.Body.NextToken)
+		if nextToken == "" {
+			if matchedID == "" {
+				return "", status.Errorf(codes.Aborted, "nas:CreateAgenticSpace reported Path already used for %s but no matching AgenticSpace found via DescribeAgenticSpaces; retry after the space becomes visible", path)
+			}
+			klog.FromContext(ctx).Info("Discovered existing AgenticSpace",
+				"fileSystemId", filesystemID, "agenticSpaceId", matchedID, "path", path)
+			return matchedID, nil
+		}
+		if _, repeated := seenTokens[nextToken]; repeated {
+			return "", status.Error(codes.Aborted, "nas:DescribeAgenticSpaces: repeated pagination token while discovering existing AgenticSpace; retry later")
+		}
+		seenTokens[nextToken] = struct{}{}
+	}
+	return "", status.Errorf(codes.Aborted, "nas:DescribeAgenticSpaces: discovery exceeded %d pages; refusing an incomplete lookup", spaceListMaxPages)
 }
 
 func (c *agenticfsController) deleteAgenticSpace(ctx context.Context, filesystemID, agenticSpaceID, volumeID string) error {
