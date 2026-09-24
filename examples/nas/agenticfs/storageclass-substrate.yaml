@@ -1,0 +1,18 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nas-substrate-agenticfs-example
+provisioner: nasplugin.csi.alibabacloud.com
+parameters:
+  volumeAs: Agentic
+  fileSystemId: "YOUR_FILESYSTEM_ID"
+  zoneId: "YOUR_ZONE_ID"
+  vpcId: "YOUR_VPC_ID"
+  vSwitchId: "YOUR_VSWITCH_ID"
+  options: "tls,vers=3,ram"
+  authType: agent-identity
+  sandboxCredProviderName: "YOUR_CREDENTIAL_PROVIDER_NAME"
+  csi.alibabacloud.com/substrate-mode: "true"
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
