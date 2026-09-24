@@ -37,6 +37,15 @@ func GetCAFilePath() string {
 	return os.Getenv("AGENT_IDENTITY_CERT_FILE")
 }
 
+// Substrate credentials are projected into the mount-proxy Pod. ACS sandbox
+// credentials continue to use the token-dir and CA-file environment settings above.
+const (
+	SATokenFile       = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	PodCertBundleFile = "/run/podidentity.podcert.ate.dev/credential-bundle.pem"
+	// PodCertTrustBundleFile is the server trust bundle, not the client's issuer by definition.
+	PodCertTrustBundleFile = "/run/podidentity.podcert.ate.dev/trust-bundle.pem"
+)
+
 // GetTokenRefreshMargin returns how long before expiry a credential is renewed.
 // It reads the value from the AGENT_IDENTITY_TOKEN_REFRESH_MARGIN environment
 // variable, which takes a Go duration such as "20m" or "90s".

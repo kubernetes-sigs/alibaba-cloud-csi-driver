@@ -22,6 +22,7 @@ these AgenticFS operations:
 | Operation | RAM actions |
 | --- | --- |
 | Provision a space | `nas:CreateAgenticSpace` |
+| Recover an existing space after a path conflict | `nas:DescribeAgenticSpaces` |
 | Discover/reuse and wait for access points | `nas:ListAccessPoints`, `nas:DescribeAccessPoint` |
 | Create an access point | `nas:CreateAccessPoint` |
 | Delete a volume | `nas:DeleteAccessPoint`, `nas:DeleteAgenticSpace` |
@@ -43,6 +44,8 @@ in the NAS error before retrying.
 - **With CNFS:** edit and apply `cnfs.yaml`, wait for the CNFS controller to populate
   `status.fsAttributes.filesystemId` and `storageType: Agentic`, then edit and
   apply `storageclass.yaml`. Apply `pvc.yaml` and `pod.yaml` afterwards.
+- **Substrate with Agent Identity:** adapt `storageclass-substrate.yaml` to your
+  filesystem and credential provider; configure the caller and mounter separately.
 
 When both are specified, `fileSystemId` takes precedence over
 `containerNetworkFileSystem`. The filesystem's placement and the AgenticSpace's
@@ -78,6 +81,7 @@ when data must be preserved after the PVC is removed.
 Creation proceeds forward on retries:
 
 1. `CreateAgenticSpace` reuses `ClientToken=<volume name>` to replay creation.
+   A `Path already used` response is recovered through `DescribeAgenticSpaces`.
 2. `CreateAccessPoint` has no ClientToken in the current public API. The driver
    lists access points bound to the space and reuses one before attempting a new
    creation; it does not blindly create another access point on every retry.
