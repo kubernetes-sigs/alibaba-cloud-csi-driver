@@ -80,6 +80,10 @@ func (n *MockNasClientV2Interface) GetAgenticSpace(ctx context.Context, req *sdk
 	return n.client.GetAgenticSpace(req)
 }
 
+func (n *MockNasClientV2Interface) DescribeAgenticSpaces(ctx context.Context, req *sdk.DescribeAgenticSpacesRequest) (*sdk.DescribeAgenticSpacesResponse, error) {
+	return n.client.DescribeAgenticSpacesWithContext(ctx, req, &dara.RuntimeOptions{})
+}
+
 func (n *MockNasClientV2Interface) DeleteAgenticSpace(ctx context.Context, req *sdk.DeleteAgenticSpaceRequest) (*sdk.DeleteAgenticSpaceResponse, error) {
 	return n.client.DeleteAgenticSpace(req)
 }
