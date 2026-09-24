@@ -23,6 +23,8 @@ import (
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	mountutils "k8s.io/mount-utils"
 )
@@ -318,6 +320,53 @@ func TestAppendJWTAuthOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := appendJWTAuthOptions(tt.options, tt.opt)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSubstrateAuthOptionsRequireVolumeContextMarker(t *testing.T) {
+	for _, mode := range []string{"", "false", "true"} {
+		t.Run(mode, func(t *testing.T) {
+			opt, _, err := parseVolumeContext(map[string]string{
+				"csi.alibabacloud.com/substrate-mode": mode,
+				"csi.storage.k8s.io/pod.uid":          "actor-uid",
+				"authType":                            "agent-identity",
+				"sandboxCredProviderName":             "nas-provider",
+				"unrelated":                           "must-not-be-forwarded",
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+			got := appendJWTAuthOptions([]string{"tls,csi.alibabacloud.com/substrate-mode=true"}, opt)
+			want := []string{"tls", "authType=agent-identity", "sandboxCredProviderName=nas-provider"}
+			if mode == "true" {
+				want = []string{"tls", "authType=agent-identity", "sandboxId=actor-uid", "sandboxCredProviderName=nas-provider", "csi.alibabacloud.com/substrate-mode=true"}
+			}
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+func TestSubstrateAuthUsesEffectiveMountAuthType(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		mountOptions    []string
+		contextAuthType string
+		wantSubstrate   bool
+	}{
+		{"auth supplied by mount options", []string{"tls,authType=agent-identity"}, "", true},
+		{"mount options override context auth", []string{"authType=agent-identity"}, "workrole", true},
+		{"legacy mount auth remains legacy", []string{"authType=workrole"}, "agent-identity", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			options := appendJWTAuthOptions(tc.mountOptions, &Options{
+				SubstrateMode:           true,
+				AuthType:                tc.contextAuthType,
+				SandboxId:               "actor-uid",
+				SandboxCredProviderName: "nas-provider",
+			})
+			resolved := jwtauth.ResolveOpts(mounterutils.IndexMountOptions(options))
+			assert.Equal(t, tc.wantSubstrate, resolved.SubstrateMode)
 		})
 	}
 }
