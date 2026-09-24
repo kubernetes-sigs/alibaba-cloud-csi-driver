@@ -8,6 +8,8 @@ import (
 	"unicode"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"google.golang.org/grpc/codes"
@@ -42,15 +44,18 @@ const (
 // Like nasVolumeArgs/diskVolumeArgs, this is a validated request snapshot, not
 // mutable controller state. Cloud operations need not re-read untyped maps.
 type agenticfsVolumeArgs struct {
-	Name           string
-	FileSystemID   string
-	FileSystemPath string
-	ZoneID         string
-	VpcID          string
-	VSwitchID      string
-	SizeLimit      int64
-	FileCountLimit int64
-	MountOptions   string
+	Name             string
+	FileSystemID     string
+	FileSystemPath   string
+	ZoneID           string
+	VpcID            string
+	VSwitchID        string
+	SizeLimit        int64
+	FileCountLimit   int64
+	MountOptions     string
+	AuthType         string
+	CredProviderName string
+	SubstrateMode    bool
 }
 
 // Preserve validation order: name, filesystem/CNFS resolution, placement, then
@@ -98,33 +103,47 @@ func (c *agenticfsController) getAgenticfsVolumeOptions(ctx context.Context, req
 		return nil, err
 	}
 	return &agenticfsVolumeArgs{
-		Name:           req.Name,
-		FileSystemID:   filesystemID,
-		FileSystemPath: "/" + req.Name + "/",
-		ZoneID:         zoneID,
-		VpcID:          vpcID,
-		VSwitchID:      vswID,
-		SizeLimit:      sizeLimit,
-		FileCountLimit: fileCountLimit,
-		MountOptions:   parameters[vcKeyOptions],
+		Name:             req.Name,
+		FileSystemID:     filesystemID,
+		FileSystemPath:   "/" + req.Name + "/",
+		ZoneID:           zoneID,
+		VpcID:            vpcID,
+		VSwitchID:        vswID,
+		SizeLimit:        sizeLimit,
+		FileCountLimit:   fileCountLimit,
+		MountOptions:     parameters[vcKeyOptions],
+		AuthType:         parameters[jwtauth.OptAuthType],
+		CredProviderName: parameters[jwtauth.OptSandboxCredProviderName],
+		SubstrateMode:    common.IsSubstrateVolumeContext(parameters),
 	}, nil
 }
 
+// volume builds the CSI response after backend provisioning; it makes no API calls.
 func (args *agenticfsVolumeArgs) volume(agenticSpaceID, accesspointID, server string) *csi.Volume {
-	// Do not forward CNFS/accesspoint/authType: the node mounts the AP domain via
-	// server + mountProtocol=alinas. The generic controller adds volumeAs later.
+	vc := map[string]string{
+		vcKeyServer:         server,
+		vcKeyPath:           "/",
+		vcKeyMountProtocol:  mountProtocolAlinas,
+		vcKeyOptions:        mergeAgenticFsMountOptions(args.MountOptions, defaultAgenticFsMountOptions),
+		filesystemIDKey:     args.FileSystemID,
+		vcKeyAccesspointId:  accesspointID,
+		vcKeyAgenticSpaceId: agenticSpaceID,
+	}
+	if args.AuthType != "" {
+		// NodePublishVolume needs the identity selection; atelet supplies the actor UID later.
+		vc[jwtauth.OptAuthType] = args.AuthType
+	}
+	if args.CredProviderName != "" {
+		vc[jwtauth.OptSandboxCredProviderName] = args.CredProviderName
+	}
+	volumeID := args.Name
+	if args.SubstrateMode {
+		volumeID = substrateAgenticVolumeID(args.FileSystemID, agenticSpaceID)
+	}
 	return &csi.Volume{
-		VolumeId:      args.Name,
+		VolumeId:      volumeID,
 		CapacityBytes: args.SizeLimit,
-		VolumeContext: map[string]string{
-			vcKeyServer:         server,
-			vcKeyPath:           "/",
-			vcKeyMountProtocol:  mountProtocolAlinas,
-			vcKeyOptions:        mergeAgenticFsMountOptions(args.MountOptions, defaultAgenticFsMountOptions),
-			filesystemIDKey:     args.FileSystemID,
-			vcKeyAccesspointId:  accesspointID,
-			vcKeyAgenticSpaceId: agenticSpaceID,
-		},
+		VolumeContext: vc,
 	}
 }
 

@@ -29,7 +29,6 @@ import (
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
@@ -43,6 +42,8 @@ func init() {
 	internal.RegisterControllerMode(newAccesspointController)
 	internal.RegisterControllerMode(newAgenticfsController)
 }
+
+const volumeAsKey = "volumeAs"
 
 type controllerServer struct {
 	*internal.ControllerFactory
@@ -77,7 +78,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	controller, err := cs.VolumeAs(req.Parameters["volumeAs"])
+	controller, err := cs.VolumeAs(req.Parameters[volumeAsKey])
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +88,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	parameters := req.Parameters
-	resp.Volume.VolumeContext["volumeAs"] = controller.VolumeAs()
+	resp.Volume.VolumeContext[volumeAsKey] = controller.VolumeAs()
 	if mode := parameters["mode"]; mode != "" {
 		resp.Volume.VolumeContext["mode"] = mode
 		modeType := parameters["modeType"]
@@ -118,12 +119,12 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 	defer cs.locks.Release(req.VolumeId)
 
-	pv, err := cs.kubeClient.CoreV1().PersistentVolumes().Get(ctx, req.VolumeId, metav1.GetOptions{})
+	pv, err := cs.controllerVolume(ctx, req.VolumeId)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
 
-	controller, err := cs.VolumeAs(pv.Spec.CSI.VolumeAttributes["volumeAs"])
+	controller, err := cs.VolumeAs(pv.Spec.CSI.VolumeAttributes[volumeAsKey])
 	if err != nil {
 		return nil, err
 	}
@@ -141,12 +142,12 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	}
 	defer cs.locks.Release(req.VolumeId)
 
-	pv, err := cs.kubeClient.CoreV1().PersistentVolumes().Get(ctx, req.VolumeId, metav1.GetOptions{})
+	pv, err := cs.controllerVolume(ctx, req.VolumeId)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
 
-	controller, err := cs.VolumeAs(pv.Spec.CSI.VolumeAttributes["volumeAs"])
+	controller, err := cs.VolumeAs(pv.Spec.CSI.VolumeAttributes[volumeAsKey])
 	if err != nil {
 		return nil, err
 	}
