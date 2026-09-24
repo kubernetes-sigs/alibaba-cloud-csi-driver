@@ -22,7 +22,7 @@ type ShrinkClusterResponseBody struct {
 	//
 	// CC9FEF89-9BE5-5E03-845E-238B48D7599B
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The job ID.
+	// The task ID.
 	//
 	// example:
 	//

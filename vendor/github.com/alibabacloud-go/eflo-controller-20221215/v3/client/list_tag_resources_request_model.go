@@ -22,7 +22,7 @@ type iListTagResourcesRequest interface {
 }
 
 type ListTagResourcesRequest struct {
-	// The token that determines the start position of the query. Set this parameter to the value of the NextToken parameter that is returned from the last call.
+	// The token used to retrieve the next page of results. Set this parameter to the NextToken value returned in the previous response.
 	//
 	// example:
 	//
@@ -36,21 +36,9 @@ type ListTagResourcesRequest struct {
 	//
 	// cn-hangzhou
 	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	// The IDs of the resources.
+	// The list of resource IDs.
 	ResourceId []*string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty" type:"Repeated"`
 	// The resource type.
-	//
-	// Valid values:
-	//
-	// 	- Node
-	//
-	// 	- Vcc
-	//
-	// 	- Cluster
-	//
-	// 	- Subnet
-	//
-	// 	- Vpd
 	//
 	// This parameter is required.
 	//
@@ -58,7 +46,7 @@ type ListTagResourcesRequest struct {
 	//
 	// Node
 	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
-	// The tags.
+	// The list of tags.
 	Tag []*ListTagResourcesRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 }
 

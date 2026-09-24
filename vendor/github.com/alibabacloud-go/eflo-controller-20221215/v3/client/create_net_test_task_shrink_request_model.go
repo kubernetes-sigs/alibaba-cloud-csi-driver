@@ -40,11 +40,11 @@ type CreateNetTestTaskShrinkRequest struct {
 	//
 	// Eflo-YJ-Test-Cluster
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
-	// Specify when NetTestType is CommTest.
+	// Specify this parameter if NetTestType is set to CommTest.
 	CommTestShrink *string `json:"CommTest,omitempty" xml:"CommTest,omitempty"`
-	// Specify when NetTestType is DelayTest.
+	// Specify this parameter if NetTestType is set to DelayTest.
 	DelayTestShrink *string `json:"DelayTest,omitempty" xml:"DelayTest,omitempty"`
-	// The type of the network test. Valid values: DelayTest, TrafficTest, and CommTest.
+	// The type of network test. Valid values: DelayTest, TrafficTest, and CommTest.
 	//
 	// example:
 	//
@@ -56,13 +56,13 @@ type CreateNetTestTaskShrinkRequest struct {
 	//
 	// 2
 	NetworkMode *string `json:"NetworkMode,omitempty" xml:"NetworkMode,omitempty"`
-	// The port number.
+	// The test port number.
 	//
 	// example:
 	//
 	// 23604
 	Port *string `json:"Port,omitempty" xml:"Port,omitempty"`
-	// If the TrafficModel is Fullmesh, leave this parameter empty.
+	// This field is empty if TrafficModel is set to Fullmesh.
 	TrafficTestShrink *string `json:"TrafficTest,omitempty" xml:"TrafficTest,omitempty"`
 }
 

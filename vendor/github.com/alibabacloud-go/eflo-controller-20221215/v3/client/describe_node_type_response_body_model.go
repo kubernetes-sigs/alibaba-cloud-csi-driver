@@ -24,23 +24,38 @@ type iDescribeNodeTypeResponseBody interface {
 }
 
 type DescribeNodeTypeResponseBody struct {
+	// The maximum number of disks that can be attached.
+	//
+	// example:
+	//
+	// 17
 	DiskQuantity *int32 `json:"DiskQuantity,omitempty" xml:"DiskQuantity,omitempty"`
+	// The maximum number of network interfaces for high-density mode.
+	//
 	// example:
 	//
 	// 63
 	EniHighDenseQuantity *int32 `json:"EniHighDenseQuantity,omitempty" xml:"EniHighDenseQuantity,omitempty"`
+	// The maximum number of IPv6 addresses that an ENI can have.
+	//
 	// example:
 	//
 	// 256
 	EniIpv6AddressQuantity *int32 `json:"EniIpv6AddressQuantity,omitempty" xml:"EniIpv6AddressQuantity,omitempty"`
+	// The maximum number of IPv4 addresses that an ENI can have.
+	//
 	// example:
 	//
 	// 256
 	EniPrivateIpAddressQuantity *int32 `json:"EniPrivateIpAddressQuantity,omitempty" xml:"EniPrivateIpAddressQuantity,omitempty"`
+	// The maximum number of supported elastic network interfaces (ENIs), including primary and secondary ENIs.
+	//
 	// example:
 	//
 	// 22
 	EniQuantity *int32 `json:"EniQuantity,omitempty" xml:"EniQuantity,omitempty"`
+	// The request ID.
+	//
 	// example:
 	//
 	// 4FD06DF0-9167-5C6F-A145-F30CA4A15D54
