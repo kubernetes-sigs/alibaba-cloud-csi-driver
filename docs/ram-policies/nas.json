@@ -23,6 +23,7 @@
                 "nas:CreateDir",
                 "nas:DescribeDirQuotas",
                 "nas:CreateAgenticSpace",
+                "nas:DescribeAgenticSpaces",
                 "nas:GetAgenticSpace",
                 "nas:DeleteAgenticSpace",
                 "nas:SetAgenticSpaceQuota",
