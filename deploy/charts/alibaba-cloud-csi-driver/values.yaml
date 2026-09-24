@@ -32,6 +32,23 @@ csi:
     enabled: true
     controller:
       enabled: true
+    # Audiences kubelet mints ServiceAccount tokens for on the NAS CSIDriver,
+    # enabling authType=rrsa volumes to authorize with the Pod's own token that
+    # the driver trades for an STS credential. Empty (the default) leaves
+    # tokenRequests unset, so no per-Pod credentials are requested and the
+    # serviceAccountTokenInSecrets field is omitted too.
+    # Set to `audience: sts.aliyuncs.com` when using RRSA.
+    tokenRequests: []
+    # Make kubelet periodically re-invoke NodePublishVolume (~once a minute) so
+    # the driver can renew an STS credential and push it into a live NAS mount.
+    # RRSA turns this on implicitly; enable it here to also pick up a manually
+    # rotated STS credential from the publish secret without RRSA.
+    requiresRepublish: false
+    # Credential lifetime to request for authType=rrsa volumes, as a Go duration.
+    # Short keeps the window in which a credential outlives its Pod small; long
+    # means fewer AssumeRoleWithOIDC calls, which matters once you have many
+    # volumes. Empty leaves the choice to the endpoint (STS defaults to 1h).
+    rrsaDuration: ""
   oss:
     enabled: true
     controller:

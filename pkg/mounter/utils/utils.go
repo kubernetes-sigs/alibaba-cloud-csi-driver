@@ -441,3 +441,33 @@ func IsNotMountPoint(mounter mountutils.Interface, target string) (notMnt bool, 
 	}
 	return notMnt, nil
 }
+
+// RRSAArns is the pair of ARNs an RRSA credential exchange needs: the role to
+// assume, and the OIDC provider that vouches for the ServiceAccount token.
+type RRSAArns struct {
+	RoleArn         string
+	OidcProviderArn string
+}
+
+// ResolveRRSAArns applies the rule OSS established for naming an RRSA role, so
+// every driver accepts the same volume attributes: a bare roleName is completed
+// from this cluster's account and the provider ACK registered for it, while a role
+// in another account (or a provider under a non-default name) is named by giving
+// both ARNs. One ARN alone is rejected rather than half-guessed, since the two
+// have to agree on the account.
+func ResolveRRSAArns(roleName, roleArn, oidcProviderArn, accountID, clusterID string) (RRSAArns, error) {
+	if roleArn != "" && oidcProviderArn != "" {
+		return RRSAArns{RoleArn: roleArn, OidcProviderArn: oidcProviderArn}, nil
+	}
+	if roleArn != "" || oidcProviderArn != "" {
+		return RRSAArns{}, fmt.Errorf("use RRSA but one of the ARNs is empty, roleArn: %s, oidcProviderArn: %s", roleArn, oidcProviderArn)
+	}
+	if roleName == "" {
+		return RRSAArns{}, fmt.Errorf("use RRSA but roleName is empty")
+	}
+	if accountID == "" || clusterID == "" {
+		return RRSAArns{}, fmt.Errorf("cannot build ARNs for roleName %s: account or cluster ID unknown", roleName)
+	}
+	derivedProvider, derivedRole := GetArn(GetOIDCProvider(clusterID), accountID, roleName)
+	return RRSAArns{RoleArn: derivedRole, OidcProviderArn: derivedProvider}, nil
+}

@@ -5,18 +5,38 @@ import (
 	"strings"
 	"time"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"k8s.io/klog/v2"
 )
+
+// serviceAccountTokensAttr is the volume context entry kubelet fills in for a
+// CSIDriver with tokenRequests. It holds Pod ServiceAccount tokens, which are
+// bearer credentials, but volume context is not a proto secret field, so
+// protosanitizer leaves it in place.
+const serviceAccountTokensAttr = "csi.storage.k8s.io/serviceAccount.tokens"
+
+// redactServiceAccountTokens replaces Pod ServiceAccount tokens in a publish
+// request's volume context, on a copy so the driver still receives the real ones.
+func redactServiceAccountTokens(req any) any {
+	publish, ok := req.(*csi.NodePublishVolumeRequest)
+	if !ok || publish.VolumeContext[serviceAccountTokensAttr] == "" {
+		return req
+	}
+	redacted := proto.Clone(publish).(*csi.NodePublishVolumeRequest)
+	redacted.VolumeContext[serviceAccountTokensAttr] = "***stripped***"
+	return redacted
+}
 
 func logGRPC[TReq any, TResp any](handler func(context.Context, TReq) (TResp, error), ctx context.Context, req TReq) (TResp, error) {
 	logger := klog.FromContext(ctx)
 	logger.Info("GRPC call start")
-	logger.V(4).Info("GRPC request", "request", protosanitizer.StripSecrets(req))
+	logger.V(4).Info("GRPC request", "request", protosanitizer.StripSecrets(redactServiceAccountTokens(req)))
 	resp, err := handler(klog.NewContext(ctx, logger), req)
 	if err != nil {
 		logger.Error(err, "GRPC error")

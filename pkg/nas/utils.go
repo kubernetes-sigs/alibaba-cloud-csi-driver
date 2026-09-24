@@ -32,6 +32,7 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
@@ -60,8 +61,15 @@ const (
 	TcpSlotTableEntries      = "/proc/sys/sunrpc/tcp_slot_table_entries"
 	TcpSlotTableEntriesValue = "128\n"
 
-	akIDKey           = "akId"
-	akSecretKey       = "akSecret"
+	// Keys of the publish secret (nodePublishSecretRef on the PV). They are a
+	// user-facing contract shared with the OSS driver and documented as such, so
+	// renaming one breaks every Secret already written. They spell the same words as
+	// the keys the mount broker reads (interceptors.SecretKey*) by history, not by
+	// agreement: neither side may be renamed to follow the other.
+	publishSecretAkID          = "akId"
+	publishSecretAkSecret      = "akSecret"
+	publishSecretSecurityToken = "securityToken"
+
 	filesystemIDKey   = "fileSystemId"
 	filesystemTypeKey = "fileSystemType"
 )
@@ -76,13 +84,21 @@ type RoleAuth struct {
 	Code            string
 }
 
-func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
+// prepareMount derives everything a mount of opt consists of, without performing
+// it. Anything that has to agree with a mount after the fact goes through here
+// rather than being recomputed: the fstype identifies the mount-proxy-server
+// driver that owns the mount, and Secrets is the credential to install on it, so
+// a later credential rotation asks this function what the mount was made of
+// instead of deriving it a second time.
+//
+// isPathNotFound recognizes the "subpath does not exist" error of whichever client
+// this mount uses, and is nil when that client has none.
+func prepareMount(opt *Options, targetPath, volumeId, podUid string, agentMode bool) (op *mounter.MountOperation, isPathNotFound func(error) bool, err error) {
 	var (
 		mountFstype     string
 		source          string
 		combinedOptions []string
 		secrets         map[string]string
-		isPathNotFound  func(error) bool
 	)
 	if opt.Accesspoint != "" {
 		source = fmt.Sprintf("%s:%s", opt.Accesspoint, opt.Path)
@@ -91,10 +107,16 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	}
 	combinedOptions = append(combinedOptions, opt.Options...)
 	combinedOptions = appendJWTAuthOptions(combinedOptions, opt)
+	// A lone token is never forwarded: mount.alinas reads it as its ID token-only
+	// mode and then hangs against a server that rejects it.
 	if opt.AkID != "" && opt.AkSecret != "" {
 		secrets = map[string]string{
-			akIDKey:     opt.AkID,
-			akSecretKey: opt.AkSecret,
+			interceptors.SecretKeyAccessKeyID:     opt.AkID,
+			interceptors.SecretKeyAccessKeySecret: opt.AkSecret,
+		}
+		// STS credentials only; mount.alinas needs it to sign.
+		if opt.SecurityToken != "" {
+			secrets[interceptors.SecretKeySecurityToken] = opt.SecurityToken
 		}
 	}
 
@@ -106,16 +128,15 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		case "cpfs":
 			combinedOptions = append(combinedOptions, "protocol=nfs3")
 		default:
-			return errors.New("EFC Client don't support this storage type:" + opt.FSType)
+			return nil, nil, errors.New("EFC Client don't support this storage type:" + opt.FSType)
 		}
 		mountFstype = "alinas"
-		// err = mounter.Mount(source, mountPoint, "alinas", combinedOptions)
 		isPathNotFound = isEFCPathNotFoundError
 	case NativeClient:
 		switch opt.FSType {
 		case "cpfs":
 		default:
-			return errors.New("Native Client don't support this storage type:" + opt.FSType)
+			return nil, nil, errors.New("Native Client don't support this storage type:" + opt.FSType)
 		}
 		mountFstype = "cpfs"
 	default:
@@ -151,14 +172,42 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		}
 	}
 
-	err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
+	return &mounter.MountOperation{
 		Source:   source,
 		Target:   targetPath,
 		FsType:   mountFstype,
 		Options:  combinedOptions,
 		Secrets:  secrets,
 		VolumeID: volumeId,
-	})
+	}, isPathNotFound, nil
+}
+
+// prepareRefresh derives the credential refresh of an existing mount of opt from
+// the very preparation that mount is made with, so the fstype the broker routes
+// on and the credential installed cannot drift from what was mounted.
+//
+// Only the fields a refresh acts on are carried over: it replaces a credential
+// and changes no mount option, which is also why podUid (an EFC mount option) is
+// not needed here.
+func prepareRefresh(opt *Options, targetPath, volumeId string, agentMode bool) (*mounter.RefreshOperation, error) {
+	op, _, err := prepareMount(opt, targetPath, volumeId, "", agentMode)
+	if err != nil {
+		return nil, err
+	}
+	return &mounter.RefreshOperation{
+		Target:  op.Target,
+		FsType:  op.FsType,
+		Secrets: op.Secrets,
+	}, nil
+}
+
+func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid string, agentMode bool) error {
+	op, isPathNotFound, err := prepareMount(opt, targetPath, volumeId, podUid, agentMode)
+	if err != nil {
+		return err
+	}
+
+	err = m.ExtendedMount(context.Background(), op)
 	if err == nil {
 		return nil
 	}
@@ -166,8 +215,15 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 		return err
 	}
 
-	rootSource, relPath := getMountRootAndRelPath(mountFstype, opt)
+	rootSource, relPath := getMountRootAndRelPath(op.FsType, opt)
 	if rootSource == "" {
+		return err
+	}
+	// The failed attempt leaves op enriched by the interceptors that ran on it
+	// (AlinasSecretInterceptor appends ram_config_file), so everything below starts
+	// from a freshly prepared operation instead of a used one.
+	op, _, err = prepareMount(opt, targetPath, volumeId, podUid, agentMode)
+	if err != nil {
 		return err
 	}
 	klog.Infof("trying to create subpath %s in %s", opt.Path, opt.Server)
@@ -181,15 +237,15 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	}
 	defer os.Remove(tmpPath)
 	// mount without "ro" since we need to create the subpath directory
-	rwOptions := slices.DeleteFunc(slices.Clone(combinedOptions), func(s string) bool {
+	rwOptions := slices.DeleteFunc(slices.Clone(op.Options), func(s string) bool {
 		return s == "ro"
 	})
 	if err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
 		Source:   rootSource,
 		Target:   tmpPath,
-		FsType:   mountFstype,
+		FsType:   op.FsType,
 		Options:  rwOptions,
-		Secrets:  secrets,
+		Secrets:  op.Secrets,
 		VolumeID: volumeId,
 	}); err != nil {
 		return err
@@ -208,14 +264,7 @@ func doMount(m mounter.Mounter, opt *Options, targetPath, volumeId, podUid strin
 	if err := cleanupMountpoint(m, tmpPath); err != nil {
 		klog.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
 	}
-	return m.ExtendedMount(context.Background(), &mounter.MountOperation{
-		Source:   source,
-		Target:   targetPath,
-		FsType:   mountFstype,
-		Options:  combinedOptions,
-		Secrets:  secrets,
-		VolumeID: volumeId,
-	})
+	return m.ExtendedMount(context.Background(), op)
 }
 
 func getMountRootAndRelPath(mountFsType string, opt *Options) (rootSource, relPath string) {
@@ -331,7 +380,16 @@ func addTLSMountOptions(baseOptions []string) []string {
 	return append(baseOptions, "tls")
 }
 
+// appendJWTAuthOptions forwards the agent-identity settings to the mount broker,
+// which exchanges that credential itself and strips them before mounting.
+//
+// No other auth type may be forwarded: its credential is already resolved here, so
+// nothing would strip the options again, and mount.nfs rejects anything it does
+// not know with "an incorrect mount option was specified".
 func appendJWTAuthOptions(options []string, opt *Options) []string {
+	if !jwtauth.IsAgentIdentity(opt.AuthType) {
+		return options
+	}
 	hasKey := func(k string) bool {
 		for _, o := range options {
 			for _, part := range mounterutils.SplitMountOptions(o) {

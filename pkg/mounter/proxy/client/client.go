@@ -199,6 +199,15 @@ func (c *client) Unmount(ctx context.Context, req *proxy.UnmountRequest) (*proxy
 	}, 0)
 }
 
+func (c *client) Refresh(ctx context.Context, req *proxy.RefreshRequest) (*proxy.Response, error) {
+	return c.doRequest(ctx, &proxy.Request{
+		Header: proxy.Header{
+			Method: proxy.Refresh,
+		},
+		Body: req,
+	}, 0)
+}
+
 func (c *client) Ping(ctx context.Context) (*proxy.Response, error) {
 	return c.doRequest(ctx, &proxy.Request{
 		Header: proxy.Header{

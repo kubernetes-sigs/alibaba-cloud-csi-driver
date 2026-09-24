@@ -76,6 +76,16 @@
 {{- end -}}
 {{- end -}}
 
+{{- define "nasNeedsOidcProxyCA" -}}
+{{- $needs := false -}}
+{{- range .tokenRequests -}}
+{{- if ne .audience "sts.aliyuncs.com" -}}
+{{- $needs = true -}}
+{{- end -}}
+{{- end -}}
+{{- if $needs }}true{{- end -}}
+{{- end -}}
+
 {{- define "networkEnv" -}}
 {{- if (ne .network nil) -}}
 - name: ALIBABA_CLOUD_NETWORK_TYPE

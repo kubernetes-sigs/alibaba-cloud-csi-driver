@@ -10,6 +10,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -64,7 +65,7 @@ func TestNodePublishVolumeAgenticFSMandatoryMountOptions(t *testing.T) {
 			name:        "credentialsStillExtracted",
 			mountFlags:  []string{"vers=4.1,tls,ram,access_key_id=test-ak,access_key_secret=test-sk"},
 			want:        []string{"vers=4.1", "tls", "ram"},
-			wantSecrets: map[string]string{akIDKey: "test-ak", akSecretKey: "test-sk"},
+			wantSecrets: map[string]string{interceptors.SecretKeyAccessKeyID: "test-ak", interceptors.SecretKeyAccessKeySecret: "test-sk"},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

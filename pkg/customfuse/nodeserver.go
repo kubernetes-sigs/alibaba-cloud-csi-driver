@@ -52,7 +52,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	defer ns.locks.Release(req.VolumeId)
 
 	targetPath := req.GetTargetPath()
-	valid, err := utils.ValidatePath(targetPath)
+	valid, err := utils.ValidateMountTarget(ns.rawMounter, targetPath)
 	if !valid {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

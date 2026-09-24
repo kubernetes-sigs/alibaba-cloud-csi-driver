@@ -2,7 +2,6 @@ package oss
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"strings"
 
@@ -62,21 +61,13 @@ func SetDefaultImage(fuseType string, m metadata.MetadataProvider, config *fpm.F
 	klog.Infof("Use ossfs image: %s", config.Image)
 }
 
-// CheckRRSAParams check parameters of RRSA
+// CheckRRSAParams reports whether the RRSA attributes name a role usably, before
+// the cluster metadata needed to complete a bare roleName is fetched.
 func CheckRRSAParams(o *Options) error {
-
-	if o.RoleArn != "" && o.OidcProviderArn != "" {
-		return nil
-	}
-	if o.RoleArn != "" || o.OidcProviderArn != "" {
-		return fmt.Errorf("use RRSA but one of the ARNs is empty, roleArn: %s, oidcProviderArn: %s", o.RoleArn, o.OidcProviderArn)
-	}
-
-	if o.RoleName == "" {
-		return fmt.Errorf("use RRSA but roleName is empty")
-	}
-
-	return nil
+	// Pass placeholders for the metadata: only the shape of the attributes is
+	// being checked here, and GetRRSAConfig resolves them for real later.
+	_, err := mounterutils.ResolveRRSAArns(o.RoleName, o.RoleArn, o.OidcProviderArn, "unchecked", "unchecked")
+	return err
 }
 
 // GetRRSAConfig get oidcProviderArn and roleArn
@@ -103,28 +94,16 @@ func GetRRSAConfig(o *Options, m metadata.MetadataProvider) (rrsaCfg *fpm.RrsaCo
 	if err != nil {
 		return nil, fmt.Errorf("Get clusterId error: %v", err)
 	}
-	provider := mounterutils.GetOIDCProvider(clusterId)
-	oidcProviderArn, roleArn := mounterutils.GetArn(provider, accountId, o.RoleName)
+	arns, err := mounterutils.ResolveRRSAArns(o.RoleName, o.RoleArn, o.OidcProviderArn, accountId, clusterId)
+	if err != nil {
+		return nil, err
+	}
 	return &fpm.RrsaConfig{
-		OidcProviderArn:    oidcProviderArn,
-		RoleArn:            roleArn,
+		OidcProviderArn:    arns.OidcProviderArn,
+		RoleArn:            arns.RoleArn,
 		ServiceAccountName: saName,
 		AssumeRoleArn:      o.AssumeRoleArn,
 	}, nil
-}
-
-// GetSTSEndpoint get STS endpoint
-func GetSTSEndpoint(region string) string {
-
-	// for PrivateCloud
-	if os.Getenv("STS_ENDPOINT") != "" {
-		return os.Getenv("STS_ENDPOINT")
-	}
-
-	if region == "" {
-		return "https://sts.aliyuncs.com"
-	}
-	return fmt.Sprintf("https://sts-vpc.%s.aliyuncs.com", region)
 }
 
 // parseRegionFromURL extracts region from known OSS endpoint patterns:

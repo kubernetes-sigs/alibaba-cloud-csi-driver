@@ -18,7 +18,44 @@ type NasMounter struct {
 	alinasMounter mounter.Mounter
 }
 
-var _ mounter.Mounter = &NasMounter{}
+var (
+	_ mounter.Mounter        = &NasMounter{}
+	_ mounter.ProxyRefresher = &NasMounter{}
+)
+
+// CanRefresh settles both questions a volume needing credential rotation has to
+// ask before it mounts: whether NAS goes through the mount broker at all
+// (connector and agent mode can never rotate), and whether that broker is new
+// enough to know the RPC.
+func (m *NasMounter) CanRefresh(ctx context.Context) (bool, error) {
+	refresher, ok := m.alinasMounter.(mounter.ProxyRefresher)
+	if !ok {
+		return false, nil
+	}
+	return refresher.CanRefresh(ctx)
+}
+
+// isAlinasFstype reports whether a mount of this type is performed by the alinas
+// mounter, i.e. handed to the mount broker rather than mounted here. Only such a
+// mount has a credential the broker can install later.
+func isAlinasFstype(fstype string) bool {
+	switch fstype {
+	case "alinas", "cpfs", "cpfs-nfs":
+		return true
+	}
+	return false
+}
+
+// Refresh forwards to the alinas mounter, which supports it only when NAS goes
+// through the mount broker. Connector and agent mode report that they cannot
+// refresh rather than appearing to; CanRefresh says so before anything mounts.
+func (m *NasMounter) Refresh(ctx context.Context, op *mounter.RefreshOperation) error {
+	refresher, ok := m.alinasMounter.(mounter.ProxyRefresher)
+	if !ok {
+		return errors.New("cannot refresh credentials: NAS is not using the mount broker")
+	}
+	return refresher.Refresh(ctx, op)
+}
 
 func (m *NasMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperation) (err error) {
 	logger := klog.Background().WithValues(
@@ -27,10 +64,9 @@ func (m *NasMounter) ExtendedMount(ctx context.Context, op *mounter.MountOperati
 		"options", op.Options,
 		"fstype", op.FsType,
 	)
-	switch op.FsType {
-	case "alinas", "cpfs", "cpfs-nfs":
+	if isAlinasFstype(op.FsType) {
 		err = m.alinasMounter.ExtendedMount(ctx, op)
-	default:
+	} else {
 		err = m.Mount(op.Source, op.Target, op.FsType, op.Options)
 	}
 	if err != nil {
