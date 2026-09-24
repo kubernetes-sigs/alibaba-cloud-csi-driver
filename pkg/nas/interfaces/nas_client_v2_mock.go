@@ -79,6 +79,10 @@ func (n *MockNasClientV2Interface) GetAgenticSpace(ctx context.Context, req *sdk
 	return n.client.GetAgenticSpaceWithContext(ctx, req, nil)
 }
 
+func (n *MockNasClientV2Interface) DescribeAgenticSpaces(ctx context.Context, req *sdk.DescribeAgenticSpacesRequest) (*sdk.DescribeAgenticSpacesResponse, error) {
+	return n.client.DescribeAgenticSpacesWithContext(ctx, req, nil)
+}
+
 func (n *MockNasClientV2Interface) DeleteAgenticSpace(ctx context.Context, req *sdk.DeleteAgenticSpaceRequest) (*sdk.DeleteAgenticSpaceResponse, error) {
 	return n.client.DeleteAgenticSpaceWithContext(ctx, req, nil)
 }

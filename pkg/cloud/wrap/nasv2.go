@@ -44,6 +44,10 @@ func (c *loggingNAS) DescribeAccessPointWithContext(ctx context.Context, req *na
 	return logV2(ctx, "nas", "DescribeAccessPoint", req, o, c.inner.DescribeAccessPointWithContext)
 }
 
+func (c *loggingNAS) DescribeAgenticSpacesWithContext(ctx context.Context, req *nas.DescribeAgenticSpacesRequest, o *dara.RuntimeOptions) (*nas.DescribeAgenticSpacesResponse, error) {
+	return logV2(ctx, "nas", "DescribeAgenticSpaces", req, o, c.inner.DescribeAgenticSpacesWithContext)
+}
+
 func (c *loggingNAS) DescribeFileSystemsWithContext(ctx context.Context, req *nas.DescribeFileSystemsRequest, o *dara.RuntimeOptions) (*nas.DescribeFileSystemsResponse, error) {
 	return logV2(ctx, "nas", "DescribeFileSystems", req, o, c.inner.DescribeFileSystemsWithContext)
 }
