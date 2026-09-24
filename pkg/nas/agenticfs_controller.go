@@ -5,6 +5,7 @@ package nas
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
@@ -70,9 +71,16 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 		return nil, err
 	}
 
+	// When a server (AccessPoint domain) is provided, the AgenticSpace and
+	// AccessPoint already exist externally. No NAS API calls are made;
+	// server + path are passed through to the volumeContext for NodePublishVolume.
+	if args.serverPresent() {
+		logger.V(2).Info("AgenticFS: server provided, using existing AccessPoint",
+			"server", args.Server, "path", args.Path)
+		return &csi.CreateVolumeResponse{Volume: args.passthroughVolume()}, nil
+	}
+
 	var agenticSpaceID, accesspointID string
-	// Observe failures only after validation. Never roll back a resource that the
-	// next request can recover via its ClientToken or accesspoint discovery.
 	defer func() {
 		if retErr != nil {
 			c.reportCreateVolumeFailure(logger, args.FileSystemID, agenticSpaceID, args.FileSystemPath, accesspointID, retErr)
@@ -104,6 +112,14 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 
 func (c *agenticfsController) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest, pv *corev1.PersistentVolume) (*csi.DeleteVolumeResponse, error) {
 	attributes := pv.Spec.CSI.VolumeAttributes
+
+	// When the volume was created with an existing server (passthrough mode),
+	// no cloud resources were created by CreateVolume, so nothing to delete.
+	if attributes[vcKeyServer] != "" && attributes[vcKeyAgenticSpaceId] == "" {
+		klog.InfoS("DeleteVolume: AgenticFS passthrough volume, no resources to delete", "volumeId", req.VolumeId)
+		return &csi.DeleteVolumeResponse{}, nil
+	}
+
 	filesystemID := agenticfsFilesystemID(attributes)
 	if filesystemID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "missing %s in volume attributes", filesystemIDKey)
@@ -122,8 +138,6 @@ func (c *agenticfsController) DeleteVolume(ctx context.Context, req *csi.DeleteV
 	if spaceGone {
 		return &csi.DeleteVolumeResponse{}, nil
 	}
-	// Include recovery residue, not only the AP saved in the PV. All accesspoints
-	// must be confirmed absent before DeleteAgenticSpace can proceed.
 	for _, accesspointID := range accesspointIDs {
 		if err := c.deleteAccessPoint(ctx, filesystemID, accesspointID); err != nil {
 			return nil, err
@@ -181,6 +195,21 @@ func (c *agenticfsController) createAgenticSpace(ctx context.Context, args *agen
 		},
 	})
 	if err != nil {
+		// WORKAROUND: NAS CreateAgenticSpace does not honor ClientToken for
+		// idempotency. When the same ClientToken+Path is retried (e.g. after a
+		// gRPC timeout where the server accepted but the client lost the
+		// response), the API returns InvalidArgument with message "Path already
+		// used" instead of returning the existing AgenticSpaceId.
+		//
+		// We fall back to discovering the space via ListAccesspoints. This adds
+		// an extra API call on the error-recovery path only (not on first
+		// creation). Remove this workaround once NAS supports proper ClientToken
+		// idempotency for CreateAgenticSpace.
+		if strings.Contains(err.Error(), "Path already used") {
+			klog.InfoS("CreateAgenticSpace: path already exists, discovering existing space",
+				"fileSystemId", args.FileSystemID, "path", args.FileSystemPath)
+			return c.discoverAgenticSpaceByPath(ctx, args.FileSystemID, args.FileSystemPath)
+		}
 		return "", apiStatusError("nas:CreateAgenticSpace", err)
 	}
 	if resp == nil || resp.Body == nil {
@@ -191,6 +220,27 @@ func (c *agenticfsController) createAgenticSpace(ctx context.Context, args *agen
 		return "", status.Error(codes.Internal, "nas:CreateAgenticSpace: empty AgenticSpaceId in response")
 	}
 	return id, nil
+}
+
+func (c *agenticfsController) discoverAgenticSpaceByPath(ctx context.Context, filesystemID, path string) (string, error) {
+	listResp, err := c.nasClient.ListAccesspoints(ctx, &sdk.ListAccessPointsRequest{
+		FileSystemId: tea.String(filesystemID),
+		MaxResults:   tea.Int32(100),
+	})
+	if err != nil {
+		return "", fmt.Errorf("nas:ListAccesspoints failed while discovering existing AgenticSpace: %w", err)
+	}
+	for _, ap := range listResp.Body.AccessPoints {
+		if tea.StringValue(ap.RootPath) == path || tea.StringValue(ap.RootPath)+"/" == path || path+"/" == tea.StringValue(ap.RootPath) {
+			spaceID := tea.StringValue(ap.AgenticSpaceId)
+			if spaceID != "" {
+				klog.InfoS("Discovered existing AgenticSpace via AccessPoint",
+					"agenticSpaceId", spaceID, "accessPointId", tea.StringValue(ap.AccessPointId), "path", path)
+				return spaceID, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("nas:CreateAgenticSpace reported Path already used for %s but no matching AgenticSpace found via ListAccesspoints", path)
 }
 
 func (c *agenticfsController) deleteAgenticSpace(ctx context.Context, filesystemID, agenticSpaceID, volumeID string) error {

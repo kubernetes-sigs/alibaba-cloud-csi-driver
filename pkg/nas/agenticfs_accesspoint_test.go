@@ -238,3 +238,46 @@ func TestAgenticfsAccessPointDeletionOrder(t *testing.T) {
 	assert.Equal(t, "ap-second", tea.StringValue(listed[0].AccessPointId), "leave the cloud snapshot unchanged")
 	assert.Empty(t, accessPointDeletionOrder("", nil))
 }
+
+func TestAgenticfsAccessPointStatusCaseInsensitive(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		listStatus string
+		wantReuse  bool
+	}{
+		{"lowercase", "active", true},
+		{"titleCase", "Active", true},
+		{"uppercase", "ACTIVE", true},
+		{"mixedCase", "AcTiVe", true},
+		{"deletingLowercase", "deleting", false},
+		{"deletingTitleCase", "Deleting", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFakeNasClientV2()
+			fake.listPages = []*sdk.ListAccessPointsResponseBody{
+				apPage(apItem(testAgenticFsAccessPointID, tt.listStatus, testAgenticFsAPDomain)),
+			}
+			ctrl := newAgenticfsCtrl(t, fake)
+			resp, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+			if tt.wantReuse {
+				require.NoError(t, err)
+				assert.Equal(t, testAgenticFsAccessPointID, resp.Volume.VolumeContext[vcKeyAccesspointId])
+				assert.Empty(t, fake.createAccessPointReqs)
+			} else {
+				require.Error(t, err)
+				assert.Equal(t, codes.Aborted, status.Code(err))
+			}
+		})
+	}
+}
+
+func TestAgenticfsWaitAccessPointActiveMixedCaseStatus(t *testing.T) {
+	fake := newFakeNasClientV2()
+	fake.apStatuses = []string{"ACTIVE"}
+	ctrl := newAgenticfsCtrl(t, fake)
+
+	resp, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	require.NoError(t, err)
+	assert.Equal(t, testAgenticFsAPDomain, resp.Volume.VolumeContext[vcKeyServer])
+	assert.Equal(t, 1, fake.describeCalls)
+}

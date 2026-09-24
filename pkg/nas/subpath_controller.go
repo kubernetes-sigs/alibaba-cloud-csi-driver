@@ -81,6 +81,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 		path           string
 		filesystemId   string
 		filesystemType string
+		storageType    string
 	)
 	volumeContext := map[string]string{}
 	// using cnfs or not
@@ -102,6 +103,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 			return nil, status.Error(codes.InvalidArgument, "missing filesystemId in CNFS status")
 		}
 		filesystemType = cnfs.Status.FsAttributes.FilesystemType
+		storageType = cnfs.Status.FsAttributes.StorageType
 		// set volumeContext
 		volumeContext["containerNetworkFileSystem"] = cnfs.Name
 	} else {
@@ -111,7 +113,10 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 		if server == "" || filesystemId == "" {
 			return nil, status.Error(codes.InvalidArgument, "invalid nas server")
 		}
-		filesystemType = getFilesystemTypeFromAPIOrServer(filesystemId, server, cs.nasClient)
+		filesystemType, storageType = describeFileSystemAttrs(filesystemId, cs.nasClient)
+		if filesystemType == "" {
+			filesystemType = cloud.GetFilesystemTypeByMountTargetDomain(server)
+		}
 		// set volumeContext
 		if protocol := parameters["mountProtocol"]; protocol != "" {
 			volumeContext["mountProtocol"] = protocol
@@ -140,6 +145,15 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 	// Only standard filesystems support "CreateDir" and "SetDirQuota" APIs.
 	// Subpaths of other types filesystems will be truly created when NodePublishVolume.
 	if filesystemType != cloud.FilesystemTypeStandard {
+		return resp, nil
+	}
+	// AgenticFS has filesystemType "standard" but CreateDir operates on the
+	// filesystem root, not within the AgenticSpace that the AccessPoint is
+	// scoped to. Skip CreateDir; the subdirectory will be created on first
+	// write through the mounted AccessPoint.
+	if storageType == cloud.StorageTypeAgentic {
+		klog.InfoS("skip CreateDir for AgenticFS subpath; directory creation deferred to mount time",
+			"filesystemId", filesystemId, "path", path)
 		return resp, nil
 	}
 	if cs.config.SkipSubpathCreation {
@@ -193,11 +207,22 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 			return nil, status.Errorf(codes.Internal, "failed to get CNFS %s: %v", cnfsName, err)
 		}
 		filesystemId = cnfs.Status.FsAttributes.FilesystemID
+		if cnfs.Status.FsAttributes.StorageType == cloud.StorageTypeAgentic {
+			klog.InfoS("DeleteVolume: skip subpath deletion for AgenticFS", "volumeId", req.VolumeId)
+			return &csi.DeleteVolumeResponse{}, nil
+		}
 		recycleBinEnabled, _ = strconv.ParseBool(cnfs.Status.FsAttributes.EnableTrashCan)
 	} else {
 		server := attributes["server"]
 		filesystemId = getNASIDFromMapOrServer(attributes, server)
-		filesystemType := getFilesystemTypeFromAPIOrServer(filesystemId, server, cs.nasClient)
+		filesystemType, stType := describeFileSystemAttrs(filesystemId, cs.nasClient)
+		if filesystemType == "" {
+			filesystemType = cloud.GetFilesystemTypeByMountTargetDomain(server)
+		}
+		if stType == cloud.StorageTypeAgentic {
+			klog.InfoS("DeleteVolume: skip subpath deletion for AgenticFS", "volumeId", req.VolumeId)
+			return &csi.DeleteVolumeResponse{}, nil
+		}
 		if filesystemType == cloud.FilesystemTypeStandard {
 			var err error
 			recycleBinEnabled, err = cs.isRecycleBinEnabled(ctx, filesystemId)
@@ -205,7 +230,6 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 				return nil, err
 			}
 		} else {
-			// only filesystems of standard type support recyclebin
 			recycleBinEnabled = false
 		}
 	}

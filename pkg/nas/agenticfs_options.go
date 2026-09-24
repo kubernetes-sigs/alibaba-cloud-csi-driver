@@ -51,16 +51,59 @@ type agenticfsVolumeArgs struct {
 	SizeLimit      int64
 	FileCountLimit int64
 	MountOptions   string
+
+	// Server is the AccessPoint domain provided by the user. When non-empty the
+	// AgenticSpace and AccessPoint already exist; CreateVolume must not call any
+	// NAS APIs and instead pass server+path through to the volumeContext.
+	Server string
+	// Path is the mount sub-path within the AgenticSpace. Defaults to "/".
+	Path string
+}
+
+// serverPresent returns true when the StorageClass supplies an AccessPoint
+// domain, meaning the AgenticSpace already exists externally and CreateVolume
+// must not create cloud resources.
+func (args *agenticfsVolumeArgs) serverPresent() bool {
+	return args.Server != ""
 }
 
 // Preserve validation order: name, filesystem/CNFS resolution, placement, then
 // quota. In particular fileSystemId bypasses CNFS, and all validation finishes
 // before the first billable NAS call.
+//
+// When the StorageClass provides a "server" parameter (an AccessPoint domain),
+// the AgenticSpace and AccessPoint already exist. Zone, VPC, VSwitch and quota
+// parameters are not required because no cloud resources will be created.
 func (c *agenticfsController) getAgenticfsVolumeOptions(ctx context.Context, req *csi.CreateVolumeRequest) (*agenticfsVolumeArgs, error) {
 	if err := validateVolumeName(req.Name); err != nil {
 		return nil, err
 	}
 	parameters := req.Parameters
+
+	server := parameters[vcKeyServer]
+	path := parameters[vcKeyPath]
+	if path == "" {
+		path = "/"
+	}
+
+	// When an AccessPoint domain is provided, the space already exists and
+	// CreateVolume is a pure passthrough. Only the volume name, server, path
+	// and mount options are needed; filesystem resolution and placement
+	// parameters are skipped.
+	if server != "" {
+		filesystemID := parameters[filesystemIDKey]
+		return &agenticfsVolumeArgs{
+			Name:         req.Name,
+			FileSystemID: filesystemID,
+			Server:       server,
+			Path:         path,
+			SizeLimit:    req.GetCapacityRange().GetRequiredBytes(),
+			MountOptions: parameters[vcKeyOptions],
+		}, nil
+	}
+
+	// No server: full creation path. Resolve filesystem, validate placement
+	// and quota before making any billable NAS calls.
 	filesystemID := parameters[filesystemIDKey]
 	if filesystemID == "" {
 		var err error
@@ -111,8 +154,6 @@ func (c *agenticfsController) getAgenticfsVolumeOptions(ctx context.Context, req
 }
 
 func (args *agenticfsVolumeArgs) volume(agenticSpaceID, accesspointID, server string) *csi.Volume {
-	// Do not forward CNFS/accesspoint/authType: the node mounts the AP domain via
-	// server + mountProtocol=alinas. The generic controller adds volumeAs later.
 	return &csi.Volume{
 		VolumeId:      args.Name,
 		CapacityBytes: args.SizeLimit,
@@ -125,6 +166,23 @@ func (args *agenticfsVolumeArgs) volume(agenticSpaceID, accesspointID, server st
 			vcKeyAccesspointId:  accesspointID,
 			vcKeyAgenticSpaceId: agenticSpaceID,
 		},
+	}
+}
+
+func (args *agenticfsVolumeArgs) passthroughVolume() *csi.Volume {
+	vc := map[string]string{
+		vcKeyServer:        args.Server,
+		vcKeyPath:          args.Path,
+		vcKeyMountProtocol: mountProtocolAlinas,
+		vcKeyOptions:       mergeAgenticFsMountOptions(args.MountOptions, defaultAgenticFsMountOptions),
+	}
+	if args.FileSystemID != "" {
+		vc[filesystemIDKey] = args.FileSystemID
+	}
+	return &csi.Volume{
+		VolumeId:      args.Name,
+		CapacityBytes: args.SizeLimit,
+		VolumeContext: vc,
 	}
 }
 
