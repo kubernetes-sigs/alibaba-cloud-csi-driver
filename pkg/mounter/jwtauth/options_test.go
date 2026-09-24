@@ -52,6 +52,24 @@ func TestResolveOptsExplicitOverrides(t *testing.T) {
 	assert.Equal(t, "explicit-cred", opts.CredProvider)
 }
 
+func TestResolveOptsExplicitSubstrateMode(t *testing.T) {
+	t.Setenv("AGENT_IDENTITY_TOKEN_DIR", "/legacy-tokens")
+	for _, mode := range []string{"", "false", "true"} {
+		t.Run(mode, func(t *testing.T) {
+			opts := ResolveOpts(map[string]string{
+				"csi.alibabacloud.com/substrate-mode": mode,
+				OptSandboxId:                          "actor-uid",
+			})
+			assert.Equal(t, mode == "true", opts.SubstrateMode)
+			if mode == "true" {
+				assert.Empty(t, opts.TokenFile)
+			} else {
+				assert.Equal(t, "/legacy-tokens/actor-uid.token", opts.TokenFile)
+			}
+		})
+	}
+}
+
 func TestResolveOptsCAFile(t *testing.T) {
 	t.Run("readable CA file from env is used", func(t *testing.T) {
 		caPath := filepath.Join(t.TempDir(), "ca.crt")
@@ -85,6 +103,7 @@ func TestInfraOptionKeysExcludesAuthType(t *testing.T) {
 	for _, key := range []string{
 		OptSandboxId, OptSandboxCredProviderName, OptEndpoint,
 		OptTokenFile, OptCredProvider, OptCAFile,
+		"csi.alibabacloud.com/substrate-mode",
 	} {
 		_, ok := InfraOptionKeys[key]
 		assert.True(t, ok, "%s must be stripped before the mount", key)
