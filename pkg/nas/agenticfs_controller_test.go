@@ -54,15 +54,18 @@ const (
 
 // The generated MockNasClientV2Interface exposes no EXPECT(), so a hand-written fake is used.
 type fakeNasClientV2 struct {
-	createAgenticSpaceReqs []*sdk.CreateAgenticSpaceRequest
-	createAccessPointReqs  []*sdk.CreateAccessPointRequest
-	deleteAgenticSpaceReqs []*sdk.DeleteAgenticSpaceRequest
-	getAgenticSpaceReqs    []*sdk.GetAgenticSpaceRequest
-	setQuotaReqs           []*sdk.SetAgenticSpaceQuotaRequest
-	listAccessPointsReqs   []*sdk.ListAccessPointsRequest
-	deleteAccessPointIDs   []string
-	callOrder              []string
-	describeCalls          int
+	createAgenticSpaceReqs         []*sdk.CreateAgenticSpaceRequest
+	createAccessPointReqs          []*sdk.CreateAccessPointRequest
+	deleteAgenticSpaceReqs         []*sdk.DeleteAgenticSpaceRequest
+	getAgenticSpaceReqs            []*sdk.GetAgenticSpaceRequest
+	describeAgenticSpacesReqs      []*sdk.DescribeAgenticSpacesRequest
+	describeAgenticSpacesResponses []*sdk.DescribeAgenticSpacesResponse
+	describeAgenticSpacesErr       error
+	setQuotaReqs                   []*sdk.SetAgenticSpaceQuotaRequest
+	listAccessPointsReqs           []*sdk.ListAccessPointsRequest
+	deleteAccessPointIDs           []string
+	callOrder                      []string
+	describeCalls                  int
 
 	createAgenticSpaceResp *sdk.CreateAgenticSpaceResponse
 	createAgenticSpaceErr  error

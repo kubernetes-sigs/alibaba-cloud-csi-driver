@@ -15,6 +15,7 @@ type NasInterface interface {
 	DeleteAccessPointWithContext(ctx context.Context, request *nas.DeleteAccessPointRequest, runtime *dara.RuntimeOptions) (*nas.DeleteAccessPointResponse, error)
 	DeleteAgenticSpace(request *nas.DeleteAgenticSpaceRequest) (*nas.DeleteAgenticSpaceResponse, error)
 	DescribeAccessPoint(request *nas.DescribeAccessPointRequest) (*nas.DescribeAccessPointResponse, error)
+	DescribeAgenticSpacesWithContext(ctx context.Context, request *nas.DescribeAgenticSpacesRequest, runtime *dara.RuntimeOptions) (*nas.DescribeAgenticSpacesResponse, error)
 	DescribeFileSystems(request *nas.DescribeFileSystemsRequest) (*nas.DescribeFileSystemsResponse, error)
 	GetAgenticSpace(request *nas.GetAgenticSpaceRequest) (*nas.GetAgenticSpaceResponse, error)
 	GetRecycleBinAttribute(request *nas.GetRecycleBinAttributeRequest) (*nas.GetRecycleBinAttributeResponse, error)
