@@ -1,0 +1,40 @@
+# Demo 5: the volume, holding no credential.
+#
+# No nodePublishSecretRef: mount-proxy exchanges the sandbox's internal credential
+# for a scoped STS credential at mount time and rewrites it before it expires, so nothing
+# durable is stored in the cluster.
+#
+# No entrypointConfig either: that projects a ConfigMap into a fuse pod, and a sandbox
+# mount runs in the sandbox's own customfuse sidecar with no fuse pod, so no attribute of
+# this PV picks the scripts. Both are baked into the image built by ./Dockerfile.
+#
+# The sandbox attaches this PV when it is created, which is what triggers NodePublish —
+# no PVC of your own binds it.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: customfuse-agent-identity
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  csi:
+    driver: customfuseplugin.csi.alibabacloud.com
+    volumeHandle: customfuse-agent-identity
+    volumeAttributes:
+      # Name the client here rather than in pv.spec.csi.fsType: a sandbox mount has
+      # its volume attributes checked before the request reaches this driver, and
+      # that check reads fuseType only.
+      fuseType: "juicefs"
+      # The only auth field you set. Which provider issues the credential, and which
+      # sandbox identity is exchanged for it, both come from the sandbox side —
+      # neither belongs here.
+      authType: "agent-identity"
+      # Reaches the entrypoint as environment variables.
+      source: "redis://redis-host.default.svc:6379/1"
+      bucket: "my-jfs-data"
+      # Use a VPC-internal endpoint: a sandbox pod cannot reach public IPs.
+      url: "oss-cn-hangzhou-internal.aliyuncs.com"

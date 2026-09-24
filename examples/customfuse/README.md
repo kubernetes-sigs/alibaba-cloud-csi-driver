@@ -213,6 +213,13 @@ Pick based on **where you want the configuration to live**:
 | [2-oss-compatible](2-oss-compatible/) | PV volumeAttributes | Recreate PV, or add to `spec.mountOptions` | You want the same PV format as `ossplugin` driver — easy migration from existing OSS volumes |
 | [3-standard](3-standard/) | PV mountOptions | Edit PV | Not tied to OSS field names — entrypoint defines its own env var schema, so it adapts to any FUSE client without reshaping the PV around `otherOpts` |
 | [4-configmap](4-configmap/) | ConfigMap | Edit ConfigMap | Solidify complex format/mount configs (cache policy, block size, trash retention, etc.) into a reusable template — adding a new instance is just a PV with `source`/`bucket`/`url` pointing to the ConfigMap |
+| [5-agent-identity](5-agent-identity/) | Sandbox identity, scripts in the image | Rebuild image | Self-built FUSE client on an **ACS sandbox** with no credential in the cluster: mount-proxy exchanges the sandbox token for a scoped STS credential, delivers it as files, and rotates it before expiry. Also **how to adapt a client to rotation** — JindoFS / JuiceFS / s3fs, one per behaviour a client can have |
+
+Demo 5 is for the **ACS sandbox** scenario rather than the DaemonSet one used by
+demos 1–4. It assumes the sandbox itself is already set up — see
+[Agent Sandbox](https://help.aliyun.com/en/cs/user-guide/agent-sandbox) — and
+covers only what the driver does with the credential:
+[docs/customfuse-agent-identity.md](../../docs/customfuse-agent-identity.md).
 
 > **Note**: `volumeAttributes` are immutable after PV creation — to change one you
 > must delete and recreate the PV. `spec.mountOptions` is not: it can add what
@@ -328,16 +335,21 @@ Common volumeAttributes keys (all optional):
 | `otherOpts` | Client options → `$otherOpts`, one whole value the driver never splits or merges into, so its internal format is whatever your entrypoint expects: comma separated, `-o` prefixed, anything. An OSS volume's `otherOpts` therefore carries over unchanged. Cannot be extended from `spec.mountOptions` — add a name of your own and concatenate it in your entrypoint, as in the [precedence](#entrypoint-env-vars) section |
 | `capacity` | Volume quota passed as `$capacity` to the entrypoint. Plain integer or Kubernetes Quantity (e.g. `100`, `100Gi`), validated and passed through as-is; the entrypoint strips the suffix if its client needs a bare number: `capacity=${capacity%Gi}`. A dynamically provisioned volume gets it from the PVC's requested size. To raise a quota after the PV exists, put `capacity=<value>` in `spec.mountOptions` — the one field it may redefine, and only upward, because the driver implements no expansion and Kubernetes likewise refuses to shrink a claim |
 
-Control fields (consumed by the driver, NOT passed as env vars):
+Control fields (consumed by the driver rather than forwarded as client mount
+options — except `authType` and `credentialDir`, which do reach the entrypoint as
+env vars):
 
 | Key | Description |
 |-----|-------------|
 | `fuseType` | FUSE client type for metrics and image resolution. Can also be set via `pv.spec.csi.fsType` (a PV spec field, not a volumeAttribute). Where both name a client they have to agree; `customfuse` on either side is exempt, being the generic marker rather than a client name. That exemption is what makes dynamic provisioning work: the controller stamps `fsType: customfuse` on every PV it creates, so a StorageClass parameter naming your client is not a conflict. |
-| `entrypointConfig` | ConfigMap name (in `ack-csi-customfuse` ns) to override `/entrypoint.sh` |
-| `entrypointKey` | Key in ConfigMap (default: `entrypoint.sh`) |
+| `entrypointConfig` | ConfigMap name (in `ack-csi-customfuse` ns) projected into the **fuse pod** to override `/entrypoint.sh` — per volume. On the sandbox path a PV selects nothing: the sidecar still runs `/etc/fuse-config/entrypoint.sh` ahead of the image's, but that directory is one copy shared by every sandbox |
+| `entrypointKey` | Key in that ConfigMap (default: `entrypoint.sh`) |
 | `dnsPolicy` | Fuse pod DNS policy: `ClusterFirst`, `ClusterFirstWithHostNet` or `Default`, matched case-insensitively. Anything else is logged and left unset. The fuse pod is on the host network, so unset means `ClusterFirst`, which there resolves through the *node* rather than the cluster: an in-cluster endpoint — a service name, say — will not resolve until you set `ClusterFirstWithHostNet`. Endpoints reached by IP or by public name are unaffected. |
 | `serviceAccountName` | ServiceAccount the fuse pod runs as. Must exist in `ack-csi-customfuse`, not in the consumer's namespace. Defaults to that namespace's `default`. The fuse pod calls no API server, so this is for reaching a private registry — see [Private registry](#private-registry) |
-| `authType` | Reserved. Only the empty default is accepted, which is Secret passthrough; any other value fails the mount with `unsupported authType`. The `authType: rrsa` an OSS volume would carry has no equivalent here yet. |
+| `authType` | `agent-identity` to exchange a sandbox token for a scoped, rotated STS credential delivered as files. Empty (default) passes Secret entries through as env vars. Also reaches the entrypoint as `$authType`, so one entrypoint can serve both flows. See [Demo 5](5-agent-identity/). |
+| `sandboxCredProviderName` | Supplied by the sandbox side rather than declared on the PV; `credentialProviderName` is accepted as an alias, as in OSS. |
+| `credentialDir` | With `authType: agent-identity`, pins where the credential files are written. Default: a per-mount directory. Either way the entrypoint gets `$credentialDir` resolved to the directory actually used, so it never has to reconstruct the default. |
+| `credentialRefreshHookKey` | With `authType: agent-identity`, key in `entrypointConfig` holding a script run after each rotation, for clients that cannot reload the credential files themselves. Same fuse-pod projection as `entrypointConfig`, so on the sandbox path a PV cannot pick the hook: the sidecar runs `/etc/fuse-config/refresh-hook.sh` if anything is mounted there, otherwise `/refresh-hook.sh` from the image. |
 
 These decide how the driver builds the fuse pod, not what the client mounts, so
 `spec.mountOptions` cannot set them — an entry naming one is logged and ignored.

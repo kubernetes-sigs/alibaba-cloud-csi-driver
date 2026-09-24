@@ -137,11 +137,11 @@ how the pod reaches a **private registry**: the driver puts no `imagePullSecrets
 on the pod, and the chart's `imagePullSecrets` cover only the workloads the chart
 renders, not pods created at mount time. Kubernetes honours `imagePullSecrets`
 from the ServiceAccount or the pod spec, which leaves the ServiceAccount as the
-supported route. `authType` is parsed alongside it but only its empty default is
-accepted today — any other value fails the mount with `unsupported authType`, so
-the `authType: rrsa` an OSS volume would carry has no equivalent here yet. The
-same ServiceAccount field is what RRSA-style authentication will be configured
-through when it arrives.
+supported route. `authType` is parsed alongside it: the empty default and
+`agent-identity` are accepted, and any other value fails the mount with
+`unsupported authType`, so the `authType: rrsa` an OSS volume would carry has no
+equivalent here yet. The same ServiceAccount field is what RRSA-style
+authentication will be configured through when it arrives.
 
 [examples/customfuse/README.md](../examples/customfuse/README.md#private-registry)
 has the full recipe.
@@ -217,6 +217,12 @@ If your client does not need the credential once it is running, `unset` the
 variables before `exec`ing it — only before an `exec`, since a script that stays
 alive keeps the environment it was started with.
 
+`authType: agent-identity` avoids this entirely on the sandbox path, where the
+driver runs in an injected sidecar rather than a fuse pod: the credential is
+exchanged per mount, delivered as files rather than environment variables, and
+rotated before it expires. See
+[customfuse-agent-identity.md](./customfuse-agent-identity.md).
+
 **`otherOpts` reaches the entrypoint without interpretation**, as `$otherOpts`,
 since only the entrypoint knows what its client's options look like. The driver
 never splits it, so it also cannot merge anything into it.
@@ -248,6 +254,14 @@ entrypoint to mount on and then waits for a mount point to appear at; and
 request nor impose one on a writable volume. Nor can a volume redefine a variable the
 mount-proxy already has in its own environment, since the client runs inside that
 process.
+
+One exception runs the other way: under `authType: agent-identity`, two control
+fields do reach the entrypoint, because the script has to know which credential
+flow ran and where the credential landed. It receives `$authType`, and
+`$credentialDir` resolved to the directory actually used rather than the value the
+PV named. The options configuring the exchange itself are stripped before the
+entrypoint runs. See
+[customfuse-agent-identity.md](./customfuse-agent-identity.md).
 
 Those refusals are not all enforced in the same place, and the plugin and
 mount-proxy are separate images, built and rolled out independently — so which log

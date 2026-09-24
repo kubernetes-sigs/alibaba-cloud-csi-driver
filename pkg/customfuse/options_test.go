@@ -8,8 +8,11 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -414,7 +417,6 @@ func TestPrecheckAuthConfig(t *testing.T) {
 	}{
 		{name: "default empty", authType: "", wantErr: false},
 		{name: "unsupported rrsa", authType: "rrsa", wantErr: true},
-		{name: "unsupported agent-identity", authType: "agent-identity", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -426,6 +428,124 @@ func TestPrecheckAuthConfig(t *testing.T) {
 				assert.NoError(t, err)
 			}
 		})
+	}
+}
+
+func TestPrecheckAuthConfigAgentIdentity(t *testing.T) {
+	complete := func() *fuseOptions {
+		return &fuseOptions{
+			AuthType:                jwtauth.AuthTypeAgentIdentity,
+			SandboxId:               "sbx-1",
+			SandboxCredProviderName: "provider-1",
+		}
+	}
+
+	t.Run("complete config is accepted", func(t *testing.T) {
+		assert.NoError(t, precheckAuthConfig(complete()))
+	})
+
+	t.Run("sandboxId is required", func(t *testing.T) {
+		opts := complete()
+		opts.SandboxId = ""
+		err := precheckAuthConfig(opts)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "sandboxId")
+	})
+
+	t.Run("sandboxCredProviderName is required", func(t *testing.T) {
+		opts := complete()
+		opts.SandboxCredProviderName = ""
+		err := precheckAuthConfig(opts)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "sandboxCredProviderName")
+	})
+
+	t.Run("refresh hook needs the ConfigMap that supplies it", func(t *testing.T) {
+		opts := complete()
+		opts.CredentialRefreshHookKey = "refresh.sh"
+		err := precheckAuthConfig(opts)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "entrypointConfig")
+
+		opts.EntrypointConfig = "my-config"
+		assert.NoError(t, precheckAuthConfig(opts))
+	})
+
+	// The node resolves the endpoint and the sandbox token from its own
+	// environment, so this side must not reject a volume for their absence.
+	t.Run("node-side settings are not required here", func(t *testing.T) {
+		t.Setenv("AGENT_IDENTITY_ENDPOINT", "")
+		t.Setenv("AGENT_IDENTITY_TOKEN_DIR", "")
+		assert.NoError(t, precheckAuthConfig(complete()))
+	})
+
+	t.Run("credentialDir must be absolute", func(t *testing.T) {
+		opts := complete()
+		opts.CredentialDir = "credentials"
+		err := precheckAuthConfig(opts)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "absolute path")
+
+		opts.CredentialDir = "/credentials"
+		assert.NoError(t, precheckAuthConfig(opts))
+	})
+}
+
+func TestParseOptionsAgentIdentity(t *testing.T) {
+	req := &csi.NodePublishVolumeRequest{
+		VolumeContext: map[string]string{
+			"authType":                 "agent-identity",
+			"sandboxId":                "sbx-1",
+			"sandboxCredProviderName":  "provider-1",
+			"credentialDir":            "/credentials",
+			"credentialRefreshHookKey": "refresh.sh",
+		},
+	}
+	opts, err := parseOptions(req)
+	require.NoError(t, err)
+
+	assert.Equal(t, "agent-identity", opts.AuthType)
+	assert.Equal(t, "sbx-1", opts.SandboxId)
+	assert.Equal(t, "provider-1", opts.SandboxCredProviderName)
+	assert.Equal(t, "/credentials", opts.CredentialDir)
+	assert.Equal(t, "refresh.sh", opts.CredentialRefreshHookKey)
+}
+
+// credentialProviderName is the spelling OSS volumes already use for this field.
+func TestParseOptionsCredentialProviderNameAlias(t *testing.T) {
+	req := &csi.NodePublishVolumeRequest{
+		VolumeContext: map[string]string{
+			"credentialProviderName": "provider-1",
+		},
+	}
+	opts, err := parseOptions(req)
+	require.NoError(t, err)
+	assert.Equal(t, "provider-1", opts.SandboxCredProviderName)
+}
+
+func TestMakeMountOptionsAgentIdentity(t *testing.T) {
+	opts := &fuseOptions{
+		Bucket:                  "my-bucket",
+		AuthType:                jwtauth.AuthTypeAgentIdentity,
+		SandboxId:               "sbx-1",
+		SandboxCredProviderName: "provider-1",
+		CredentialDir:           "/credentials",
+	}
+	got := opts.makeMountOptions()
+
+	assert.Contains(t, got, "bucket=my-bucket")
+	assert.Contains(t, got, "authType=agent-identity")
+	assert.Contains(t, got, "sandboxId=sbx-1")
+	assert.Contains(t, got, "sandboxCredProviderName=provider-1")
+	assert.Contains(t, got, "credentialDir=/credentials")
+}
+
+// The default auth flow passes Secret entries through as environment variables,
+// so it must not gain an authType option that an entrypoint would then see.
+func TestMakeMountOptionsOmitsEmptyAuthType(t *testing.T) {
+	got := (&fuseOptions{Bucket: "b"}).makeMountOptions()
+	for _, opt := range got {
+		assert.NotContains(t, opt, "authType")
 	}
 }
 
@@ -632,6 +752,11 @@ func TestParseOptionsMountOptionsCannotSetControlFields(t *testing.T) {
 		"dnsPolicy=Default",
 		"serviceAccountName=other-sa",
 		"authType=rrsa",
+		"sandboxId=other-sandbox",
+		"sandboxCredProviderName=other-provider",
+		"credentialProviderName=other-provider",
+		"credentialDir=/tmp/other",
+		"credentialRefreshHookKey=other.sh",
 	))
 	assert.NoError(t, err)
 	assert.Empty(t, opts.MountOptions, "an ignored entry must not reach the entrypoint as an env var nothing reads")
@@ -641,6 +766,37 @@ func TestParseOptionsMountOptionsCannotSetControlFields(t *testing.T) {
 	assert.Empty(t, opts.DnsPolicy)
 	assert.Empty(t, opts.ServiceAccountName)
 	assert.Empty(t, opts.AuthType, "precheckAuthConfig must see the default, not a value from an editable PV field")
+	assert.Empty(t, opts.SandboxId)
+	assert.Empty(t, opts.SandboxCredProviderName)
+	assert.Empty(t, opts.CredentialDir)
+	assert.Empty(t, opts.CredentialRefreshHookKey)
+}
+
+// The agent-identity settings are refused on stronger grounds than the rest of the
+// control fields, and the consequence is only visible past makeMountOptions: three
+// of them are emitted there ahead of the entries left in MountOptions, and
+// IndexMountOptions keeps the last value for a repeated key. An entry that survived
+// would therefore not sit unread in the environment — it would be the value the
+// credential exchange is resolved from. So the assertion goes through the same two
+// functions the mount does, rather than stopping at the struct fields.
+func TestParseOptionsMountOptionsCannotOverrideTheAgentIdentitySettings(t *testing.T) {
+	req := mountFlagsReq(
+		"sandboxId=other-sandbox",
+		"credentialDir=/tmp/other",
+		"sandboxCredProviderName=other-provider",
+	)
+	req.VolumeContext = map[string]string{
+		"sandboxId":     "real-sandbox",
+		"credentialDir": "/var/run/secrets/credentials",
+	}
+	opts, err := parseOptions(req)
+	require.NoError(t, err)
+	assert.Empty(t, opts.MountOptions, "nothing may be appended after the driver's own emissions")
+
+	idx := mounterutils.IndexMountOptions(opts.makeMountOptions())
+	assert.Equal(t, "real-sandbox", idx[jwtauth.OptSandboxId])
+	assert.Equal(t, "/var/run/secrets/credentials", idx[interceptors.OptCredentialDir])
+	assert.NotContains(t, idx, jwtauth.OptSandboxCredProviderName)
 }
 
 // mountpoint is the driver's own output: the path it tells the client to mount on

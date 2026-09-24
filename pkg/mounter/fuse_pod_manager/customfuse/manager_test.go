@@ -164,3 +164,204 @@ func TestBuildPodSpecNoImageNamesResolvedFuseType(t *testing.T) {
 	assert.Contains(t, err.Error(), `fuseType "customfuse"`)
 	assert.Contains(t, err.Error(), "key fuse-customfuse")
 }
+
+const testTarget = "/var/lib/kubelet/plugins/kubernetes.io/csi/customfuseplugin.csi.alibabacloud.com/abc/mount"
+
+func testConfig() fpm.FuseContainerConfig {
+	return fpm.FuseContainerConfig{Image: "registry.example.com/fuse:v1"}
+}
+
+func testContext() *fpm.FusePodContext {
+	return &fpm.FusePodContext{
+		VolumeId:          "test-volume",
+		FuseType:          "myfuse",
+		NodeName:          "test-node",
+		PodTemplateConfig: &fpm.PodTemplateConfig{DnsPolicy: corev1.DNSClusterFirst},
+	}
+}
+
+func buildSpec(t *testing.T, c *fpm.FusePodContext) corev1.PodSpec {
+	t.Helper()
+	spec, err := (&CustomFuse{}).buildPodSpec(testConfig(), c.FuseType, c, testTarget)
+	require.NoError(t, err)
+	return spec
+}
+
+func configMapVolume(t *testing.T, spec corev1.PodSpec) *corev1.ConfigMapVolumeSource {
+	t.Helper()
+	for _, v := range spec.Volumes {
+		if v.ConfigMap != nil {
+			return v.ConfigMap
+		}
+	}
+	return nil
+}
+
+func TestBuildPodSpecRequiresImage(t *testing.T) {
+	c := testContext()
+	_, err := (&CustomFuse{}).buildPodSpec(fpm.FuseContainerConfig{}, c.FuseType, c, testTarget)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "myfuse")
+}
+
+func TestBuildPodSpecWithoutEntrypointConfig(t *testing.T) {
+	spec := buildSpec(t, testContext())
+	assert.Nil(t, configMapVolume(t, spec), "no ConfigMap volume without entrypointConfig")
+}
+
+func TestBuildPodSpecProjectsEntrypoint(t *testing.T) {
+	c := testContext()
+	c.EntrypointConfig = "my-config"
+
+	cm := configMapVolume(t, buildSpec(t, c))
+	require.NotNil(t, cm)
+	assert.Equal(t, "my-config", cm.Name)
+	assert.Equal(t, []corev1.KeyToPath{{Key: "entrypoint.sh", Path: "entrypoint.sh"}}, cm.Items,
+		"an unset entrypointKey defaults to entrypoint.sh")
+}
+
+func TestBuildPodSpecProjectsCustomEntrypointKey(t *testing.T) {
+	c := testContext()
+	c.EntrypointConfig = "my-config"
+	c.EntrypointKey = "start-myfuse.sh"
+
+	cm := configMapVolume(t, buildSpec(t, c))
+	require.NotNil(t, cm)
+	assert.Equal(t, []corev1.KeyToPath{{Key: "start-myfuse.sh", Path: "entrypoint.sh"}}, cm.Items,
+		"the key is the volume's, the path is fixed so the driver can exec it")
+}
+
+// A ConfigMap volume naming a key that does not exist keeps the pod from
+// starting, so an unrequested hook must not be projected.
+func TestBuildPodSpecProjectsNoHookUnlessRequested(t *testing.T) {
+	c := testContext()
+	c.EntrypointConfig = "my-config"
+
+	cm := configMapVolume(t, buildSpec(t, c))
+	require.NotNil(t, cm)
+	require.Len(t, cm.Items, 1)
+	for _, item := range cm.Items {
+		assert.NotEqual(t, "refresh-hook.sh", item.Path)
+	}
+}
+
+// The volume chooses which ConfigMap key holds the hook, but the path it lands
+// on is fixed: mount-proxy looks for exactly /etc/fuse-config/refresh-hook.sh.
+// Projecting to the key's own name instead would let a volume decide what the
+// driver executes.
+func TestBuildPodSpecProjectsHookToFixedPath(t *testing.T) {
+	c := testContext()
+	c.EntrypointConfig = "my-config"
+	c.CredentialRefreshHookKey = "push-credential.sh"
+
+	cm := configMapVolume(t, buildSpec(t, c))
+	require.NotNil(t, cm)
+	assert.Equal(t, []corev1.KeyToPath{
+		{Key: "entrypoint.sh", Path: "entrypoint.sh"},
+		{Key: "push-credential.sh", Path: "refresh-hook.sh"},
+	}, cm.Items)
+}
+
+// A projected hook rides in the entrypoint ConfigMap, so without one there is
+// nothing to project it from — a hook shipped in the image needs no volume at
+// all. precheckAuthConfig rejects this combination before it gets here; this pins
+// that the pod spec invents no volume if it ever does.
+func TestBuildPodSpecIgnoresHookWithoutEntrypointConfig(t *testing.T) {
+	c := testContext()
+	c.CredentialRefreshHookKey = "push-credential.sh"
+
+	assert.Nil(t, configMapVolume(t, buildSpec(t, c)))
+}
+
+// The entrypoint and the hook are independent: either can come from the image or
+// from the ConfigMap, in any combination.
+func TestBuildPodSpecScriptSourceCombinations(t *testing.T) {
+	cases := []struct {
+		name          string
+		entrypointCfg string
+		hookKey       string
+		wantItems     []corev1.KeyToPath
+	}{
+		{
+			name: "both from the image",
+			// No ConfigMap at all: /entrypoint.sh and /refresh-hook.sh are found
+			// in the container filesystem.
+		},
+		{
+			name:          "entrypoint from the ConfigMap, hook from the image",
+			entrypointCfg: "my-config",
+			wantItems: []corev1.KeyToPath{
+				{Key: "entrypoint.sh", Path: "entrypoint.sh"},
+			},
+		},
+		{
+			// Also the shape for a ConfigMap holding only the hook: both keys are
+			// listed either way, and which of them actually exists decides where
+			// each script comes from. TestBuildPodSpecConfigMapKeysAreOptional
+			// covers that the absent one is tolerated.
+			name:          "hook from the ConfigMap",
+			entrypointCfg: "my-config",
+			hookKey:       "hook.sh",
+			wantItems: []corev1.KeyToPath{
+				{Key: "entrypoint.sh", Path: "entrypoint.sh"},
+				{Key: "hook.sh", Path: "refresh-hook.sh"},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := testContext()
+			c.EntrypointConfig = tc.entrypointCfg
+			c.CredentialRefreshHookKey = tc.hookKey
+
+			cm := configMapVolume(t, buildSpec(t, c))
+			if tc.wantItems == nil {
+				assert.Nil(t, cm)
+				return
+			}
+			require.NotNil(t, cm)
+			assert.Equal(t, tc.wantItems, cm.Items)
+			require.NotNil(t, cm.Optional)
+			assert.True(t, *cm.Optional)
+		})
+	}
+}
+
+// A ConfigMap supplying only one of the two scripts still lists both keys, so
+// kubelet must be told the missing one is allowed. Verified against a live
+// cluster: without Optional the pod stays in ContainerCreating with "configmap
+// references non-existent config key".
+func TestBuildPodSpecConfigMapKeysAreOptional(t *testing.T) {
+	c := testContext()
+	c.EntrypointConfig = "my-config"
+	c.CredentialRefreshHookKey = "hook.sh"
+
+	cm := configMapVolume(t, buildSpec(t, c))
+	require.NotNil(t, cm)
+	require.NotNil(t, cm.Optional)
+	assert.True(t, *cm.Optional)
+}
+
+// Both scripts have to be executable for the driver to exec them, and the mount
+// has to be read-only so the container cannot rewrite what the driver runs.
+func TestBuildPodSpecConfigMapIsExecutableAndReadOnly(t *testing.T) {
+	c := testContext()
+	c.EntrypointConfig = "my-config"
+	c.CredentialRefreshHookKey = "push-credential.sh"
+	spec := buildSpec(t, c)
+
+	cm := configMapVolume(t, spec)
+	require.NotNil(t, cm)
+	require.NotNil(t, cm.DefaultMode)
+	assert.EqualValues(t, 0o755, *cm.DefaultMode)
+
+	var found bool
+	for _, m := range spec.Containers[0].VolumeMounts {
+		if m.MountPath == "/etc/fuse-config" {
+			found = true
+			assert.True(t, m.ReadOnly, "the container must not be able to rewrite the scripts")
+		}
+	}
+	assert.True(t, found, "the ConfigMap must be mounted at /etc/fuse-config")
+}

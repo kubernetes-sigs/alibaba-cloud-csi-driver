@@ -16,6 +16,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -52,6 +53,7 @@ func NewDriver() *Driver {
 	}
 	driver.Mounter = mounter.NewForMounter(
 		m,
+		interceptors.CustomFuseJWTAuthInterceptor,
 		interceptors.FuseMonitorInterceptor,
 	)
 	return driver
@@ -113,6 +115,10 @@ func waitGroupTimeout(wg *sync.WaitGroup, d time.Duration) bool {
 }
 
 func (h *Driver) Terminate() {
+	// Stop credential refreshers before the processes they serve, so a rotation
+	// cannot land in a directory whose client is already gone.
+	jwtauth.StopAll()
+
 	h.monitorManager.StopAllMonitoring()
 
 	h.pids.Range(func(key, _ any) bool {
