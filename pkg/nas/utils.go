@@ -387,7 +387,28 @@ func addTLSMountOptions(baseOptions []string) []string {
 // nothing would strip the options again, and mount.nfs rejects anything it does
 // not know with "an incorrect mount option was specified".
 func appendJWTAuthOptions(options []string, opt *Options) []string {
-	if !jwtauth.IsAgentIdentity(opt.AuthType) {
+	effectiveAuthType := opt.AuthType
+	filtered := make([]string, 0, len(options))
+	for _, option := range options {
+		parts := mounterutils.SplitMountOptions(option)
+		kept := make([]string, 0, len(parts))
+		for _, part := range parts {
+			key, value, _ := strings.Cut(part, "=")
+			if strings.TrimSpace(key) == jwtauth.OptAuthType {
+				effectiveAuthType = strings.TrimSpace(value)
+			}
+			if strings.TrimSpace(key) != jwtauth.OptSubstrateMode {
+				kept = append(kept, part)
+			}
+		}
+		if len(kept) == len(parts) {
+			filtered = append(filtered, option)
+		} else if len(kept) > 0 {
+			filtered = append(filtered, strings.Join(kept, ","))
+		}
+	}
+	options = filtered
+	if !jwtauth.IsAgentIdentity(effectiveAuthType) {
 		return options
 	}
 	hasKey := func(k string) bool {
@@ -410,6 +431,9 @@ func appendJWTAuthOptions(options []string, opt *Options) []string {
 	appendKV(jwtauth.OptAuthType, opt.AuthType)
 	appendKV(jwtauth.OptSandboxId, opt.SandboxId)
 	appendKV(jwtauth.OptSandboxCredProviderName, opt.SandboxCredProviderName)
+	if opt.SubstrateMode && jwtauth.IsAgentIdentity(effectiveAuthType) {
+		appendKV(jwtauth.OptSubstrateMode, "true")
+	}
 	return options
 }
 
