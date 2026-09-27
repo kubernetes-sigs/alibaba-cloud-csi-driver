@@ -8,10 +8,10 @@ import (
 	"unicode"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -114,7 +114,7 @@ func (c *agenticfsController) getAgenticfsVolumeOptions(ctx context.Context, req
 		MountOptions:     parameters[vcKeyOptions],
 		AuthType:         parameters[jwtauth.OptAuthType],
 		CredProviderName: parameters[jwtauth.OptSandboxCredProviderName],
-		SubstrateMode:    common.IsSubstrateVolumeContext(parameters),
+		SubstrateMode:    utils.IsSubstrateVolumeContext(parameters),
 	}, nil
 }
 

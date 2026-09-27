@@ -5,8 +5,6 @@ const (
 	ECSInstanceIDTopologyKey = "alibabacloud.com/ecs-instance-id"
 	NodeTypeLabelKey         = "type"
 	VirtualNodeType          = "virtual-kubelet"
-
-	SubstrateModeKey = CsiAlibabaCloudPrefix + "/substrate-mode"
 )
 
 // constants of keys in volume parameters

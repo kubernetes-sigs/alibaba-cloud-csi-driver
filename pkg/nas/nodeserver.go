@@ -38,6 +38,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
@@ -205,7 +206,7 @@ func DetermineClientTypeAndMountProtocol(cnfs *v1beta1.ContainerNetworkFileSyste
 // returning the referenced CNFS name when one is set. Keys are matched
 // case-insensitively.
 func parseVolumeContext(volumeContext map[string]string) (*Options, string, error) {
-	opt := &Options{SubstrateMode: common.IsSubstrateVolumeContext(volumeContext)}
+	opt := &Options{SubstrateMode: utils.IsSubstrateVolumeContext(volumeContext)}
 	var cnfsName string
 	for key, value := range volumeContext {
 		switch strings.ToLower(key) {
@@ -268,9 +269,17 @@ func parseVolumeContext(volumeContext map[string]string) (*Options, string, erro
 			opt.SandboxCredProviderName = value
 		}
 	}
-	if opt.SubstrateMode && opt.SandboxId == "" {
-		// Substrate's atelet stores the actor UID in the standard CSI pod UID key.
-		if actorUID := volumeContext[utils.PodUIDKey]; actorUID != "" {
+	if opt.SubstrateMode {
+		if err := agentidentity.ValidateActorIdentity(volumeContext); err != nil {
+			return nil, "", status.Error(codes.InvalidArgument, err.Error())
+		}
+		actorUID := agentidentity.ActorUID(volumeContext)
+		if agentidentity.HasActorIdentity(volumeContext) {
+			if opt.SandboxId != "" && opt.SandboxId != actorUID {
+				return nil, "", status.Error(codes.PermissionDenied, "sandboxId differs from the actor UID")
+			}
+		}
+		if opt.SandboxId == "" {
 			opt.SandboxId = actorUID
 		}
 	}
@@ -362,17 +371,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	readOnly := req.GetReadonly()
-	if !readOnly {
-		switch req.GetVolumeCapability().GetAccessMode().GetMode() {
-		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
-			csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
-			readOnly = true
-		}
-	}
+	readOnly := mounterutils.ReadOnlyRequested(req.GetReadonly(), req.GetVolumeCapability().GetAccessMode().GetMode())
 
 	var runtimeVal string
-	if common.IsSubstrateVolumeContext(req.VolumeContext) {
+	if utils.IsSubstrateVolumeContext(req.VolumeContext) {
 		klog.InfoS("NodePublishVolume: substrate mode detected, skipping pod runtime lookup")
 	} else if ns.config.KubeClient != nil {
 		runtimeVal = utils.GetPodRunTime(ctx, req, ns.config.KubeClient)
@@ -535,7 +537,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		defer conn.Close()
 	}
 
-	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, podUID, ns.config.AgentMode); err != nil {
+	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, utils.MountOwnerUID(req.VolumeContext), ns.config.AgentMode); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if opt.MountProtocol == "efc" {

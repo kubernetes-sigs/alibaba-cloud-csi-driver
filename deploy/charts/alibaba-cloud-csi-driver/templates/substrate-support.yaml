@@ -1,0 +1,123 @@
+{{- if .Values.enableSubstrate }}
+{{- include "substrate.validate" . }}
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: substrate.csi.alibabacloud.com
+spec:
+  attachRequired: false
+  podInfoOnMount: true
+{{- if .Values.substrate.storageClass.create }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.substrate.storageClass.name }}
+provisioner: substrate.csi.alibabacloud.com
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+{{- end }}
+{{- if .Values.controller.enabled }}
+{{- $endpoints := list }}
+{{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
+{{- $endpoints = append $endpoints (dict "name" "nas" "driver" "nasplugin.csi.alibabacloud.com" "config" "substrate-nas" "port" 443 "target" 8443) }}
+{{- end }}
+{{- $endpoints = append $endpoints (dict "name" "bridge" "driver" "substrate.csi.alibabacloud.com" "config" "substrate-csi-bridge" "port" 444 "target" 8444) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: csi-provisioner
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: csi-provisioner
+  ports:
+    {{- range $endpoint := $endpoints }}
+    - name: {{ $endpoint.name }}-grpc-tls
+      port: {{ $endpoint.port }}
+      targetPort: {{ $endpoint.target }}
+    {{- end }}
+{{- if .Values.substrate.createDriverConfig }}
+{{- range $endpoint := $endpoints }}
+---
+apiVersion: ate.dev/v1alpha1
+kind: CSIDriverConfig
+metadata:
+  name: {{ $endpoint.config }}
+spec:
+  driverName: {{ $endpoint.driver }}
+  controllerEndpoint: dns:///csi-provisioner.{{ $.Release.Namespace }}.svc:{{ $endpoint.port }}
+  nodeSocketOverride: unix://{{ clean $.Values.deploy.kubeletRootDir }}/csi-plugins/{{ $endpoint.driver }}/csi.sock
+  tls:
+    enabled: true
+    usePodIdentity: true
+    serverName: csi-provisioner.{{ $.Release.Namespace }}.svc
+{{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: csi-provisioner-substrate
+  namespace: {{ .Release.Namespace }}
+data:
+  envoy.yaml: |
+    static_resources:
+      listeners:
+        {{- range $endpoint := $endpoints }}
+        - name: {{ $endpoint.name }}
+          address:
+            socket_address: {address: 0.0.0.0, port_value: {{ $endpoint.target }}}
+          filter_chains:
+            - transport_socket:
+                name: envoy.transport_sockets.tls
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+                  require_client_certificate: true
+                  common_tls_context:
+                    alpn_protocols: [h2]
+                    tls_certificates:
+                      - certificate_chain: {filename: /run/servicedns.podcert.ate.dev/credential-bundle.pem}
+                        private_key: {filename: /run/servicedns.podcert.ate.dev/credential-bundle.pem}
+                        watched_directory: {path: /run/servicedns.podcert.ate.dev}
+                    validation_context:
+                      trusted_ca: {filename: /run/podidentity.podcert.ate.dev/client-trust-bundle.pem}
+                      watched_directory: {path: /run/podidentity.podcert.ate.dev}
+              filters:
+                - name: envoy.filters.network.http_connection_manager
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                    stat_prefix: {{ $endpoint.name }}
+                    codec_type: AUTO
+                    route_config:
+                      name: {{ $endpoint.name }}
+                      virtual_hosts:
+                        - name: {{ $endpoint.name }}
+                          domains: ["*"]
+                          routes:
+                            - match: {prefix: /csi.v1.Controller/}
+                              route: {cluster: {{ $endpoint.name }}, timeout: 0s}
+                            - match: {prefix: /csi.v1.Identity/}
+                              route: {cluster: {{ $endpoint.name }}, timeout: 0s}
+                    http_filters:
+                      - name: envoy.filters.http.router
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+        {{- end }}
+      clusters:
+        {{- range $endpoint := $endpoints }}
+        - name: {{ $endpoint.name }}
+          connect_timeout: 5s
+          type: STATIC
+          http2_protocol_options: {}
+          load_assignment:
+            cluster_name: {{ $endpoint.name }}
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        pipe: {path: /csi/{{ $endpoint.driver }}/csi.sock}
+        {{- end }}
+{{- end }}
+{{- end }}

@@ -8,8 +8,8 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -91,7 +91,7 @@ func TestSubstrateCreateUsesStableBackendHandleOnlyWhenExplicit(t *testing.T) {
 	controller := newAgenticfsDirectCtrl(t, &fakeNasClientV2{})
 	for _, mode := range []string{"", "false", "true"} {
 		t.Run(mode, func(t *testing.T) {
-			req := agenticfsDirectCreateReq("substrate-test-data", 10<<30, map[string]string{common.SubstrateModeKey: mode})
+			req := agenticfsDirectCreateReq("substrate-test-data", 10<<30, map[string]string{utils.SubstrateModeKey: mode})
 			args, err := controller.getAgenticfsVolumeOptions(context.Background(), req)
 			require.NoError(t, err)
 			volume := args.volume("agentic-1", "ap-1", "server")
@@ -110,7 +110,7 @@ func TestSubstrateCreateDeleteReclaimsBackendWithoutPV(t *testing.T) {
 	controller := newAgenticfsDirectCtrl(t, backend)
 	server := newMockControllerServer()
 	server.Modes[agenticFsVolumeAs] = controller
-	request := agenticfsDirectCreateReq("substrate-test-data", 10<<30, map[string]string{common.SubstrateModeKey: "true"})
+	request := agenticfsDirectCreateReq("substrate-test-data", 10<<30, map[string]string{utils.SubstrateModeKey: "true"})
 	created, err := server.CreateVolume(context.Background(), request)
 	require.NoError(t, err)
 	retried, err := server.CreateVolume(context.Background(), request)

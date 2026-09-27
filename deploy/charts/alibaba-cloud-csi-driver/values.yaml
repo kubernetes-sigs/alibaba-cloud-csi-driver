@@ -1,3 +1,14 @@
+enableSubstrate: false
+
+substrate:
+  apiEndpoint: api.ate-system.svc:443
+  apiAudience: api.ate-system.svc
+  actorRoot: /var/lib/ateom-gvisor/actors
+  createDriverConfig: true
+  storageClass:
+    create: true
+    name: ate-storage
+
 controller:
   enabled: true
   replicas: 2
@@ -164,6 +175,9 @@ images:
   ossfs:
     repo: acs/csi-ossfs
     tag: "v1.91.12.ack.2-5cf3371"
+  envoy:
+    repo: acs/envoy
+    tag: "v1.39-latest"
   ossfs2:
     repo: acs/csi-ossfs2
     tag: "v2.0.9.ack.3-a1f29fc"

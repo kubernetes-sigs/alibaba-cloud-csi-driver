@@ -35,6 +35,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/go-ping/ping"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -90,10 +91,28 @@ const (
 	// GiB ...
 	GiB = 1024 * 1024 * 1024
 
-	PodNameKey      = "csi.storage.k8s.io/pod.name"
-	PodNamespaceKey = "csi.storage.k8s.io/pod.namespace"
-	PodUIDKey       = "csi.storage.k8s.io/pod.uid"
+	PodNameKey      = agentidentity.PodNameKey
+	PodNamespaceKey = agentidentity.PodNamespaceKey
+	PodUIDKey       = agentidentity.PodUIDKey
+
+	// SubstrateModeKey selects the Substrate runtime's dedicated volume handling.
+	SubstrateModeKey = "csi.alibabacloud.com/substrate-mode"
 )
+
+// IsSubstrateVolumeContext reports whether the volume context (or mount option
+// index) carries the Substrate mode marker.
+func IsSubstrateVolumeContext(values map[string]string) bool {
+	return values[SubstrateModeKey] == "true"
+}
+
+// MountOwnerUID returns the UID that owns the mount: the actor UID in Substrate
+// mode, the worker Pod UID otherwise.
+func MountOwnerUID(values map[string]string) string {
+	if IsSubstrateVolumeContext(values) {
+		return agentidentity.ActorUID(values)
+	}
+	return values[PodUIDKey]
+}
 
 type ServiceType int
 

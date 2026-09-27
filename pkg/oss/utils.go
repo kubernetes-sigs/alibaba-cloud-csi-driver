@@ -284,10 +284,7 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 	opts.DirectAssigned = parseDirectAssigned(runtimeClassValue, directAssignedValue)
 
 	for _, c := range volCaps {
-		switch c.AccessMode.GetMode() {
-		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY, csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
-			opts.ReadOnly = true
-		}
+		opts.ReadOnly = mounterutils.ReadOnlyRequested(opts.ReadOnly, c.AccessMode.GetMode())
 		// set fuseType by fsType
 		if opts.FuseType == "" && c.GetMount() != nil && c.GetMount().FsType != "" {
 			opts.FuseType = c.GetMount().FsType

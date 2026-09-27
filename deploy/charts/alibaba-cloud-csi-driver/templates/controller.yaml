@@ -88,6 +88,9 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532  # TODO: remove this when we set the user in all the images
+{{- if .Values.enableSubstrate }}
+        fsGroup: 65532  # projected pod-certificate volumes require the nonroot group to be readable
+{{- end }}
       containers:
         - name: csi-provisioner
           image: {{ include "imageSpec" (list .Values "controller") }}
@@ -95,7 +98,7 @@ spec:
             - --endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock
             - --v=2
             - --logging-format={{ .Values.logging.format }}
-            - "--driver={{ include "enabledControllers" .Values.csi }}"
+            - "--driver={{ include "substrate.drivers" (dict "base" (include "enabledControllers" .Values.csi) "enabled" .Values.enableSubstrate) }}"
             - --run-controller-service=true
             - --run-node-service=false
             - --kube-api-qps=100
@@ -172,6 +175,11 @@ spec:
             - name: healthz
               containerPort: 11270
           volumeMounts:
+{{- if .Values.enableSubstrate }}
+            {{- include "substrate.commonMounts" (dict "Values" .Values "node" false) | nindent 12 }}
+            - name: substrate-provisioner-dir
+              mountPath: /csi/substrate.csi.alibabacloud.com
+{{- end }}
 {{- range $key := tuple "disk" "nas" "oss" "bmcpfs" "ens" }}
   {{- with index $.Values.csi $key -}}
     {{- if and .enabled .controller.enabled }}
@@ -192,6 +200,31 @@ spec:
             requests:
               cpu: 100m
               memory: 128Mi
+{{- if .Values.enableSubstrate }}
+        - name: substrate-controller-proxy
+          image: {{ include "imageSpec" (list .Values "envoy") }}
+          args: [-c, /etc/envoy/envoy.yaml, --log-level, warning]
+          ports:
+            - {name: bridge-grpc, containerPort: 8444}
+            {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
+            - {name: nas-grpc, containerPort: 8443}
+            {{- end }}
+          readinessProbe:
+            tcpSocket: {port: bridge-grpc}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - {name: substrate-provisioner-dir, mountPath: /csi/substrate.csi.alibabacloud.com}
+            {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
+            - {name: nas-provisioner-dir, mountPath: /csi/nasplugin.csi.alibabacloud.com}
+            {{- end }}
+            - {name: substrate-envoy-config, mountPath: /etc/envoy, readOnly: true}
+            - {name: substrate-serving, mountPath: /run/servicedns.podcert.ate.dev, readOnly: true}
+            - {name: substrate-identity, mountPath: /run/podidentity.podcert.ate.dev, readOnly: true}
+{{- end }}
 {{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled }}
         - name: external-disk-provisioner
           image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
@@ -839,6 +872,20 @@ spec:
               memory: 64Mi
 {{- end }}
       volumes:
+{{- if .Values.enableSubstrate }}
+        {{- include "substrate.commonVolumes" (dict "Values" .Values "node" false) | nindent 8 }}
+        - name: substrate-provisioner-dir
+          emptyDir: {}
+        - name: substrate-envoy-config
+          configMap: {name: csi-provisioner-substrate}
+        - name: substrate-serving
+          projected:
+            sources:
+              - podCertificate:
+                  signerName: servicedns.podcert.ate.dev/identity
+                  keyType: ECDSAP256
+                  credentialBundlePath: credential-bundle.pem
+{{- end }}
 {{- range $key, $val := .Values.csi }}
 {{- if and $val.enabled $val.controller.enabled (ne $key "customfuse") }}
         - name: {{ $key }}-provisioner-dir
