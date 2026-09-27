@@ -40,7 +40,7 @@ type NodeServerWithMetricRecorder struct {
 }
 
 func (s *NodeServerWithMetricRecorder) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	substrateMode := IsSubstrateVolumeContext(req.VolumeContext)
+	substrateMode := utils.IsSubstrateVolumeContext(req.VolumeContext)
 	var pod *v1.Pod
 	if !substrateMode {
 		ctx, pod = utils.WithPodInfo(ctx, s.client, req)
@@ -144,7 +144,7 @@ func (s NodeServerWithValidator) NodeStageVolume(ctx context.Context, req *csi.N
 	if len(req.StagingTargetPath) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "StagingTargetPath is required")
 	}
-	if !IsSubstrateVolumeContext(req.VolumeContext) {
+	if !utils.IsSubstrateVolumeContext(req.VolumeContext) {
 		ok, err := filepathContains(utils.KubeletRootDir, req.StagingTargetPath)
 		if err != nil || !ok {
 			return nil, status.Errorf(codes.InvalidArgument, "Staging path %q is not a subpath of %s", req.StagingTargetPath, utils.KubeletRootDir)
@@ -166,7 +166,7 @@ func (s NodeServerWithValidator) NodePublishVolume(ctx context.Context, req *csi
 	if len(req.TargetPath) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "TargetPath is required")
 	}
-	if !IsSubstrateVolumeContext(req.VolumeContext) {
+	if !utils.IsSubstrateVolumeContext(req.VolumeContext) {
 		ok, err := filepathContains(utils.KubeletRootDir, req.TargetPath)
 		if err != nil || !ok {
 			return nil, status.Errorf(codes.InvalidArgument, "Target path %q is not a subpath of %s", req.TargetPath, utils.KubeletRootDir)
