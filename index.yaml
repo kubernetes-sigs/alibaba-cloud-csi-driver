@@ -2,6 +2,19 @@ apiVersion: v1
 entries:
   alibaba-cloud-csi-driver:
   - apiVersion: v2
+    appVersion: v1.37.3
+    created: "2026-10-10T03:35:36.775617022Z"
+    description: CSI Plugin for Kubernetes, Support Alibaba Cloud EBS/NAS/OSS/CPFS
+    digest: c6dbb1beb35a1c8d2971c2a19c162601a8f7e79ab0d435d64bcb91c774395b36
+    keywords:
+    - csi
+    - alibaba
+    name: alibaba-cloud-csi-driver
+    type: application
+    urls:
+    - https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/releases/download/alibaba-cloud-csi-driver-1.37.3/alibaba-cloud-csi-driver-1.37.3.tgz
+    version: 1.37.3
+  - apiVersion: v2
     appVersion: v1.36.2
     created: "2026-07-15T02:27:40.608219253Z"
     description: CSI Plugin for Kubernetes, Support Alibaba Cloud EBS/NAS/OSS/CPFS
@@ -66,4 +79,4 @@ entries:
     urls:
     - https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/releases/download/alibaba-cloud-csi-driver-1.6.5/alibaba-cloud-csi-driver-1.6.5.tgz
     version: 1.6.5
-generated: "2026-07-15T02:27:40.608236164Z"
+generated: "2026-10-10T03:35:36.775645876Z"
