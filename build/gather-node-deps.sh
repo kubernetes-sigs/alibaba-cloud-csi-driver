@@ -14,13 +14,13 @@ DEPS=(
 )
 
 declare -A FILE_PACKAGES
-for line in $(dpkg-query --show --showformat 'PKG_NAME:${Package}\n${db-fsys:Files}'); do
+while read -r line; do
     if [[ "$line" = PKG_NAME:* ]]; then
         pkg=${line#PKG_NAME:}
     else
         FILE_PACKAGES[$line]=$pkg
     fi
-done
+done < <(dpkg-query --show --showformat 'PKG_NAME:${Package}\n${db-fsys:Files}')
 echo "indexed ${#FILE_PACKAGES[@]} files"
 
 MTIME=0
