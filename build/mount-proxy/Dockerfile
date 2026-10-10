@@ -15,7 +15,10 @@ RUN --mount=type=bind,target=. \
 # python36 on alinux3 (only the aio image still needs it). Not needed on alinux4, whose
 # default python3 is already 3.11.
 FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS rpm-builder
-RUN yum install -y rpm-build
+ARG BUILDARCH
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-alinux3-$BUILDARCH \
+    echo 'keepcache=True' >> /etc/yum.conf && \
+    yum install -y rpm-build
 RUN --mount=type=bind,source=build/mount-proxy/python3-provider.spec,target=/tmp/python3-provider.spec \
     rpmbuild -bb /tmp/python3-provider.spec
 
@@ -23,9 +26,43 @@ RUN --mount=type=bind,source=build/mount-proxy/python3-provider.spec,target=/tmp
 # The ossfs-family, aio and customfuse-base images stay on alinux3: the centos8.0-built
 # ossfs/ossfs2 binaries link openssl 1.1, which alinux3 ships natively (alinux4 has openssl 3).
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS alinux3-install
+# Install steps share /var/cache/dnf as a cache mount (one per distro and arch), sharing=locked since dnf's own locks
+# don't work across containers.
+RUN echo 'keepcache=True' >> /etc/yum.conf
 
 # Only the standalone alinas image moves to alinux4.
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:4-update AS alinux4-install
+RUN echo 'keepcache=True' >> /etc/yum.conf
+
+# Each RPM is downloaded in its own stage and bind-mounted into the install steps, so it is cached on its own:
+# shared by all stages installing it, and not downloaded again when an install step re-runs for another package.
+FROM scratch AS rpm-amd64
+ENV OSSFS_ARCH=x86_64 RPM_ARCH=x86_64
+FROM scratch AS rpm-arm64
+ENV OSSFS_ARCH=aarch_64 RPM_ARCH=aarch64
+FROM rpm-${TARGETARCH} AS rpm
+
+FROM rpm AS ossfs-rpm
+ARG OSSFS_VERSION=v1.91.12.ack.2
+ARG OSSFS_RPM_URL
+ADD --link ${OSSFS_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm} /ossfs.rpm
+
+FROM rpm AS ossfs2-rpm
+ARG OSSFS2_VERSION=v2.0.9.ack.3
+ARG OSSFS2_RPM_URL
+ADD --link ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${OSSFS_ARCH}.rpm} /ossfs2.rpm
+
+FROM rpm AS ossfs2-failover-rpm
+ARG OSSFS2_FAILOVER_VERSION=v2.0.8.ack.1.failover
+ARG OSSFS2_RPM_URL
+ADD --link ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_FAILOVER_VERSION}_centos8.0_${OSSFS_ARCH}.rpm} /ossfs2.rpm
+
+FROM rpm AS alinas-rpm
+ARG ALINAS_UTILS_VERSION=2.6-0.20261008193659.3491d1.generic
+ARG EFC_VERSION=2.6-20261008165411.3de2c9.b247282.release
+ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.6
+ADD --link ${ALINAS_RPM_BASE_URL}/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.${RPM_ARCH}.rpm /alinas-utils.rpm
+ADD --link ${ALINAS_RPM_BASE_URL}/alinas-efc-${EFC_VERSION}.${RPM_ARCH}.rpm /efc.rpm
 
 #################### TINI (PID 1 REAPER) ####################
 # tini is not packaged in the alinux4 repos, so pull it from the Aliyun EPEL 9 mirror for the
@@ -34,32 +71,26 @@ FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:4-update AS alinux4-instal
 # downgrade) and its metalink points at fedoraproject.org. Only the binary is copied out, so no
 # EPEL repo config survives. The alinux3-based aio image installs tini from its own repos.
 FROM alinux4-install AS tini-builder
-RUN yum install -y \
+ARG TARGETARCH
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-alinux4-$TARGETARCH \
+    yum install -y \
       --repofrompath='epel9,https://mirrors.aliyun.com/epel/9/Everything/$basearch/' \
       --setopt=epel9.gpgcheck=1 \
       --setopt=epel9.gpgkey=https://mirrors.aliyun.com/epel/RPM-GPG-KEY-EPEL-9 \
-      tini && \
-    yum clean all
+      tini
 
 #################### TINI (PID 1 REAPER) ####################
 
 #################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
 
 FROM alinux3-install AS ossfs
-ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.12.ack.2
-ARG OSSFS_RPM_URL
+ARG TARGETARCH
 
-# install ossfs
-RUN set -ex; \
-    case "$TARGETPLATFORM" in \
-        linux/amd64) OSSFS_ARCH="x86_64" ;; \
-        linux/arm64) OSSFS_ARCH="aarch_64" ;; \
-        *) echo "unknown platform"; exit 1 ;; \
-    esac; \
-    yum install -y ${OSSFS_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
-    yum install -y fuse-devel util-linux mailcap procps; \
-    yum clean all
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-alinux3-$TARGETARCH \
+    --mount=type=bind,from=ossfs-rpm,source=ossfs.rpm,target=/tmp/ossfs.rpm \
+    set -ex; \
+    yum install -y /tmp/ossfs.rpm; \
+    yum install -y fuse-devel util-linux mailcap procps
 
 RUN mkdir /csi && mv /etc/mime.types /csi/mime.types
 RUN ln -s /host/etc/mime.types /etc/mime.types
@@ -73,9 +104,11 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 FROM alinux3-install AS ossfs-1.88
 ARG TARGETPLATFORM
+ARG TARGETARCH
 
 # install ossfs
-RUN set -ex; \
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-alinux3-$TARGETARCH \
+    set -ex; \
     case "$TARGETPLATFORM" in \
         linux/amd64) \
             yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_1.88.4_centos8.0_x86_64.rpm; \
@@ -93,7 +126,7 @@ RUN set -ex; \
             exit 1; \
             ;; \
     esac; \
-    yum install -y util-linux mailcap procps && yum clean all
+    yum install -y util-linux mailcap procps
 
 RUN mkdir /csi && mv /etc/mime.types /csi/mime.types
 RUN ln -s /host/etc/mime.types /etc/mime.types
@@ -106,20 +139,14 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 #################### OSSFS2 MOUNT-PROXY IMAGE ####################
 
 FROM alinux3-install AS ossfs2
-ARG TARGETPLATFORM
-ARG OSSFS2_VERSION=v2.0.9.ack.3
-ARG OSSFS2_RPM_URL
+ARG TARGETARCH
 
 # install ossfs2
-RUN set -ex; \
-    case "$TARGETPLATFORM" in \
-        linux/amd64) OSSFS_ARCH="x86_64" ;; \
-        linux/arm64) OSSFS_ARCH="aarch_64" ;; \
-        *) echo "unknown platform"; exit 1 ;; \
-    esac; \
-    yum install -y ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
-    yum install -y fuse3-devel util-linux mailcap procps; \
-    yum clean all
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-alinux3-$TARGETARCH \
+    --mount=type=bind,from=ossfs2-rpm,source=ossfs2.rpm,target=/tmp/ossfs2.rpm \
+    set -ex; \
+    yum install -y /tmp/ossfs2.rpm; \
+    yum install -y fuse3-devel util-linux mailcap procps
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
 ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
@@ -129,20 +156,14 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 #################### OSSFS2 FAILOVER MOUNT-PROXY IMAGE ####################
 
 FROM alinux3-install AS ossfs2-failover
-ARG TARGETPLATFORM
-ARG OSSFS2_VERSION=v2.0.8.ack.1.failover
-ARG OSSFS2_RPM_URL
+ARG TARGETARCH
 
 # install ossfs2 (failover branch: fd-passing + recovery support)
-RUN set -ex; \
-    case "$TARGETPLATFORM" in \
-        linux/amd64) OSSFS_ARCH="x86_64" ;; \
-        linux/arm64) OSSFS_ARCH="aarch_64" ;; \
-        *) echo "unknown platform"; exit 1 ;; \
-    esac; \
-    yum install -y ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
-    yum install -y fuse3-devel util-linux mailcap procps; \
-    yum clean all
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-alinux3-$TARGETARCH \
+    --mount=type=bind,from=ossfs2-failover-rpm,source=ossfs2.rpm,target=/tmp/ossfs2.rpm \
+    set -ex; \
+    yum install -y /tmp/ossfs2.rpm; \
+    yum install -y fuse3-devel util-linux mailcap procps
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
 ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
@@ -152,23 +173,16 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 #################### ALINAS MOUNT-PROXY IMAGE ####################
 
 FROM alinux4-install AS alinas
+ARG TARGETARCH
 
-ARG TARGETPLATFORM
-ARG ALINAS_UTILS_VERSION=2.6-0.20261008193659.3491d1.generic
-ARG EFC_VERSION=2.6-20261008165411.3de2c9.b247282.release
-ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.6
-
-RUN echo 'install_weak_deps=False' >> /etc/yum.conf; \
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-alinux4-$TARGETARCH \
+    --mount=type=bind,from=alinas-rpm,source=alinas-utils.rpm,target=/tmp/alinas-utils.rpm \
+    --mount=type=bind,from=alinas-rpm,source=efc.rpm,target=/tmp/efc.rpm \
+    echo 'install_weak_deps=False' >> /etc/yum.conf; \
     set -ex; \
-    case "${TARGETPLATFORM}" in \
-        linux/amd64) ARCH="x86_64" ;; \
-        linux/arm64) ARCH="aarch64" ;; \
-        *) echo "unsupported platform"; exit 1 ;; \
-    esac; \
     yum install -y util-linux procps openssl; \
-    yum install -y ${ALINAS_RPM_BASE_URL}/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.${ARCH}.rpm; \
-    yum install -y ${ALINAS_RPM_BASE_URL}/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
-    yum clean all
+    yum install -y /tmp/alinas-utils.rpm; \
+    yum install -y /tmp/efc.rpm
 # alinas-utils generates some dynamic configuration files (such as TLS keys, etc.) under /etc/aliyun/{alinas,cpfs}.
 # So we will mount a hostPath to prevent the loss of these files when the container restarts.
 # On the first launch, /etc/aliyun-defaults will be used to initialize the configurations under /etc/aliyun/{alinas,cpfs}.
@@ -200,31 +214,22 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=customfuse"]
 # This image is used in pod sidecar injected by our infra where we don't know which driver will be used.
 
 FROM alinux3-install AS aio
+ARG TARGETARCH
 
-ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.12.ack.2
-ARG OSSFS2_VERSION=v2.0.9.ack.3
-ARG OSSFS_RPM_URL
-ARG OSSFS2_RPM_URL
-ARG ALINAS_UTILS_VERSION=2.6-0.20261008193659.3491d1.generic
-ARG EFC_VERSION=2.6-20261008165411.3de2c9.b247282.release
-ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.6
-
-RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-alinux3-$TARGETARCH \
+    --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
+    --mount=type=bind,from=ossfs-rpm,source=ossfs.rpm,target=/tmp/ossfs.rpm \
+    --mount=type=bind,from=ossfs2-rpm,source=ossfs2.rpm,target=/tmp/ossfs2.rpm \
+    --mount=type=bind,from=alinas-rpm,source=alinas-utils.rpm,target=/tmp/alinas-utils.rpm \
+    --mount=type=bind,from=alinas-rpm,source=efc.rpm,target=/tmp/efc.rpm \
     echo 'install_weak_deps=False' >> /etc/yum.conf; \
     set -ex; \
-    case "${TARGETPLATFORM}" in \
-        linux/amd64) OSSFS_ARCH="x86_64"; ALINAS_ARCH="x86_64" ;; \
-        linux/arm64) OSSFS_ARCH="aarch_64"; ALINAS_ARCH="aarch64" ;; \
-        *) echo "unknown platform"; exit 1 ;; \
-    esac; \
     yum install -y /tmp/rpms/python3-provider-*.rpm fuse-devel util-linux mailcap procps tini openssl; \
-    yum install -y ${OSSFS_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
-    yum install -y ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
-    yum install -y ${ALINAS_RPM_BASE_URL}/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.${ALINAS_ARCH}.rpm; \
-    yum install -y ${ALINAS_RPM_BASE_URL}/alinas-efc-${EFC_VERSION}.${ALINAS_ARCH}.rpm; \
+    yum install -y /tmp/ossfs.rpm; \
+    yum install -y /tmp/ossfs2.rpm; \
+    yum install -y /tmp/alinas-utils.rpm; \
+    yum install -y /tmp/efc.rpm; \
     cp -r /etc/aliyun /etc/aliyun-defaults; \
-    yum clean all; \
     # python3-pyyaml is only used by nfsdclnts (NFS server diagnostic tool, irrelevant here).
     # Remove it to silence CVE scans.
     rpm -e --nodeps python3-pyyaml

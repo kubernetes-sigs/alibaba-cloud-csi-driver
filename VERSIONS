@@ -4,7 +4,7 @@
 # When updating versions, please update all references:
 # - pkg/mounter/fuse_pod_manager/oss/utils.go (defaultOssfsUpdatedImageTag, defaultOssfs2ImageTag)
 # - build/csi-agent/Dockerfile (OSSFS_VERSION, OSSFS2_VERSION ARG defaults)
-# - build/mount-proxy/Dockerfile (OSSFS_VERSION ARG)
+# - build/mount-proxy/Dockerfile (OSSFS_VERSION, OSSFS2_VERSION, OSSFS2_FAILOVER_VERSION ARG defaults)
 # - build/multi/Dockerfile.multi (LABEL defaultOssfsImageTag, defaultOssfs2ImageTag)
 # - build/multi/Dockerfile.multi.asi (LABEL defaultOssfsImageTag, defaultOssfs2ImageTag)
 # - deploy/charts/alibaba-cloud-csi-driver/values.yaml (images.ossfs.tag, images.ossfs2.tag)
