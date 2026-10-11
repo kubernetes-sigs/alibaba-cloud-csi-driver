@@ -229,9 +229,54 @@ func TestGoldenPlaceholderLifecycleWithoutNAS(t *testing.T) {
 			require.NoError(t, err)
 			require.Nil(t, nas.unpublished)
 			require.Empty(t, mounter.MountPoints)
-			require.NoDirExists(t, placeholder)
+			// What the warmup wrote into the placeholder is not the bridge's to delete.
+			retained, readErr := os.ReadFile(filepath.Join(placeholder, "build-output"))
+			require.NoError(t, readErr)
+			require.Equal(t, "temporary", string(retained))
 			_, err = restarted.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{VolumeId: tc.unpublishID, TargetPath: target})
 			require.NoError(t, err)
+			require.DirExists(t, placeholder)
+		})
+	}
+}
+
+// A placeholder source that holds nothing is reclaimed; one the Golden warmup wrote
+// into is left alone, because deleting that recursively would discard the written
+// data without any ownership check.
+func TestUnpublishPlaceholderRemovesEmptySourceOnly(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		warmupOut bool
+	}{
+		{"empty source is removed", false},
+		{"source with warmup output is kept", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			target := filepath.Join(root, testUID, "volumes", "data")
+			mounter := mount.NewFakeMounter(nil)
+			node := NewNode(NodeOptions{ActorRoot: root, StateDir: t.TempDir(), Mounter: mounter, Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
+				return ActorInfo{UID: testUID, Name: "template-uid", Atespace: "ate-golden", TemplateUID: "template-uid", Golden: true}, nil
+			}})
+			source, err := node.placeholderSource(target)
+			require.NoError(t, err)
+			require.NoError(t, os.MkdirAll(source, 0755))
+			require.NoError(t, os.MkdirAll(target, 0755))
+			if tc.warmupOut {
+				require.NoError(t, os.WriteFile(filepath.Join(source, "build-output"), []byte("temporary"), 0600))
+			}
+			mounter.MountPoints = []mount.MountPoint{{Device: source, Path: target, Type: "none"}}
+
+			_, err = node.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{VolumeId: testID, TargetPath: target})
+			require.NoError(t, err)
+			require.Empty(t, mounter.MountPoints)
+			if tc.warmupOut {
+				retained, readErr := os.ReadFile(filepath.Join(source, "build-output"))
+				require.NoError(t, readErr)
+				require.Equal(t, "temporary", string(retained))
+			} else {
+				require.NoDirExists(t, source)
+			}
 		})
 	}
 }
