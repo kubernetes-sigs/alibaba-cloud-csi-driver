@@ -306,15 +306,14 @@ func (n *Node) unpublishPlaceholder(source, target string) error {
 	if err := n.opts.Mounter.Unmount(target); err != nil {
 		return status.Errorf(codes.Internal, "unmount Golden placeholder: %v", err)
 	}
-	// The mount removed here may have been covering a mount the bridge does not own. Only an
-	// empty target may be turned back into a plain directory.
+	// The mount removed here may have been covering a mount the bridge does not own, so
+	// refuse to proceed unless the target is bare. The directory itself is kept: the
+	// Golden snapshot serializes this path and a later restore re-opens it, so removing
+	// it here makes every restore of that snapshot fail with ENOENT.
 	if remaining, err := n.mountAt(target); err != nil {
 		return err
 	} else if remaining != nil {
 		return status.Error(codes.FailedPrecondition, "target still has a mount after removing the Golden placeholder")
-	}
-	if err := os.Remove(target); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return status.Errorf(codes.Internal, "remove Golden target directory: %v", err)
 	}
 	entries, err := n.opts.Mounter.List()
 	if err != nil {
@@ -332,8 +331,13 @@ func (n *Node) unpublishPlaceholder(source, target string) error {
 	if len(refs) > 0 {
 		return status.Error(codes.FailedPrecondition, "placeholder source still has mount references")
 	}
-	if err := os.RemoveAll(source); err != nil {
-		return status.Errorf(codes.Internal, "remove placeholder storage: %v", err)
+	// Remove, not RemoveAll: the source can hold data the Golden warmup wrote, and
+	// deleting that recursively would discard it without any ownership check. A
+	// source that still has content is left in place.
+	if err := os.Remove(source); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if entries, readErr := os.ReadDir(source); readErr != nil || len(entries) == 0 {
+			return status.Errorf(codes.Internal, "remove placeholder storage: %v", err)
+		}
 	}
 	return nil
 }
