@@ -11,7 +11,6 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"k8s.io/klog/v2"
 )
 
 type PovOptions struct {
@@ -39,9 +38,7 @@ type cloud struct {
 }
 
 func newCloud() (Cloud, error) {
-	// Init ECS Client
 	ac := utils.GetAccessControl()
-	klog.Infof("newCloud: ac: %+v", ac)
 	dfsClient, err := dfs.NewClientWithOptions(GlobalConfigVar.regionID, ac.Config, ac.Credential)
 	if err != nil {
 		return nil, err
