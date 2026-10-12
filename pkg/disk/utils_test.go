@@ -671,16 +671,23 @@ func TestVolumeCreateExtraTopology(t *testing.T) {
 		metadata.LingjunHpnZoneLabel: "A3",
 	}
 	vol := volumeCreate(attempt, "d-123", 20*GBSIZE, map[string]string{}, "cn-beijing-i", extra, nil)
-	segs := vol.AccessibleTopology[0].Segments
-	assert.Equal(t, "true", segs[metadata.LingjunWorkerLabel])
-	assert.Equal(t, "A3", segs[metadata.LingjunHpnZoneLabel])
-	assert.Equal(t, "cn-beijing-i", segs[ZonalDiskTopologyKey])
+	assert.Equal(t, []*csi.Topology{
+		{Segments: map[string]string{
+			ZonalDiskTopologyKey:         "cn-beijing-i",
+			metadata.LingjunWorkerLabel:  "true",
+			metadata.LingjunHpnZoneLabel: "A3",
+		}},
+		{Segments: map[string]string{
+			ZonalDiskTopologyKey:               "cn-beijing-i",
+			"alibabacloud.com/cloud-disk-node": "any",
+		}},
+	}, vol.AccessibleTopology)
 
 	// nil extra leaves the base segments untouched (regression guard)
 	vol = volumeCreate(attempt, "d-123", 20*GBSIZE, map[string]string{}, "cn-beijing-i", nil, nil)
-	segs = vol.AccessibleTopology[0].Segments
-	_, hasWorker := segs[metadata.LingjunWorkerLabel]
-	assert.False(t, hasWorker)
+	assert.Equal(t, []*csi.Topology{
+		{Segments: map[string]string{ZonalDiskTopologyKey: "cn-beijing-i"}},
+	}, vol.AccessibleTopology)
 }
 
 func TestGetDiskVolumeOptionsWithSnapshotID(t *testing.T) {
