@@ -15,11 +15,20 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	accessPointStatusActive   = "Active"
-	accessPointStatusDeleting = "Deleting"
-	accessPointStatusInactive = "Inactive"
+// accessPointStatus is the normalized (lower-cased) accesspoint status. It is a
+// distinct type so that a raw *string status cannot be compared against the
+// accessPointStatus* constants without going through normalizeAccessPointStatus
+// first: the OpenAPI documents title-cased values but the service returns them
+// lower-cased (e.g. "active").
+type accessPointStatus string
 
+const (
+	accessPointStatusActive   accessPointStatus = "active"
+	accessPointStatusDeleting accessPointStatus = "deleting"
+	accessPointStatusInactive accessPointStatus = "inactive"
+)
+
+const (
 	// Tags aid observation; only the AgenticSpaceId relationship proves ownership.
 	apTagKeyVolumeID                 = "csi.alibabacloud.com/volume-id"
 	apListFilterAgenticSpaceId       = "AgenticSpaceId"
@@ -29,6 +38,13 @@ const (
 	defaultApPollInterval = 3 * time.Second
 	defaultApPollTimeout  = 45 * time.Second
 )
+
+// normalizeAccessPointStatus lower-cases the status so it can be matched
+// against the accessPointStatus* constants regardless of the casing returned
+// by the service.
+func normalizeAccessPointStatus(status *string) accessPointStatus {
+	return accessPointStatus(strings.ToLower(tea.StringValue(status)))
+}
 
 // Discovery is mandatory: CreateAccessPoint has no ClientToken. Return the ID
 // before polling so a later failure can report the resource already observed.
@@ -94,7 +110,7 @@ func (c *agenticfsController) findReusableAccessPoint(ctx context.Context, files
 		if id == "" {
 			continue
 		}
-		switch tea.StringValue(ap.Status) {
+		switch normalizeAccessPointStatus(ap.Status) {
 		case accessPointStatusActive:
 			return id, tea.StringValue(ap.DomainName), nil
 		case accessPointStatusDeleting, accessPointStatusInactive:
@@ -262,7 +278,7 @@ func (c *agenticfsController) waitAccessPointActive(ctx context.Context, filesys
 			}
 		},
 		done: func(ap *sdk.DescribeAccessPointResponseBodyAccessPoint, notFound bool) bool {
-			return !notFound && ap != nil && tea.StringValue(ap.Status) == accessPointStatusActive
+			return !notFound && ap != nil && normalizeAccessPointStatus(ap.Status) == accessPointStatusActive
 		},
 		timeout: func(lastStatus string) error {
 			return status.Errorf(codes.DeadlineExceeded,

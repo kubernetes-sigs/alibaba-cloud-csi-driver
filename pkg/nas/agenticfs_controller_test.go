@@ -49,7 +49,7 @@ const (
 	testAgenticFsVSwitchID = "vsw-test-001"
 
 	// fakeStatusNotFound makes DescribeAccesspoint answer "the accesspoint does not exist", as the real API
-	fakeStatusNotFound = "NotFound"
+	fakeStatusNotFound accessPointStatus = "NotFound"
 )
 
 // The generated MockNasClientV2Interface exposes no EXPECT(), so a hand-written fake is used.
@@ -89,7 +89,7 @@ type fakeNasClientV2 struct {
 	createdAccessPoints []*sdk.ListAccessPointsResponseBodyAccessPoints
 
 	// The last entry is repeated once exhausted.
-	apStatuses  []string
+	apStatuses  []accessPointStatus
 	describeIdx int
 	// describeErrCalls limits describeErr to the first N calls (0 = every call).
 	describeErr      error
@@ -112,14 +112,14 @@ func newFakeNasClientV2() *fakeNasClientV2 {
 				},
 			},
 		},
-		apStatuses: []string{accessPointStatusActive},
+		apStatuses: []accessPointStatus{accessPointStatusActive},
 	}
 }
 
 // Accesspoints disappear on the first DescribeAccesspoint after DeleteAccesspoint.
 func newDeleteFakeNasClientV2() *fakeNasClientV2 {
 	fake := newFakeNasClientV2()
-	fake.apStatuses = []string{fakeStatusNotFound}
+	fake.apStatuses = []accessPointStatus{fakeStatusNotFound}
 	return fake
 }
 
@@ -218,7 +218,7 @@ func (f *fakeNasClientV2) DescribeAccesspoint(_ context.Context, _, accessPointI
 	if f.describeErr != nil && (f.describeErrCalls == 0 || f.describeCalls <= f.describeErrCalls) {
 		return nil, f.describeErr
 	}
-	st := "Pending"
+	st := accessPointStatus("Pending")
 	if len(f.apStatuses) > 0 {
 		idx := f.describeIdx
 		if idx >= len(f.apStatuses) {
@@ -239,7 +239,7 @@ func (f *fakeNasClientV2) DescribeAccesspoint(_ context.Context, _, accessPointI
 			AccessPoint: &sdk.DescribeAccessPointResponseBodyAccessPoint{
 				AccessPointId: tea.String(accessPointId),
 				DomainName:    tea.String(domain),
-				Status:        tea.String(st),
+				Status:        tea.String(string(st)),
 			},
 		},
 	}, nil
@@ -399,12 +399,12 @@ func agenticfsCreateReqRange(pvName string, cr *csi.CapacityRange, params map[st
 	return req
 }
 
-func apItem(id, st, domain string) *sdk.ListAccessPointsResponseBodyAccessPoints {
+func apItem(id string, st accessPointStatus, domain string) *sdk.ListAccessPointsResponseBodyAccessPoints {
 	return &sdk.ListAccessPointsResponseBodyAccessPoints{
 		AccessPointId:  tea.String(id),
 		AgenticSpaceId: tea.String(testAgenticFsAgenticSpaceID),
 		DomainName:     tea.String(domain),
-		Status:         tea.String(st),
+		Status:         tea.String(string(st)),
 	}
 }
 
@@ -828,7 +828,7 @@ func TestAgenticfsCreateVolumeLimitBytes(t *testing.T) {
 func TestAgenticfsCreateVolumeSingleAccessPointLifecycle(t *testing.T) {
 	for _, tt := range []struct {
 		name          string
-		state         string
+		state         accessPointStatus
 		wantCode      codes.Code
 		wantCreates   int
 		wantDescribes int
@@ -847,7 +847,7 @@ func TestAgenticfsCreateVolumeSingleAccessPointLifecycle(t *testing.T) {
 				}
 			}
 			if tt.state == "Pending" {
-				fake.apStatuses = []string{"Pending", accessPointStatusActive}
+				fake.apStatuses = []accessPointStatus{"Pending", accessPointStatusActive}
 			}
 			ctrl := newAgenticfsCtrl(t, fake)
 			resp, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
@@ -1006,7 +1006,7 @@ func TestAgenticfsCreateVolumeListMissingAgenticSpaceIdAborts(t *testing.T) {
 
 	t.Run("deleteVolumeIsWedgedTheSameWay", func(t *testing.T) {
 		fake := newFake()
-		fake.apStatuses = []string{fakeStatusNotFound}
+		fake.apStatuses = []accessPointStatus{fakeStatusNotFound}
 		ctrl := newAgenticfsCtrl(t, fake)
 		_, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), agenticfsDeletePV())
 		require.Error(t, err)
@@ -1029,7 +1029,7 @@ func TestAgenticfsCreateVolumeInactiveAccessPointIsUnusable(t *testing.T) {
 	assert.Equal(t, codes.Aborted, status.Code(err))
 	assert.Contains(t, err.Error(), "nas:ListAccesspoints:")
 	assert.Contains(t, err.Error(), "not usable yet")
-	assert.Contains(t, err.Error(), testAgenticFsAccessPointID+"("+accessPointStatusInactive+")")
+	assert.Contains(t, err.Error(), testAgenticFsAccessPointID+"("+string(accessPointStatusInactive)+")")
 	// A Pending PVC may never receive DeleteVolume: direct operators to verified cleanup.
 	assert.Contains(t, err.Error(), "NAS console")
 	assert.Contains(t, err.Error(), "examples/nas/agenticfs/README.md §4.1")
@@ -1124,7 +1124,7 @@ func TestAgenticfsCreateVolumeListSecondPageEmptyBodyAborts(t *testing.T) {
 
 	t.Run("deleteVolume", func(t *testing.T) {
 		fake := newFake()
-		fake.apStatuses = []string{fakeStatusNotFound}
+		fake.apStatuses = []accessPointStatus{fakeStatusNotFound}
 		ctrl := newAgenticfsCtrl(t, fake)
 		_, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), agenticfsDeletePV())
 		require.Error(t, err)
@@ -1311,7 +1311,7 @@ func TestAgenticfsCreateVolumeDomainFilledFromPolling(t *testing.T) {
 
 func TestAgenticfsCreateVolumeAPBecomesActiveAfterPending(t *testing.T) {
 	fake := newFakeNasClientV2()
-	fake.apStatuses = []string{"Pending", "Pending", accessPointStatusActive}
+	fake.apStatuses = []accessPointStatus{"Pending", "Pending", accessPointStatusActive}
 	ctrl := newAgenticfsCtrl(t, fake)
 	resp, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
 	require.NoError(t, err)
@@ -1321,7 +1321,7 @@ func TestAgenticfsCreateVolumeAPBecomesActiveAfterPending(t *testing.T) {
 
 func TestAgenticfsCreateVolumeAPNeverActiveTimesOut(t *testing.T) {
 	fake := newFakeNasClientV2()
-	fake.apStatuses = []string{"Pending"}
+	fake.apStatuses = []accessPointStatus{"Pending"}
 	ctrl := newAgenticfsCtrl(t, fake)
 
 	done := make(chan error, 1)
@@ -1347,7 +1347,7 @@ func TestAgenticfsCreateVolumeTransientDescribeErrorIsRetried(t *testing.T) {
 	fake := newFakeNasClientV2()
 	fake.describeErr = errors.New("ServiceUnavailable: request throttled")
 	fake.describeErrCalls = 2
-	fake.apStatuses = []string{accessPointStatusActive}
+	fake.apStatuses = []accessPointStatus{accessPointStatusActive}
 	ctrl := newAgenticfsCtrl(t, fake)
 
 	resp, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
@@ -1359,7 +1359,7 @@ func TestAgenticfsCreateVolumeTransientDescribeErrorIsRetried(t *testing.T) {
 func TestAgenticfsCreateVolumeDescribeNotFoundIsReadAfterWrite(t *testing.T) {
 	fake := newFakeNasClientV2()
 	// Right after CreateAccesspoint the read API may not see the accesspoint yet.
-	fake.apStatuses = []string{fakeStatusNotFound, fakeStatusNotFound, accessPointStatusActive}
+	fake.apStatuses = []accessPointStatus{fakeStatusNotFound, fakeStatusNotFound, accessPointStatusActive}
 	ctrl := newAgenticfsCtrl(t, fake)
 
 	resp, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
@@ -1416,7 +1416,7 @@ func TestAgenticfsCreateVolumePostSpaceFailuresLeaveResources(t *testing.T) {
 				AccessPoint: &sdk.CreateAccessPointResponseBodyAccessPoint{AccessPointId: tea.String("")},
 			}}
 		}, codes.Internal, 1, 0},
-		{"accesspointNeverBecomesActive", func(f *fakeNasClientV2) { f.apStatuses = []string{"Pending"} }, codes.DeadlineExceeded, 1, 1},
+		{"accesspointNeverBecomesActive", func(f *fakeNasClientV2) { f.apStatuses = []accessPointStatus{"Pending"} }, codes.DeadlineExceeded, 1, 1},
 		{"activeWithoutADomain", func(f *fakeNasClientV2) {
 			f.createAccessPointResp = &sdk.CreateAccessPointResponse{Body: &sdk.CreateAccessPointResponseBody{
 				AccessPoint: &sdk.CreateAccessPointResponseBodyAccessPoint{AccessPointId: tea.String(testAgenticFsAccessPointID)},
@@ -1428,7 +1428,7 @@ func TestAgenticfsCreateVolumePostSpaceFailuresLeaveResources(t *testing.T) {
 		{"accesspointNeverBecomesActiveAfterTransientDescribeErrors", func(f *fakeNasClientV2) {
 			f.describeErr = errors.New("ServiceUnavailable: request throttled")
 			f.describeErrCalls = 2
-			f.apStatuses = []string{"Pending"}
+			f.apStatuses = []accessPointStatus{"Pending"}
 		}, codes.DeadlineExceeded, 1, 1},
 		// Discovery is pinned to an explicitly empty page, so the accesspoint came from THIS call's CreateAccesspoint.
 		{"activeWithoutADomainAfterAnExplicitlyEmptyDiscoveryPage", func(f *fakeNasClientV2) {
@@ -1456,7 +1456,7 @@ func TestAgenticfsCreateVolumePostSpaceFailuresLeaveResources(t *testing.T) {
 				// Verify a real fake resource remains discoverable, not just an empty delete call list.
 				require.Len(t, fake.createdAccessPoints, 1)
 				assert.Equal(t, testAgenticFsAccessPointID, tea.StringValue(fake.createdAccessPoints[0].AccessPointId))
-				assert.Equal(t, accessPointStatusActive, tea.StringValue(fake.createdAccessPoints[0].Status),
+				assert.Equal(t, string(accessPointStatusActive), tea.StringValue(fake.createdAccessPoints[0].Status),
 					"the retained accesspoint is discoverable, so the next attempt reuses it instead of stacking a duplicate")
 			} else {
 				assert.Empty(t, fake.createdAccessPoints, "no accesspoint came into existence on this row")
@@ -1479,8 +1479,8 @@ func TestAgenticfsCreateVolumeRetryReusesTheAccessPointTheFailedAttemptCreated(t
 		},
 		{
 			name:       "neverBecameActiveThenDoes",
-			breakFirst: func(f *fakeNasClientV2) { f.apStatuses = []string{"Pending"} },
-			fixRetry:   func(f *fakeNasClientV2) { f.apStatuses = []string{accessPointStatusActive} },
+			breakFirst: func(f *fakeNasClientV2) { f.apStatuses = []accessPointStatus{"Pending"} },
+			fixRetry:   func(f *fakeNasClientV2) { f.apStatuses = []accessPointStatus{accessPointStatusActive} },
 		},
 		{
 			name: "hadNoDomainThenDoes",
@@ -1828,7 +1828,7 @@ func TestAgenticfsDeleteVolumeMissingAccesspointId(t *testing.T) {
 func TestAgenticfsDeleteVolumeWaitsForAccessPointGone(t *testing.T) {
 	t.Run("deletedAfterAccesspointDisappears", func(t *testing.T) {
 		fake := newFakeNasClientV2()
-		fake.apStatuses = []string{accessPointStatusDeleting, accessPointStatusDeleting, fakeStatusNotFound}
+		fake.apStatuses = []accessPointStatus{accessPointStatusDeleting, accessPointStatusDeleting, fakeStatusNotFound}
 		ctrl := newAgenticfsCtrl(t, fake)
 
 		_, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), agenticfsDeletePV())
@@ -1843,7 +1843,7 @@ func TestAgenticfsDeleteVolumeWaitsForAccessPointGone(t *testing.T) {
 
 	t.Run("stillDeletingIsRetryableAndDoesNotTouchSpace", func(t *testing.T) {
 		fake := newFakeNasClientV2()
-		fake.apStatuses = []string{accessPointStatusDeleting}
+		fake.apStatuses = []accessPointStatus{accessPointStatusDeleting}
 		ctrl := newAgenticfsCtrl(t, fake)
 
 		done := make(chan error, 1)
@@ -2744,7 +2744,7 @@ func TestAgenticfsCreateVolumeListEmptyVsMalformedBody(t *testing.T) {
 // The caller's deadline fires while the loop is sleeping, as opposed to the poll timeout.
 func TestAgenticfsCreateVolumeContextCancelledDuringPoll(t *testing.T) {
 	fake := newFakeNasClientV2()
-	fake.apStatuses = []string{"Pending"}
+	fake.apStatuses = []accessPointStatus{"Pending"}
 	ctrl := newAgenticfsCtrl(t, fake)
 	ctrl.apPollInterval = time.Second
 
@@ -2781,7 +2781,7 @@ func TestAgenticfsCreateVolumeThreeTierResourceLogging(t *testing.T) {
 		},
 		{
 			name:         "retryablePollTimeoutRetainsResources",
-			mutate:       func(fake *fakeNasClientV2) { fake.apStatuses = []string{"Pending"} },
+			mutate:       func(fake *fakeNasClientV2) { fake.apStatuses = []accessPointStatus{"Pending"} },
 			wantCreated:  true,
 			wantRetained: true,
 		},

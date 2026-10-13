@@ -82,10 +82,10 @@ func awaitAgenticfsPollResult(t *testing.T, done <-chan error) error {
 	}
 }
 
-func agenticfsDescribeResponse(state, domain string) *sdk.DescribeAccessPointResponse {
+func agenticfsDescribeResponse(state accessPointStatus, domain string) *sdk.DescribeAccessPointResponse {
 	return &sdk.DescribeAccessPointResponse{Body: &sdk.DescribeAccessPointResponseBody{
 		AccessPoint: &sdk.DescribeAccessPointResponseBodyAccessPoint{
-			Status: tea.String(state), DomainName: tea.String(domain),
+			Status: tea.String(string(state)), DomainName: tea.String(domain),
 		},
 	}}
 }
@@ -237,4 +237,42 @@ func TestAgenticfsAccessPointDeletionOrder(t *testing.T) {
 	assert.Equal(t, []string{"ap-second", "ap-pv", "ap-third"}, accessPointDeletionOrder("", listed))
 	assert.Equal(t, "ap-second", tea.StringValue(listed[0].AccessPointId), "leave the cloud snapshot unchanged")
 	assert.Empty(t, accessPointDeletionOrder("", nil))
+}
+
+func TestNormalizeAccessPointStatus(t *testing.T) {
+	for _, tt := range []struct {
+		status string
+		want   accessPointStatus
+	}{
+		{"Active", accessPointStatusActive},
+		{"active", accessPointStatusActive},
+		{"ACTIVE", accessPointStatusActive},
+		{"Inactive", accessPointStatusInactive},
+		{"Deleting", accessPointStatusDeleting},
+		{"Pending", accessPointStatus("pending")},
+		{"", accessPointStatus("")},
+	} {
+		assert.Equalf(t, tt.want, normalizeAccessPointStatus(tea.String(tt.status)),
+			"status=%q", tt.status)
+	}
+	assert.Equal(t, accessPointStatus(""), normalizeAccessPointStatus(nil), "nil status normalizes to empty")
+}
+
+// The service reports "active" lower-cased; the poll must complete, not time out.
+func TestAgenticfsPollAcceptsLowercaseActive(t *testing.T) {
+	clk := newAgenticfsPollClock()
+	ctrl := &agenticfsController{
+		clock: clk, apPollInterval: 3 * time.Second, apPollTimeout: 45 * time.Second,
+		nasClient: agenticfsDescribeClient{describe: func(_ context.Context, _, _ string) (*sdk.DescribeAccessPointResponse, error) {
+			return agenticfsDescribeResponse("active", "ap.example.com"), nil
+		}},
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	server := ""
+	done := make(chan error, 1)
+	go func() { done <- ctrl.waitAccessPointActive(ctx, "fs", "ap", &server) }()
+	require.NoError(t, awaitAgenticfsPollResult(t, done))
+	assert.Equal(t, "ap.example.com", server)
+	assert.False(t, clk.HasWaiters(), "timers must be stopped on return")
 }
