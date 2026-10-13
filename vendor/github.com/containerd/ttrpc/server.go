@@ -27,7 +27,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/containerd/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -74,8 +74,17 @@ func (s *Server) RegisterService(name string, desc *ServiceDesc) {
 }
 
 func (s *Server) Serve(ctx context.Context, l net.Listener) error {
-	s.addListener(l)
+	s.mu.Lock()
+	s.addListenerLocked(l)
 	defer s.closeListener(l)
+
+	select {
+	case <-s.done:
+		s.mu.Unlock()
+		return ErrServerClosed
+	default:
+	}
+	s.mu.Unlock()
 
 	var (
 		backoff    time.Duration
@@ -104,12 +113,10 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 					backoff *= 2
 				}
 
-				if max := time.Second; backoff > max {
-					backoff = max
-				}
+				backoff = min(time.Second, backoff)
 
 				sleep := time.Duration(rand.Int63n(int64(backoff)))
-				logrus.WithError(err).Errorf("ttrpc: failed accept; backoff %v", sleep)
+				log.G(ctx).WithError(err).Errorf("ttrpc: failed accept; backoff %v", sleep)
 				time.Sleep(sleep)
 				continue
 			}
@@ -121,14 +128,14 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 
 		approved, handshake, err := handshaker.Handshake(ctx, conn)
 		if err != nil {
-			logrus.WithError(err).Error("ttrpc: refusing connection after handshake")
+			log.G(ctx).WithError(err).Error("ttrpc: refusing connection after handshake")
 			conn.Close()
 			continue
 		}
 
 		sc, err := s.newConn(approved, handshake)
 		if err != nil {
-			logrus.WithError(err).Error("ttrpc: create connection failed")
+			log.G(ctx).WithError(err).Error("ttrpc: create connection failed")
 			conn.Close()
 			continue
 		}
@@ -188,9 +195,7 @@ func (s *Server) Close() error {
 	return err
 }
 
-func (s *Server) addListener(l net.Listener) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *Server) addListenerLocked(l net.Listener) {
 	s.listeners[l] = struct{}{}
 }
 
@@ -408,6 +413,7 @@ func (c *serverConn) run(sctx context.Context) {
 					if !sendStatus(mh.StreamID, status.Newf(codes.InvalidArgument, "StreamID is no longer active")) {
 						return
 					}
+					continue
 				}
 				sh := i.(*streamHandler)
 				if mh.Flags&flagNoData != flagNoData {
@@ -421,6 +427,7 @@ func (c *serverConn) run(sctx context.Context) {
 						if !sendStatus(mh.StreamID, status.Newf(codes.InvalidArgument, "data handling error: %v", err)) {
 							return
 						}
+						continue
 					}
 				}
 
@@ -430,6 +437,7 @@ func (c *serverConn) run(sctx context.Context) {
 						if !sendStatus(mh.StreamID, status.Newf(codes.InvalidArgument, "data close message cannot include data")) {
 							return
 						}
+						continue
 					}
 				}
 			} else if mh.Type == messageTypeRequest {
@@ -513,12 +521,12 @@ func (c *serverConn) run(sctx context.Context) {
 					Payload: response.data,
 				})
 				if err != nil {
-					logrus.WithError(err).Error("failed marshaling response")
+					log.G(ctx).WithError(err).Error("failed marshaling response")
 					return
 				}
 
 				if err := ch.send(response.id, messageTypeResponse, 0, p); err != nil {
-					logrus.WithError(err).Error("failed sending message on channel")
+					log.G(ctx).WithError(err).Error("failed sending message on channel")
 					return
 				}
 			} else {
@@ -530,7 +538,7 @@ func (c *serverConn) run(sctx context.Context) {
 					flags = flags | flagNoData
 				}
 				if err := ch.send(response.id, messageTypeData, flags, response.data); err != nil {
-					logrus.WithError(err).Error("failed sending message on channel")
+					log.G(ctx).WithError(err).Error("failed sending message on channel")
 					return
 				}
 			}
@@ -552,15 +560,13 @@ func (c *serverConn) run(sctx context.Context) {
 				// requests, so that the client connection is closed
 				return
 			}
-			logrus.WithError(err).Error("error receiving message")
+			log.G(ctx).WithError(err).Error("error receiving message")
 			// else, initiate shutdown
 		case <-shutdown:
 			return
 		}
 	}
 }
-
-var noopFunc = func() {}
 
 func getRequestContext(ctx context.Context, req *Request) (retCtx context.Context, cancel func()) {
 	if len(req.Metadata) > 0 {
@@ -569,11 +575,10 @@ func getRequestContext(ctx context.Context, req *Request) (retCtx context.Contex
 		ctx = WithMetadata(ctx, md)
 	}
 
-	cancel = noopFunc
 	if req.TimeoutNano == 0 {
-		return ctx, cancel
+		// Cancellable so handlers' deferred cancel propagates to RecvMsg.
+		return context.WithCancel(ctx)
 	}
 
-	ctx, cancel = context.WithTimeout(ctx, time.Duration(req.TimeoutNano))
-	return ctx, cancel
+	return context.WithTimeout(ctx, time.Duration(req.TimeoutNano))
 }

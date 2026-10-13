@@ -1,6 +1,6 @@
 # ttrpc
 
-[![Build Status](https://github.com/containerd/ttrpc/workflows/CI/badge.svg)](https://github.com/containerd/ttrpc/actions?query=workflow%3ACI)
+[![Build Status](https://github.com/containerd/ttrpc/actions/workflows/ci.yml/badge.svg)](https://github.com/containerd/ttrpc/actions/workflows/ci.yml)
 
 GRPC for low-memory environments.
 
@@ -24,10 +24,6 @@ GRPC services, as they do not speak the same protocol.
 See the [protocol specification](./PROTOCOL.md).
 
 # Usage
-
-Create a gogo vanity binary (see
-[`cmd/protoc-gen-gogottrpc/main.go`](cmd/protoc-gen-gogottrpc/main.go) for an
-example with the ttrpc plugin enabled.
 
 It's recommended to use [`protobuild`](https://github.com/containerd/protobuild)
 to build the protobufs for this project, but this will work with protoc
