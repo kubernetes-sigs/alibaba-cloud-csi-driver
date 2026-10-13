@@ -9,7 +9,7 @@ import (
 
 // Summary:
 //
-// Approves an O\\&M operation.
+// Approves an O\\\\\\&M operation.
 //
 // @param request - ApproveOperationRequest
 //
@@ -57,7 +57,11 @@ func (client *Client) ApproveOperationWithContext(ctx context.Context, request *
 
 // Summary:
 //
-// 修改节点的节点组
+// Changes the node group of a node.
+//
+// Description:
+//
+// Creates a session, returns a frontend endpoint, and starts an auto-triggered task to track the session status.
 //
 // @param tmpReq - ChangeNodeGroupRequest
 //
@@ -117,7 +121,7 @@ func (client *Client) ChangeNodeGroupWithContext(ctx context.Context, tmpReq *Ch
 
 // Summary:
 //
-// 节点规格变配
+// Upgrades or downgrades the specifications of one or more nodes. Before you change the specifications, ensure that the node resources meet the requirements of the target specifications. If a node does not meet the new specification requirements, the task reports success, but the specifications are not changed. Therefore, do not rely on the task status. To confirm a successful change, query the node after the task is complete and check the returned specifications.
 //
 // @param tmpReq - ChangeNodeTypesRequest
 //
@@ -171,7 +175,7 @@ func (client *Client) ChangeNodeTypesWithContext(ctx context.Context, tmpReq *Ch
 
 // Summary:
 //
-// Moves a resource from one resource group to another.
+// Changes the resource group of a resource.
 //
 // @param request - ChangeResourceGroupRequest
 //
@@ -229,6 +233,10 @@ func (client *Client) ChangeResourceGroupWithContext(ctx context.Context, reques
 //
 // # Disconnect Connection
 //
+// Description:
+//
+// # An interface for creating a session, returning the front-end EndPoint, and initiating a periodic task to track the session status
+//
 // @param request - CloseSessionRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
@@ -275,7 +283,11 @@ func (client *Client) CloseSessionWithContext(ctx context.Context, request *Clos
 
 // Summary:
 //
-// # Create a large-scale computing cluster
+// Creates a Lingjun AI Computing Service cluster.
+//
+// Description:
+//
+// Closes a remote session.
 //
 // @param tmpReq - CreateClusterRequest
 //
@@ -451,10 +463,6 @@ func (client *Client) CreateDiagnosticTaskWithContext(ctx context.Context, tmpRe
 //
 // Creates a network test task.
 //
-// Description:
-//
-// The API creates a session, returns the frontend endpoint, and starts a periodic task to track the session status.
-//
 // @param tmpReq - CreateNetTestTaskRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
@@ -539,7 +547,11 @@ func (client *Client) CreateNetTestTaskWithContext(ctx context.Context, tmpReq *
 
 // Summary:
 //
-// # Create Node Group under Cluster
+// Creates a node group in a cluster.
+//
+// Description:
+//
+// Creates a session, returns the frontend endpoint, and starts a periodic task to track the session status.
 //
 // @param tmpReq - CreateNodeGroupRequest
 //
@@ -657,7 +669,7 @@ func (client *Client) CreateSessionWithContext(ctx context.Context, request *Cre
 
 // Summary:
 //
-// Creates a virtual storage channel (VSC).
+// Creates a VSC.
 //
 // @param request - CreateVscRequest
 //
@@ -767,7 +779,7 @@ func (client *Client) DeleteClusterWithContext(ctx context.Context, request *Del
 
 // Summary:
 //
-// 删除一个未使用超节点
+// Deletes an unused hyper node.
 //
 // @param request - DeleteHyperNodeRequest
 //
@@ -811,7 +823,7 @@ func (client *Client) DeleteHyperNodeWithContext(ctx context.Context, request *D
 
 // Summary:
 //
-// 删除一个未使用节点
+// Releases a pay-as-you-go node.
 //
 // @param request - DeleteNodeRequest
 //
@@ -855,7 +867,7 @@ func (client *Client) DeleteNodeWithContext(ctx context.Context, request *Delete
 
 // Summary:
 //
-// 删除节点分组
+// # Delete Node Group
 //
 // @param request - DeleteNodeGroupRequest
 //
@@ -903,7 +915,7 @@ func (client *Client) DeleteNodeGroupWithContext(ctx context.Context, request *D
 
 // Summary:
 //
-// Deletes a virtual storage channel (VSC).
+// Deletes a VSC.
 //
 // @param request - DeleteVscRequest
 //
@@ -953,7 +965,11 @@ func (client *Client) DeleteVscWithContext(ctx context.Context, request *DeleteV
 
 // Summary:
 //
-// Queries information about a Lingjun cluster.
+// Queries the details of a cluster.
+//
+// Description:
+//
+// Queries the details of a specified cluster.
 //
 // @param request - DescribeClusterRequest
 //
@@ -1045,7 +1061,11 @@ func (client *Client) DescribeDiagnosticResultWithContext(ctx context.Context, r
 
 // Summary:
 //
-// 查询节点列表
+// Queries the details of a hyper node.
+//
+// Description:
+//
+// Queries the details of a specified hyper node.
 //
 // @param request - DescribeHyperNodeRequest
 //
@@ -1089,7 +1109,7 @@ func (client *Client) DescribeHyperNodeWithContext(ctx context.Context, request 
 
 // Summary:
 //
-// Queries the execution list and status of O\\&M Assistant commands.
+// Queries the execution history and status of Cloud Assistant commands.
 //
 // @param request - DescribeInvocationsRequest
 //
@@ -1145,7 +1165,7 @@ func (client *Client) DescribeInvocationsWithContext(ctx context.Context, reques
 
 // Summary:
 //
-// # Query Network Test Result
+// Queries the results of a network test.
 //
 // @param request - DescribeNetTestResultRequest
 //
@@ -1189,7 +1209,11 @@ func (client *Client) DescribeNetTestResultWithContext(ctx context.Context, requ
 
 // Summary:
 //
-// Queries a list of nodes.
+// Queries the list of nodes.
+//
+// Description:
+//
+// Queries the detailed information of a hyper node.
 //
 // @param request - DescribeNodeRequest
 //
@@ -1233,7 +1257,11 @@ func (client *Client) DescribeNodeWithContext(ctx context.Context, request *Desc
 
 // Summary:
 //
-// 查询节点分组
+// Queries the details of a node group.
+//
+// Description:
+//
+// This operation queries the details of a node group.
 //
 // @param request - DescribeNodeGroupRequest
 //
@@ -1277,7 +1305,79 @@ func (client *Client) DescribeNodeGroupWithContext(ctx context.Context, request 
 
 // Summary:
 //
-// 创建Web Terminal会话
+// Queries the detailed progress of a node group configuration refresh task. Returns the actual execution result for each node, including refreshed properties, properties skipped because they exceeded the MaxDisruptiveAction constraint, and failure reasons.
+//
+// Description:
+//
+// The returned results contain the following information:
+//
+// - The processing status of each node with configuration drift
+//
+// - The processing result, status, and reason for each node
+//
+// - The refreshed and skipped properties for each node
+//
+// @param tmpReq - DescribeNodeGroupRefreshTaskRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return DescribeNodeGroupRefreshTaskResponse
+func (client *Client) DescribeNodeGroupRefreshTaskWithContext(ctx context.Context, tmpReq *DescribeNodeGroupRefreshTaskRequest, runtime *dara.RuntimeOptions) (_result *DescribeNodeGroupRefreshTaskResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = tmpReq.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	request := &DescribeNodeGroupRefreshTaskShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.NodeStatuses) {
+		request.NodeStatusesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeStatuses, dara.String("NodeStatuses"), dara.String("json"))
+	}
+
+	body := map[string]interface{}{}
+	if !dara.IsNil(request.MaxResults) {
+		body["MaxResults"] = request.MaxResults
+	}
+
+	if !dara.IsNil(request.NextToken) {
+		body["NextToken"] = request.NextToken
+	}
+
+	if !dara.IsNil(request.NodeGroupRefreshTaskId) {
+		body["NodeGroupRefreshTaskId"] = request.NodeGroupRefreshTaskId
+	}
+
+	if !dara.IsNil(request.NodeStatusesShrink) {
+		body["NodeStatuses"] = request.NodeStatusesShrink
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Body: openapiutil.ParseToMap(body),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("DescribeNodeGroupRefreshTask"),
+		Version:     dara.String("2022-12-15"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &DescribeNodeGroupRefreshTaskResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// Describes the constraints for a node type.
 //
 // @param request - DescribeNodeTypeRequest
 //
@@ -1365,7 +1465,7 @@ func (client *Client) DescribeRegionsWithContext(ctx context.Context, request *D
 
 // Summary:
 //
-// Queries the files that are sent by an O\\&M assistant and the status of the files.
+// Queries the files that are sent by an O\\\\\\&M assistant and the status of the files.
 //
 // @param request - DescribeSendFileResultsRequest
 //
@@ -1457,7 +1557,7 @@ func (client *Client) DescribeTaskWithContext(ctx context.Context, request *Desc
 
 // Summary:
 //
-// Queries information about a virtual storage channel (VSC).
+// Retrieves the details of a specific virtual switch controller (Vsc).
 //
 // @param request - DescribeVscRequest
 //
@@ -1545,7 +1645,11 @@ func (client *Client) DescribeZonesWithContext(ctx context.Context, request *Des
 
 // Summary:
 //
-// # Cluster Scaling
+// Scales out a cluster.
+//
+// Description:
+//
+// Closes a remote session.
 //
 // @param tmpReq - ExtendClusterRequest
 //
@@ -1623,7 +1727,7 @@ func (client *Client) ExtendClusterWithContext(ctx context.Context, tmpReq *Exte
 
 // Summary:
 //
-// 集群下的主机分组列表，分组下的主机列表
+// Lists the node groups of a cluster and the nodes in each group.
 //
 // @param request - ListClusterHyperNodesRequest
 //
@@ -1689,7 +1793,7 @@ func (client *Client) ListClusterHyperNodesWithContext(ctx context.Context, requ
 
 // Summary:
 //
-// Queries a list of nodes in a cluster.
+// Queries the nodes in a cluster.
 //
 // @param request - ListClusterNodesRequest
 //
@@ -1759,7 +1863,7 @@ func (client *Client) ListClusterNodesWithContext(ctx context.Context, request *
 
 // Summary:
 //
-// Queries a list of clusters.
+// Query cluster instances with optional filtering by resource group and tags.
 //
 // @param request - ListClustersRequest
 //
@@ -1819,6 +1923,10 @@ func (client *Client) ListClustersWithContext(ctx context.Context, request *List
 //
 // # List of Diagnostic Tasks
 //
+// Description:
+//
+// An interface for creating a session, which returns the frontend EndPoint and initiates a periodic task to track the session status.
+//
 // @param request - ListDiagnosticResultsRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
@@ -1873,7 +1981,7 @@ func (client *Client) ListDiagnosticResultsWithContext(ctx context.Context, requ
 
 // Summary:
 //
-// 可用rack物理机列表
+// Lists the active physical servers in the rack.
 //
 // @param request - ListFreeHyperNodesRequest
 //
@@ -1941,7 +2049,7 @@ func (client *Client) ListFreeHyperNodesWithContext(ctx context.Context, request
 
 // Summary:
 //
-// Queries a list of nodes that are not used.
+// Lists all unused nodes.
 //
 // @param request - ListFreeNodesRequest
 //
@@ -2011,7 +2119,11 @@ func (client *Client) ListFreeNodesWithContext(ctx context.Context, request *Lis
 
 // Summary:
 //
-// 机器列表
+// # Machines
+//
+// Description:
+//
+// Queries the details of hypernodes.
 //
 // @param tmpReq - ListHyperNodesRequest
 //
@@ -2167,7 +2279,7 @@ func (client *Client) ListImagesWithContext(ctx context.Context, request *ListIm
 
 // Summary:
 //
-// # Query machine network configuration using HPNZone and machine type
+// Queries the network configurations for machine types.
 //
 // @param tmpReq - ListMachineNetworkInfoRequest
 //
@@ -2217,7 +2329,7 @@ func (client *Client) ListMachineNetworkInfoWithContext(ctx context.Context, tmp
 
 // Summary:
 //
-// Queries a list of instance types that are available to users.
+// Queries a list of available machine types.
 //
 // @param request - ListMachineTypesRequest
 //
@@ -2261,11 +2373,7 @@ func (client *Client) ListMachineTypesWithContext(ctx context.Context, request *
 
 // Summary:
 //
-// Lists the results of network test results.
-//
-// Description:
-//
-// The API creates a session, returns the frontend endpoint, and starts a periodic task to track the session status.
+// Lists network test results.
 //
 // @param request - ListNetTestResultsRequest
 //
@@ -2321,7 +2429,143 @@ func (client *Client) ListNetTestResultsWithContext(ctx context.Context, request
 
 // Summary:
 //
-// Queries node groups in a cluster.
+// Queries nodes with configuration drift within a node group and the drift details.
+//
+// Description:
+//
+// Compares the node group configuration template with the actual configuration of each node, and returns all nodes with configuration inconsistencies, along with the difference type, before-and-after values, and the action level required for refresh for each inconsistent property. This is a read-only operation.
+//
+// @param tmpReq - ListNodeGroupDriftedNodesRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return ListNodeGroupDriftedNodesResponse
+func (client *Client) ListNodeGroupDriftedNodesWithContext(ctx context.Context, tmpReq *ListNodeGroupDriftedNodesRequest, runtime *dara.RuntimeOptions) (_result *ListNodeGroupDriftedNodesResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = tmpReq.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	request := &ListNodeGroupDriftedNodesShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.NodeIds) {
+		request.NodeIdsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIds, dara.String("NodeIds"), dara.String("json"))
+	}
+
+	body := map[string]interface{}{}
+	if !dara.IsNil(request.MaxResults) {
+		body["MaxResults"] = request.MaxResults
+	}
+
+	if !dara.IsNil(request.NextToken) {
+		body["NextToken"] = request.NextToken
+	}
+
+	if !dara.IsNil(request.NodeGroupId) {
+		body["NodeGroupId"] = request.NodeGroupId
+	}
+
+	if !dara.IsNil(request.NodeIdsShrink) {
+		body["NodeIds"] = request.NodeIdsShrink
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Body: openapiutil.ParseToMap(body),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("ListNodeGroupDriftedNodes"),
+		Version:     dara.String("2022-12-15"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &ListNodeGroupDriftedNodesResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// Queries the list of node group configuration refresh tasks with paging.
+//
+// Description:
+//
+// If you do not know which node group has refresh tasks, you can use conditional query. The task list contains only summary information. To query task details, use the DescribeNodeGroupRefreshTask operation.
+//
+// @param tmpReq - ListNodeGroupRefreshTasksRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return ListNodeGroupRefreshTasksResponse
+func (client *Client) ListNodeGroupRefreshTasksWithContext(ctx context.Context, tmpReq *ListNodeGroupRefreshTasksRequest, runtime *dara.RuntimeOptions) (_result *ListNodeGroupRefreshTasksResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = tmpReq.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	request := &ListNodeGroupRefreshTasksShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.Statuses) {
+		request.StatusesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Statuses, dara.String("Statuses"), dara.String("json"))
+	}
+
+	body := map[string]interface{}{}
+	if !dara.IsNil(request.ClusterId) {
+		body["ClusterId"] = request.ClusterId
+	}
+
+	if !dara.IsNil(request.MaxResults) {
+		body["MaxResults"] = request.MaxResults
+	}
+
+	if !dara.IsNil(request.NextToken) {
+		body["NextToken"] = request.NextToken
+	}
+
+	if !dara.IsNil(request.NodeGroupId) {
+		body["NodeGroupId"] = request.NodeGroupId
+	}
+
+	if !dara.IsNil(request.StatusesShrink) {
+		body["Statuses"] = request.StatusesShrink
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Body: openapiutil.ParseToMap(body),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("ListNodeGroupRefreshTasks"),
+		Version:     dara.String("2022-12-15"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &ListNodeGroupRefreshTasksResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// # Query Node Group Information Under the Cluster
 //
 // @param request - ListNodeGroupsRequest
 //
@@ -2377,7 +2621,7 @@ func (client *Client) ListNodeGroupsWithContext(ctx context.Context, request *Li
 
 // Summary:
 //
-// 查询系统日志
+// Queries system logs.
 //
 // @param request - ListSyslogsRequest
 //
@@ -2441,7 +2685,7 @@ func (client *Client) ListSyslogsWithContext(ctx context.Context, request *ListS
 
 // Summary:
 //
-// Queries the tags of resources.
+// Queries the tags that are attached to resources.
 //
 // @param request - ListTagResourcesRequest
 //
@@ -2501,7 +2745,7 @@ func (client *Client) ListTagResourcesWithContext(ctx context.Context, request *
 
 // Summary:
 //
-// Queries a list of virtual storage channels (VSC).
+// Queries a list of VSCs.
 //
 // @param tmpReq - ListVscsRequest
 //
@@ -2631,7 +2875,77 @@ func (client *Client) RebootNodesWithContext(ctx context.Context, tmpReq *Reboot
 
 // Summary:
 //
-// Reinstall a node.
+// Refreshes node group configurations to existing nodes. Manually triggers the node group configuration to take effect on existing nodes. After node group properties are changed, existing nodes do not perform automatic synchronization by default, which causes configuration drift. You can call this operation to refresh node properties. The operation returns an asynchronous refresh task ID. Query the result by calling DescribeNodeGroupRefreshTask.
+//
+// Description:
+//
+// Manually triggers the node group configuration to take effect on existing nodes. After node group properties are changed, existing nodes do not perform automatic synchronization by default, which causes configuration drift. You can call this operation to refresh node properties. The operation returns an asynchronous refresh task ID. Query the result by calling DescribeNodeGroupRefreshTask.
+//
+// Limits:
+//
+// - Only one node group configuration refresh task can be running at a time for a node group.
+//
+// - When the asynchronous task executes the refresh, if a node is not in the "In Use" state, the refresh of that node is failed.
+//
+// <warning>Currently, only the RamRoleName property is supported for refresh.</warning>
+//
+// @param tmpReq - RefreshNodeGroupNodesRequest
+//
+// @param runtime - runtime options for this request RuntimeOptions
+//
+// @return RefreshNodeGroupNodesResponse
+func (client *Client) RefreshNodeGroupNodesWithContext(ctx context.Context, tmpReq *RefreshNodeGroupNodesRequest, runtime *dara.RuntimeOptions) (_result *RefreshNodeGroupNodesResponse, _err error) {
+	if dara.BoolValue(client.EnableValidate) == true {
+		_err = tmpReq.Validate()
+		if _err != nil {
+			return _result, _err
+		}
+	}
+	request := &RefreshNodeGroupNodesShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.NodeIds) {
+		request.NodeIdsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIds, dara.String("NodeIds"), dara.String("json"))
+	}
+
+	body := map[string]interface{}{}
+	if !dara.IsNil(request.MaxDisruptiveAction) {
+		body["MaxDisruptiveAction"] = request.MaxDisruptiveAction
+	}
+
+	if !dara.IsNil(request.NodeGroupId) {
+		body["NodeGroupId"] = request.NodeGroupId
+	}
+
+	if !dara.IsNil(request.NodeIdsShrink) {
+		body["NodeIds"] = request.NodeIdsShrink
+	}
+
+	req := &openapiutil.OpenApiRequest{
+		Body: openapiutil.ParseToMap(body),
+	}
+	params := &openapiutil.Params{
+		Action:      dara.String("RefreshNodeGroupNodes"),
+		Version:     dara.String("2022-12-15"),
+		Protocol:    dara.String("HTTPS"),
+		Pathname:    dara.String("/"),
+		Method:      dara.String("POST"),
+		AuthType:    dara.String("AK"),
+		Style:       dara.String("RPC"),
+		ReqBodyType: dara.String("formData"),
+		BodyType:    dara.String("json"),
+	}
+	_result = &RefreshNodeGroupNodesResponse{}
+	_body, _err := client.CallApiWithCtx(ctx, params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = dara.Convert(_body, &_result)
+	return _result, _err
+}
+
+// Summary:
+//
+// Reinstalls machines.
 //
 // @param tmpReq - ReimageNodesRequest
 //
@@ -2693,7 +3007,11 @@ func (client *Client) ReimageNodesWithContext(ctx context.Context, tmpReq *Reima
 
 // Summary:
 //
-// 节点异常问题上报
+// Reports issues with abnormal nodes.
+//
+// Description:
+//
+// Creates a session, returns a frontend endpoint, and starts a periodic task to track the session status.
 //
 // @param tmpReq - ReportNodesStatusRequest
 //
@@ -2967,7 +3285,7 @@ func (client *Client) SendFileWithContext(ctx context.Context, tmpReq *SendFileR
 
 // Summary:
 //
-// Scales in a cluster.
+// Scales in a CC cluster.
 //
 // @param tmpReq - ShrinkClusterRequest
 //
@@ -3025,7 +3343,7 @@ func (client *Client) ShrinkClusterWithContext(ctx context.Context, tmpReq *Shri
 
 // Summary:
 //
-// Stops the O\\&M assistant command execution.
+// Stops the O\\\\\\&M assistant command execution.
 //
 // @param tmpReq - StopInvocationRequest
 //
@@ -3133,7 +3451,7 @@ func (client *Client) StopNodesWithContext(ctx context.Context, tmpReq *StopNode
 
 // Summary:
 //
-// Tags resources.
+// Applies tags to resources.
 //
 // @param request - TagResourcesRequest
 //
@@ -3189,7 +3507,7 @@ func (client *Client) TagResourcesWithContext(ctx context.Context, request *TagR
 
 // Summary:
 //
-// Deletes a custom tag from a resource.
+// Removes custom tags from resources.
 //
 // @param request - UntagResourcesRequest
 //
@@ -3249,20 +3567,30 @@ func (client *Client) UntagResourcesWithContext(ctx context.Context, request *Un
 
 // Summary:
 //
-// # Update Node Group
+// Updates a node group.
 //
-// @param request - UpdateNodeGroupRequest
+// Description:
+//
+// Creates a session, returns the frontend endpoint, and starts a periodic task to track the session status.
+//
+// @param tmpReq - UpdateNodeGroupRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return UpdateNodeGroupResponse
-func (client *Client) UpdateNodeGroupWithContext(ctx context.Context, request *UpdateNodeGroupRequest, runtime *dara.RuntimeOptions) (_result *UpdateNodeGroupResponse, _err error) {
+func (client *Client) UpdateNodeGroupWithContext(ctx context.Context, tmpReq *UpdateNodeGroupRequest, runtime *dara.RuntimeOptions) (_result *UpdateNodeGroupResponse, _err error) {
 	if dara.BoolValue(client.EnableValidate) == true {
-		_err = request.Validate()
+		_err = tmpReq.Validate()
 		if _err != nil {
 			return _result, _err
 		}
 	}
+	request := &UpdateNodeGroupShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !dara.IsNil(tmpReq.SystemDisk) {
+		request.SystemDiskShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.SystemDisk, dara.String("SystemDisk"), dara.String("json"))
+	}
+
 	body := map[string]interface{}{}
 	if !dara.IsNil(request.FileSystemMountEnabled) {
 		body["FileSystemMountEnabled"] = request.FileSystemMountEnabled
@@ -3286,6 +3614,14 @@ func (client *Client) UpdateNodeGroupWithContext(ctx context.Context, request *U
 
 	if !dara.IsNil(request.NodeGroupId) {
 		body["NodeGroupId"] = request.NodeGroupId
+	}
+
+	if !dara.IsNil(request.RamRoleName) {
+		body["RamRoleName"] = request.RamRoleName
+	}
+
+	if !dara.IsNil(request.SystemDiskShrink) {
+		body["SystemDisk"] = request.SystemDiskShrink
 	}
 
 	if !dara.IsNil(request.UserData) {

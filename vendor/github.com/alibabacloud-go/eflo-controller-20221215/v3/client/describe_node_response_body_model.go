@@ -49,6 +49,8 @@ type iDescribeNodeResponseBody interface {
 	GetRequestId() *string
 	SetResourceGroupId(v string) *DescribeNodeResponseBody
 	GetResourceGroupId() *string
+	SetSavingsPlanId(v string) *DescribeNodeResponseBody
+	GetSavingsPlanId() *string
 	SetSn(v string) *DescribeNodeResponseBody
 	GetSn() *string
 	SetUserData(v string) *DescribeNodeResponseBody
@@ -76,7 +78,7 @@ type DescribeNodeResponseBody struct {
 	//
 	// 2022-09-30T03:35:53Z
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The disks.
+	// The list of disk information.
 	Disks []*DescribeNodeResponseBodyDisks `json:"Disks,omitempty" xml:"Disks,omitempty" type:"Repeated"`
 	// The expiration time.
 	//
@@ -84,11 +86,11 @@ type DescribeNodeResponseBody struct {
 	//
 	// 2022-06-23T16:00:00Z
 	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	// Indicates whether file storage mounting is supported.
+	// Indicates whether file system mounting is supported.
 	//
 	// example:
 	//
-	// False
+	// True
 	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
 	// The hostname.
 	//
@@ -102,6 +104,8 @@ type DescribeNodeResponseBody struct {
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// The hyper node ID.
+	//
 	// example:
 	//
 	// e01-cn-zvp2tgykr08
@@ -118,7 +122,7 @@ type DescribeNodeResponseBody struct {
 	//
 	// Centos7.9_all_0811
 	ImageName *string `json:"ImageName,omitempty" xml:"ImageName,omitempty"`
-	// The instance type.
+	// The machine type.
 	//
 	// example:
 	//
@@ -144,39 +148,25 @@ type DescribeNodeResponseBody struct {
 	//
 	// e01-cn-zvp2tgykr08
 	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	// The type of the current node. Valid values:
+	//
+	// ● cpfs-enhanced
+	//
+	// ● ebs-enhanced
+	//
+	// ● standard
+	//
+	// ● standby
+	//
+	// ● standard-v2
+	//
+	// ● standby-v2
+	//
 	// example:
 	//
 	// standard
 	NodeType *string `json:"NodeType,omitempty" xml:"NodeType,omitempty"`
 	// The node status.
-	//
-	// Valid values:
-	//
-	// 	- Extending
-	//
-	// 	- UnusedNodeStopped
-	//
-	// 	- UnusedNodeStopping
-	//
-	// 	- Unused
-	//
-	// 	- Using
-	//
-	// 	- ReleaseLocking
-	//
-	// 	- Operating
-	//
-	// 	- Cutting
-	//
-	// 	- ClusterNodeStopped
-	//
-	// 	- UnusedNodeRecovering
-	//
-	// 	- ClusterNodeStopping
-	//
-	// 	- ClusterNodeRecovering
-	//
-	// 	- Replacing
 	//
 	// example:
 	//
@@ -194,13 +184,19 @@ type DescribeNodeResponseBody struct {
 	//
 	// rg-acfmywpvugkh7kq
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The serial number of the node.
+	// The savings plan ID.
+	//
+	// example:
+	//
+	// spn-25e985acAWbrwEBK
+	SavingsPlanId *string `json:"SavingsPlanId,omitempty" xml:"SavingsPlanId,omitempty"`
+	// The unique machine identifier.
 	//
 	// example:
 	//
 	// sag42ckf4jx
 	Sn *string `json:"Sn,omitempty" xml:"Sn,omitempty"`
-	// The custom script.
+	// The user-defined script.
 	//
 	// example:
 	//
@@ -304,6 +300,10 @@ func (s *DescribeNodeResponseBody) GetRequestId() *string {
 
 func (s *DescribeNodeResponseBody) GetResourceGroupId() *string {
 	return s.ResourceGroupId
+}
+
+func (s *DescribeNodeResponseBody) GetSavingsPlanId() *string {
+	return s.SavingsPlanId
 }
 
 func (s *DescribeNodeResponseBody) GetSn() *string {
@@ -418,6 +418,11 @@ func (s *DescribeNodeResponseBody) SetResourceGroupId(v string) *DescribeNodeRes
 	return s
 }
 
+func (s *DescribeNodeResponseBody) SetSavingsPlanId(v string) *DescribeNodeResponseBody {
+	s.SavingsPlanId = &v
+	return s
+}
+
 func (s *DescribeNodeResponseBody) SetSn(v string) *DescribeNodeResponseBody {
 	s.Sn = &v
 	return s
@@ -458,7 +463,7 @@ func (s *DescribeNodeResponseBody) Validate() error {
 type DescribeNodeResponseBodyDisks struct {
 	// The disk type. Valid values:
 	//
-	// 	- cloud_essd
+	//  - cloud_essd: ESSD cloud disk.
 	//
 	// example:
 	//
@@ -468,13 +473,13 @@ type DescribeNodeResponseBodyDisks struct {
 	//
 	// example:
 	//
-	// d-bp1fi88ryk4yah8a6yos
+	// d-2zeap7wkns2tdmbr11se
 	DiskId *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
-	// The performance level of the ESSD that is used as the system disk. Valid values:
+	// The performance level of the cloud disk when an ESSD cloud disk is created as a system disk. Valid values:
 	//
-	// 	- PL0: A single ESSD can deliver up to 10,000 random read/write IOPS.
+	// - PL0: A single disk can deliver up to 10,000 random read/write IOPS.
 	//
-	// 	- PL1: A single ESSD can deliver up to 50,000 random read/write IOPS.
+	// - PL1: A single disk can deliver up to 50,000 random read/write IOPS.
 	//
 	// example:
 	//
@@ -488,9 +493,9 @@ type DescribeNodeResponseBodyDisks struct {
 	Size *int32 `json:"Size,omitempty" xml:"Size,omitempty"`
 	// The disk type. Valid values:
 	//
-	// 	- system: system disk
+	// - system: system disk.
 	//
-	// 	- data: data disk
+	// - data: data disk.
 	//
 	// example:
 	//
@@ -556,25 +561,37 @@ func (s *DescribeNodeResponseBodyDisks) Validate() error {
 }
 
 type DescribeNodeResponseBodyNetworks struct {
-	// The port information of the elastic network interface (ENI).
+	// The NIC port information.
 	//
 	// example:
 	//
 	// Bond0
 	BondName *string `json:"BondName,omitempty" xml:"BondName,omitempty"`
-	// The IP address of the node.
+	// The machine IP address.
 	//
 	// example:
 	//
 	// 47.254.235.44
 	Ip *string `json:"Ip,omitempty" xml:"Ip,omitempty"`
-	// The subnet ID.
+	// The security group ID.
+	//
+	// example:
+	//
+	// sg-bp1d3dvbh9by7j5rujax
+	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
+	// The cluster subnet ID.
 	//
 	// example:
 	//
 	// vsw-uf68v51fldm5egmui5a6k
 	SubnetId *string `json:"SubnetId,omitempty" xml:"SubnetId,omitempty"`
-	// The ID of the cluster network.
+	// The vSwitch ID.
+	//
+	// example:
+	//
+	// vsw-asjdfklj
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The cluster network ID.
 	//
 	// example:
 	//
@@ -598,8 +615,16 @@ func (s *DescribeNodeResponseBodyNetworks) GetIp() *string {
 	return s.Ip
 }
 
+func (s *DescribeNodeResponseBodyNetworks) GetSecurityGroupId() *string {
+	return s.SecurityGroupId
+}
+
 func (s *DescribeNodeResponseBodyNetworks) GetSubnetId() *string {
 	return s.SubnetId
+}
+
+func (s *DescribeNodeResponseBodyNetworks) GetVSwitchId() *string {
+	return s.VSwitchId
 }
 
 func (s *DescribeNodeResponseBodyNetworks) GetVpdId() *string {
@@ -616,8 +641,18 @@ func (s *DescribeNodeResponseBodyNetworks) SetIp(v string) *DescribeNodeResponse
 	return s
 }
 
+func (s *DescribeNodeResponseBodyNetworks) SetSecurityGroupId(v string) *DescribeNodeResponseBodyNetworks {
+	s.SecurityGroupId = &v
+	return s
+}
+
 func (s *DescribeNodeResponseBodyNetworks) SetSubnetId(v string) *DescribeNodeResponseBodyNetworks {
 	s.SubnetId = &v
+	return s
+}
+
+func (s *DescribeNodeResponseBodyNetworks) SetVSwitchId(v string) *DescribeNodeResponseBodyNetworks {
+	s.VSwitchId = &v
 	return s
 }
 
