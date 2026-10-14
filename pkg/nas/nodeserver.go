@@ -167,8 +167,8 @@ const (
 	cnfsIfMountTargetUnhealthyFallbackEventTmpl = "Due to mount target inactive, CNFS automatically switched from %s to %s."
 )
 
-func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
-	valid, err := utils.ValidatePath(req.GetTargetPath())
+func validateNodePublishVolumeRequest(m mounter.Mounter, req *csi.NodePublishVolumeRequest) error {
+	valid, err := utils.ValidateMountTarget(m, req.GetTargetPath())
 	if !valid {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -298,7 +298,7 @@ func parseVolumeContext(volumeContext map[string]string) (*Options, string, erro
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	mountPath := req.GetTargetPath()
-	if err := validateNodePublishVolumeRequest(req); err != nil {
+	if err := validateNodePublishVolumeRequest(ns.mounter, req); err != nil {
 		return nil, err
 	}
 
@@ -811,8 +811,8 @@ func (ns *nodeServer) isLosetupUsed(lockFile string, opt *Options, volumeID stri
 	return true
 }
 
-func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
-	valid, err := utils.ValidatePath(req.GetTargetPath())
+func validateNodeUnpublishVolumeRequest(m mounter.Mounter, req *csi.NodeUnpublishVolumeRequest) error {
+	valid, err := utils.ValidateMountTarget(m, req.GetTargetPath())
 	if !valid {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -821,7 +821,7 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.Infof("NodeUnpublishVolume:: Starting umount nas volume %s with req: %+v", req.VolumeId, req)
-	err := validateNodeUnpublishVolumeRequest(req)
+	err := validateNodeUnpublishVolumeRequest(ns.mounter, req)
 	if err != nil {
 		return nil, err
 	}
