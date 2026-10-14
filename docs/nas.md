@@ -86,4 +86,6 @@ deployment-nas-*****-4****    1/1     Running   0          32s
 
 **Nas Dynamic:** [dynamic volume](./nas-dynamic.md)
 
+**RRSA:** [per-Pod STS credentials](./nas-rrsa.md)
+
 **NAS agent-identity (STS credential) mounting:** [agent-identity](./nas-agent-identity.md)
