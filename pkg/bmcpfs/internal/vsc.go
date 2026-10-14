@@ -27,6 +27,7 @@ import (
 	efloClient "github.com/alibabacloud-go/eflo-controller-20221215/v3/client"
 	nasclient "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/throttle"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/ttlcache"
 	"k8s.io/klog/v2"
@@ -507,14 +508,12 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 
 func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) error {
 	if err := ad.detach(fsId, vscId); err != nil {
-		sdkErr := new(tea.SDKError)
-		if errors.As(err, &sdkErr) {
-			errCode := tea.StringValue(sdkErr.Code)
-			// attached by legacy inner api, ignore it
-			if errCode == "Resource.Check.Fail" || errCode == "InvalidFileSystem.NotFound" {
-				klog.InfoS("Ignore detaching error", "error", err)
-				return nil
-			}
+		// Ignore detach failures when the volume was attached by the legacy inner
+		// API, or when the filesystem is already gone (nothing left to detach).
+		switch cloud.ErrorCodeV2(err) {
+		case ErrCodeFileSystemNotFound, ErrCodeResourceCheckFail:
+			klog.InfoS("Ignore detaching error", "error", err)
+			return nil
 		}
 		return err
 	}

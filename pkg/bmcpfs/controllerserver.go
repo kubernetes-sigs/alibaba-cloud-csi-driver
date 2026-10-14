@@ -36,6 +36,7 @@ import (
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs/internal"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
@@ -197,6 +198,11 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	// Delete the fileset
 	err = cs.filesetManager.DeleteFileSet(ctx, fsID, fileSetID)
 	if err != nil {
+		// A missing filesystem implies the fileset is already gone, so the delete is idempotent success.
+		if cloud.ErrorCodeV2(err) == internal.ErrCodeFileSystemNotFound {
+			klog.InfoS("DeleteVolume: filesystem does not exist, treat as deleted", "filesystem", fsID, "fileset", fileSetID)
+			return &csi.DeleteVolumeResponse{}, nil
+		}
 		klog.Errorf("DeleteVolume: failed to delete fileset %s from filesystem %s: %v", fileSetID, fsID, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
