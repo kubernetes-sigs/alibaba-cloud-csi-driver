@@ -7,6 +7,16 @@ metadata:
   labels:
     app.kubernetes.io/name: csi-customfuse-plugin
 spec:
+{{- $updateStrategy := deepCopy (default (dict) .Values.updateStrategy) }}
+{{- $updateStrategyType := lower (toString (default "RollingUpdate" (get $updateStrategy "type"))) }}
+{{- if eq $updateStrategyType "ondelete" }}
+{{- $_ := set $updateStrategy "type" "OnDelete" }}
+{{- $_ := unset $updateStrategy "rollingUpdate" }}
+{{- else if eq $updateStrategyType "rollingupdate" }}
+{{- $_ := set $updateStrategy "type" "RollingUpdate" }}
+{{- end }}
+  updateStrategy:
+{{- toYaml $updateStrategy | trim | nindent 4 }}
   selector:
     matchLabels:
       app: csi-customfuse-plugin

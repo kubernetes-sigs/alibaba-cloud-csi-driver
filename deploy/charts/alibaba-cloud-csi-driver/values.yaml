@@ -5,6 +5,11 @@ controller:
     enabled: true
     maxUnavailable: 1
 
+# Update strategy shared by all DaemonSets in this chart.
+# Set type to OnDelete to update pods only after they are manually deleted.
+updateStrategy:
+  type: RollingUpdate
+
 plugin:
   enabled: true
 

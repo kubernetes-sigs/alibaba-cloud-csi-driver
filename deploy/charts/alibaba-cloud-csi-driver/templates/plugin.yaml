@@ -424,9 +424,18 @@ spec:
             secretName: addon.csi.token
 {{- end }}
 {{- end }}
+{{- $updateStrategy := deepCopy (default (dict) $nodePool.updateStrategy) }}
+{{- $updateStrategyType := lower (toString (default "RollingUpdate" (get $updateStrategy "type"))) }}
+{{- if eq $updateStrategyType "ondelete" }}
+{{- $_ := set $updateStrategy "type" "OnDelete" }}
+{{- $_ := unset $updateStrategy "rollingUpdate" }}
+{{- else if eq $updateStrategyType "rollingupdate" }}
+{{- $_ := set $updateStrategy "type" "RollingUpdate" }}
+{{- if not (hasKey $updateStrategy "rollingUpdate") }}
+{{- $_ := set $updateStrategy "rollingUpdate" (dict "maxUnavailable" "20%") }}
+{{- end }}
+{{- end }}
   updateStrategy:
-    rollingUpdate:
-      maxUnavailable: 20%
-    type: RollingUpdate
+{{- toYaml $updateStrategy | trim | nindent 4 }}
 {{- end -}}
 {{- end -}}
