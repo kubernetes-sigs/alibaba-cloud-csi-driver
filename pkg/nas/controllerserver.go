@@ -21,6 +21,7 @@ package nas
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
@@ -77,6 +78,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	rrsaAttrs, err := rrsaVolumeAttributes(req.Parameters)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "storageclass parameters: %v", err)
+	}
+
 	controller, err := cs.VolumeAs(req.Parameters["volumeAs"])
 	if err != nil {
 		return nil, err
@@ -106,6 +112,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if sysConfigs != "" {
 		resp.Volume.VolumeContext["sysConfig"] = sysConfigs
 	}
+	maps.Copy(resp.Volume.VolumeContext, rrsaAttrs)
 
 	klog.V(2).InfoS("CreateVolume: succeeded", "response", resp)
 	return resp, err

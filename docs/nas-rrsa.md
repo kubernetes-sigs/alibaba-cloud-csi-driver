@@ -170,9 +170,42 @@ Volume attributes:
 | `rrsaEndpoint`, `rrsaAudience` | Only for a credential broker, see below. |
 
 `options` must include `tls` and `ram`, which RAM authentication requires.
-`authType` is not supported for losetup volumes. Dynamic provisioning copies only
-a fixed set of StorageClass parameters into the PV, which does not include the
-attributes above, so use a statically provisioned PV.
+`authType` is not supported for losetup volumes.
+
+### Dynamic provisioning
+
+The same attributes can be set as StorageClass `parameters`. When `authType` is
+`rrsa`, they are copied into every PV the class provisions, and are checked
+before any cloud resource is created, so a misconfigured class fails at
+provisioning instead of at mount time.
+
+This applies to AgenticFS (`volumeAs: Agentic`), and to access points created
+with `volumeAs: accesspoint` and `accesspointEnableRam: "true"`. For the
+latter, add `ram` to `options`; the driver adds `tls` to access point mounts
+itself.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: agenticfs-rrsa
+provisioner: nasplugin.csi.alibabacloud.com
+parameters:
+  volumeAs: Agentic
+  fileSystemId: "<file-system-id>"
+  zoneId: "<zone-id>"
+  vpcId: "<vpc-id>"
+  vSwitchId: "<vswitch-id>"
+  authType: rrsa
+  roleName: "<role-name>"
+reclaimPolicy: Delete
+```
+
+Each provisioned volume gets a new access point, which a policy scoped to fixed
+access point ARNs, as in Step 1, cannot name in advance. With plain RRSA, scope
+the role to the filesystem instead by dropping the `nas:AccessPointArn`
+condition, so any Pod the role trusts can mount any access point of that
+filesystem. A credential broker can narrow this per Pod.
 
 ## Using a credential broker
 

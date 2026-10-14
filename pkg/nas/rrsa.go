@@ -253,6 +253,41 @@ func (e *rrsaExchanger) exchange(ctx context.Context, volumeID, target string, o
 	}, nil
 }
 
+// rrsaVolumeAttributeKeys are what an authType=rrsa volume needs on the node.
+// They are the same for every volume of a StorageClass, so dynamic provisioning
+// can carry them over, unlike the agent-identity ones, which name a sandbox.
+var rrsaVolumeAttributeKeys = []string{"authType", "roleName", "roleArn", "oidcProviderArn", "rrsaEndpoint", "rrsaAudience"}
+
+// rrsaVolumeAttributes returns the attributes a StorageClass with authType=rrsa
+// puts on its volumes, or nil for any other authType. It validates them the way
+// the node will, so a misconfigured class fails at provisioning, before any cloud
+// resource is created, rather than on every mount.
+//
+// A roleName is carried over as such rather than resolved here: it means the
+// provider of whichever cluster mounts the volume, which keeps a restored PV
+// working in another cluster.
+func rrsaVolumeAttributes(parameters map[string]string) (map[string]string, error) {
+	if !strings.EqualFold(parameters["authType"], AuthTypeRRSA) {
+		return nil, nil
+	}
+	if err := mounterutils.CheckRRSAArns(parameters["roleName"], parameters["roleArn"], parameters["oidcProviderArn"]); err != nil {
+		return nil, err
+	}
+	if endpoint := parameters["rrsaEndpoint"]; endpoint != "" {
+		if err := checkEndpoint(endpoint); err != nil {
+			return nil, err
+		}
+	}
+
+	attrs := map[string]string{}
+	for _, k := range rrsaVolumeAttributeKeys {
+		if v := parameters[k]; v != "" {
+			attrs[k] = v
+		}
+	}
+	return attrs, nil
+}
+
 // checkEndpoint refuses an endpoint the Pod token must not be sent to.
 func checkEndpoint(endpoint string) error {
 	u, err := url.Parse(endpoint)
