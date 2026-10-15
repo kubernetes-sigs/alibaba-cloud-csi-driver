@@ -11,22 +11,41 @@ RUN --mount=type=bind,target=. \
     go build -o /out/csi-mount-proxy-client ./cmd/mount-proxy-client
 
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:4-update AS alinux-install
+# python3-provider satisfies alinas-utils' `Requires: python3` with python38 instead of
+# python36 on alinux3 (only the aio image still needs it). Not needed on alinux4, whose
+# default python3 is already 3.11.
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS rpm-builder
+RUN yum install -y rpm-build
+RUN --mount=type=bind,source=build/mount-proxy/python3-provider.spec,target=/tmp/python3-provider.spec \
+    rpmbuild -bb /tmp/python3-provider.spec
+
+
+# The ossfs-family, aio and customfuse-base images stay on alinux3: the centos8.0-built
+# ossfs/ossfs2 binaries link openssl 1.1, which alinux3 ships natively (alinux4 has openssl 3).
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update AS alinux3-install
+
+# Only the standalone alinas image moves to alinux4.
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:4-update AS alinux4-install
 
 #################### TINI (PID 1 REAPER) ####################
-# tini is not packaged in the alinux4 repos; pull it from EPEL 9. Only the binary is
-# copied into the runtime stages so the EPEL repo config stays out of the final images.
-
-FROM alinux-install AS tini-builder
-RUN yum install -y https://mirrors.aliyun.com/epel/epel-release-latest-9.noarch.rpm && \
-    yum install -y tini && \
+# tini is not packaged in the alinux4 repos, so pull it from the Aliyun EPEL 9 mirror for the
+# alinas image. Use --repofrompath rather than the epel-release package: epel-release requires
+# redhat-release>=9 (dropped since alinux-release-4-10, forcing a silent alinux-release
+# downgrade) and its metalink points at fedoraproject.org. Only the binary is copied out, so no
+# EPEL repo config survives. The alinux3-based aio image installs tini from its own repos.
+FROM alinux4-install AS tini-builder
+RUN yum install -y \
+      --repofrompath='epel9,https://mirrors.aliyun.com/epel/9/Everything/$basearch/' \
+      --setopt=epel9.gpgcheck=1 \
+      --setopt=epel9.gpgkey=https://mirrors.aliyun.com/epel/RPM-GPG-KEY-EPEL-9 \
+      tini && \
     yum clean all
 
 #################### TINI (PID 1 REAPER) ####################
 
 #################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
 
-FROM alinux-install AS ossfs
+FROM alinux3-install AS ossfs
 ARG TARGETPLATFORM
 ARG OSSFS_VERSION=v1.91.12.ack.2
 ARG OSSFS_RPM_URL
@@ -52,7 +71,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 #################### OSSFS 1.88 MOUNT-PROXY IMAGE ####################
 
-FROM alinux-install AS ossfs-1.88
+FROM alinux3-install AS ossfs-1.88
 ARG TARGETPLATFORM
 
 # install ossfs
@@ -86,7 +105,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 #################### OSSFS2 MOUNT-PROXY IMAGE ####################
 
-FROM alinux-install AS ossfs2
+FROM alinux3-install AS ossfs2
 ARG TARGETPLATFORM
 ARG OSSFS2_VERSION=v2.0.9.ack.3
 ARG OSSFS2_RPM_URL
@@ -109,7 +128,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 
 #################### OSSFS2 FAILOVER MOUNT-PROXY IMAGE ####################
 
-FROM alinux-install AS ossfs2-failover
+FROM alinux3-install AS ossfs2-failover
 ARG TARGETPLATFORM
 ARG OSSFS2_VERSION=v2.0.8.ack.1.failover
 ARG OSSFS2_RPM_URL
@@ -132,7 +151,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
 
 #################### ALINAS MOUNT-PROXY IMAGE ####################
 
-FROM alinux-install AS alinas
+FROM alinux4-install AS alinas
 
 ARG TARGETPLATFORM
 ARG ALINAS_UTILS_VERSION=2.6-0.20261008193659.3491d1.generic
@@ -169,7 +188,7 @@ ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas" ]
 # Customers should use this as a base or copy mount-proxy into their own FUSE client image.
 # See examples/customfuse/ for a usage example.
 
-FROM alinux-install AS customfuse-base
+FROM alinux3-install AS customfuse-base
 
 COPY --link --from=builder /out/csi-mount-proxy-server /usr/local/bin/
 COPY --link --from=builder /out/csi-mount-proxy-client /usr/local/bin/
@@ -180,7 +199,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=customfuse"]
 #################### ALL-IN-ONE MOUNT-PROXY IMAGE ####################
 # This image is used in pod sidecar injected by our infra where we don't know which driver will be used.
 
-FROM alinux-install AS aio
+FROM alinux3-install AS aio
 
 ARG TARGETPLATFORM
 ARG OSSFS_VERSION=v1.91.12.ack.2
@@ -191,23 +210,26 @@ ARG ALINAS_UTILS_VERSION=2.6-0.20261008193659.3491d1.generic
 ARG EFC_VERSION=2.6-20261008165411.3de2c9.b247282.release
 ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.6
 
-RUN echo 'install_weak_deps=False' >> /etc/yum.conf; \
+RUN --mount=type=bind,from=rpm-builder,source=/root/rpmbuild/RPMS/noarch,target=/tmp/rpms \
+    echo 'install_weak_deps=False' >> /etc/yum.conf; \
     set -ex; \
     case "${TARGETPLATFORM}" in \
         linux/amd64) OSSFS_ARCH="x86_64"; ALINAS_ARCH="x86_64" ;; \
         linux/arm64) OSSFS_ARCH="aarch_64"; ALINAS_ARCH="aarch64" ;; \
         *) echo "unknown platform"; exit 1 ;; \
     esac; \
-    yum install -y fuse-devel util-linux mailcap procps openssl; \
+    yum install -y /tmp/rpms/python3-provider-*.rpm fuse-devel util-linux mailcap procps tini openssl; \
     yum install -y ${OSSFS_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
     yum install -y ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${OSSFS_ARCH}.rpm}; \
     yum install -y ${ALINAS_RPM_BASE_URL}/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.${ALINAS_ARCH}.rpm; \
     yum install -y ${ALINAS_RPM_BASE_URL}/alinas-efc-${EFC_VERSION}.${ALINAS_ARCH}.rpm; \
     cp -r /etc/aliyun /etc/aliyun-defaults; \
-    yum clean all
+    yum clean all; \
+    # python3-pyyaml is only used by nfsdclnts (NFS server diagnostic tool, irrelevant here).
+    # Remove it to silence CVE scans.
+    rpm -e --nodeps python3-pyyaml
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
-COPY --link --from=tini-builder /usr/bin/tini /usr/bin/tini
 ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas,ossfs,ossfs2" ]
 
 #################### ALL-IN-ONE MOUNT-PROXY IMAGE ####################
