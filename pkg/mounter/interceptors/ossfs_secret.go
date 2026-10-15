@@ -129,9 +129,17 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 // 1. Create a temporary data directory using getTempDataDirPathWithTimestamp
 // 2. Write all token files to the temporary directory
 // 3. Atomically switch the dir symlink to point to the new directory using getTempSymlinkPath
-// This ensures all files are updated atomically - readers either see all old files or all new files.
-// Clients that have already opened file handles will continue to read from the old directory
-// until they close and reopen, ensuring no interruption during rotation.
+//
+// The switch is a symlink rename, which is atomic per path lookup: a reader that
+// resolves the directory once sees a single generation, and one holding open file
+// handles keeps reading the old directory until it reopens, so a rotation never
+// interrupts it. A reader that resolves the path separately for each file can
+// straddle the rename; readers are expected to verify a credential before
+// relying on it, which they need anyway for expiry and provider errors.
+//
+// Both the ossfs credential files and the customfuse credential sink rotate
+// through this, so it carries no ossfs-specific assumption and the file names in
+// getTokenKeys are a contract for more than one FUSE client.
 func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err error) {
 	// Currently, for ossfs2, expiration is not required.
 	// But we still manage it (if offered) for the feature.

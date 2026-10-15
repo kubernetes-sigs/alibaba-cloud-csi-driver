@@ -4,10 +4,13 @@ package customfuse
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -66,10 +69,34 @@ type fuseOptions struct {
 	// /etc/fuse-config/entrypoint.sh regardless of the key name.
 	EntrypointKey string
 	// AuthType selects the authentication method for the FUSE client.
-	// Currently only the default (empty string) is supported, which passes
-	// Kubernetes Secret entries directly as environment variables to the
-	// FUSE entrypoint. Planned future values: "rrsa", "agent-identity".
+	// The default (empty string) passes Kubernetes Secret entries directly as
+	// environment variables to the FUSE entrypoint. "agent-identity" exchanges
+	// a sandbox token for a scoped STS credential in mount-proxy and delivers
+	// it to the entrypoint as files, refreshed for the mount lifetime.
+	// Planned future value: "rrsa".
 	AuthType string
+	// SandboxId identifies the sandbox whose token is exchanged for a scoped
+	// STS credential. Required when AuthType is "agent-identity".
+	SandboxId string
+	// SandboxCredProviderName names the credential provider that issues the
+	// scoped credential. Required when AuthType is "agent-identity".
+	SandboxCredProviderName string
+	// CredentialDir pins the directory the STS credential files are written to
+	// inside the fuse container, for a client whose credential path is fixed in
+	// its own configuration and so cannot be told where to look at mount time.
+	// When empty each mount gets its own directory, whose path the entrypoint
+	// reads from $credentialDir. Only meaningful when AuthType is
+	// "agent-identity".
+	CredentialDir string
+	// CredentialRefreshHookKey is the key in EntrypointConfig holding a script to
+	// run after each credential rotation, projected as
+	// /etc/fuse-config/refresh-hook.sh. Only needed to override a hook, or to
+	// supply one without building an image: a hook shipped in the image at
+	// /refresh-hook.sh is picked up on its own. A client that re-reads the
+	// credential files needs no hook at all; one whose credential lives elsewhere
+	// once it has started must be told a rotation happened, and the hook is where
+	// that is expressed. Only meaningful when AuthType is "agent-identity".
+	CredentialRefreshHookKey string
 	// Capacity is the volume quota passed as $capacity to the entrypoint.
 	// A plain integer (e.g. "100") or a Kubernetes Quantity (e.g. "100Gi") is
 	// validated and passed through unchanged; the entrypoint converts if its
@@ -200,7 +227,15 @@ func applyMountOptions(opts *fuseOptions) error {
 			klog.Warningf("mountOptions %s is ignored: readOnly comes from the PV's accessModes and from the publish request, not from a volume parameter (currently %v)", key, opts.ReadOnly)
 		case "mountpoint":
 			klog.Warningf("mountOptions %s is ignored: mountpoint is the path the driver tells the client to mount on, not a volume parameter", key)
-		case "fusetype", "entrypointconfig", "entrypointkey", "dnspolicy", "serviceaccountname", "authtype":
+		// The agent-identity settings join the six above for a stronger reason than
+		// "nothing would read them": makeMountOptions emits sandboxId,
+		// sandboxCredProviderName and credentialDir ahead of the entries left here,
+		// and IndexMountOptions keeps the last value for a repeated key. Left
+		// unrecognised, one of them in this editable PV field would redefine the
+		// setting the credential exchange is resolved from, on a volume whose
+		// volumeAttributes can no longer be edited.
+		case "fusetype", "entrypointconfig", "entrypointkey", "dnspolicy", "serviceaccountname", "authtype",
+			"sandboxid", "sandboxcredprovidername", "credentialprovidername", "credentialdir", "credentialrefreshhookkey":
 			klog.Warningf("mountOptions %s is ignored: set %s in volumeAttributes instead", key, key)
 		default:
 			unrecognized = append(unrecognized, entry)
@@ -297,6 +332,14 @@ func parseOptions(req publishRequest) (*fuseOptions, error) {
 			opts.FuseType = value
 		case "authtype":
 			opts.AuthType = value
+		case "sandboxid":
+			opts.SandboxId = value
+		case "sandboxcredprovidername", "credentialprovidername":
+			opts.SandboxCredProviderName = value
+		case "credentialdir":
+			opts.CredentialDir = value
+		case "credentialrefreshhookkey":
+			opts.CredentialRefreshHookKey = value
 		case "capacity":
 			// An empty value means unset, same as omitting the key; anything else
 			// has to parse, including a bare integer, which the previous
@@ -373,21 +416,44 @@ func parseOptions(req publishRequest) (*fuseOptions, error) {
 }
 
 // precheckAuthConfig validates the auth configuration before creating the fuse pod.
-// Currently only the default auth type (empty string) is supported, which passes
-// Kubernetes Secret entries as environment variables to the FUSE entrypoint.
-// Future auth types (rrsa, agent-identity) will be validated here.
+//
+// Only what this side can actually decide is checked. Whether the node can reach
+// the credential provider, and whether the sandbox token is present, is known
+// only in mount-proxy, which resolves those from its own environment and reports
+// them per mount; re-checking here would couple the controller to the node's
+// configuration and reject volumes that would in fact mount.
 func precheckAuthConfig(opts *fuseOptions) error {
-	if opts.AuthType != "" {
-		return fmt.Errorf("unsupported authType %q; only default (secret passthrough) is currently supported", opts.AuthType)
+	switch opts.AuthType {
+	case "":
+		return nil
+	case jwtauth.AuthTypeAgentIdentity:
+		if opts.SandboxId == "" {
+			return fmt.Errorf("authType %s requires sandboxId in volume attributes", opts.AuthType)
+		}
+		if opts.SandboxCredProviderName == "" {
+			return fmt.Errorf("authType %s requires sandboxCredProviderName in volume attributes", opts.AuthType)
+		}
+		if opts.CredentialRefreshHookKey != "" && opts.EntrypointConfig == "" {
+			return fmt.Errorf("credentialRefreshHookKey names a key in entrypointConfig, which is not set; a hook shipped in the image needs neither")
+		}
+		// A relative path would resolve against a working directory neither the
+		// volume author nor the entrypoint can see.
+		if opts.CredentialDir != "" && !filepath.IsAbs(opts.CredentialDir) {
+			return fmt.Errorf("credentialDir %q must be an absolute path", opts.CredentialDir)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported authType %q; supported: default (secret passthrough), %s", opts.AuthType, jwtauth.AuthTypeAgentIdentity)
 	}
-	return nil
 }
 
 // makeAuthConfig constructs the AuthConfig for fuse pod creation.
 // The auth type determines how credentials are provisioned to the FUSE entrypoint:
 //   - "" (default): secrets are passed as env vars directly (key=value, no transformation)
+//   - "agent-identity": mount-proxy exchanges the sandbox token for a scoped STS
+//     credential, delivers it as files under credentialDir, and refreshes it
+//     before it expires
 //   - "rrsa": (planned) RRSA-based auth via mount-proxy
-//   - "agent-identity": (planned) agent identity auth via mount-proxy
 func makeAuthConfig(opts *fuseOptions) *fpm.AuthConfig {
 	authCfg := &fpm.AuthConfig{
 		AuthType: opts.AuthType,
@@ -430,6 +496,21 @@ func (o *fuseOptions) makeMountOptions() []string {
 	}
 	if o.Capacity != "" {
 		opts = append(opts, "capacity="+o.Capacity)
+	}
+	if o.AuthType != "" {
+		opts = append(opts, jwtauth.OptAuthType+"="+o.AuthType)
+	}
+	// The agent-identity settings travel as options because mount-proxy, not
+	// this side, performs the credential exchange. It strips them again before
+	// the entrypoint runs, so they never reach the FUSE client.
+	if o.SandboxId != "" {
+		opts = append(opts, jwtauth.OptSandboxId+"="+o.SandboxId)
+	}
+	if o.SandboxCredProviderName != "" {
+		opts = append(opts, jwtauth.OptSandboxCredProviderName+"="+o.SandboxCredProviderName)
+	}
+	if o.CredentialDir != "" {
+		opts = append(opts, interceptors.OptCredentialDir+"="+o.CredentialDir)
 	}
 	opts = append(opts, o.MountOptions...)
 	return opts

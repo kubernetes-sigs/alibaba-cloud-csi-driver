@@ -208,6 +208,19 @@ func (f *CustomFuse) buildPodSpec(config fpm.FuseContainerConfig, fuseType strin
 		if entrypointKey == "" {
 			entrypointKey = "entrypoint.sh"
 		}
+		items := []corev1.KeyToPath{{
+			Key:  entrypointKey,
+			Path: "entrypoint.sh",
+		}}
+		// The hook is projected to a fixed name so mount-proxy can find it
+		// without being told a path, which also means a volume cannot point the
+		// hook at anything outside this ConfigMap.
+		if c.CredentialRefreshHookKey != "" {
+			items = append(items, corev1.KeyToPath{
+				Key:  c.CredentialRefreshHookKey,
+				Path: "refresh-hook.sh",
+			})
+		}
 		configVolume := corev1.Volume{
 			Name: "entrypoint-config",
 			VolumeSource: corev1.VolumeSource{
@@ -215,11 +228,13 @@ func (f *CustomFuse) buildPodSpec(config fpm.FuseContainerConfig, fuseType strin
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: c.EntrypointConfig,
 					},
-					Items: []corev1.KeyToPath{{
-						Key:  entrypointKey,
-						Path: "entrypoint.sh",
-					}},
+					Items:       items,
 					DefaultMode: &execMode,
+					// Each script may come from the image instead, so a key
+					// listed here does not have to exist. Without this, kubelet
+					// refuses to mount a ConfigMap that supplies only one of
+					// them and the pod never starts.
+					Optional: ptr.To(true),
 				},
 			},
 		}
