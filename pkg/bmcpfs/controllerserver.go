@@ -197,6 +197,11 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	// Delete the fileset
 	err = cs.filesetManager.DeleteFileSet(ctx, fsID, fileSetID)
 	if err != nil {
+		// A missing filesystem implies the fileset is already gone, so the delete is idempotent success.
+		if internal.IsFileSystemNotFoundError(err) {
+			klog.InfoS("DeleteVolume: filesystem does not exist, treat as deleted", "filesystem", fsID, "fileset", fileSetID)
+			return &csi.DeleteVolumeResponse{}, nil
+		}
 		klog.Errorf("DeleteVolume: failed to delete fileset %s from filesystem %s: %v", fileSetID, fsID, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
