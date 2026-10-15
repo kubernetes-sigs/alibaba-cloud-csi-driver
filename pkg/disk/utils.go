@@ -936,9 +936,17 @@ func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volu
 	if attempt.Instance != "" {
 		segments[common.ECSInstanceIDTopologyKey] = attempt.Instance
 	}
-	maps.Copy(segments, extraTopology)
-
 	accessibleTopology := []*csi.Topology{{Segments: segments}}
+
+	if len(extraTopology) > 0 {
+		// For virtual-kubelet which not advertises extra topology,
+		// but may still contain any nodes under the hood, we provide an escape hatch.
+		segmentsFallback := maps.Clone(segments)
+		segmentsFallback["alibabacloud.com/cloud-disk-node"] = "any"
+		accessibleTopology = append(accessibleTopology, &csi.Topology{Segments: segmentsFallback})
+		maps.Copy(segments, extraTopology)
+	}
+
 	if attempt.Category != "" {
 		// TODO delete performanceLevel/type keys
 		// delete(volumeContext, "performanceLevel")
