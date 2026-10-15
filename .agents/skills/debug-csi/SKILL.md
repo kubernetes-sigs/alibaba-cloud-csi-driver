@@ -27,7 +27,7 @@ If there's a `csi` release, it's already a debug version — skip uninstall. Oth
 
 ### Build and push images
 
-When building from a non-VPC environment (e.g. local machine), apply the yum mirror patch first so that container builds can access Alinux repos:
+When building from a non-VPC environment (e.g. local machine), apply the yum mirror patch first so that container builds can access the alinux3 repos:
 ```bash
 git apply .agents/skills/debug-csi/yum-mirror.diff
 ```
