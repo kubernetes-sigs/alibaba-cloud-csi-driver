@@ -3,7 +3,7 @@ enableSubstrate: false
 substrate:
   apiEndpoint: api.ate-system.svc:443
   apiAudience: api.ate-system.svc
-  actorRoot: /var/lib/ateom-gvisor/actors
+  actorRoot: /var/lib/ate/actors
   createDriverConfig: true
   storageClass:
     create: true

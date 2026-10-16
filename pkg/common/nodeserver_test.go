@@ -36,7 +36,7 @@ func TestNodeStageVolumeSubstrateBypassesStagingPathCheck(t *testing.T) {
 
 	resp, err := validator.NodeStageVolume(context.Background(), &csi.NodeStageVolumeRequest{
 		VolumeId:          "vol-1",
-		StagingTargetPath: "/var/lib/ateom-gvisor/staging/vol-1",
+		StagingTargetPath: "/var/lib/ate/staging/vol-1",
 		VolumeCapability:  &csi.VolumeCapability{},
 		VolumeContext:     map[string]string{utils.SubstrateModeKey: "true"},
 	})
@@ -49,7 +49,7 @@ func TestNodeStageVolumeNonSubstrateRejectsBadPath(t *testing.T) {
 
 	_, err := validator.NodeStageVolume(context.Background(), &csi.NodeStageVolumeRequest{
 		VolumeId:          "vol-1",
-		StagingTargetPath: "/var/lib/ateom-gvisor/staging/vol-1",
+		StagingTargetPath: "/var/lib/ate/staging/vol-1",
 		VolumeCapability:  &csi.VolumeCapability{},
 	})
 	assert.Error(t, err)
@@ -61,7 +61,7 @@ func TestNodePublishVolumeSubstrateBypassesTargetPathCheck(t *testing.T) {
 
 	resp, err := validator.NodePublishVolume(context.Background(), &csi.NodePublishVolumeRequest{
 		VolumeId:         "vol-1",
-		TargetPath:       "/var/lib/ateom-gvisor/actors/uid/volumes/data",
+		TargetPath:       "/var/lib/ate/actors/uid/volumes/data",
 		VolumeCapability: &csi.VolumeCapability{},
 		VolumeContext:    map[string]string{utils.SubstrateModeKey: "true"},
 	})
@@ -74,7 +74,7 @@ func TestNodePublishVolumeNonSubstrateRejectsBadPath(t *testing.T) {
 
 	_, err := validator.NodePublishVolume(context.Background(), &csi.NodePublishVolumeRequest{
 		VolumeId:         "vol-1",
-		TargetPath:       "/var/lib/ateom-gvisor/actors/uid/volumes/data",
+		TargetPath:       "/var/lib/ate/actors/uid/volumes/data",
 		VolumeCapability: &csi.VolumeCapability{},
 	})
 	assert.Error(t, err)

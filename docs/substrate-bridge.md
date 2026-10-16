@@ -57,7 +57,7 @@ Key values:
 | `enableSubstrate` | `false` | Enable all bridge resources |
 | `substrate.apiEndpoint` | `api.ate-system.svc:443` | Substrate API TLS endpoint, required only for Node |
 | `substrate.apiAudience` | `api.ate-system.svc` | Audience of the Node's projected API token |
-| `substrate.actorRoot` | `/var/lib/ateom-gvisor/actors` | Must match atelet's host target layout; identity carrier, see Identity keys |
+| `substrate.actorRoot` | `/var/lib/ate/actors` | Must match atelet's host target layout; identity carrier, see Identity keys |
 | `substrate.createDriverConfig` | `true` | Create the native NAS and bridge configs for enabled Controllers |
 | `substrate.storageClass.create` | `true` | Create the bridge reference class |
 | `substrate.storageClass.name` | `ate-storage` | Must match the annotation producer's template slots |
