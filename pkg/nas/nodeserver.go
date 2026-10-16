@@ -38,6 +38,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -274,13 +275,13 @@ func parseVolumeContext(volumeContext map[string]string) (*Options, string, erro
 			return nil, "", status.Error(codes.InvalidArgument, err.Error())
 		}
 		actorUID := agentidentity.ActorUID(volumeContext)
-		if agentidentity.HasActorIdentity(volumeContext) {
+		if jwtauth.IsAgentIdentity(opt.AuthType) {
 			if opt.SandboxId != "" && opt.SandboxId != actorUID {
 				return nil, "", status.Error(codes.PermissionDenied, "sandboxId differs from the actor UID")
 			}
-		}
-		if opt.SandboxId == "" {
-			opt.SandboxId = actorUID
+			if opt.SandboxId == "" {
+				opt.SandboxId = actorUID
+			}
 		}
 	}
 	return opt, cnfsName, nil

@@ -373,9 +373,11 @@ func appendJWTAuthOptions(options []string, opt *Options) []string {
 		}
 		options = append(options, fmt.Sprintf("%s=%s", k, v))
 	}
-	appendKV(jwtauth.OptAuthType, opt.AuthType)
-	appendKV(jwtauth.OptSandboxId, opt.SandboxId)
-	appendKV(jwtauth.OptSandboxCredProviderName, opt.SandboxCredProviderName)
+	if jwtauth.IsAgentIdentity(effectiveAuthType) {
+		appendKV(jwtauth.OptAuthType, opt.AuthType)
+		appendKV(jwtauth.OptSandboxId, opt.SandboxId)
+		appendKV(jwtauth.OptSandboxCredProviderName, opt.SandboxCredProviderName)
+	}
 	if opt.SubstrateMode && jwtauth.IsAgentIdentity(effectiveAuthType) {
 		appendKV(jwtauth.OptSubstrateMode, "true")
 	}
