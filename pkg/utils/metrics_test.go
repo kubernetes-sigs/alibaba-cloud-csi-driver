@@ -171,7 +171,7 @@ func TestWriteMetricsInfo(t *testing.T) {
 func TestSubstrateMetricsAreSkipped(t *testing.T) {
 	root := t.TempDir() + "/"
 	for _, actor := range []string{"actor-one", "actor-two"} {
-		req := &csi.NodePublishVolumeRequest{VolumeId: "shared-pv", TargetPath: "/var/lib/ateom-gvisor/actors/" + actor + "/volumes/data", VolumeContext: map[string]string{
+		req := &csi.NodePublishVolumeRequest{VolumeId: "shared-pv", TargetPath: "/var/lib/ate/actors/" + actor + "/volumes/data", VolumeContext: map[string]string{
 			"csi.alibabacloud.com/substrate-mode": "true",
 			"csi.alibabacloud.com/actor.uid":      actor,
 			"csi.storage.k8s.io/pod.uid":          "worker-id",

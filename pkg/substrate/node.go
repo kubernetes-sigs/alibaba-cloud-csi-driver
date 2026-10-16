@@ -36,7 +36,7 @@ const (
 	NASDriverName             = "nasplugin.csi.alibabacloud.com"
 	PublishRequestsAnnotation = "ate.dev/csi-volume-publish-requests"
 	PodUIDKey                 = agentidentity.PodUIDKey
-	DefaultActorRoot          = "/var/lib/ateom-gvisor/actors"
+	DefaultActorRoot          = "/var/lib/ate/actors"
 )
 
 type publishEntry struct {

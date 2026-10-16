@@ -34,7 +34,7 @@ const testUID = "1c3d0394-02df-4aa9-b9ec-27604d5b7601"
 
 const testID = "substrate-" + testUID + "-data"
 
-const testTarget = "/var/lib/ateom-gvisor/actors/" + testUID + "/volumes/data"
+const testTarget = "/var/lib/ate/actors/" + testUID + "/volumes/data"
 
 type recordingNAS struct {
 	csi.UnimplementedNodeServer
@@ -167,7 +167,7 @@ func TestPublishPreservesRequestAndUsesActorIdentity(t *testing.T) {
 	request := publishFixture()
 	annotation := annotationFixture(t, request)
 	downstream := &recordingNAS{}
-	node := NewNode(NodeOptions{NodeID: "node", ActorRoot: "/var/lib/ateom-gvisor/actors", Backends: nasBackends(downstream), StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil),
+	node := NewNode(NodeOptions{NodeID: "node", ActorRoot: "/var/lib/ate/actors", Backends: nasBackends(downstream), StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil),
 		Lookup: func(_ context.Context, ref ActorReference) (ActorInfo, error) {
 			require.Equal(t, testUID, ref.UID)
 			return ActorInfo{UID: ref.UID, Atespace: "storage-test", Name: "actor", Annotation: annotation}, nil
@@ -195,9 +195,9 @@ func TestPublishRejectsInvalidBoundary(t *testing.T) {
 	}{
 		{"missing actor UID", func(in, _ *csi.NodePublishVolumeRequest) { delete(in.VolumeContext, "csi.alibabacloud.com/actor.uid") }, codes.InvalidArgument, "actor UID must match the target actor directory"},
 		{"foreign target", func(in, _ *csi.NodePublishVolumeRequest) { in.TargetPath = "/etc/data" }, codes.InvalidArgument, "target must be inside the actor root"},
-		{"actor directory itself", func(in, _ *csi.NodePublishVolumeRequest) { in.TargetPath = "/var/lib/ateom-gvisor/actors/" + testUID }, codes.InvalidArgument, "target must be an actor volume directory"},
+		{"actor directory itself", func(in, _ *csi.NodePublishVolumeRequest) { in.TargetPath = "/var/lib/ate/actors/" + testUID }, codes.InvalidArgument, "target must be an actor volume directory"},
 		{"non-clean target", func(in, _ *csi.NodePublishVolumeRequest) {
-			in.TargetPath = "/var/lib/ateom-gvisor/actors/" + testUID + "/volumes/data/.."
+			in.TargetPath = "/var/lib/ate/actors/" + testUID + "/volumes/data/.."
 		}, codes.InvalidArgument, "target must be a clean absolute path"},
 		{"secrets", func(_, real *csi.NodePublishVolumeRequest) {
 			real.Secrets = map[string]string{"key": "must-not-persist"}
@@ -212,7 +212,7 @@ func TestPublishRejectsInvalidBoundary(t *testing.T) {
 			tc.mutate(in, real)
 			annotation := annotationFixture(t, real)
 			downstream := &recordingNAS{}
-			node := NewNode(NodeOptions{ActorRoot: "/var/lib/ateom-gvisor/actors", StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil), Backends: nasBackends(downstream), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
+			node := NewNode(NodeOptions{ActorRoot: "/var/lib/ate/actors", StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil), Backends: nasBackends(downstream), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
 				return ActorInfo{UID: testUID, Name: "actor", Atespace: "storage-test", Annotation: annotation}, nil
 			}})
 			_, err := node.NodePublishVolume(t.Context(), in)
@@ -227,7 +227,7 @@ func TestUnpublishResolvesIdentityWithoutVolumeContext(t *testing.T) {
 	downstream := &recordingNAS{}
 	annotation := annotationFixture(t, publishFixture())
 	state := t.TempDir()
-	node := NewNode(NodeOptions{ActorRoot: "/var/lib/ateom-gvisor/actors", Backends: nasBackends(downstream), StateDir: state, Mounter: mount.NewFakeMounter(nil), Lookup: func(_ context.Context, ref ActorReference) (ActorInfo, error) {
+	node := NewNode(NodeOptions{ActorRoot: "/var/lib/ate/actors", Backends: nasBackends(downstream), StateDir: state, Mounter: mount.NewFakeMounter(nil), Lookup: func(_ context.Context, ref ActorReference) (ActorInfo, error) {
 		require.Equal(t, testUID, ref.UID)
 		return ActorInfo{UID: ref.UID, Name: "actor", Atespace: "storage-test", Annotation: annotation}, nil
 	}})
@@ -243,7 +243,7 @@ func TestUnpublishResolvesIdentityWithoutVolumeContext(t *testing.T) {
 func TestUnpublishDoesNotNeedActorLookup(t *testing.T) {
 	downstream := &recordingNAS{}
 	state := t.TempDir()
-	node := NewNode(NodeOptions{ActorRoot: "/var/lib/ateom-gvisor/actors", Backends: nasBackends(downstream), StateDir: state, Mounter: mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "server:/", Type: "nfs"}}), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
+	node := NewNode(NodeOptions{ActorRoot: "/var/lib/ate/actors", Backends: nasBackends(downstream), StateDir: state, Mounter: mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "server:/", Type: "nfs"}}), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
 		t.Fatal("unpublish must not call the Actor API")
 		return ActorInfo{}, status.Error(codes.Unavailable, "control plane unavailable")
 	}})
@@ -342,7 +342,7 @@ func TestPublishRejectsUseclientAndCNFS(t *testing.T) {
 
 func TestPublishRejectsTargetOutsideActorRoot(t *testing.T) {
 	node, _, in := readonlyNodeFixture(t, writablePublishFixture())
-	in.TargetPath = "/var/lib/ateom-gvisor/actors/11111111-2222-3333-4444-555555555555/volumes/data"
+	in.TargetPath = "/var/lib/ate/actors/11111111-2222-3333-4444-555555555555/volumes/data"
 	_, err := node.NodePublishVolume(t.Context(), in)
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 	require.ErrorContains(t, err, "actor UID must match the target actor directory")
@@ -356,7 +356,7 @@ func TestPublishTreatsVolumeIDAsOpaqueAndUsesTargetLayout(t *testing.T) {
 	node, downstream, in := readonlyNodeFixture(t, real)
 	node.opts.Lookup = identifiedLookup(t)
 	in.VolumeId = "whatever-ateapi-chose"
-	in.TargetPath = filepath.Join("/var/lib/ateom-gvisor/actors", testUID, "mnt", "data")
+	in.TargetPath = filepath.Join("/var/lib/ate/actors", testUID, "mnt", "data")
 	_, err := node.NodePublishVolume(t.Context(), in)
 	require.NoError(t, err)
 	require.Equal(t, in.TargetPath, downstream.published.TargetPath)
@@ -494,10 +494,10 @@ func TestIdentityReadsVolumeIdentityFromTheTarget(t *testing.T) {
 	}{
 		{"actor volume directory", testTarget, volumeIdentity{ActorUID: testUID, VolumeName: "data"}, codes.OK},
 		{"deeper layout", testTarget + "/mnt/inner", volumeIdentity{ActorUID: testUID, VolumeName: "inner"}, codes.OK},
-		{"actor directory itself", "/var/lib/ateom-gvisor/actors/" + testUID, volumeIdentity{}, codes.InvalidArgument},
+		{"actor directory itself", "/var/lib/ate/actors/" + testUID, volumeIdentity{}, codes.InvalidArgument},
 		{"outside the actor root", "/var/lib/kubelet/pods/x/volumes/kubernetes.io~csi/y/mount", volumeIdentity{}, codes.InvalidArgument},
-		{"relative target", "var/lib/ateom-gvisor/actors/" + testUID + "/volumes/data", volumeIdentity{}, codes.InvalidArgument},
-		{"non-clean target", "/var/lib/ateom-gvisor/actors/" + testUID + "/volumes/../data", volumeIdentity{}, codes.InvalidArgument},
+		{"relative target", "var/lib/ate/actors/" + testUID + "/volumes/data", volumeIdentity{}, codes.InvalidArgument},
+		{"non-clean target", "/var/lib/ate/actors/" + testUID + "/volumes/../data", volumeIdentity{}, codes.InvalidArgument},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			id, err := node.identity(tc.target)
