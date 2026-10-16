@@ -106,6 +106,7 @@ type Options struct {
 	AuthType                string `json:"authType"`
 	SandboxId               string `json:"sandboxId"`
 	SandboxCredProviderName string `json:"sandboxCredProviderName"`
+	SubstrateMode           bool   `json:"-"`
 }
 
 // RunvNasOptions struct definition
@@ -204,7 +205,7 @@ func DetermineClientTypeAndMountProtocol(cnfs *v1beta1.ContainerNetworkFileSyste
 // returning the referenced CNFS name when one is set. Keys are matched
 // case-insensitively.
 func parseVolumeContext(volumeContext map[string]string) (*Options, string, error) {
-	opt := &Options{}
+	opt := &Options{SubstrateMode: common.IsSubstrateVolumeContext(volumeContext)}
 	var cnfsName string
 	for key, value := range volumeContext {
 		switch strings.ToLower(key) {
@@ -265,6 +266,12 @@ func parseVolumeContext(volumeContext map[string]string) (*Options, string, erro
 				klog.Warningf("credential provider name given more than once with different values, using %q", value)
 			}
 			opt.SandboxCredProviderName = value
+		}
+	}
+	if opt.SubstrateMode && opt.SandboxId == "" {
+		// Substrate's atelet stores the actor UID in the standard CSI pod UID key.
+		if actorUID := volumeContext[utils.PodUIDKey]; actorUID != "" {
+			opt.SandboxId = actorUID
 		}
 	}
 	return opt, cnfsName, nil
@@ -365,7 +372,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	var runtimeVal string
-	if ns.config.KubeClient != nil {
+	if common.IsSubstrateVolumeContext(req.VolumeContext) {
+		klog.InfoS("NodePublishVolume: substrate mode detected, skipping pod runtime lookup")
+	} else if ns.config.KubeClient != nil {
 		runtimeVal = utils.GetPodRunTime(ctx, req, ns.config.KubeClient)
 	}
 
@@ -511,7 +520,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Do mount
-	podUID := req.VolumeContext["csi.storage.k8s.io/pod.uid"]
+	podUID := req.VolumeContext[utils.PodUIDKey]
 	if podUID == "" {
 		klog.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
 		return nil, errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
@@ -526,7 +535,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		defer conn.Close()
 	}
 
-	//mount nas client
 	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, podUID, ns.config.AgentMode); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

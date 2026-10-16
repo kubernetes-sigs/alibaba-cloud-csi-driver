@@ -57,7 +57,7 @@ func NewRefresher(opts Opts, sink CredentialSink) *Refresher {
 // provided context bounds only the initial fetch; the loop is stopped via
 // Stop.
 func (r *Refresher) Start(ctx context.Context) error {
-	client, err := buildHTTPClient(r.opts.CAFile)
+	client, err := buildHTTPClient(r.opts)
 	if err != nil {
 		return fmt.Errorf("build http client: %w", err)
 	}
@@ -81,7 +81,7 @@ func (r *Refresher) Start(ctx context.Context) error {
 // delivered it themselves (e.g. injected into mount options); the sink is
 // only invoked on subsequent rotations.
 func (r *Refresher) StartWith(cred *STSToken) error {
-	client, err := buildHTTPClient(r.opts.CAFile)
+	client, err := buildHTTPClient(r.opts)
 	if err != nil {
 		return fmt.Errorf("build http client: %w", err)
 	}
