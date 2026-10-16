@@ -36,12 +36,30 @@ func (c *recordingAgenticController) ControllerExpandVolume(_ context.Context, _
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: 20 << 30}, nil
 }
 
-func TestSubstrateLegacyDeleteDoesNotReportFalseSuccess(t *testing.T) {
+func TestSubstrateSharepathDeleteSkipsWithoutPV(t *testing.T) {
 	server := newMockControllerServer()
 	response, err := server.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{VolumeId: "substrate-old-actor-data"})
+	require.NoError(t, err)
+	assert.NotNil(t, response)
+}
+
+func TestSubstrateCreateRejectsSubpath(t *testing.T) {
+	server := newMockControllerServer()
+	_, err := server.CreateVolume(context.Background(), &csi.CreateVolumeRequest{
+		Name: "substrate-test-vol",
+		Parameters: map[string]string{
+			"csi.alibabacloud.com/substrate-mode": "true",
+			"volumeAs":                            "subpath",
+			"server":                              "fs-test.cn-beijing.nas.aliyuncs.com",
+		},
+		VolumeCapabilities: []*csi.VolumeCapability{{
+			AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{}},
+			AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER},
+		}},
+	})
 	require.Error(t, err)
-	assert.Equal(t, codes.FailedPrecondition, status.Code(err))
-	assert.Nil(t, response)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	assert.Contains(t, err.Error(), "subpath")
 }
 
 func TestSubstrateHandleRoutesWithoutPV(t *testing.T) {
@@ -50,7 +68,7 @@ func TestSubstrateHandleRoutesWithoutPV(t *testing.T) {
 			server := newMockControllerServer()
 			backend := &recordingAgenticController{}
 			server.Modes[agenticFsVolumeAs] = backend
-			id := "substrate-agenticfs:v1:fs-1:agentic-1"
+			id := "substrate-agenticfs:fs-1:agentic-1"
 			if operation == "delete" {
 				_, err := server.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{VolumeId: id})
 				require.NoError(t, err)
@@ -69,11 +87,10 @@ func TestSubstrateHandleRoutesWithoutPV(t *testing.T) {
 
 func TestSubstrateHandleRejectsMalformedIDs(t *testing.T) {
 	for _, id := range []string{
-		"substrate-agenticfs:v2:fs-1:agentic-1",
-		"substrate-agenticfs:v1::agentic-1",
-		"substrate-agenticfs:v1:fs-1:",
-		"substrate-agenticfs:v1:../fs:agentic-1",
-		"substrate-agenticfs:v1:fs-1:agentic-1:extra",
+		"substrate-agenticfs:",
+		"substrate-agenticfs::agentic-1",
+		"substrate-agenticfs:../fs:agentic-1",
+		"substrate-agenticfs:fs with spaces:agentic-1",
 	} {
 		t.Run(id, func(t *testing.T) {
 			server := newMockControllerServer()
@@ -96,7 +113,7 @@ func TestSubstrateCreateUsesStableBackendHandleOnlyWhenExplicit(t *testing.T) {
 			require.NoError(t, err)
 			volume := args.volume("agentic-1", "ap-1", "server")
 			if mode == "true" {
-				assert.Equal(t, "substrate-agenticfs:v1:"+testAgenticFsDirectFilesystemID+":agentic-1", volume.VolumeId)
+				assert.Equal(t, "substrate-agenticfs:"+testAgenticFsDirectFilesystemID+":agentic-1", volume.VolumeId)
 			} else {
 				assert.Equal(t, req.Name, volume.VolumeId)
 			}
@@ -147,7 +164,7 @@ func TestSubstrateDeletePropagatesBackendFailure(t *testing.T) {
 	server := newMockControllerServer()
 	server.Modes[agenticFsVolumeAs] = newAgenticfsCtrl(t, backend)
 	_, err := server.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{
-		VolumeId: "substrate-agenticfs:v1:" + testAgenticFsFilesystemID + ":" + testAgenticFsAgenticSpaceID,
+		VolumeId: "substrate-agenticfs:" + testAgenticFsFilesystemID + ":" + testAgenticFsAgenticSpaceID,
 	})
 	require.Error(t, err)
 	assert.Equal(t, codes.Internal, status.Code(err))
@@ -162,7 +179,7 @@ func TestSubstrateDeleteAlreadyGoneIsIdempotent(t *testing.T) {
 	server := newMockControllerServer()
 	server.Modes[agenticFsVolumeAs] = newAgenticfsCtrl(t, backend)
 	_, err := server.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{
-		VolumeId: "substrate-agenticfs:v1:" + testAgenticFsFilesystemID + ":" + testAgenticFsAgenticSpaceID,
+		VolumeId: "substrate-agenticfs:" + testAgenticFsFilesystemID + ":" + testAgenticFsAgenticSpaceID,
 	})
 	require.NoError(t, err)
 	assert.Empty(t, backend.deleteAgenticSpaceReqs)
