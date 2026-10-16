@@ -43,8 +43,13 @@ func TestSubstrateSharepathDeleteSkipsWithoutPV(t *testing.T) {
 	assert.NotNil(t, response)
 }
 
+type subpathStubController struct{ internal.MockController }
+
+func (s subpathStubController) VolumeAs() string { return "subpath" }
+
 func TestSubstrateCreateRejectsSubpath(t *testing.T) {
 	server := newMockControllerServer()
+	server.Modes["subpath"] = subpathStubController{}
 	_, err := server.CreateVolume(context.Background(), &csi.CreateVolumeRequest{
 		Name: "substrate-test-vol",
 		Parameters: map[string]string{
