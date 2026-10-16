@@ -1779,7 +1779,7 @@ func TestAgenticfsDeleteVolumeMissingAgenticSpaceId(t *testing.T) {
 }
 
 func TestAgenticfsDeleteVolumeMissingAccesspointId(t *testing.T) {
-	t.Run("noAccesspointListedEitherIsRetryable", func(t *testing.T) {
+	t.Run("noAccesspointAndSpaceExistsDeletesSpace", func(t *testing.T) {
 		fake := newDeleteFakeNasClientV2()
 		ctrl := newAgenticfsCtrl(t, fake)
 		pv := agenticfsPV(map[string]string{
@@ -1787,11 +1787,44 @@ func TestAgenticfsDeleteVolumeMissingAccesspointId(t *testing.T) {
 			vcKeyAgenticSpaceId: testAgenticFsAgenticSpaceID,
 		})
 		_, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), pv)
+		require.NoError(t, err)
+		assert.Equal(t,
+			[]string{"ListAccesspoints", "GetAgenticSpace", "DeleteAgenticSpace"},
+			fake.callOrder)
+		assert.Len(t, fake.deleteAgenticSpaceReqs, 1)
+		assert.Empty(t, fake.deleteAccessPointIDs)
+	})
+
+	t.Run("noAccesspointAndSpaceGoneIsIdempotent", func(t *testing.T) {
+		fake := newDeleteFakeNasClientV2()
+		fake.getAgenticSpaceErr = aliErr("InvalidAgenticSpaceId.NotFound")
+		ctrl := newAgenticfsCtrl(t, fake)
+		pv := agenticfsPV(map[string]string{
+			filesystemIDKey:     testAgenticFsFilesystemID,
+			vcKeyAgenticSpaceId: testAgenticFsAgenticSpaceID,
+		})
+		resp, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), pv)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t,
+			[]string{"ListAccesspoints", "GetAgenticSpace"},
+			fake.callOrder)
+		assert.Empty(t, fake.deleteAgenticSpaceReqs)
+		assert.Empty(t, fake.deleteAccessPointIDs)
+	})
+
+	t.Run("noAccesspointAndGetSpaceFailsIsRetryable", func(t *testing.T) {
+		fake := newDeleteFakeNasClientV2()
+		fake.getAgenticSpaceErr = errors.New("transient network error")
+		ctrl := newAgenticfsCtrl(t, fake)
+		pv := agenticfsPV(map[string]string{
+			filesystemIDKey:     testAgenticFsFilesystemID,
+			vcKeyAgenticSpaceId: testAgenticFsAgenticSpaceID,
+		})
+		_, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), pv)
 		require.Error(t, err)
-		// ListAccesspoints can lag a freshly created accesspoint, so this may self-heal: Aborted, not InvalidArgument.
-		assert.Equal(t, codes.Aborted, status.Code(err))
-		assert.Empty(t, fake.deleteAgenticSpaceReqs,
-			"deleting the space while an unlisted accesspoint may exist would leak it")
+		assert.Equal(t, codes.Internal, status.Code(err))
+		assert.Empty(t, fake.deleteAgenticSpaceReqs)
 	})
 
 	t.Run("fallsBackToListedAccesspoints", func(t *testing.T) {
