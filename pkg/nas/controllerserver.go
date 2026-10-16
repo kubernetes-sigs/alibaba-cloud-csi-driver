@@ -88,6 +88,18 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if err != nil {
 		return nil, err
 	}
+	// TODO(substrate-subpath): Substrate subpath needs filesystem metadata
+	// encoded into the volume ID (like AgenticFS does with
+	// substrate-agenticfs:<fsID>:<spaceID>) so DeleteVolume can recover it
+	// without a PV. The challenge is that the subpath directory name
+	// (substrate-<actorUID>-<volumeName>) contains user-controlled
+	// volumeName which can exceed CSI's 128-byte volume ID recommendation.
+	// Until a length-safe encoding is designed, reject subpath in Substrate
+	// mode. Sharepath and AgenticFS are unaffected.
+	if utils.IsSubstrateVolumeContext(req.Parameters) && controller.VolumeAs() == "subpath" {
+		return nil, status.Error(codes.InvalidArgument,
+			"Substrate mode does not yet support subpath volumes; use sharepath or AgenticFS")
+	}
 	resp, err := controller.CreateVolume(ctx, req)
 	if err != nil {
 		return nil, err
@@ -139,6 +151,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if err != nil {
 		return nil, err
 	}
+	if pv == nil {
+		klog.InfoS("DeleteVolume: Substrate volume has no backend to reclaim, skipping", "volumeId", req.VolumeId)
+		return &csi.DeleteVolumeResponse{}, nil
+	}
 
 	controller, err := cs.VolumeAs(pv.Spec.CSI.VolumeAttributes[volumeAsKey])
 	if err != nil {
@@ -161,6 +177,9 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	pv, err := cs.controllerVolume(ctx, req.VolumeId)
 	if err != nil {
 		return nil, err
+	}
+	if pv == nil {
+		return nil, status.Error(codes.InvalidArgument, "Substrate sharepath volumes do not support expansion")
 	}
 
 	controller, err := cs.VolumeAs(pv.Spec.CSI.VolumeAttributes[volumeAsKey])
