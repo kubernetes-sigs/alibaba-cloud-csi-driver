@@ -331,7 +331,31 @@ func addTLSMountOptions(baseOptions []string) []string {
 	return append(baseOptions, "tls")
 }
 
+// appendJWTAuthOptions appends identity-routing metadata for mount-proxy-server.
+// It does not exchange credentials or forward the complete VolumeContext.
 func appendJWTAuthOptions(options []string, opt *Options) []string {
+	effectiveAuthType := opt.AuthType
+	// Only the CSI request context may select Substrate mode; raw mount flags cannot.
+	filtered := make([]string, 0, len(options))
+	for _, option := range options {
+		parts := mounterutils.SplitMountOptions(option)
+		kept := make([]string, 0, len(parts))
+		for _, part := range parts {
+			key, value, _ := strings.Cut(part, "=")
+			if strings.TrimSpace(key) == jwtauth.OptAuthType {
+				effectiveAuthType = strings.TrimSpace(value)
+			}
+			if strings.TrimSpace(key) != jwtauth.OptSubstrateMode {
+				kept = append(kept, part)
+			}
+		}
+		if len(kept) == len(parts) {
+			filtered = append(filtered, option)
+		} else if len(kept) > 0 {
+			filtered = append(filtered, strings.Join(kept, ","))
+		}
+	}
+	options = filtered
 	hasKey := func(k string) bool {
 		for _, o := range options {
 			for _, part := range mounterutils.SplitMountOptions(o) {
@@ -349,9 +373,14 @@ func appendJWTAuthOptions(options []string, opt *Options) []string {
 		}
 		options = append(options, fmt.Sprintf("%s=%s", k, v))
 	}
-	appendKV(jwtauth.OptAuthType, opt.AuthType)
-	appendKV(jwtauth.OptSandboxId, opt.SandboxId)
-	appendKV(jwtauth.OptSandboxCredProviderName, opt.SandboxCredProviderName)
+	if jwtauth.IsAgentIdentity(effectiveAuthType) {
+		appendKV(jwtauth.OptAuthType, opt.AuthType)
+		appendKV(jwtauth.OptSandboxId, opt.SandboxId)
+		appendKV(jwtauth.OptSandboxCredProviderName, opt.SandboxCredProviderName)
+	}
+	if opt.SubstrateMode && jwtauth.IsAgentIdentity(effectiveAuthType) {
+		appendKV(jwtauth.OptSubstrateMode, "true")
+	}
 	return options
 }
 

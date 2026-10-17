@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetTokenDir(t *testing.T) {
@@ -77,4 +78,21 @@ func TestGetTokenRefreshMargin(t *testing.T) {
 			assert.Equal(t, DefaultTokenRefreshMargin, GetTokenRefreshMargin(), "value %q", value)
 		}
 	})
+}
+
+func TestActorIdentityDoesNotFallBackToWorkerWhenIncomplete(t *testing.T) {
+	legacy := map[string]string{PodUIDKey: "legacy-actor"}
+	require.Equal(t, "legacy-actor", ActorUID(legacy))
+	current := map[string]string{ActorUIDKey: "actor-id", ActorNameKey: "actor-name", ActorNamespaceKey: "actor-space", PodUIDKey: "worker-id"}
+	require.Equal(t, "actor-id", ActorUID(current))
+	delete(current, ActorUIDKey)
+	require.Empty(t, ActorUID(current))
+}
+
+func TestActorUIDCannotBecomePathOrMountOption(t *testing.T) {
+	for _, uid := range []string{"../other", "..", "/root", "actor,option=value", "actor\x00id"} {
+		values := map[string]string{ActorUIDKey: uid, ActorNameKey: "actor", ActorNamespaceKey: "space"}
+		require.Error(t, ValidateActorIdentity(values))
+	}
+	require.NoError(t, ValidateActorIdentity(map[string]string{ActorUIDKey: "actor-id", ActorNameKey: "actor", ActorNamespaceKey: "space"}))
 }

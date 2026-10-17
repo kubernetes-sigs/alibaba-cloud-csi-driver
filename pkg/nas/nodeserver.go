@@ -38,6 +38,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
@@ -106,6 +108,7 @@ type Options struct {
 	AuthType                string `json:"authType"`
 	SandboxId               string `json:"sandboxId"`
 	SandboxCredProviderName string `json:"sandboxCredProviderName"`
+	SubstrateMode           bool   `json:"-"`
 }
 
 // RunvNasOptions struct definition
@@ -204,7 +207,7 @@ func DetermineClientTypeAndMountProtocol(cnfs *v1beta1.ContainerNetworkFileSyste
 // returning the referenced CNFS name when one is set. Keys are matched
 // case-insensitively.
 func parseVolumeContext(volumeContext map[string]string) (*Options, string, error) {
-	opt := &Options{}
+	opt := &Options{SubstrateMode: utils.IsSubstrateVolumeContext(volumeContext)}
 	var cnfsName string
 	for key, value := range volumeContext {
 		switch strings.ToLower(key) {
@@ -265,6 +268,20 @@ func parseVolumeContext(volumeContext map[string]string) (*Options, string, erro
 				klog.Warningf("credential provider name given more than once with different values, using %q", value)
 			}
 			opt.SandboxCredProviderName = value
+		}
+	}
+	if opt.SubstrateMode {
+		if err := agentidentity.ValidateActorIdentity(volumeContext); err != nil {
+			return nil, "", status.Error(codes.InvalidArgument, err.Error())
+		}
+		actorUID := agentidentity.ActorUID(volumeContext)
+		if jwtauth.IsAgentIdentity(opt.AuthType) {
+			if opt.SandboxId != "" && opt.SandboxId != actorUID {
+				return nil, "", status.Error(codes.PermissionDenied, "sandboxId differs from the actor UID")
+			}
+			if opt.SandboxId == "" {
+				opt.SandboxId = actorUID
+			}
 		}
 	}
 	return opt, cnfsName, nil
@@ -355,17 +372,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	readOnly := req.GetReadonly()
-	if !readOnly {
-		switch req.GetVolumeCapability().GetAccessMode().GetMode() {
-		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
-			csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
-			readOnly = true
-		}
-	}
+	readOnly := mounterutils.ReadOnlyRequested(req.GetReadonly(), req.GetVolumeCapability().GetAccessMode().GetMode())
 
 	var runtimeVal string
-	if ns.config.KubeClient != nil {
+	if utils.IsSubstrateVolumeContext(req.VolumeContext) {
+		klog.InfoS("NodePublishVolume: substrate mode detected, skipping pod runtime lookup")
+	} else if ns.config.KubeClient != nil {
 		runtimeVal = utils.GetPodRunTime(ctx, req, ns.config.KubeClient)
 	}
 
@@ -511,7 +523,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Do mount
-	podUID := req.VolumeContext["csi.storage.k8s.io/pod.uid"]
+	podUID := req.VolumeContext[utils.PodUIDKey]
 	if podUID == "" {
 		klog.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
 		return nil, errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
@@ -526,8 +538,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		defer conn.Close()
 	}
 
-	//mount nas client
-	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, podUID, ns.config.AgentMode); err != nil {
+	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, utils.MountOwnerUID(req.VolumeContext), ns.config.AgentMode); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if opt.MountProtocol == "efc" {

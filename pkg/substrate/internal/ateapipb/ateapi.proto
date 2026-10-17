@@ -1,0 +1,143 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Minimal projection of the Agentic Substrate control-plane API, extracted
+// mechanically from pkg/proto/ateapipb/ateapi.proto of the deployed Substrate
+// integration (revision abe771016ae50264d6018885a910fdbbd7a4f0de). Only the
+// RPCs below and the message closure they need are kept; messages appear in
+// their source order, and message, RPC, field names and field numbers are
+// verbatim from that revision, apart from the go_package option and the
+// omitted fields marked reserved below. Do not extend this file by hand:
+// refresh it by re-extracting from a new revision instead. See SOURCE.md for
+// provenance, the annotations exception and the refresh procedure.
+
+syntax = "proto3";
+
+package ateapi;
+
+option go_package = "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/substrate/internal/ateapipb";
+
+// Control is the primary RPC interface for Agentic Substrate.
+service Control {
+  // Get an Actor.
+  rpc GetActor(GetActorRequest) returns (Actor) {}
+
+  rpc GetActorTemplate(GetActorTemplateRequest) returns (ActorTemplate) {}
+}
+
+// ResourceMetadata holds the common fields carried by every Substrate resource.
+message ResourceMetadata {
+  // atespace is the namespace the resource belongs to. Empty for global-scoped
+  // resources. Caller-specified at creation and immutable thereafter.
+  //
+  // Atespaced resources should add `+k8s:subfield(atespace)=+k8s:required`
+  // Non-atespaced resources should add `+k8s:subfield(atespace)=+k8s:forbidden`
+  // +k8s:optional
+  // +k8s:format=k8s-short-name
+  // +k8s:immutable
+  string atespace = 1;
+
+  // name is the resource's name, unique within its atespace (or globally, for
+  // global-scoped resources). Caller-specified at creation and immutable thereafter.
+  //
+  // +k8s:required
+  // +k8s:format=k8s-short-name
+  // +k8s:immutable
+  string name = 2;
+
+  // uid is a server-assigned, globally unique identifier for this resource.
+  // Immutable throughout the lifecycle of the resource.
+  //
+  // This field is ignored during create operations and used as precondition
+  // for update operations.
+  //
+  // +k8s:optional
+  // +k8s:format=k8s-uuid
+  // +k8s:immutable
+  string uid = 3;
+
+  // version, create_time and update_time are not read by this bridge and are
+  // omitted from this projection; see SOURCE.md.
+  reserved 4, 5, 6;
+
+  // annotations stores opaque caller-provided key-value metadata. Actor updates
+  // replace the entire map; omitting it clears existing annotations.
+  //
+  // +k8s:optional
+  // +k8s:mapType=atomic
+  // +k8s:mutable
+  map<string, string> annotations = 7;
+}
+
+message Actor {
+  // Common resource metadata: atespace, name, uid, version, timestamps.
+  //
+  // +k8s:required
+  // +k8s:subfield(atespace)=+k8s:required
+  ResourceMetadata metadata = 1;
+
+  // TODO: replace with full actor_template spec if we decide to make each Actor self-contained.
+  // +k8s:required
+  // +k8s:subfield(atespace)=+k8s:required
+  // +k8s:mutable
+  ObjectRef actor_template = 4;
+
+  // worker_selector, source_tag and status are not read by this bridge and are
+  // omitted from this projection; see SOURCE.md.
+  reserved 5, 6, 7;
+}
+
+// ObjectRef references a Substrate resource by its (atespace, name) identity.
+message ObjectRef {
+  // The atespace of the referenced resource. This field should be empty if the
+  // target resource is global-scoped, but references to objects in the same
+  // atespace as the referrer must still populate this field.
+  //
+  // References to atespaced resources should add `+k8s:subfield(atespace)=+k8s:required`
+  // References to non-atespaced resources should add `+k8s:subfield(atespace)=+k8s:forbidden`
+  // +k8s:optional
+  // +k8s:format=k8s-short-name
+  string atespace = 1;
+
+  // The name of the referenced resource. This field is required.
+  //
+  // +k8s:required
+  // +k8s:format=k8s-short-name
+  string name = 2;
+}
+
+message ActorTemplate {
+  // Common resource metadata: atespace, name, uid, version, timestamps.
+  //
+  // +k8s:required
+  // +k8s:subfield(atespace)=+k8s:required
+  ResourceMetadata metadata = 1;
+
+  // worker_selector, containers, volumes, snapshots_config, sandbox_config,
+  // resources and status are not read by this bridge and are omitted from this
+  // projection; see SOURCE.md.
+  reserved 2, 3, 4, 5, 6, 7, 8;
+}
+
+message GetActorTemplateRequest {
+  // +k8s:required
+  // +k8s:subfield(atespace)=+k8s:required
+  ObjectRef actor_template = 1;
+}
+
+message GetActorRequest {
+  // +k8s:required
+  // +k8s:subfield(atespace)=+k8s:required
+  ObjectRef actor = 1;
+}

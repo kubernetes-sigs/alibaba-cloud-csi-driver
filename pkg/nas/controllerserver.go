@@ -29,7 +29,6 @@ import (
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
@@ -43,6 +42,8 @@ func init() {
 	internal.RegisterControllerMode(newAccesspointController)
 	internal.RegisterControllerMode(newAgenticfsController)
 }
+
+const volumeAsKey = "volumeAs"
 
 type controllerServer struct {
 	*internal.ControllerFactory
@@ -77,9 +78,21 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	controller, err := cs.VolumeAs(req.Parameters["volumeAs"])
+	controller, err := cs.VolumeAs(req.Parameters[volumeAsKey])
 	if err != nil {
 		return nil, err
+	}
+	// TODO(substrate-subpath): Substrate subpath needs filesystem metadata
+	// encoded into the volume ID (like AgenticFS does with
+	// substrate-agenticfs:<fsID>:<spaceID>) so DeleteVolume can recover it
+	// without a PV. The challenge is that the subpath directory name
+	// (substrate-<actorUID>-<volumeName>) contains user-controlled
+	// volumeName which can exceed CSI's 128-byte volume ID recommendation.
+	// Until a length-safe encoding is designed, reject subpath in Substrate
+	// mode. Sharepath and AgenticFS are unaffected.
+	if utils.IsSubstrateVolumeContext(req.Parameters) && controller.VolumeAs() == "subpath" {
+		return nil, status.Error(codes.InvalidArgument,
+			"Substrate mode does not yet support subpath volumes; use sharepath or AgenticFS")
 	}
 	resp, err := controller.CreateVolume(ctx, req)
 	if err != nil {
@@ -87,7 +100,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	parameters := req.Parameters
-	resp.Volume.VolumeContext["volumeAs"] = controller.VolumeAs()
+	resp.Volume.VolumeContext[volumeAsKey] = controller.VolumeAs()
 	if mode := parameters["mode"]; mode != "" {
 		resp.Volume.VolumeContext["mode"] = mode
 		modeType := parameters["modeType"]
@@ -118,12 +131,16 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 	defer cs.locks.Release(req.VolumeId)
 
-	pv, err := cs.kubeClient.CoreV1().PersistentVolumes().Get(ctx, req.VolumeId, metav1.GetOptions{})
+	pv, err := cs.controllerVolume(ctx, req.VolumeId)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
+	}
+	if pv == nil {
+		klog.InfoS("DeleteVolume: Substrate volume has no backend to reclaim, skipping", "volumeId", req.VolumeId)
+		return &csi.DeleteVolumeResponse{}, nil
 	}
 
-	controller, err := cs.VolumeAs(pv.Spec.CSI.VolumeAttributes["volumeAs"])
+	controller, err := cs.VolumeAs(pv.Spec.CSI.VolumeAttributes[volumeAsKey])
 	if err != nil {
 		return nil, err
 	}
@@ -141,12 +158,15 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	}
 	defer cs.locks.Release(req.VolumeId)
 
-	pv, err := cs.kubeClient.CoreV1().PersistentVolumes().Get(ctx, req.VolumeId, metav1.GetOptions{})
+	pv, err := cs.controllerVolume(ctx, req.VolumeId)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
+	}
+	if pv == nil {
+		return nil, status.Error(codes.InvalidArgument, "Substrate sharepath volumes do not support expansion")
 	}
 
-	controller, err := cs.VolumeAs(pv.Spec.CSI.VolumeAttributes["volumeAs"])
+	controller, err := cs.VolumeAs(pv.Spec.CSI.VolumeAttributes[volumeAsKey])
 	if err != nil {
 		return nil, err
 	}

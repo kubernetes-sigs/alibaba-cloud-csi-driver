@@ -3,6 +3,9 @@
 ---
 {{- $values := deepCopy $.Values }}
 {{- $nodePool := mergeOverwrite $values $nodePool }}
+{{- if and $.Values.enableSubstrate (ne (clean $nodePool.deploy.kubeletRootDir) (clean $.Values.deploy.kubeletRootDir)) }}
+{{- fail "Substrate node pools must use the global deploy.kubeletRootDir" }}
+{{- end }}
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
@@ -95,9 +98,14 @@ spec:
             - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
             - --logging-format={{ $nodePool.logging.format }}
-            - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
+            - "--driver={{ include "substrate.drivers" (dict "base" (include "enabledPlugins" $nodePool.csi) "enabled" $.Values.enableSubstrate) }}"
             - --run-controller-service=false
             - --run-node-service=true
+{{- if $.Values.enableSubstrate }}
+            {{- include "substrate.apiArgs" $ | nindent 12 }}
+            - --substrate-actor-root={{ clean $.Values.substrate.actorRoot }}
+            - --substrate-state-dir=/csi/substrate.csi.alibabacloud.com/substrate-state
+{{- end }}
 {{- if $nodePool.deploy.labeler.enabled }}
             - --use-labeler=true
 {{- end }}
@@ -167,6 +175,14 @@ spec:
             - name: healthz
               containerPort: 11260
           volumeMounts:
+{{- if $.Values.enableSubstrate }}
+            {{- include "substrate.commonMounts" (dict "Values" $.Values "node" true) | nindent 12 }}
+            - name: substrate-plugin-dir
+              mountPath: /csi/substrate.csi.alibabacloud.com
+            - name: substrate-actors
+              mountPath: {{ clean $.Values.substrate.actorRoot }}
+              mountPropagation: Bidirectional
+{{- end }}
             - name: kubelet-dir
               # keep the trailing slash to be compatible with old ACK installations
               mountPath: {{ print (clean $nodePool.deploy.kubeletRootDir) "/" | quote }}
@@ -327,7 +343,30 @@ spec:
               mountPath: /registration
 {{- end -}}
 {{- end }}
+{{- if $.Values.enableSubstrate }}
+        - name: substrate-driver-registrar
+          image: {{ include "imageSpec" (list $nodePool "pluginRegistrar") }}
+          args:
+            - --csi-address=/csi/csi.sock
+            - --kubelet-registration-path={{ clean $nodePool.deploy.kubeletRootDir }}/csi-plugins/substrate.csi.alibabacloud.com/csi.sock
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+          volumeMounts:
+            - {name: substrate-plugin-dir, mountPath: /csi}
+            - {name: registration-dir, mountPath: /registration}
+{{- end }}
       volumes:
+{{- if $.Values.enableSubstrate }}
+        {{- include "substrate.commonVolumes" (dict "Values" $.Values "node" true) | nindent 8 }}
+        - name: substrate-plugin-dir
+          hostPath:
+            path: {{ clean $nodePool.deploy.kubeletRootDir }}/csi-plugins/substrate.csi.alibabacloud.com
+            type: DirectoryOrCreate
+        - name: substrate-actors
+          hostPath:
+            path: {{ clean $.Values.substrate.actorRoot }}
+            type: DirectoryOrCreate
+{{- end }}
 {{- if $nodePool.csi.oss.enabled }}
         - name: ossfs-metrics-dir
           hostPath:

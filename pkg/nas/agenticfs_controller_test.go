@@ -54,15 +54,18 @@ const (
 
 // The generated MockNasClientV2Interface exposes no EXPECT(), so a hand-written fake is used.
 type fakeNasClientV2 struct {
-	createAgenticSpaceReqs []*sdk.CreateAgenticSpaceRequest
-	createAccessPointReqs  []*sdk.CreateAccessPointRequest
-	deleteAgenticSpaceReqs []*sdk.DeleteAgenticSpaceRequest
-	getAgenticSpaceReqs    []*sdk.GetAgenticSpaceRequest
-	setQuotaReqs           []*sdk.SetAgenticSpaceQuotaRequest
-	listAccessPointsReqs   []*sdk.ListAccessPointsRequest
-	deleteAccessPointIDs   []string
-	callOrder              []string
-	describeCalls          int
+	createAgenticSpaceReqs         []*sdk.CreateAgenticSpaceRequest
+	createAccessPointReqs          []*sdk.CreateAccessPointRequest
+	deleteAgenticSpaceReqs         []*sdk.DeleteAgenticSpaceRequest
+	getAgenticSpaceReqs            []*sdk.GetAgenticSpaceRequest
+	describeAgenticSpacesReqs      []*sdk.DescribeAgenticSpacesRequest
+	describeAgenticSpacesResponses []*sdk.DescribeAgenticSpacesResponse
+	describeAgenticSpacesErr       error
+	setQuotaReqs                   []*sdk.SetAgenticSpaceQuotaRequest
+	listAccessPointsReqs           []*sdk.ListAccessPointsRequest
+	deleteAccessPointIDs           []string
+	callOrder                      []string
+	describeCalls                  int
 
 	createAgenticSpaceResp *sdk.CreateAgenticSpaceResponse
 	createAgenticSpaceErr  error
@@ -1794,7 +1797,7 @@ func TestAgenticfsDeleteVolumeMissingAgenticSpaceId(t *testing.T) {
 }
 
 func TestAgenticfsDeleteVolumeMissingAccesspointId(t *testing.T) {
-	t.Run("noAccesspointListedEitherIsRetryable", func(t *testing.T) {
+	t.Run("noAccesspointAndSpaceExistsDeletesSpace", func(t *testing.T) {
 		fake := newDeleteFakeNasClientV2()
 		ctrl := newAgenticfsCtrl(t, fake)
 		pv := agenticfsPV(map[string]string{
@@ -1802,11 +1805,44 @@ func TestAgenticfsDeleteVolumeMissingAccesspointId(t *testing.T) {
 			vcKeyAgenticSpaceId: testAgenticFsAgenticSpaceID,
 		})
 		_, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), pv)
+		require.NoError(t, err)
+		assert.Equal(t,
+			[]string{"ListAccesspoints", "GetAgenticSpace", "DeleteAgenticSpace"},
+			fake.callOrder)
+		assert.Len(t, fake.deleteAgenticSpaceReqs, 1)
+		assert.Empty(t, fake.deleteAccessPointIDs)
+	})
+
+	t.Run("noAccesspointAndSpaceGoneIsIdempotent", func(t *testing.T) {
+		fake := newDeleteFakeNasClientV2()
+		fake.getAgenticSpaceErr = aliErr("InvalidAgenticSpaceId.NotFound")
+		ctrl := newAgenticfsCtrl(t, fake)
+		pv := agenticfsPV(map[string]string{
+			filesystemIDKey:     testAgenticFsFilesystemID,
+			vcKeyAgenticSpaceId: testAgenticFsAgenticSpaceID,
+		})
+		resp, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), pv)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t,
+			[]string{"ListAccesspoints", "GetAgenticSpace"},
+			fake.callOrder)
+		assert.Empty(t, fake.deleteAgenticSpaceReqs)
+		assert.Empty(t, fake.deleteAccessPointIDs)
+	})
+
+	t.Run("noAccesspointAndGetSpaceFailsIsRetryable", func(t *testing.T) {
+		fake := newDeleteFakeNasClientV2()
+		fake.getAgenticSpaceErr = errors.New("transient network error")
+		ctrl := newAgenticfsCtrl(t, fake)
+		pv := agenticfsPV(map[string]string{
+			filesystemIDKey:     testAgenticFsFilesystemID,
+			vcKeyAgenticSpaceId: testAgenticFsAgenticSpaceID,
+		})
+		_, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), pv)
 		require.Error(t, err)
-		// ListAccesspoints can lag a freshly created accesspoint, so this may self-heal: Aborted, not InvalidArgument.
-		assert.Equal(t, codes.Aborted, status.Code(err))
-		assert.Empty(t, fake.deleteAgenticSpaceReqs,
-			"deleting the space while an unlisted accesspoint may exist would leak it")
+		assert.Equal(t, codes.Internal, status.Code(err))
+		assert.Empty(t, fake.deleteAgenticSpaceReqs)
 	})
 
 	t.Run("fallsBackToListedAccesspoints", func(t *testing.T) {
@@ -3183,4 +3219,110 @@ func TestEnforceAgenticFsMountOptionsIsANoOpForOtherVolumeModes(t *testing.T) {
 	}
 	assert.NotPanics(t, func() { enforceAgenticFsMountOptions(agenticFsVolumeAs, nil) },
 		"a nil VolumeContext must not panic")
+}
+
+// --- Tests for discoverAgenticSpaceByPath (Path already used fallback) ---
+
+func TestAgenticfsCreateVolumePathAlreadyUsedDiscoversExistingSpace(t *testing.T) {
+	fake := newFakeNasClientV2()
+	// CreateAgenticSpace returns "Path already used", simulating the NAS API's non-idempotent behavior.
+	fake.createAgenticSpaceErr = errors.New("InvalidArgument: Path already used")
+	fake.describeAgenticSpacesResponses = []*sdk.DescribeAgenticSpacesResponse{
+		spacePage("", spaceRecord("/"+testAgenticFsPVName+"/", testAgenticFsAgenticSpaceID)),
+	}
+	fake.listPages = []*sdk.ListAccessPointsResponseBody{
+		{AccessPoints: []*sdk.ListAccessPointsResponseBodyAccessPoints{
+			{
+				AccessPointId:  tea.String(testAgenticFsAccessPointID),
+				AgenticSpaceId: tea.String(testAgenticFsAgenticSpaceID),
+				DomainName:     tea.String(testAgenticFsAPDomain),
+				Status:         tea.String(string(accessPointStatusActive)),
+				RootPath:       tea.String("/" + testAgenticFsPVName + "/"),
+			},
+		}},
+	}
+	ctrl := newAgenticfsCtrl(t, fake)
+
+	resp, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, testAgenticFsAPDomain, resp.Volume.VolumeContext[vcKeyServer])
+	assert.Equal(t, testAgenticFsAccessPointID, resp.Volume.VolumeContext[vcKeyAccesspointId])
+	assert.Equal(t, testAgenticFsAgenticSpaceID, resp.Volume.VolumeContext[vcKeyAgenticSpaceId])
+	assert.Len(t, fake.createAgenticSpaceReqs, 1)
+	assert.Len(t, fake.describeAgenticSpacesReqs, 1)
+	require.Len(t, fake.listAccessPointsReqs, 1)
+	require.Len(t, fake.listAccessPointsReqs[0].Filters, 1)
+	assert.Equal(t, "AgenticSpaceId", tea.StringValue(fake.listAccessPointsReqs[0].Filters[0].Name))
+	assert.Equal(t, testAgenticFsAgenticSpaceID, tea.StringValue(fake.listAccessPointsReqs[0].Filters[0].Value))
+	assert.Empty(t, fake.createAccessPointReqs, "existing accesspoint must be reused")
+}
+
+func TestAgenticfsCreateVolumePathAlreadyUsedNoMatchingSpace(t *testing.T) {
+	fake := newFakeNasClientV2()
+	fake.createAgenticSpaceErr = errors.New("InvalidArgument: Path already used")
+	fake.describeAgenticSpacesResponses = []*sdk.DescribeAgenticSpacesResponse{
+		spacePage("", spaceRecord("/some-other-path/", "as-other")),
+	}
+	ctrl := newAgenticfsCtrl(t, fake)
+
+	_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Path already used")
+	assert.Contains(t, err.Error(), "no matching AgenticSpace found")
+	assert.Empty(t, fake.listAccessPointsReqs)
+	assert.Empty(t, fake.createAccessPointReqs)
+}
+
+func TestAgenticfsCreateVolumePathAlreadyUsedDescribeError(t *testing.T) {
+	fake := newFakeNasClientV2()
+	fake.createAgenticSpaceErr = errors.New("InvalidArgument: Path already used")
+	fake.describeAgenticSpacesErr = errors.New("connection reset")
+	ctrl := newAgenticfsCtrl(t, fake)
+
+	_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "discovering existing AgenticSpace")
+	assert.Empty(t, fake.listAccessPointsReqs)
+	assert.Empty(t, fake.createAccessPointReqs)
+}
+
+func TestAgenticfsCreateVolumePathAlreadyUsedTrailingSlashVariants(t *testing.T) {
+	// The NAS API may return a path with or without a trailing slash; the match must be flexible.
+	for _, tt := range []struct {
+		name       string
+		apiPath    string
+		searchPath string
+	}{
+		{"exactMatch", "/pv-name/", "/pv-name/"},
+		{"apiHasNoTrailingSlash", "/pv-name", "/pv-name/"},
+		{"searchHasNoTrailingSlash", "/pv-name/", "/pv-name"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFakeNasClientV2()
+			fake.createAgenticSpaceErr = errors.New("InvalidArgument: Path already used")
+			fake.describeAgenticSpacesResponses = []*sdk.DescribeAgenticSpacesResponse{
+				spacePage("", spaceRecord(tt.apiPath, testAgenticFsAgenticSpaceID)),
+			}
+			ctrl := newAgenticfsCtrl(t, fake)
+			spaceID, err := ctrl.discoverAgenticSpaceByPath(context.Background(), testAgenticFsFilesystemID, tt.searchPath)
+			require.NoError(t, err)
+			assert.Equal(t, testAgenticFsAgenticSpaceID, spaceID)
+		})
+	}
+}
+
+func TestAgenticfsCreateVolumePathAlreadyUsedEmptyAgenticSpaceIdRejected(t *testing.T) {
+	fake := newFakeNasClientV2()
+	fake.createAgenticSpaceErr = errors.New("InvalidArgument: Path already used")
+	fake.describeAgenticSpacesResponses = []*sdk.DescribeAgenticSpacesResponse{
+		spacePage("", spaceRecord("/"+testAgenticFsPVName+"/", "")),
+	}
+	ctrl := newAgenticfsCtrl(t, fake)
+
+	_, err := ctrl.CreateVolume(context.Background(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, nil))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty AgenticSpaceId")
+	assert.Empty(t, fake.listAccessPointsReqs)
+	assert.Empty(t, fake.createAccessPointReqs)
 }
