@@ -305,7 +305,7 @@ func main() {
 					driver.ControllerServer = &substrate.Controller{}
 				}
 				if serviceType&utils.Node != 0 {
-					actors, err := substrate.NewActorClient(substrate.ActorClientOptions{Endpoint: *substrateEndpoint, CAFile: *substrateCA, TokenFile: *substrateToken, ServerName: *substrateServerName})
+					actors, err := substrate.NewActorClient(substrate.ActorClientOptions{Endpoint: *substrateEndpoint, CAFile: *substrateCA, TokenFile: *substrateToken, ServerName: *substrateServerName, KubeClient: kubeClient})
 					if err != nil {
 						klog.ErrorS(err, "Substrate actor lookup unavailable; substrate node service will not start")
 						continue

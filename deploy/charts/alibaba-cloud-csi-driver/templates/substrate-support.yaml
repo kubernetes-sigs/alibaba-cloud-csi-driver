@@ -44,7 +44,7 @@ spec:
 apiVersion: ate.dev/v1alpha1
 kind: CSIDriverConfig
 metadata:
-  name: {{ $endpoint.config }}
+  name: {{ $endpoint.driver }}
 spec:
   driverName: {{ $endpoint.driver }}
   controllerEndpoint: dns:///csi-provisioner.{{ $.Release.Namespace }}.svc:{{ $endpoint.port }}
@@ -120,4 +120,28 @@ data:
                         pipe: {path: /csi/{{ $endpoint.driver }}/csi.sock}
         {{- end }}
 {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: csi-plugin-endpointslices
+  namespace: {{ .Values.substrate.namespace | default "ate-system" }}
+rules:
+- apiGroups: ["discovery.k8s.io"]
+  resources: ["endpointslices"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: csi-plugin-endpointslices
+  namespace: {{ .Values.substrate.namespace | default "ate-system" }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: csi-plugin-endpointslices
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.deploy.nodeServiceAccount | default "alicloud-csi-node" }}
+  namespace: {{ .Release.Namespace }}
 {{- end }}

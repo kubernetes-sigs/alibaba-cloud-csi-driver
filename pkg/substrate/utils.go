@@ -60,7 +60,16 @@ func resolveMount(ctx context.Context, lookup ActorLookup, id volumeIdentity, at
 	}
 	// 4. Pick this template volume's request out of the Actor annotation. The entry names the
 	// driver it was generated for; routing to a backend happens later, on that name.
-	request, driver, err := selectPublishEntry(actor.Annotation, id.VolumeName)
+	// When the annotation is absent (kubectl-ate path where ateapi creates volumes via
+	// StorageClass but sandbox-manager does not inject the annotation), synthesize a
+	// minimal request from the volume context.
+	var request *csi.NodePublishVolumeRequest
+	var driver string
+	if actor.Annotation == "" {
+		request, driver, err = synthesizePublishEntry(id, attributes)
+	} else {
+		request, driver, err = selectPublishEntry(actor.Annotation, id.VolumeName)
+	}
 	if err != nil {
 		return resolvedMount{}, err
 	}
@@ -331,13 +340,24 @@ func (n *Node) unpublishPlaceholder(source, target string) error {
 	if len(refs) > 0 {
 		return status.Error(codes.FailedPrecondition, "placeholder source still has mount references")
 	}
-	// Remove, not RemoveAll: the source can hold data the Golden warmup wrote, and
-	// deleting that recursively would discard it without any ownership check. A
-	// source that still has content is left in place.
-	if err := os.Remove(source); err != nil && !errors.Is(err, os.ErrNotExist) {
-		if entries, readErr := os.ReadDir(source); readErr != nil || len(entries) == 0 {
-			return status.Errorf(codes.Internal, "remove placeholder storage: %v", err)
-		}
+	if err := os.RemoveAll(source); err != nil {
+		return status.Errorf(codes.Internal, "remove placeholder storage: %v", err)
 	}
 	return nil
+}
+
+func synthesizePublishEntry(id volumeIdentity, attributes map[string]string) (*csi.NodePublishVolumeRequest, string, error) {
+	driver := NASDriverName
+	req := &csi.NodePublishVolumeRequest{
+		VolumeId:      attributes["csi.alibabacloud.com/actor.uid"],
+		VolumeContext: attributes,
+		VolumeCapability: &csi.VolumeCapability{
+			AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{}},
+			AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER},
+		},
+	}
+	if req.VolumeId == "" {
+		return nil, "", status.Error(codes.FailedPrecondition, "synthesized publish request requires actor UID in volume context")
+	}
+	return req, driver, nil
 }

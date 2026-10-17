@@ -23,10 +23,12 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/substrate/internal/ateapipb"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/substrate/k8sresolver"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/kubernetes"
 )
 
 const actorLookupTimeout = 10 * time.Second
@@ -36,6 +38,7 @@ type ActorClientOptions struct {
 	CAFile     string
 	TokenFile  string
 	ServerName string
+	KubeClient kubernetes.Interface
 }
 
 type ActorClient struct {
@@ -72,10 +75,17 @@ func NewActorClient(opts ActorClientOptions) (*ActorClient, error) {
 	if !roots.AppendCertsFromPEM(ca) {
 		return nil, fmt.Errorf("substrate CA contains no certificates")
 	}
-	conn, err := grpc.NewClient(opts.Endpoint,
+	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots, ServerName: opts.ServerName})),
 		grpc.WithPerRPCCredentials(fileToken(opts.TokenFile)),
-	)
+	}
+	if opts.KubeClient != nil && strings.HasPrefix(opts.Endpoint, k8sresolver.Scheme+":///") {
+		dialOpts = append(dialOpts,
+			grpc.WithResolvers(k8sresolver.NewBuilder(opts.KubeClient)),
+			grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`),
+		)
+	}
+	conn, err := grpc.NewClient(opts.Endpoint, dialOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("create Substrate connection: %w", err)
 	}
