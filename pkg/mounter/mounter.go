@@ -32,9 +32,35 @@ type ProxyUnmounter interface {
 	ExtendedUnmount(ctx context.Context, target string) error
 }
 
-// ErrTargetNotManagedByBroker is returned by ProxyUnmounter.ExtendedUnmount when
-// the mount broker reports it does not own the target (proxy.ErrTargetNotManaged)
-// or when the broker predates the unmount RPC. Callers fall back to local unmount.
+// RefreshOperation identifies a mount whose cloud credential is being replaced.
+type RefreshOperation struct {
+	Target string
+	// FsType names the driver that mounted Target, the same value MountOperation
+	// carried. The broker routes on it instead of on what it remembers mounting,
+	// so a rotation survives a mount-proxy-server restart.
+	FsType  string
+	Secrets map[string]string
+}
+
+// ProxyRefresher installs a rotated cloud credential on an existing
+// mount. Only the mount broker can; see proxy.RefreshRequest.
+type ProxyRefresher interface {
+	// CanRefresh reports whether the peer implements the refresh RPC.
+	//
+	// It is an RPC rather than a type assertion because mount-proxy-server ships
+	// in its own image: this process being built with the client half says
+	// nothing about the server behind the socket. false must fail a volume that
+	// will need rotation, while an error means the question could not be asked.
+	CanRefresh(ctx context.Context) (bool, error)
+
+	Refresh(ctx context.Context, op *RefreshOperation) error
+}
+
+// ErrTargetNotManagedByBroker is returned when the mount broker reports it does
+// not own the target (proxy.ErrTargetNotManaged), and by
+// ProxyUnmounter.ExtendedUnmount also when the broker predates the unmount RPC.
+// An unmount falls back to a local unmount; a refresh cannot fall back to
+// anything, since only the broker can reach a live mount's credential.
 var ErrTargetNotManagedByBroker = errors.New("target not managed by mount broker")
 
 type MountOperation struct {

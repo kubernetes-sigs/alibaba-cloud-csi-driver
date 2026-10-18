@@ -83,6 +83,37 @@ func (h *Driver) Unmount(target string) (owned bool, err error) {
 	return true, nil
 }
 
+var _ server.Refresher = (*Driver)(nil)
+
+// Refresh implements server.Refresher: it pushes a rotated STS credential into an
+// alinas mount, so an expiring credential does not take the mount down with it
+// (lookups start returning EACCES and writes hang).
+//
+// h.targets is deliberately not consulted: the vendor tool resolves everything it
+// needs from the mount point itself, and gating on a memory of the mount would
+// make every rotation fail for the rest of a mount's life once this process
+// restarted. A target it cannot resolve fails there, loudly.
+//
+// A credential that cannot sign is refused rather than installed: it would mint a
+// certificate the server rejects, and the mount would keep working until the old
+// credential expired, hiding the cause.
+func (h *Driver) Refresh(ctx context.Context, target string, secrets map[string]string) error {
+	cred := &jwtauth.STSToken{
+		AccessKeyID:     secrets[interceptors.SecretKeyAccessKeyID],
+		AccessKeySecret: secrets[interceptors.SecretKeyAccessKeySecret],
+		SecurityToken:   secrets[interceptors.SecretKeySecurityToken],
+	}
+	// The access key signs the certificate, so both halves are required. The
+	// security token is not: it belongs to an STS credential, a long-term access key
+	// has none, and demanding one made every rotation of such a credential fail.
+	// Whether the two go together is the caller's business, exactly as at mount time.
+	if cred.AccessKeyID == "" || cred.AccessKeySecret == "" {
+		return fmt.Errorf("incomplete credential for %s: need %s and %s",
+			target, interceptors.SecretKeyAccessKeyID, interceptors.SecretKeyAccessKeySecret)
+	}
+	return interceptors.RefreshAlinasCredential(ctx, target, cred)
+}
+
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest, fuseFd int) error {
 	if fuseFd > 0 {
 		// alinas does not support fd-passing; close the received fd to prevent leak

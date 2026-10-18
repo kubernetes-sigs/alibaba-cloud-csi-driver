@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"k8s.io/mount-utils"
 )
 
 func TestGetAccessControl(t *testing.T) {
@@ -41,6 +41,11 @@ func TestGetAccessControl(t *testing.T) {
 	assert.Empty(t, ac.AccessKeyID)
 	assert.Empty(t, ac.AccessKeySecret)
 	assert.Empty(t, ac.StsToken)
+}
+
+// validatePath runs ValidateMountTarget on a path that is not a mount point.
+func validatePath(path string) (bool, error) {
+	return ValidateMountTarget(fakeMountChecker{notMnt: true}, path)
 }
 
 func TestValidatePath(t *testing.T) {
@@ -112,6 +117,11 @@ func TestValidatePath(t *testing.T) {
 			wantOK: true,
 		},
 		{
+			name:   "trailing slash on non-existent leaf is allowed",
+			path:   existingDir + "/missing/",
+			wantOK: true,
+		},
+		{
 			name:   "proc as non-prefix component is fine",
 			path:   filepath.Join(procLikeDir, "file"),
 			wantOK: true,
@@ -165,6 +175,12 @@ func TestValidatePath(t *testing.T) {
 			wantOK:  false,
 			wantErr: "under sensitive path /proc",
 		},
+		{
+			name:    "non-canonical proc path rejected",
+			path:    "//proc/./self/fd/0",
+			wantOK:  false,
+			wantErr: "under sensitive path /proc",
+		},
 
 		// Multiple non-existent trailing components are resolved by walking up
 		// to the deepest existing ancestor, so the path is still validated.
@@ -186,7 +202,7 @@ func TestValidatePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ok, err := ValidatePath(tt.path)
+			ok, err := validatePath(tt.path)
 			assert.Equal(t, tt.wantOK, ok)
 			if tt.wantErr != "" {
 				assert.ErrorContains(t, err, tt.wantErr)
@@ -214,22 +230,22 @@ func TestValidatePath_PATHDirs(t *testing.T) {
 	t.Setenv("PATH", binDir)
 
 	// Path under a PATH directory is rejected (leaf need not exist).
-	ok, err := ValidatePath(filepath.Join(binDir, "ls"))
+	ok, err := validatePath(filepath.Join(binDir, "ls"))
 	assert.False(t, ok)
 	assert.ErrorContains(t, err, "under PATH directory")
 
 	// PATH directory itself is rejected.
-	ok, err = ValidatePath(binDir)
+	ok, err = validatePath(binDir)
 	assert.False(t, ok)
 	assert.ErrorContains(t, err, "under PATH directory")
 
 	// Path not under any PATH directory is allowed.
-	ok, err = ValidatePath(filepath.Join(otherDir, "file"))
+	ok, err = validatePath(filepath.Join(otherDir, "file"))
 	assert.True(t, ok)
 	assert.NoError(t, err)
 
 	// Path that shares a prefix but is not actually under a PATH dir.
-	ok, err = ValidatePath(filepath.Join(prefixDir, "file"))
+	ok, err = validatePath(filepath.Join(prefixDir, "file"))
 	assert.True(t, ok)
 	assert.NoError(t, err)
 }
@@ -255,14 +271,19 @@ func TestValidatePath_Symlinks(t *testing.T) {
 	if err := os.Symlink(sensitiveDir, parentLink); err != nil {
 		t.Fatal(err)
 	}
-	ok, err := ValidatePath(filepath.Join(parentLink, "leaf"))
+	ok, err := validatePath(filepath.Join(parentLink, "leaf"))
 	assert.False(t, ok)
 	assert.ErrorContains(t, err, "under PATH directory")
 
 	// A multi-level missing path through a symlinked ancestor must also be
 	// rejected: the recursion resolves the ancestor and re-appends the full
 	// non-existent suffix before the PATH check runs.
-	ok, err = ValidatePath(filepath.Join(parentLink, "missing1", "missing2"))
+	ok, err = validatePath(filepath.Join(parentLink, "missing1", "missing2"))
+	assert.False(t, ok)
+	assert.ErrorContains(t, err, "under PATH directory")
+
+	// A trailing slash on a non-existent path must not confuse the ancestor walk.
+	ok, err = validatePath(filepath.Join(parentLink, "missing") + "/")
 	assert.False(t, ok)
 	assert.ErrorContains(t, err, "under PATH directory")
 
@@ -271,7 +292,7 @@ func TestValidatePath_Symlinks(t *testing.T) {
 	if err := os.Symlink(sensitiveDir, leafLink); err != nil {
 		t.Fatal(err)
 	}
-	ok, err = ValidatePath(leafLink)
+	ok, err = validatePath(leafLink)
 	assert.False(t, ok)
 	assert.ErrorContains(t, err, "under PATH directory")
 
@@ -280,7 +301,7 @@ func TestValidatePath_Symlinks(t *testing.T) {
 	if err := os.Symlink(safeDir, safeLink); err != nil {
 		t.Fatal(err)
 	}
-	ok, err = ValidatePath(filepath.Join(safeLink, "leaf"))
+	ok, err = validatePath(filepath.Join(safeLink, "leaf"))
 	assert.True(t, ok)
 	assert.NoError(t, err)
 }
@@ -297,7 +318,7 @@ func TestValidatePath_SymlinkIntoProc(t *testing.T) {
 	if err := os.Symlink("/proc", procLink); err != nil {
 		t.Fatal(err)
 	}
-	ok, err := ValidatePath(filepath.Join(procLink, "self"))
+	ok, err := validatePath(filepath.Join(procLink, "self"))
 	assert.False(t, ok)
 	assert.ErrorContains(t, err, "under sensitive path /proc")
 }
@@ -343,46 +364,52 @@ func TestResolveSymlinks(t *testing.T) {
 	assert.Empty(t, got)
 }
 
-// A mount point whose filesystem is dead must not fail validation: both
-// NodePublishVolume and NodeUnpublishVolume resolve the target path first, so the
-// driver could neither re-establish nor clean up such a mount.
-func TestResolveSymlinks_DeadMountPoint(t *testing.T) {
-	// Resolve the temp dir up front: on macOS /var is a symlink to /private/var.
-	base, err := filepath.EvalSymlinks(t.TempDir())
-	require.NoError(t, err)
-	dead := filepath.Join(base, "deadmount")
-	require.NoError(t, os.MkdirAll(dead, 0o755))
+// fakeMountChecker answers IsLikelyNotMountPoint from fixed values; the embedded
+// nil Interface makes it satisfy mount.Interface without implementing the rest.
+type fakeMountChecker struct {
+	mount.Interface
+	notMnt bool
+	err    error
+}
 
-	orig := evalSymlinks
-	defer func() { evalSymlinks = orig }()
-	failWith := func(target string, errno syscall.Errno) {
-		evalSymlinks = func(path string) (string, error) {
-			if path == target {
-				return "", &os.PathError{Op: "lstat", Path: path, Err: errno}
-			}
-			return orig(path)
-		}
+func (f fakeMountChecker) IsLikelyNotMountPoint(string) (bool, error) {
+	return f.notMnt, f.err
+}
+
+func TestValidateMountTarget(t *testing.T) {
+	binDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
 	}
+	t.Setenv("PATH", binDir)
+	// Rejected only after resolving symlinks.
+	underPATH := filepath.Join(binDir, "mnt")
+	safe := t.TempDir()
 
-	// Dead leaf: resolve the healthy parent and re-append the base name.
-	failWith(dead, syscall.ENOTCONN)
-	got, err := resolveSymlinks(dead)
+	// A confirmed mount point skips symlink resolution: a dead filesystem must stay
+	// refreshable and unmountable.
+	ok, err := ValidateMountTarget(fakeMountChecker{notMnt: false}, underPATH)
+	assert.True(t, ok)
 	assert.NoError(t, err)
-	assert.Equal(t, dead, got)
 
-	// A mount point is always the leaf, so an ENOTCONN ancestor is not tolerated:
-	// its contents are unreadable and the suffix could hide a symlink.
-	failWith(dead, syscall.ENOTCONN)
-	got, err = resolveSymlinks(filepath.Join(dead, "leaf"))
-	assert.Error(t, err)
-	assert.Empty(t, got)
-
-	// Errors IsCorruptedMnt would accept but that are not the crashed-daemon case
-	// stay hard failures.
-	for _, errno := range []syscall.Errno{syscall.ESTALE, syscall.EACCES, syscall.EIO, syscall.EPERM} {
-		failWith(dead, errno)
-		got, err = resolveSymlinks(dead)
-		assert.Error(t, err, "errno %v must not be resolved around", errno)
-		assert.Empty(t, got)
+	// The lexical checks still apply to a mount point.
+	for _, path := range []string{"/proc/self", "//proc/self", "proc", "/a/../proc"} {
+		ok, err = ValidateMountTarget(fakeMountChecker{notMnt: false}, path)
+		assert.False(t, ok, path)
+		assert.Error(t, err, path)
 	}
+
+	// Not a mount point: full validation.
+	ok, err = ValidateMountTarget(fakeMountChecker{notMnt: true}, underPATH)
+	assert.False(t, ok)
+	assert.ErrorContains(t, err, "under PATH directory")
+	ok, err = ValidateMountTarget(fakeMountChecker{notMnt: true}, safe)
+	assert.True(t, ok)
+	assert.NoError(t, err)
+
+	// Any error, including a corrupted-mount errno, fails closed rather than
+	// skipping resolution on an unproven path.
+	ok, err = ValidateMountTarget(fakeMountChecker{err: syscall.ENOTCONN}, underPATH)
+	assert.False(t, ok)
+	assert.ErrorContains(t, err, "under PATH directory")
 }

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
+	sts20150401 "github.com/alibabacloud-go/sts-20150401/v2/client"
 	"k8s.io/utils/ptr"
 )
 
@@ -66,6 +67,23 @@ func GetStsConfig(regionID string) *openapi.Config {
 		config.Endpoint = &e
 	}
 	return config
+}
+
+// GetSTSEndpoint returns the URL to exchange an OIDC token for STS credentials
+// at, for callers that speak HTTP directly instead of through the SDK.
+func GetSTSEndpoint(region string) (string, error) {
+	if region == "" {
+		// The SDK rejects an empty RegionId; fall back to the global endpoint.
+		return "https://sts.aliyuncs.com", nil
+	}
+	cfg := GetStsConfig(region)
+	client, err := sts20150401.NewClient(cfg)
+	if err != nil {
+		return "", err
+	}
+	// client.Endpoint is host-only (the SDK joins it with the per-call HTTPS
+	// scheme only when it builds the request); callers here need a full URL.
+	return "https://" + ptr.Deref(client.Endpoint, ""), nil
 }
 
 func GetEcsConfig(regionID string) *openapi.Config {

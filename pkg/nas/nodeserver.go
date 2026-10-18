@@ -54,6 +54,12 @@ type nodeServer struct {
 	mounter  mounter.Mounter
 	locks    *utils.VolumeLocks
 	recorder record.EventRecorder
+	// rrsa is nil unless a kube client is available, since exchanging a Pod token
+	// needs the API server to locate the proxy Service.
+	rrsa *rrsaExchanger
+	// installed answers, per mount, whether a rotated credential still has to be
+	// pushed onto it.
+	installed installedCredentials
 	common.GenericNodeServer
 }
 
@@ -78,6 +84,9 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 		},
 		mounter: newNasMounter(config.AgentMode, config.MountProxySocket),
 	}
+	if config.KubeClient != nil {
+		ns.rrsa = newRRSAExchanger(config.KubeClient, config.Region, config.AccountID, config.ClusterID, config.RRSACAFile, config.RRSADuration)
+	}
 	if !ns.config.AgentMode {
 		ns.recorder = utils.NewEventRecorder(utils.EventComponentNode) // There is no kubeconfig under agent mode
 	}
@@ -101,11 +110,18 @@ type Options struct {
 	ClientType              string   `json:"clientType"`
 	FSType                  string   `json:"fsType"`
 	SysConfigs              []utilsio.SysConfig
-	AkID                    string
-	AkSecret                string
 	AuthType                string `json:"authType"`
+	RRSAEndpoint            string `json:"rrsaEndpoint"`
+	RRSAAudience            string `json:"rrsaAudience"`
+	OIDCProviderArn         string `json:"oidcProviderArn"`
+	RoleArn                 string `json:"roleArn"`
+	RoleName                string `json:"roleName"`
 	SandboxId               string `json:"sandboxId"`
 	SandboxCredProviderName string `json:"sandboxCredProviderName"`
+	// The credential doMount hands to the mount broker. Tagged "-" so it can
+	// neither be set from a PV attribute nor leak into anything that marshals
+	// Options: it is filled in from publish secrets or an STS exchange.
+	stsCredential `json:"-"`
 }
 
 // RunvNasOptions struct definition
@@ -151,8 +167,8 @@ const (
 	cnfsIfMountTargetUnhealthyFallbackEventTmpl = "Due to mount target inactive, CNFS automatically switched from %s to %s."
 )
 
-func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
-	valid, err := utils.ValidatePath(req.GetTargetPath())
+func validateNodePublishVolumeRequest(m mounter.Mounter, req *csi.NodePublishVolumeRequest) error {
+	valid, err := utils.ValidateMountTarget(m, req.GetTargetPath())
 	if !valid {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -254,6 +270,16 @@ func parseVolumeContext(volumeContext map[string]string) (*Options, string, erro
 			// Lowercased and taken verbatim otherwise, exactly as OSS does, so the
 			// same volume definition is accepted by both drivers.
 			opt.AuthType = strings.ToLower(value)
+		case "rrsaendpoint":
+			opt.RRSAEndpoint = value
+		case "rrsaaudience":
+			opt.RRSAAudience = value
+		case "oidcproviderarn":
+			opt.OIDCProviderArn = value
+		case "rolearn":
+			opt.RoleArn = value
+		case "rolename":
+			opt.RoleName = value
 		case "sandboxid":
 			opt.SandboxId = value
 		case "sandboxcredprovidername", "credentialprovidername":
@@ -272,7 +298,7 @@ func parseVolumeContext(volumeContext map[string]string) (*Options, string, erro
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	mountPath := req.GetTargetPath()
-	if err := validateNodePublishVolumeRequest(req); err != nil {
+	if err := validateNodePublishVolumeRequest(ns.mounter, req); err != nil {
 		return nil, err
 	}
 
@@ -286,8 +312,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		return nil, err
 	}
-	opt.AkID = req.Secrets[akIDKey]
-	opt.AkSecret = req.Secrets[akSecretKey]
+	opt.AkID = req.Secrets[publishSecretAkID]
+	opt.AkSecret = req.Secrets[publishSecretAkSecret]
+	// An STS credential is the reason this is read on every republish: kubelet
+	// resolves the secret each time, so replacing the token in it is how a user
+	// rotates one, and syncMountCredentials installs it on the live mount.
+	opt.SecurityToken = req.Secrets[publishSecretSecurityToken]
 
 	opt.SysConfigs, err = utilsio.ParseSysConfigs(req.VolumeContext["sysConfig"], allowSysConfigKey)
 	if err != nil {
@@ -489,10 +519,30 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
+	// Checked before the Pod token is spent on an exchange, and before a mount that
+	// would outlive its own credential.
+	if err := ns.checkExpiringCredential(ctx, opt); err != nil {
+		return nil, err
+	}
+	if opt.AuthType == AuthTypeRRSA {
+		if err := ns.prepareRRSACredentials(ctx, req.VolumeId, mountPath, opt, req.VolumeContext, req.Secrets); err != nil {
+			return nil, err
+		}
+	}
+
 	if !notMounted {
 		klog.Infof("NodePublishVolume: %s already mounted", mountPath)
 		if err := setSysConfigs(mountPath, opt.SysConfigs); err != nil {
 			return nil, status.Errorf(codes.Aborted, "set sysconfig: %v", err)
+		}
+
+		// An existing mount means the mount itself succeeded, so this republish is
+		// the chance to keep its credential current. kubelet calls us about once a
+		// minute per volume (CSIDriver.requiresRepublish) and resolves the publish
+		// secret each time, which is the clock both our own rotation and a user
+		// rotating their Secret run on.
+		if err := ns.syncMountCredentials(ctx, req.VolumeId, mountPath, opt); err != nil {
+			return nil, err
 		}
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
@@ -584,6 +634,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err := setSysConfigs(mountPath, opt.SysConfigs); err != nil {
 		return nil, status.Errorf(codes.Aborted, "set sysconfig: %v", err)
 	}
+
+	// doMount handed this credential to the mount, so rotation starts from the next
+	// republish that carries a different one.
+	ns.installed.record(mountPath, opt.AkID)
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
@@ -757,8 +811,8 @@ func (ns *nodeServer) isLosetupUsed(lockFile string, opt *Options, volumeID stri
 	return true
 }
 
-func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
-	valid, err := utils.ValidatePath(req.GetTargetPath())
+func validateNodeUnpublishVolumeRequest(m mounter.Mounter, req *csi.NodeUnpublishVolumeRequest) error {
+	valid, err := utils.ValidateMountTarget(m, req.GetTargetPath())
 	if !valid {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -767,7 +821,7 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.Infof("NodeUnpublishVolume:: Starting umount nas volume %s with req: %+v", req.VolumeId, req)
-	err := validateNodeUnpublishVolumeRequest(req)
+	err := validateNodeUnpublishVolumeRequest(ns.mounter, req)
 	if err != nil {
 		return nil, err
 	}
@@ -782,6 +836,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "failed to unmount %s: %v", targetPath, err)
 	}
 	klog.Infof("NodeUnpublishVolume: unmount volume on %s successfully", targetPath)
+	// Nothing references this target's credential anymore; a later mount of the
+	// same path belongs to another Pod and must exchange its own.
+	if ns.rrsa != nil {
+		ns.rrsa.forget(targetPath)
+	}
+	ns.installed.forget(targetPath)
 
 	// always try to remove ../alibabacloudcsiplugin.json
 	// TODO: remove csi 2.0 vol_data.json

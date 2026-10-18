@@ -145,6 +145,11 @@ func recvMsgWithFd(conn *net.UnixConn, req *rawRequest) (fuseFd int, err error) 
 	return fuseFd, nil
 }
 
+// implementedMethods is what Ping advertises, so a client can tell whether this
+// server is new enough for a method before it depends on one. Keep in sync with
+// the switch in handle.
+var implementedMethods = []proxy.Method{proxy.Mount, proxy.Unmount, proxy.Ping, proxy.Refresh}
+
 func handle(ctx context.Context, req *rawRequest, fuseFd int) proxy.Response {
 	switch req.Header.Method {
 	case proxy.Mount:
@@ -182,11 +187,25 @@ func handle(ctx context.Context, req *rawRequest, fuseFd int) proxy.Response {
 				Error: err.Error(),
 			}
 		}
+	case proxy.Refresh:
+		var refreshReq proxy.RefreshRequest
+		err := json.Unmarshal(req.Body, &refreshReq)
+		if err != nil {
+			return proxy.Response{
+				Error: err.Error(),
+			}
+		}
+		err = handleRefreshRequest(ctx, &refreshReq)
+		if err != nil {
+			return proxy.Response{
+				Error: err.Error(),
+			}
+		}
 	case proxy.Ping:
-		return proxy.Response{}
+		return proxy.Response{Methods: implementedMethods}
 	default:
 		return proxy.Response{
-			Error: "invalid method",
+			Error: proxy.ErrInvalidMethod,
 		}
 	}
 	return proxy.Response{}

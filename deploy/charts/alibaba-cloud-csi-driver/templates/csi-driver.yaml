@@ -16,6 +16,23 @@ metadata:
 spec:
   attachRequired: false
   podInfoOnMount: true
+{{- with .Values.csi.nas.tokenRequests }}
+  tokenRequests:
+{{- toYaml . | nindent 4 }}
+{{- if semverCompare ">=1.35.0-0" $.Capabilities.KubeVersion.Version }}
+  # Deliver that token in the publish secrets rather than the volume context, so
+  # request logging strips it as the secret it is. Kubernetes 1.35+ only; older
+  # clusters use the volume context, which the driver also reads.
+  #
+  # `helm template` renders against Helm's own built-in version, so pass
+  # --kube-version when rendering for an older cluster with a strict client;
+  # otherwise the unknown field is dropped on apply.
+  serviceAccountTokenInSecrets: true
+{{- end }}
+{{- end }}
+{{- if or .Values.csi.nas.tokenRequests .Values.csi.nas.requiresRepublish }}
+  requiresRepublish: true
+{{- end }}
 {{- end }}
 ---
 {{- if .Values.csi.oss.enabled }}

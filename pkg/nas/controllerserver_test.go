@@ -5,6 +5,7 @@ package nas
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -12,6 +13,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -349,4 +352,110 @@ func TestControllerServerCreateVolumeAgenticFsKeepsForcedMountOptions(t *testing
 		assert.Contains(t, opts, want,
 			"W-1: the StorageClass options overwrite must not drop a mandatory agenticfs mount option")
 	}
+}
+
+func TestControllerServerCreateVolumeForwardsRRSA(t *testing.T) {
+	cs := newMockControllerServer()
+	resp, err := cs.CreateVolume(t.Context(), &csi.CreateVolumeRequest{
+		Name: "TestVolume",
+		Parameters: map[string]string{
+			"volumeAs":     internal.MockVolumeAs,
+			"authType":     "rrsa",
+			"roleName":     "nas-role",
+			"rrsaEndpoint": "https://oidc-proxy.oidc-proxy-system.svc",
+			"rrsaAudience": "oidc-proxy.alibabacloud.com",
+		},
+	})
+	require.NoError(t, err)
+	vc := resp.Volume.VolumeContext
+	assert.Equal(t, "rrsa", vc["authType"])
+	assert.Equal(t, "nas-role", vc["roleName"])
+	assert.Equal(t, "https://oidc-proxy.oidc-proxy-system.svc", vc["rrsaEndpoint"])
+	assert.Equal(t, "oidc-proxy.alibabacloud.com", vc["rrsaAudience"])
+	assert.NotContains(t, vc, "roleArn", "an unset attribute is not written")
+}
+
+// TestControllerServerCreateVolumeKeepsOtherAuthTypes: agent-identity attributes
+// name a sandbox, not a StorageClass, so they are still not carried over.
+func TestControllerServerCreateVolumeKeepsOtherAuthTypes(t *testing.T) {
+	cs := newMockControllerServer()
+	resp, err := cs.CreateVolume(t.Context(), &csi.CreateVolumeRequest{
+		Name: "TestVolume",
+		Parameters: map[string]string{
+			"volumeAs":  internal.MockVolumeAs,
+			"authType":  "agent-identity",
+			"sandboxId": "sb",
+			"roleName":  "nas-role",
+		},
+	})
+	require.NoError(t, err)
+	for _, k := range []string{"authType", "sandboxId", "roleName"} {
+		assert.NotContains(t, resp.Volume.VolumeContext, k)
+	}
+}
+
+func TestControllerServerCreateVolumeRejectsBadRRSA(t *testing.T) {
+	tests := []struct {
+		name    string
+		params  map[string]string
+		errLike string
+	}{
+		{
+			name:    "no role",
+			params:  map[string]string{},
+			errLike: "roleName is empty",
+		},
+		{
+			// Half of the ARN pair is not completed from the other: the two have
+			// to agree on the account.
+			name:    "roleArn without oidcProviderArn",
+			params:  map[string]string{"roleName": "r", "roleArn": "acs:ram::1:role/r"},
+			errLike: "one of the ARNs is empty",
+		},
+		{
+			name:    "plaintext endpoint",
+			params:  map[string]string{"roleName": "r", "rrsaEndpoint": "http://oidc-proxy.oidc-proxy-system.svc"},
+			errLike: "must use https",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// The AgenticFS controller, because it creates billable resources: a
+			// bad StorageClass must fail before any of them exist.
+			nasClient := newFakeNasClientV2()
+			cs := &controllerServer{
+				ControllerFactory: &internal.ControllerFactory{
+					Modes: map[string]internal.Controller{agenticFsVolumeAs: newAgenticfsCtrl(t, nasClient)},
+				},
+				kubeClient: fake.NewSimpleClientset(),
+				locks:      utils.NewVolumeLocks(),
+			}
+			params := map[string]string{"authType": "rrsa"}
+			maps.Copy(params, tt.params)
+			_, err := cs.CreateVolume(t.Context(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, params))
+			assert.Equal(t, codes.InvalidArgument, status.Code(err))
+			assert.ErrorContains(t, err, tt.errLike)
+			assert.Empty(t, nasClient.createAgenticSpaceReqs)
+		})
+	}
+}
+
+func TestControllerServerCreateVolumeAgenticFsRRSA(t *testing.T) {
+	ctrl := newAgenticfsCtrl(t, newFakeNasClientV2())
+	cs := &controllerServer{
+		ControllerFactory: &internal.ControllerFactory{
+			Modes: map[string]internal.Controller{agenticFsVolumeAs: ctrl},
+		},
+		kubeClient: fake.NewSimpleClientset(),
+		locks:      utils.NewVolumeLocks(),
+	}
+	resp, err := cs.CreateVolume(t.Context(), agenticfsCreateReq(testAgenticFsPVName, 20*GiB, map[string]string{
+		"authType": "rrsa",
+		"roleName": "nas-role",
+	}))
+	require.NoError(t, err)
+	vc := resp.Volume.VolumeContext
+	assert.Equal(t, "rrsa", vc["authType"])
+	assert.Equal(t, "nas-role", vc["roleName"])
+	assert.Equal(t, testAgenticFsAPDomain, vc[vcKeyServer])
 }

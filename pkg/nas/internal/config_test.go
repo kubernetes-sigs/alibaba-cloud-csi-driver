@@ -3,12 +3,14 @@ package internal
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/jarcoal/httpmock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -93,7 +95,7 @@ func TestGetNodeConfigSuccess(t *testing.T) {
 	prepareFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	config, err := GetNodeConfig(utils.Config{}, "")
+	config, err := GetNodeConfig(metadata.NewMetadata(), utils.Config{}, "")
 	assert.NoError(t, err)
 	assert.NotNil(t, config)
 	assert.Empty(t, config.MountProxySocket, "MountProxySocket should be empty when no socket path provided")
@@ -108,7 +110,7 @@ func TestGetNodeConfigMountProxySock(t *testing.T) {
 	prepareNodeConfigEnvVars(t)
 
 	const testSocket = "/run/cnfs/alinas-mounter.sock"
-	config, err := GetNodeConfig(utils.Config{}, testSocket)
+	config, err := GetNodeConfig(metadata.NewMetadata(), utils.Config{}, testSocket)
 	assert.NoError(t, err)
 	assert.NotNil(t, config)
 	assert.Equal(t, testSocket, config.MountProxySocket, "MountProxySocket should be set from mountProxySock parameter")
@@ -137,7 +139,7 @@ func TestGetNodeConfigNodeGetError(t *testing.T) {
 	prepareFakeK8sContext()
 	t.Setenv("NAS_LOSETUP_ENABLE", "true")
 
-	config, err := GetNodeConfig(utils.Config{}, "")
+	config, err := GetNodeConfig(metadata.NewMetadata(), utils.Config{}, "")
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }
@@ -150,7 +152,7 @@ func TestGetNodeConfigLosetupError(t *testing.T) {
 	prepareFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	config, err := GetNodeConfig(utils.Config{}, "")
+	config, err := GetNodeConfig(metadata.NewMetadata(), utils.Config{}, "")
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }
@@ -199,6 +201,37 @@ func TestParseBool(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestRRSADuration(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		want    time.Duration
+		wantErr bool
+	}{
+		{name: "unset leaves the choice to the endpoint", value: "", want: 0},
+		{name: "12h for a large cluster", value: "12h", want: 12 * time.Hour},
+		{name: "15m for a test", value: "15m", want: 15 * time.Minute},
+		// Starting with a lifetime other than the one asked for would go unnoticed,
+		// so a bad value keeps the driver from starting at all.
+		{name: "unparsable", value: "12hours", wantErr: true},
+		{name: "zero", value: "0s", wantErr: true},
+		{name: "negative", value: "-1h", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("NAS_RRSA_DURATION", tt.value)
+			config, err := GetNodeConfig(metadata.NewMetadata(), utils.Config{}, "")
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "nas-rrsa-duration")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, config.RRSADuration)
 		})
 	}
 }

@@ -136,3 +136,42 @@ func TestAlinasSecretInterceptor(t *testing.T) {
 		})
 	}
 }
+
+func TestMakeCredFileContent(t *testing.T) {
+	tests := []struct {
+		name    string
+		secrets map[string]string
+		want    string
+	}{
+		{
+			name:    "static AK/SK omits the token line entirely",
+			secrets: map[string]string{SecretKeyAccessKeyID: "ak", SecretKeyAccessKeySecret: "sk"},
+			want:    "[NASCredentials]\naccessKeyID=ak\naccessKeySecret=sk",
+		},
+		{
+			name: "STS credential carries the token mount.alinas signs with",
+			secrets: map[string]string{
+				SecretKeyAccessKeyID:     "ak",
+				SecretKeyAccessKeySecret: "sk",
+				SecretKeySecurityToken:   "token",
+			},
+			want: "[NASCredentials]\naccessKeyID=ak\naccessKeySecret=sk\nsecurityToken=token",
+		},
+		{
+			// An empty value must not produce "securityToken=", which mount.alinas
+			// would read as a present-but-empty token.
+			name: "empty token is treated as absent",
+			secrets: map[string]string{
+				SecretKeyAccessKeyID:     "ak",
+				SecretKeyAccessKeySecret: "sk",
+				SecretKeySecurityToken:   "",
+			},
+			want: "[NASCredentials]\naccessKeyID=ak\naccessKeySecret=sk",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, string(makeCredFileContent(tt.secrets)))
+		})
+	}
+}

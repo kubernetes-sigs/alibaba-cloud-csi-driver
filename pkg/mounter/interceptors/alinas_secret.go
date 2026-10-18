@@ -13,6 +13,15 @@ import (
 var credDir = os.TempDir()
 var _ mounter.MountInterceptor = AlinasSecretInterceptor
 
+// Keys of the credential carried in MountRequest/RefreshRequest
+// Secrets. mount.alinas reads all three from the ram_config_file; the token alone
+// selects its ID token-only mode, so a partial set must never be written.
+const (
+	SecretKeyAccessKeyID     = "akId"
+	SecretKeyAccessKeySecret = "akSecret"
+	SecretKeySecurityToken   = "securityToken"
+)
+
 func AlinasSecretInterceptor(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
 	if op == nil || op.Secrets == nil {
 		return handler(ctx, op)
@@ -48,10 +57,16 @@ func AlinasSecretInterceptor(ctx context.Context, op *mounter.MountOperation, ha
 }
 
 func makeCredFileContent(secrets map[string]string) []byte {
-	return fmt.Appendf(
+	content := fmt.Appendf(
 		nil,
 		"[NASCredentials]\naccessKeyID=%s\naccessKeySecret=%s",
-		secrets["akId"],
-		secrets["akSecret"],
+		secrets[SecretKeyAccessKeyID],
+		secrets[SecretKeyAccessKeySecret],
 	)
+	// Without the token an STS credential is sent as bare AK/SK and the server
+	// rejects it with "Unknown error 521".
+	if token := secrets[SecretKeySecurityToken]; token != "" {
+		content = fmt.Appendf(content, "\nsecurityToken=%s", token)
+	}
+	return content
 }

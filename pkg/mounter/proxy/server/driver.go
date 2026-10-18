@@ -37,6 +37,19 @@ type Unmounter interface {
 	Unmount(target string) (owned bool, err error)
 }
 
+// Refresher is an optional interface a Driver may implement to install a rotated
+// cloud credential on one of its mounts.
+//
+// Unlike Unmount, this is routed by the fstype the client mounted with rather than
+// by what this process remembers mounting: a refresh needs nothing but the mount
+// point, and requiring a memory of the mount would make every rotation fail for
+// the rest of a mount's life once mount-proxy-server restarted.
+type Refresher interface {
+	// Refresh installs secrets on target, which this driver is expected to be able
+	// to resolve on its own.
+	Refresh(ctx context.Context, target string, secrets map[string]string) error
+}
+
 var (
 	fstypeToDriver = map[string]Driver{}
 	nameToDriver   = map[string]Driver{}
@@ -76,4 +89,33 @@ func handleUnmountRequest(_ context.Context, req *proxy.UnmountRequest) error {
 		}
 	}
 	return fmt.Errorf("%s: %s", proxy.ErrTargetNotManaged, req.Target)
+}
+
+// handleRefreshRequest routes a credential refresh by fstype, the way a mount is
+// routed, so it does not depend on this process having mounted the target itself.
+// Every failure is reported rather than swallowed: the caller asked to keep a
+// specific mount alive, and pretending it worked would surface a credential
+// expiring under a live mount much later and far from here.
+func handleRefreshRequest(ctx context.Context, req *proxy.RefreshRequest) error {
+	if req.Target == "" {
+		return fmt.Errorf("empty refresh target")
+	}
+	if len(req.Secrets) == 0 {
+		return fmt.Errorf("no credentials to install on %s", req.Target)
+	}
+	if req.Fstype == "" {
+		return fmt.Errorf("empty fstype: cannot tell which driver mounted %s", req.Target)
+	}
+	d := fstypeToDriver[req.Fstype]
+	if d == nil {
+		return fmt.Errorf("fstype %q not supported", req.Fstype)
+	}
+	r, ok := d.(Refresher)
+	if !ok {
+		return fmt.Errorf("driver %q cannot refresh credentials", d.Name())
+	}
+	if err := r.Refresh(ctx, req.Target, req.Secrets); err != nil {
+		return fmt.Errorf("driver %q refresh credentials %q: %w", d.Name(), req.Target, err)
+	}
+	return nil
 }

@@ -19,6 +19,7 @@ type ProxyMounter struct {
 var (
 	_ Mounter        = &ProxyMounter{}
 	_ ProxyUnmounter = &ProxyMounter{}
+	_ ProxyRefresher = &ProxyMounter{}
 )
 
 func NewProxyMounter(socketPath string, inner mountutils.Interface) Mounter {
@@ -72,6 +73,44 @@ func (m *ProxyMounter) Mount(source string, target string, fstype string, option
 	})
 }
 
+// CanRefresh asks the mount broker whether it implements the refresh RPC. The
+// answer costs a ping (tens of microseconds over the unix socket) and is not
+// cached, so an in-place upgrade of mount-proxy-server takes effect immediately.
+func (m *ProxyMounter) CanRefresh(ctx context.Context) (bool, error) {
+	dclient := client.NewClient(m.socketPath)
+	resp, err := dclient.Ping(ctx)
+	if err != nil {
+		return false, fmt.Errorf("ping mount broker: %w", err)
+	}
+	if err := resp.ToError(); err != nil {
+		return false, fmt.Errorf("ping mount broker: %w", err)
+	}
+	return resp.HasMethod(proxy.Refresh), nil
+}
+
+// Refresh installs a rotated credential on an existing mount through the mount
+// broker.
+//
+// Every failure is fatal to the caller, so the server's reason is passed through
+// rather than classified: nothing can be installed on a live mount locally, and
+// the reasons that would need telling apart (proxy.ErrInvalidMethod,
+// proxy.ErrTargetNotManaged) are already in the message.
+func (m *ProxyMounter) Refresh(ctx context.Context, op *RefreshOperation) error {
+	dclient := client.NewClient(m.socketPath)
+	resp, err := dclient.Refresh(ctx, &proxy.RefreshRequest{
+		Target:  op.Target,
+		Fstype:  op.FsType,
+		Secrets: op.Secrets,
+	})
+	if err != nil {
+		return fmt.Errorf("call mounter daemon: %w", err)
+	}
+	if err := resp.ToError(); err != nil {
+		return fmt.Errorf("failed to refresh credentials via mount broker: %w", err)
+	}
+	return nil
+}
+
 // ExtendedUnmount unmounts target through the mount broker (mount-proxy-server),
 // so the umount runs in the daemon's cgroup 0. This is required for NAS
 // AccessPoint mounts: the csi_mount_proxy nftables rule drops mount-broker
@@ -91,10 +130,10 @@ func (m *ProxyMounter) ExtendedUnmount(ctx context.Context, target string) error
 	}
 	if err := resp.ToError(); err != nil {
 		// Old mount-proxy-server that predates the unmount RPC replies
-		// "invalid method"; brokers that do not own the target reply
+		// proxy.ErrInvalidMethod; brokers that do not own the target reply
 		// proxy.ErrTargetNotManaged. In both cases there is nothing for the
 		// broker to unmount, so let the caller fall back to a local unmount.
-		if strings.Contains(err.Error(), "invalid method") ||
+		if strings.Contains(err.Error(), proxy.ErrInvalidMethod) ||
 			strings.Contains(err.Error(), proxy.ErrTargetNotManaged) {
 			return ErrTargetNotManagedByBroker
 		}

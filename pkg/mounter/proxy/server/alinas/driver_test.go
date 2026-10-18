@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/stretchr/testify/assert"
@@ -378,4 +379,37 @@ func TestTerminate_UnmountError(t *testing.T) {
 	// Target should still be in the map since Unmount failed (Delete only on success)
 	_, loaded := driver.targets.Load("/mnt/nas1")
 	assert.True(t, loaded, "target should remain when unmount fails")
+}
+
+// TestRefreshCredentialCompleteness pins which credentials may reach the vendor
+// tool: the access key signs the certificate, while a security token is only part
+// of an STS credential and a long-term access key has none.
+func TestRefreshCredentialCompleteness(t *testing.T) {
+	tests := []struct {
+		name    string
+		secrets map[string]string
+		errLike string
+	}{
+		{
+			name: "long-term access key needs no token",
+			secrets: map[string]string{
+				interceptors.SecretKeyAccessKeyID:     "LTAI5tlongterm",
+				interceptors.SecretKeyAccessKeySecret: "sk",
+			},
+			// Reaches the vendor tool, which is absent in a unit test.
+			errLike: "alinas-tls-cert-refresh",
+		},
+		{
+			name:    "no access key at all",
+			secrets: map[string]string{interceptors.SecretKeySecurityToken: "token"},
+			errLike: "need akId and akSecret",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := NewDriver().Refresh(context.Background(), "/mnt/x", tt.secrets)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errLike)
+		})
+	}
 }

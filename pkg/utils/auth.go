@@ -17,13 +17,11 @@ limitations under the License.
 package utils
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
@@ -32,6 +30,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials/provider"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/crypto"
 	"k8s.io/klog/v2"
+	"k8s.io/mount-utils"
 )
 
 const (
@@ -98,49 +97,17 @@ func isUnderPATH(resolved string) (string, bool) {
 	return "", false
 }
 
-// evalSymlinks is a package variable so tests can simulate a mount point whose
-// filesystem is dead; that state cannot be created from a unit test.
-var evalSymlinks = filepath.EvalSymlinks
-
-// resolveSymlinks resolves symlinks for cleaned.
-//
-// A mount point whose filesystem is dead answers every lookup with ENOTCONN, which
-// would otherwise fail validation and stop the caller from ever unmounting it. Such a
-// component can only be the path we were asked about: mount(2) resolves symlinks
-// before mounting, so a mount point is always the leaf and always a directory.
-// Resolve its parent instead, which is an ordinary directory, and re-append the base
-// name. Ancestors go through resolveExistingAncestor untouched, so an ENOTCONN there
-// stays a hard error and no unverifiable suffix is ever re-appended.
-//
-// Only ENOTCONN is treated this way. That is narrower than mount-utils
-// IsCorruptedMnt, which also covers EACCES, EIO and ESTALE; ESTALE in particular means
-// the object may have been replaced, so it is not the crashed-daemon case.
+// resolveSymlinks resolves symlinks for cleaned, tolerating non-existent
+// trailing components. It first tries to resolve the full path. Only when
+// that fails because the path does not exist yet does it recursively resolve
+// the parent directory, then re-append the missing trailing component, so the
+// result is the resolved deepest existing ancestor joined with the full
+// non-existent suffix. Symlinks in any existing ancestor directory are still
+// followed and cannot be used to bypass the sensitive-path checks. Any
+// resolution error other than non-existence is returned as-is, and an error
+// is also returned if no ancestor up to the root can be resolved.
 func resolveSymlinks(cleaned string) (string, error) {
-	resolved, err := evalSymlinks(cleaned)
-	if err == nil {
-		return resolved, nil
-	}
-	if errors.Is(err, syscall.ENOTCONN) {
-		resolvedParent, perr := resolveExistingAncestor(filepath.Dir(cleaned))
-		if perr != nil {
-			return "", perr
-		}
-		return filepath.Join(resolvedParent, filepath.Base(cleaned)), nil
-	}
-	return resolveExistingAncestor(cleaned)
-}
-
-// resolveExistingAncestor resolves symlinks for cleaned, tolerating non-existent
-// trailing components. It first tries to resolve the full path. Only when that fails
-// because the path does not exist yet does it recursively resolve the parent
-// directory, then re-append the missing trailing component, so the result is the
-// resolved deepest existing ancestor joined with the full non-existent suffix.
-// Symlinks in any existing ancestor directory are still followed and cannot be used to
-// bypass the sensitive-path checks. Any resolution error other than non-existence is
-// returned as-is, and an error is also returned if no ancestor up to the root can be
-// resolved.
-func resolveExistingAncestor(cleaned string) (string, error) {
-	resolved, err := evalSymlinks(cleaned)
+	resolved, err := filepath.EvalSymlinks(cleaned)
 	if err == nil {
 		return resolved, nil
 	}
@@ -152,25 +119,27 @@ func resolveExistingAncestor(cleaned string) (string, error) {
 		// Reached the root without resolving any ancestor.
 		return "", fmt.Errorf("cannot resolve any ancestor of %s: %w", cleaned, err)
 	}
-	resolvedParent, err := resolveExistingAncestor(parent)
+	resolvedParent, err := resolveSymlinks(parent)
 	if err != nil {
 		return "", err
 	}
 	return filepath.Join(resolvedParent, filepath.Base(cleaned)), nil
 }
 
-// ValidatePath checks that path is a safe mount path.
+// ValidateMountTarget reports whether path is safe to mount on:
+// must not replace code the driver executes in its privileged environment.
 //
-// It requires the path to be absolute and free of ".." components. Rejecting
-// ".." prevents symlink-traversal exploits: the kernel resolves ".." *after*
-// following symlinks, so a path like "/symlink/../etc/passwd" would escape the
-// lexically-cleaned path that is validated. It then:
-//  1. Rejects paths literally under /proc (entries may not be resolvable).
-//  2. Resolves symlinks and rejects paths whose real location is under /proc.
-//  3. Resolves symlinks and rejects paths whose real location is under a PATH directory.
+// Rules:
+//   - absolute
+//   - free of ".." components. The kernel resolves ".." after following symlinks,
+//     but resolveSymlinks handles a non-existent suffix lexically, so
+//     "/symlink/../missing" would be validated as "/missing".
+//   - not under /proc, both literally and after resolving symlinks
+//   - not under PATH after resolving symlinks
 //
-// Note: the kubelet root dir containment check is done by the caller.
-func ValidatePath(path string) (bool, error) {
+// An existing mount point skips symlink resolution, which can hang on a dead mount;
+// the driver never mounts over one.
+func ValidateMountTarget(m mount.Interface, path string) (bool, error) {
 	if !filepath.IsAbs(path) {
 		return false, fmt.Errorf("path %s must be an absolute path", path)
 	}
@@ -178,19 +147,25 @@ func ValidatePath(path string) (bool, error) {
 	if slices.Contains(strings.Split(path, "/"), "..") {
 		return false, fmt.Errorf("path %s contains '..' which is not allowed", path)
 	}
+	// Without "..", Clean is purely syntactic and agrees with kernel resolution.
+	cleaned := filepath.Clean(path)
 
 	// Reject paths literally under /proc before resolution, because /proc
 	// entries (e.g. fd/N) may resolve to non-filesystem targets that
 	// EvalSymlinks cannot handle.
-	if isUnderProc(path) {
+	if isUnderProc(cleaned) {
 		return false, fmt.Errorf("path %s is under sensitive path /proc", path)
 	}
 
-	// Resolve symlinks. When trailing components do not exist yet, the
-	// deepest existing ancestor directory is resolved and the non-existent
-	// suffix is re-appended, so symlinks in ancestor directories are still
-	// followed and cannot be used to bypass the sensitive-path checks below.
-	resolved, err := resolveSymlinks(path)
+	// IsLikelyNotMountPoint uses statx(AT_STATX_DONT_SYNC), which reads the cached
+	// mount-root attributes without contacting the server or daemon, so it reports those
+	// dead mounts as mount points instead of hanging.
+	notMnt, err := m.IsLikelyNotMountPoint(path)
+	if err == nil && !notMnt {
+		return true, nil
+	}
+
+	resolved, err := resolveSymlinks(cleaned)
 	if err != nil {
 		return false, fmt.Errorf("failed to resolve symlinks for path %s: %w", path, err)
 	}
