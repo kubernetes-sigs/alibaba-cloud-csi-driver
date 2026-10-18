@@ -121,7 +121,7 @@ type Options struct {
 	// The credential doMount hands to the mount broker. Tagged "-" so it can
 	// neither be set from a PV attribute nor leak into anything that marshals
 	// Options: it is filled in from publish secrets or an STS exchange.
-	stsCredential   `json:"-"`
+	stsCredential `json:"-"`
 	SubstrateMode bool `json:"-"`
 }
 

@@ -523,7 +523,19 @@ func getNASIDFromMapOrServer(params map[string]string, server string) string {
 	if id := params[filesystemIDKey]; id != "" {
 		return id
 	}
-	id, _, _ := strings.Cut(server, "-")
+	// AgenticFS AccessPoint domains look like "ap-<apId>.<fsId>-<suffix>.cn-beijing.nas.aliyuncs.com".
+	// The fsId is in the second segment (after the first dot), before its own dash-suffix.
+	// Plain NAS domains look like "<fsId>-<suffix>.cn-beijing.nas.aliyuncs.com".
+	host := strings.SplitN(server, ".", 2)[0]
+	if strings.HasPrefix(host, "ap-") {
+		// AccessPoint: skip the "ap-<apId>" first segment, fsId is after the dot.
+		parts := strings.SplitN(server, ".", 3)
+		if len(parts) >= 2 {
+			fsId, _, _ := strings.Cut(parts[1], "-")
+			return fsId
+		}
+	}
+	id, _, _ := strings.Cut(host, "-")
 	return id
 }
 
