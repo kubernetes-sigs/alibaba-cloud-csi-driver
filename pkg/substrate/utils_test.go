@@ -229,13 +229,7 @@ func TestGoldenPlaceholderLifecycleWithoutNAS(t *testing.T) {
 			require.NoError(t, err)
 			require.Nil(t, nas.unpublished)
 			require.Empty(t, mounter.MountPoints)
-			// What the warmup wrote into the placeholder is not the bridge's to delete.
-			retained, readErr := os.ReadFile(filepath.Join(placeholder, "build-output"))
-			require.NoError(t, readErr)
-			require.Equal(t, "temporary", string(retained))
-			_, err = restarted.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{VolumeId: tc.unpublishID, TargetPath: target})
-			require.NoError(t, err)
-			require.DirExists(t, placeholder)
+			require.NoDirExists(t, placeholder)
 		})
 	}
 }
@@ -243,13 +237,13 @@ func TestGoldenPlaceholderLifecycleWithoutNAS(t *testing.T) {
 // A placeholder source that holds nothing is reclaimed; one the Golden warmup wrote
 // into is left alone, because deleting that recursively would discard the written
 // data without any ownership check.
-func TestUnpublishPlaceholderRemovesEmptySourceOnly(t *testing.T) {
+func TestUnpublishPlaceholderRemovesSource(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		warmupOut bool
 	}{
 		{"empty source is removed", false},
-		{"source with warmup output is kept", true},
+		{"source with warmup output is also removed", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -270,13 +264,7 @@ func TestUnpublishPlaceholderRemovesEmptySourceOnly(t *testing.T) {
 			_, err = node.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{VolumeId: testID, TargetPath: target})
 			require.NoError(t, err)
 			require.Empty(t, mounter.MountPoints)
-			if tc.warmupOut {
-				retained, readErr := os.ReadFile(filepath.Join(source, "build-output"))
-				require.NoError(t, readErr)
-				require.Equal(t, "temporary", string(retained))
-			} else {
-				require.NoDirExists(t, source)
-			}
+			require.NoDirExists(t, source)
 		})
 	}
 }

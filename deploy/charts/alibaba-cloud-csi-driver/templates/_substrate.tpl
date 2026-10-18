@@ -3,13 +3,9 @@
 {{- end -}}
 
 {{- define "substrate.commonVolumes" -}}
-- name: substrate-identity
+- name: substrate-trust-bundle
   projected:
     sources:
-      - podCertificate:
-          signerName: podidentity.podcert.ate.dev/identity
-          keyType: ECDSAP256
-          credentialBundlePath: credential-bundle.pem
 {{- if .node }}
       - clusterTrustBundle:
           signerName: servicedns.podcert.ate.dev/identity
@@ -22,6 +18,13 @@
           labelSelector:
             matchLabels: {podcert.ate.dev/canarying: live}
           path: client-trust-bundle.pem
+- name: substrate-identity
+  projected:
+    sources:
+      - podCertificate:
+          signerName: podidentity.podcert.ate.dev/identity
+          keyType: ECDSAP256
+          credentialBundlePath: credential-bundle.pem
 {{- if .node }}
 - name: substrate-api-token
   projected:
@@ -34,7 +37,7 @@
 {{- end -}}
 
 {{- define "substrate.commonMounts" -}}
-- name: substrate-identity
+- name: substrate-trust-bundle
   mountPath: /run/podidentity.podcert.ate.dev
   readOnly: true
 {{- if .node }}
@@ -42,6 +45,12 @@
   mountPath: /run/ateapi
   readOnly: true
 {{- end }}
+{{- end -}}
+
+{{- define "substrate.identityMounts" -}}
+- name: substrate-identity
+  mountPath: /run/podidentity.podcert.ate.dev/identity
+  readOnly: true
 {{- end -}}
 
 {{- define "substrate.apiArgs" -}}

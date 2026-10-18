@@ -133,7 +133,7 @@ func TestSubstrateEnabledWiresControllerNodeAndTrust(t *testing.T) {
 		t.Fatal(err)
 	}
 	node := container(t, daemon.Template.Spec, "csi-plugin")
-	for _, flag := range []string{"--substrate-api-endpoint=api.ate-system.svc:443", "--substrate-api-ca-file=/run/podidentity.podcert.ate.dev/trust-bundle.pem", "--substrate-api-token-file=/run/ateapi/token"} {
+	for _, flag := range []string{"--substrate-api-endpoint=k8s:///ate-system/api:443", "--substrate-api-server-name=api.ate-system.svc", "--substrate-api-ca-file=/run/podidentity.podcert.ate.dev/trust-bundle.pem", "--substrate-api-token-file=/run/ateapi/token"} {
 		if !slices.Contains(node.Args, flag) {
 			t.Errorf("missing node flag %s", flag)
 		}
@@ -191,8 +191,8 @@ func TestSubstrateEnabledWiresControllerNodeAndTrust(t *testing.T) {
 	}
 	findResource(t, resources, "CSIDriver", "substrate.csi.alibabacloud.com")
 	findResource(t, resources, "StorageClass", "ate-storage")
-	findResource(t, resources, "CSIDriverConfig", "substrate-csi-bridge")
-	findResource(t, resources, "CSIDriverConfig", "substrate-nas")
+	findResource(t, resources, "CSIDriverConfig", "substrate.csi.alibabacloud.com")
+	findResource(t, resources, "CSIDriverConfig", "nasplugin.csi.alibabacloud.com")
 	var service corev1.ServiceSpec
 	if err := json.Unmarshal(findResource(t, resources, "Service", "csi-provisioner").Spec, &service); err != nil {
 		t.Fatal(err)
@@ -221,7 +221,7 @@ func TestSubstrateCustomPaths(t *testing.T) {
 	if !strings.Contains(strings.Join(driver.Args, " "), "--substrate-actor-root=/custom/actors") {
 		t.Fatal("actor root override not forwarded")
 	}
-	config := findResource(t, resources, "CSIDriverConfig", "substrate-csi-bridge")
+	config := findResource(t, resources, "CSIDriverConfig", "substrate.csi.alibabacloud.com")
 	if !strings.Contains(string(config.Spec), "unix:///custom/kubelet/csi-plugins/substrate.csi.alibabacloud.com/csi.sock") {
 		t.Fatal("node socket override mismatch")
 	}
@@ -243,7 +243,7 @@ func TestSubstrateComponentSwitches(t *testing.T) {
 		{"controller.enabled=false", "Deployment", "csi-provisioner"},
 		{"plugin.enabled=false", "DaemonSet", "csi-plugin"},
 		{"substrate.storageClass.create=false", "StorageClass", "ate-storage"},
-		{"substrate.createDriverConfig=false", "CSIDriverConfig", "substrate-csi-bridge"},
+		{"substrate.createDriverConfig=false", "CSIDriverConfig", "substrate.csi.alibabacloud.com"},
 	} {
 		t.Run(tc.option, func(t *testing.T) {
 			for _, resource := range renderChart(t, "--set", "enableSubstrate=true", "--set", tc.option) {
@@ -258,7 +258,7 @@ func TestSubstrateComponentSwitches(t *testing.T) {
 func TestSubstrateWithoutNativeControllers(t *testing.T) {
 	resources := renderChart(t, "--set", "enableSubstrate=true", "--set", "csi.nas.enabled=false,csi.disk.enabled=false,csi.oss.enabled=false,csi.bmcpfs.enabled=false,csi.ens.enabled=false")
 	for _, resource := range resources {
-		if resource.Kind == "CSIDriverConfig" && resource.Metadata.Name == "substrate-nas" {
+		if resource.Kind == "CSIDriverConfig" && resource.Metadata.Name == "nasplugin.csi.alibabacloud.com" {
 			t.Fatal("disabled NAS must not have a controller config")
 		}
 	}

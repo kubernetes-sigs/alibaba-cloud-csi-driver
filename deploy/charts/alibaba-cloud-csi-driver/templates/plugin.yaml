@@ -3,7 +3,7 @@
 ---
 {{- $values := deepCopy $.Values }}
 {{- $nodePool := mergeOverwrite $values $nodePool }}
-{{- if and $.Values.enableSubstrate (ne (clean $nodePool.deploy.kubeletRootDir) (clean $.Values.deploy.kubeletRootDir)) }}
+{{- if and $nodePool.enableSubstrate (ne (clean $nodePool.deploy.kubeletRootDir) (clean $.Values.deploy.kubeletRootDir)) }}
 {{- fail "Substrate node pools must use the global deploy.kubeletRootDir" }}
 {{- end }}
 kind: DaemonSet
@@ -98,10 +98,10 @@ spec:
             - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
             - --logging-format={{ $nodePool.logging.format }}
-            - "--driver={{ include "substrate.drivers" (dict "base" (include "enabledPlugins" $nodePool.csi) "enabled" $.Values.enableSubstrate) }}"
+            - "--driver={{ include "substrate.drivers" (dict "base" (include "enabledPlugins" $nodePool.csi) "enabled" $nodePool.enableSubstrate) }}"
             - --run-controller-service=false
             - --run-node-service=true
-{{- if $.Values.enableSubstrate }}
+{{- if $nodePool.enableSubstrate }}
             {{- include "substrate.apiArgs" $ | nindent 12 }}
             - --substrate-actor-root={{ clean $.Values.substrate.actorRoot }}
             - --substrate-state-dir=/csi/substrate.csi.alibabacloud.com/substrate-state
@@ -183,7 +183,7 @@ spec:
             - name: healthz
               containerPort: 11260
           volumeMounts:
-{{- if $.Values.enableSubstrate }}
+{{- if $nodePool.enableSubstrate }}
             {{- include "substrate.commonMounts" (dict "Values" $.Values "node" true) | nindent 12 }}
             - name: substrate-plugin-dir
               mountPath: /csi/substrate.csi.alibabacloud.com
@@ -356,7 +356,7 @@ spec:
               mountPath: /registration
 {{- end -}}
 {{- end }}
-{{- if $.Values.enableSubstrate }}
+{{- if $nodePool.enableSubstrate }}
         - name: substrate-driver-registrar
           image: {{ include "imageSpec" (list $nodePool "pluginRegistrar") }}
           args:
@@ -376,7 +376,7 @@ spec:
             - {name: registration-dir, mountPath: /registration}
 {{- end }}
       volumes:
-{{- if $.Values.enableSubstrate }}
+{{- if $nodePool.enableSubstrate }}
         {{- include "substrate.commonVolumes" (dict "Values" $.Values "node" true) | nindent 8 }}
         - name: substrate-plugin-dir
           hostPath:
