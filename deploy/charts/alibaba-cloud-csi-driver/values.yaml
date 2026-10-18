@@ -1,7 +1,8 @@
 enableSubstrate: false
 
 substrate:
-  apiEndpoint: k8s:///ate-system/ate-api-server:443
+  apiEndpoint: k8s:///ate-system/api:443
+  apiServerName: api.ate-system.svc
   apiAudience: api.ate-system.svc
   actorRoot: /var/lib/ate/actors
   createDriverConfig: true

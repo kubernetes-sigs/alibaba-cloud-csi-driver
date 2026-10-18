@@ -46,6 +46,7 @@
 
 {{- define "substrate.apiArgs" -}}
 - --substrate-api-endpoint={{ required "substrate.apiEndpoint is required" .Values.substrate.apiEndpoint }}
+- --substrate-api-server-name={{ required "substrate.apiServerName is required" .Values.substrate.apiServerName }}
 - --substrate-api-ca-file=/run/podidentity.podcert.ate.dev/trust-bundle.pem
 - --substrate-api-token-file=/run/ateapi/token
 {{- end -}}

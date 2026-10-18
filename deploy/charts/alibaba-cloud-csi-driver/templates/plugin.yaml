@@ -360,10 +360,17 @@ spec:
         - name: substrate-driver-registrar
           image: {{ include "imageSpec" (list $nodePool "pluginRegistrar") }}
           args:
-            - --csi-address=/csi/csi.sock
+            - "--v=5"
+            - "--csi-address=/csi/csi.sock"
+            - --logging-format={{ $nodePool.logging.format }}
             - --kubelet-registration-path={{ clean $nodePool.deploy.kubeletRootDir }}/csi-plugins/substrate.csi.alibabacloud.com/csi.sock
           resources:
-            requests: {cpu: 10m, memory: 16Mi}
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           volumeMounts:
             - {name: substrate-plugin-dir, mountPath: /csi}
             - {name: registration-dir, mountPath: /registration}

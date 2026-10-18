@@ -70,7 +70,8 @@ Key values:
 | Value | Default | Meaning |
 |---|---|---|
 | `enableSubstrate` | `false` | Enable all bridge resources |
-| `substrate.apiEndpoint` | `k8s:///ate-system/ate-api-server:443` | Substrate API endpoint; uses k8s EndpointSlice resolver to avoid DNS dependency on hostNetwork nodes |
+| `substrate.apiEndpoint` | `k8s:///ate-system/api:443` | Substrate API endpoint; uses k8s EndpointSlice resolver to avoid DNS dependency on hostNetwork nodes |
+| `substrate.apiServerName` | `api.ate-system.svc` | TLS server name for ateapi; must match the Service's DNS name since k8s:/// has no host to infer it from |
 | `substrate.apiAudience` | `api.ate-system.svc` | Audience of the Node's projected API token |
 | `substrate.actorRoot` | `/var/lib/ate/actors` | Must match atelet's host target layout; identity carrier, see Identity keys |
 | `substrate.createDriverConfig` | `true` | Create the native NAS and bridge configs for enabled Controllers |
