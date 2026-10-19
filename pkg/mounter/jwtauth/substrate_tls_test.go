@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -112,4 +113,30 @@ func TestACSTLSWithoutCARetainsFallback(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { assert.NoError(t, response.Body.Close()) }()
 	assert.Equal(t, http.StatusNoContent, response.StatusCode)
+}
+
+func TestSubstrateModeRejectsPlainHTTP(t *testing.T) {
+	opts := Opts{
+		SubstrateMode: true,
+		Endpoint:      "http://credential-provider.svc:8443/credential",
+		SandboxId:     "actor-uid",
+	}
+	_, err := exchangeSTSToken(t.Context(), &http.Client{}, opts)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires HTTPS endpoint")
+}
+
+func TestSubstrateRedirectRejected(t *testing.T) {
+	err := rejectRedirect(&http.Request{URL: mustParseURL("http://evil.example.com/steal")}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "redirect")
+	assert.Contains(t, err.Error(), "evil.example.com")
+}
+
+func mustParseURL(s string) *url.URL {
+	u, err := url.Parse(s)
+	if err != nil {
+		panic(err)
+	}
+	return u
 }
