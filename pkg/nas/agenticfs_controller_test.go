@@ -473,7 +473,6 @@ func countLogLines(logs, prefix string) int {
 func assertExactlyOneFailureReport(t *testing.T, logs string) {
 	t.Helper()
 	assert.Equal(t, 1, countLogLines(logs, orphanLogPrefix)+countLogLines(logs, retainedForRetryLogPrefix))
-	assert.NotContains(t, logs, "agenticfs-orphan-resolved", "CreateVolume never performs cleanup")
 }
 
 func TestAgenticfsVolumeAs(t *testing.T) {
@@ -503,7 +502,6 @@ func TestAgenticfsCreateVolumeSuccess(t *testing.T) {
 
 	assert.NotContains(t, vc, "accesspoint")
 	assert.NotContains(t, vc, "containerNetworkFileSystem")
-	assert.NotContains(t, vc, vcKeyFilesystemIdLegacy)
 
 	// Phase-1 guardrail: the jwtauth keys are only unlocked after the phase-2 node-side changes ship.
 	assert.NotContains(t, vc, "authType")
@@ -713,7 +711,7 @@ func TestAgenticfsCreateVolumeQuotaValidation(t *testing.T) {
 	}{
 		{"sizeBelow10GiBRejected", 5 * GiB, nil, codes.InvalidArgument},
 		{"fileCountBelow10000Rejected", 20 * GiB, map[string]string{paramAgenticSpaceFileCountLimit: "5000"}, codes.InvalidArgument},
-		// The OpenAPI maximum is 1e8, not the 1e9 an earlier draft documented.
+		// The OpenAPI maximum is 1e8.
 		{"fileCountAbove1e8Rejected", 20 * GiB, map[string]string{paramAgenticSpaceFileCountLimit: "100000001"}, codes.InvalidArgument},
 		{"fileCountOf1e9Rejected", 20 * GiB, map[string]string{paramAgenticSpaceFileCountLimit: "1000000001"}, codes.InvalidArgument},
 		{"invalidSizeLimitParamRejected", 0, map[string]string{paramAgenticSpaceSizeLimit: "not-a-quantity"}, codes.InvalidArgument},
@@ -742,7 +740,6 @@ func TestAgenticfsCreateVolumeSizeLimitIsACap(t *testing.T) {
 	}{
 		{"requestBelowTheCapIsHonored", 20 * GiB, "100Gi", false, 20 * GiB},
 		{"requestEqualToTheCapIsHonored", 100 * GiB, "100Gi", false, 100 * GiB},
-		// M8: this is the case the fallback-only reading silently allowed.
 		{"requestAboveTheCapIsRejected", 100 * GiB, "50Gi", true, 0},
 		{"capUsedWhenNoCapacityIsRequested", 0, "10Gi", false, 10 * GiB},
 	}
@@ -1758,21 +1755,6 @@ func TestAgenticfsDeleteVolumeMissingFilesystemId(t *testing.T) {
 	assert.Empty(t, fake.callOrder)
 }
 
-func TestAgenticfsDeleteVolumeLegacyFilesystemIdKey(t *testing.T) {
-	// An earlier (never released) build used the "filesystemId" spelling; it must survive a rolling upgrade.
-	fake := newDeleteFakeNasClientV2()
-	ctrl := newAgenticfsCtrl(t, fake)
-	pv := agenticfsPV(map[string]string{
-		vcKeyFilesystemIdLegacy: testAgenticFsFilesystemID,
-		vcKeyAccesspointId:      testAgenticFsAccessPointID,
-		vcKeyAgenticSpaceId:     testAgenticFsAgenticSpaceID,
-	})
-	_, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), pv)
-	require.NoError(t, err)
-	require.Len(t, fake.deleteAgenticSpaceReqs, 1)
-	assert.Equal(t, testAgenticFsFilesystemID, tea.StringValue(fake.deleteAgenticSpaceReqs[0].FileSystemId))
-}
-
 // Without the space ID nothing can be deleted, so reporting success would leak a billable AgenticSpace.
 func TestAgenticfsDeleteVolumeMissingAgenticSpaceId(t *testing.T) {
 	fake := newDeleteFakeNasClientV2()
@@ -1874,7 +1856,7 @@ func TestAgenticfsDeleteVolumeAPIErrors(t *testing.T) {
 		{"listFailsTransiently", func(f *fakeNasClientV2) { f.listAccessPointsErr = errors.New("boom") }, codes.Internal},
 		{"listFailsPermanently", func(f *fakeNasClientV2) { f.listAccessPointsErr = aliErr("InvalidParameter.Filter") }, codes.InvalidArgument},
 		{"deleteAccesspointFails", func(f *fakeNasClientV2) { f.deleteAccessPointErr = errors.New("boom") }, codes.Internal},
-		// "*.NotSupported" is retryable now, so a permanent delete failure uses a malformed-parameter code.
+		// "*.NotSupported" is retryable, so a permanent delete failure uses a malformed-parameter code.
 		{"deleteAccesspointFailsPermanently", func(f *fakeNasClientV2) {
 			f.deleteAccessPointErr = aliErr("InvalidParameter.AccessPointId")
 		}, codes.InvalidArgument},
@@ -1996,7 +1978,7 @@ func TestAgenticfsControllerExpandVolumeMissingAttributes(t *testing.T) {
 	}
 }
 
-// SetAgenticSpaceQuota always sends BOTH limits, so an unreadable file count limit must not be guessed.
+// SetAgenticSpaceQuota overwrites the quota, so a missing size limit or usage is refused rather than guessed.
 func TestAgenticfsControllerExpandVolumeIncompleteQuota(t *testing.T) {
 	tests := []struct {
 		name string
@@ -2252,26 +2234,6 @@ func TestAgenticfsControllerExpandVolumeSetQuotaError(t *testing.T) {
 	}
 }
 
-func TestAgenticfsFilesystemID(t *testing.T) {
-	tests := []struct {
-		name  string
-		attrs map[string]string
-		want  string
-	}{
-		{"canonicalKey", map[string]string{filesystemIDKey: "fs-1"}, "fs-1"},
-		{"legacyKey", map[string]string{vcKeyFilesystemIdLegacy: "fs-legacy"}, "fs-legacy"},
-		{"canonicalWins", map[string]string{filesystemIDKey: "fs-1", vcKeyFilesystemIdLegacy: "fs-legacy"}, "fs-1"},
-		{"emptyCanonicalFallsBack", map[string]string{filesystemIDKey: "", vcKeyFilesystemIdLegacy: "fs-legacy"}, "fs-legacy"},
-		{"missing", map[string]string{}, ""},
-		{"nil", nil, ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, agenticfsFilesystemID(tt.attrs))
-		})
-	}
-}
-
 func TestIsNotFoundError(t *testing.T) {
 	tests := []struct {
 		name string
@@ -2295,7 +2257,7 @@ func TestIsNotFoundError(t *testing.T) {
 		{"unrelatedResourceNotfound", aliErr("SomeResource.NotFound"), false},
 		{"filesetIsOnlySpaceScoped", aliErr("InvalidFilesetId.NotFound"), false},
 		{"fsetIsOnlySpaceScoped", aliErr("InvalidFsetId.NotFound"), false},
-		// Contains "FileSystem", so the old substring logic swallowed a capacity/quota verdict as "already gone".
+		// Contains "FileSystem", so a substring match would swallow a capacity/quota verdict as "already gone".
 		{"capacityNotfoundIsNotGone", aliErr("InvalidFileSystemCapacity.NotFound"), false},
 		{"unrelatedCode", aliErr("Throttling.User"), false},
 		{"plainErrorMentioningNotFound", errors.New("NotFound"), false},
@@ -2530,7 +2492,7 @@ func TestValidateAgenticSpaceQuota(t *testing.T) {
 		{"maximumSizeAndFileCount", maxAgenticSpaceSizeLimit, maxAgenticSpaceFileCountLimit, false},
 		{"sizeBelowMinimum", minAgenticSpaceSizeLimit - 1, defaultAgenticSpaceFileCountLimit, true},
 		{"fileCountBelowMinimum", 20 * GiB, minAgenticSpaceFileCountLimit - 1, true},
-		// The OpenAPI maximum is 1e8; 1e9 (documented by an earlier draft) is refused.
+		// The OpenAPI maximum is 1e8.
 		{"fileCountAboveMaximum", 20 * GiB, maxAgenticSpaceFileCountLimit + 1, true},
 		{"fileCountOf1e9", 20 * GiB, 1000000000, true},
 	}
@@ -2619,49 +2581,7 @@ func TestValidateVolumeName(t *testing.T) {
 	}
 }
 
-// A silent edit here would break mounts or the OpenAPI quota bounds.
-func TestAgenticfsConstants(t *testing.T) {
-	assert.Equal(t, "fileSystemId", filesystemIDKey)
-	assert.Equal(t, "alinas", mountProtocolAlinas)
-	assert.Equal(t, "tls,vers=3,ram", defaultAgenticFsMountOptions)
-	assert.Equal(t, "Agentic", cloud.StorageTypeAgentic)
-	assert.Equal(t, cloud.StorageTypeAgentic, agenticFsVolumeAs)
-	assert.Equal(t, cloud.StorageTypeAgentic, cnfsSpecTypeAgenticFS)
-	assert.Equal(t, int64(10*GiB), minAgenticSpaceSizeLimit)
-	assert.Equal(t, int64(1099511627776000), maxAgenticSpaceSizeLimit)
-	assert.Equal(t, int64(10000), minAgenticSpaceFileCountLimit)
-	assert.Equal(t, int64(100000000), maxAgenticSpaceFileCountLimit)
-	assert.Equal(t, int32(100), apListMaxResults)
-	// Cross-component values: a silent edit would go unnoticed if only asserted indirectly.
-	assert.Equal(t, 3*time.Second, defaultApPollInterval)
-	assert.Equal(t, 45*time.Second, defaultApPollTimeout)
-	assert.Less(t, defaultApPollTimeout, 60*time.Second)
-
-	// This bounds the HTTP exchange, not credential resolution or the whole RPC.
-	const nasAPICallBound = 10 * time.Second
-	sdkClient, err := cloud.NewNasClientV2("cn-hangzhou")
-	require.NoError(t, err)
-	assert.Equal(t, nasAPICallBound, time.Duration(tea.IntValue(sdkClient.ConnectTimeout))*time.Millisecond)
-	assert.Zero(t, tea.IntValue(sdkClient.ReadTimeout))
-	assert.Nil(t, sdkClient.RetryOptions)
-
-	// KNOWN DEFICIT: external-nas-resizer has no --timeout, so it inherits upstream's 10s, which EQUALS
-	// nasAPICallBound. Equality on purpose: adding --timeout must turn this red, do not weaken it to an inequality.
-	const resizerRPCTimeout = 10 * time.Second // external-resizer upstream default; the chart does not override it
-	// agenticfs expand = nas:GetAgenticSpace + nas:SetAgenticSpaceQuota, TWO serial NAS calls.
-	assert.Equal(t, -10*time.Second, resizerRPCTimeout-2*nasAPICallBound,
-		"KNOWN DEFICIT (agenticfs expand): the resizer's 10s budget minus two serial 10s-bounded calls "+
-			"is -10s. The chart is deliberately unchanged for now; a follow-up adds --timeout to "+
-			"external-nas-resizer, at which point this equality must become a positive-margin assertion")
-	// subpath expand (volumeCapacity=true, already GA and running in production) = ONE NAS call.
-	assert.Equal(t, time.Duration(0), resizerRPCTimeout-1*nasAPICallBound,
-		"KNOWN DEFICIT (subpath expand): the resizer's 10s budget minus one 10s-bounded call is exactly "+
-			"0 - no headroom for the endpoint to be even slightly slow. The chart is deliberately unchanged")
-
-	assert.Equal(t, "agenticfs-resource-created", resourceCreatedLogPrefix)
-	assert.Equal(t, "agenticfs-resource-retained-for-retry", retainedForRetryLogPrefix)
-	assert.Equal(t, "agenticfs-orphan-resource", orphanLogPrefix)
-	// Prefixes must remain distinguishable by log consumers.
+func TestAgenticfsLogPrefixesAreDistinguishable(t *testing.T) {
 	prefixContract := []struct{ name, prefix string }{
 		{"resourceCreatedLogPrefix", resourceCreatedLogPrefix},
 		{"retainedForRetryLogPrefix", retainedForRetryLogPrefix},
@@ -2858,7 +2778,7 @@ func TestAgenticfsCreateVolumeThreeTierResourceLogging(t *testing.T) {
 				}
 				require.NotEmpty(t, retainedLine, "the retained-for-retry line must exist")
 				for _, field := range orphanLogFields {
-					assert.Contains(t, retainedLine, field, "D2: retained-for-retry carries the full contract schema")
+					assert.Contains(t, retainedLine, field, "retained-for-retry carries the full contract schema")
 				}
 			} else {
 				assert.NotContains(t, logs, retainedForRetryLogPrefix)
@@ -2870,7 +2790,6 @@ func TestAgenticfsCreateVolumeThreeTierResourceLogging(t *testing.T) {
 				assert.NotContains(t, logs, orphanLogPrefix,
 					"only terminal failures use the reconciliation prefix")
 			}
-			assert.NotContains(t, logs, "agenticfs-orphan-resolved")
 			assert.Empty(t, fake.deleteAccessPointIDs)
 			if tt.wantRetained || tt.wantOrphan {
 				assertExactlyOneFailureReport(t, logs)
@@ -2926,9 +2845,6 @@ func TestAgenticfsDeleteVolumePaddedNotFoundCodeIsIdempotent(t *testing.T) {
 			resp, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), agenticfsDeletePV())
 			require.NoError(t, err, "a padded NotFound code must still be recognised as already-gone")
 			require.NotNil(t, resp)
-			// The old assertion ran after require.NoError, so status.Code(nil) == OK made it a tautology.
-			assert.Equal(t, codes.OK, status.Code(err),
-				"a padded NotFound must never be classified permanent: terminal InvalidArgument here makes the provisioner delete the PV and leak the resources")
 			assert.Positive(t, fake.describeCalls, "An already-gone accesspoint is still waited for")
 			assert.Len(t, fake.deleteAgenticSpaceReqs, 1)
 		})

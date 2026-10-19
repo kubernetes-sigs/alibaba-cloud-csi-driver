@@ -104,7 +104,7 @@ func (c *agenticfsController) CreateVolume(ctx context.Context, req *csi.CreateV
 
 func (c *agenticfsController) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest, pv *corev1.PersistentVolume) (*csi.DeleteVolumeResponse, error) {
 	attributes := pv.Spec.CSI.VolumeAttributes
-	filesystemID := agenticfsFilesystemID(attributes)
+	filesystemID := attributes[filesystemIDKey]
 	if filesystemID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "missing %s in volume attributes", filesystemIDKey)
 	}
@@ -137,7 +137,7 @@ func (c *agenticfsController) DeleteVolume(ctx context.Context, req *csi.DeleteV
 
 func (c *agenticfsController) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest, pv *corev1.PersistentVolume) (*csi.ControllerExpandVolumeResponse, error) {
 	attributes := pv.Spec.CSI.VolumeAttributes
-	filesystemID := agenticfsFilesystemID(attributes)
+	filesystemID := attributes[filesystemIDKey]
 	if filesystemID == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "missing %s in volume attributes", filesystemIDKey)
 	}

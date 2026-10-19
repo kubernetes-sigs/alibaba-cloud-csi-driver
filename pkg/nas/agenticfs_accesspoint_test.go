@@ -138,8 +138,7 @@ func TestAgenticfsPollBudgetAndCompletionOrderWithFakeClock(t *testing.T) {
 	}{
 		{"create timeout", false, false, codes.DeadlineExceeded, "last status: Pending"},
 		{"delete timeout", true, false, codes.Aborted, "still being deleted"},
-		// Existing policy: a call reaching the target wins even if it completes
-		// after the polling budget. Refactoring must not reorder these checks.
+		// A call reaching the target wins even if it completes after the polling budget.
 		{"create completed after budget", false, true, codes.OK, ""},
 		{"delete completed after budget", true, true, codes.OK, ""},
 	} {

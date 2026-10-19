@@ -111,7 +111,7 @@ func TestV2ErrorContractRealSDKECS(t *testing.T) {
 		extraAssert func(t *testing.T, err error)
 	}{
 		{
-			// The disk-side NotFound code modify.go maps to codes.NotFound. Required by the task.
+			// The disk-side NotFound code modify.go maps to codes.NotFound.
 			name:   "InvalidDiskId.NotFound",
 			status: http.StatusNotFound,
 			code:   "InvalidDiskId.NotFound",

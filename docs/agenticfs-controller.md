@@ -80,9 +80,8 @@ validate stored identifiers and requested size
 
 The quota policy helper performs no API calls and does not modify the read response.
 It rejects incomplete usage data and shrinking, preserves valid file-count limits,
-and retains the existing warning/omission rules for unreadable or invalid limits.
-Same-size requests still issue SetAgenticSpaceQuota. The refactor does not add an
-expansion ClientToken or change the SDK request shape.
+and warns about and omits unreadable or invalid limits.
+Same-size requests still issue SetAgenticSpaceQuota. Expansion carries no ClientToken.
 
 ## Time and cancellation
 
@@ -90,7 +89,7 @@ Polling uses an injected `k8s.io/utils/clock.Clock`, following Disk's waiter pat
 Production uses `clock.RealClock`; tests advance a fake clock rather than sleeping
 for the production interval or timeout.
 
-The existing ordering is preserved:
+The polling loop runs in this order:
 
 1. Check cancellation before each Describe call.
 2. Observe the response and test the target state.
@@ -104,8 +103,8 @@ their existing cancellation behavior. Clock injection does not change that contr
 
 ## Testing
 
-Existing controller and deletion suites remain end-to-end regression tests over a
-fake NAS client. Focused tests cover the extracted boundaries:
+The controller and deletion suites are end-to-end tests over a fake NAS client.
+Focused tests cover the individual components:
 
 - `agenticfs_options_test.go`: validation order, direct-ID precedence, immutable
   request snapshots, and independent volume attribute maps.

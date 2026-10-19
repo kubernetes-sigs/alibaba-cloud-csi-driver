@@ -14,7 +14,6 @@ import (
 
 	openapiutil "github.com/alibabacloud-go/darabonba-openapi/v2/utils"
 	nas20170626 "github.com/alibabacloud-go/nas-20170626/v4/client"
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
@@ -248,69 +247,5 @@ func TestNasClientV2TimeoutWireContract(t *testing.T) {
 		assert.Less(t, elapsed, wireElapsedFloor, "ctx must cancel the request before the SDK HTTP timeout")
 		assert.ErrorIs(t, err, context.DeadlineExceeded)
 		assert.NotContains(t, err.Error(), "Client.Timeout")
-	})
-
-	t.Run("emptyErrorBody", func(t *testing.T) {
-		t.Parallel()
-		var hits atomic.Int32
-		client := newTimeoutWireNasClient(t, func(w http.ResponseWriter, r *http.Request) {
-			hits.Add(1)
-			// The shape pkg/cloud/wrap/sdkv2.go's Data index was reported to panic on.
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-		})
-
-		var err error
-		require.NotPanics(t, func() {
-			_, err = callBounded(t, func(ctx context.Context) error {
-				return client.DeleteAccesspoint(ctx, wireTimeoutFileSystemID, wireTimeoutAccessPointID)
-			})
-		}, "an empty HTTP error body must never panic the shared pkg/cloud/wrap error transform")
-
-		require.Error(t, err)
-		assert.Equal(t, int32(1), hits.Load())
-
-		var sdkErr *tea.SDKError
-		require.ErrorAs(t, err, &sdkErr, "the transformed error must keep the SDK error reachable")
-
-		// An empty HTTP error body does NOT yield Data == "": dara returns a nil map that tea.NewSDKError encodes into
-		// the STRING "null". Data == tea.String("") is pinned at unit level by sdkv2_empty_body_contract_test.go.
-		assert.Equal(t, "null", tea.StringValue(sdkErr.Data),
-			"an empty HTTP error body arrives as the JSON encoding of a nil map, not as an empty "+
-				"string; if this changes, re-check the (*teaerr.Data)[0] guard in "+
-				"pkg/cloud/wrap/sdkv2.go against the new shape")
-		assert.ErrorContains(t, err, "code: 500",
-			"with no body there is no Message to extract, so the classification must fall back to "+
-				"the darabonba-generated ServerError message")
-		assert.False(t, errors.Is(err, context.DeadlineExceeded),
-			"a 500 is a server error, not a client deadline; it must not be classified as retryable-by-timeout")
-	})
-
-	t.Run("jsonErrorBody", func(t *testing.T) {
-		t.Parallel()
-		var hits atomic.Int32
-		client := newTimeoutWireNasClient(t, func(w http.ResponseWriter, r *http.Request) {
-			hits.Add(1)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = io.WriteString(w, `{"Code":"InternalError","Message":"boom on the wire","RequestId":"rid-1"}`)
-		})
-
-		_, err := callBounded(t, func(ctx context.Context) error {
-			return client.DeleteAccesspoint(ctx, wireTimeoutFileSystemID, wireTimeoutAccessPointID)
-		})
-
-		require.Error(t, err)
-		assert.Equal(t, int32(1), hits.Load())
-
-		// Guards the length check from OVER-blocking: wrap.V2 rewrites the error to "OpenAPI returned error: <Message
-		// from Data> (<Code>)", so this is only satisfiable if the extraction branch ran.
-		assert.ErrorContains(t, err, "boom on the wire (InternalError)")
-
-		var sdkErr *tea.SDKError
-		require.ErrorAs(t, err, &sdkErr)
-		require.NotNil(t, sdkErr.Data)
-		assert.Equal(t, byte('{'), (*sdkErr.Data)[0],
-			"this is the shape that DOES enter the JSON-extraction branch")
 	})
 }

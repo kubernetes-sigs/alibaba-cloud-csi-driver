@@ -156,9 +156,6 @@ cannot safely proceed.
 - `agenticfs-orphan-resource`: a terminal provisioning failure requires
   reconciliation. The historical prefix does not prove a resource exists or is
   orphaned. Check live NAS and Kubernetes state before deleting anything.
-- `agenticfs-orphan-resolved`: legacy message from versions that attempted partial
-  rollback; no longer emitted by CreateVolume. In historical logs it referred
-  only to the access point, not the AgenticSpace.
 
 These prefixes describe attempt outcomes, not globally unique resource events.
 An external reaper must correlate identifiers and current Kubernetes/NAS state;
