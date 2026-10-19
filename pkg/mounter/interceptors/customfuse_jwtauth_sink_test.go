@@ -20,6 +20,13 @@ func readCredentialFile(t *testing.T, dir, key string) string {
 	return string(data)
 }
 
+func sinkTestDir(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	overrideCredentialBaseDir(t, root)
+	return filepath.Join(root, "creds", "sts")
+}
+
 func genCred(n int) *jwtauth.STSToken {
 	g := fmt.Sprintf("g%d", n)
 	return &jwtauth.STSToken{
@@ -31,7 +38,7 @@ func genCred(n int) *jwtauth.STSToken {
 }
 
 func TestFileCredentialSinkApplyWritesAllFields(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "", nil)
 
 	cred := &jwtauth.STSToken{
@@ -49,7 +56,7 @@ func TestFileCredentialSinkApplyWritesAllFields(t *testing.T) {
 }
 
 func TestFileCredentialSinkFileNamesMatchClientContract(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "", nil)
 	require.NoError(t, sink.Deliver(&jwtauth.STSToken{
 		AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "tok", Expiration: "exp",
@@ -62,7 +69,7 @@ func TestFileCredentialSinkFileNamesMatchClientContract(t *testing.T) {
 }
 
 func TestFileCredentialSinkApplyRotates(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "", nil)
 
 	require.NoError(t, sink.Deliver(&jwtauth.STSToken{
@@ -77,12 +84,12 @@ func TestFileCredentialSinkApplyRotates(t *testing.T) {
 }
 
 func TestFileCredentialSinkApplyNilCredential(t *testing.T) {
-	sink := newFileCredentialSink(filepath.Join(t.TempDir(), "creds", "sts"), "", nil)
+	sink := newFileCredentialSink(sinkTestDir(t), "", nil)
 	require.Error(t, sink.Deliver(nil))
 }
 
 func TestFileCredentialSinkCleanupRemovesCredential(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "", nil)
 	require.NoError(t, sink.Deliver(&jwtauth.STSToken{
 		AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "tok", Expiration: "exp",
@@ -95,7 +102,7 @@ func TestFileCredentialSinkCleanupRemovesCredential(t *testing.T) {
 }
 
 func TestFileCredentialSinkRunsHookWithCredentialDir(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "/hook.sh", nil)
 
 	var gotName string
@@ -106,14 +113,16 @@ func TestFileCredentialSinkRunsHookWithCredentialDir(t *testing.T) {
 	}
 
 	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Notify())
 	require.NoError(t, sink.Deliver(genCred(2)))
+	require.NoError(t, sink.Notify())
 
 	assert.Equal(t, "/hook.sh", gotName)
 	assert.Contains(t, gotEnv, credentialDirEnvKey+"="+dir)
 }
 
 func TestFileCredentialSinkHookReceivesRecordedEnv(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	// Spare capacity on purpose: the interceptor builds this slice by appending,
 	// so it arrives with room, and appending credentialDir into that room would
 	// write through to a slice the sink reuses on every rotation.
@@ -128,8 +137,11 @@ func TestFileCredentialSinkHookReceivesRecordedEnv(t *testing.T) {
 	}
 
 	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Notify())
 	require.NoError(t, sink.Deliver(genCred(2)))
+	require.NoError(t, sink.Notify())
 	require.NoError(t, sink.Deliver(genCred(3)))
+	require.NoError(t, sink.Notify())
 	require.Len(t, got, 2, "the initial delivery does not run the hook")
 
 	for i, env := range got {
@@ -143,7 +155,7 @@ func TestFileCredentialSinkHookReceivesRecordedEnv(t *testing.T) {
 }
 
 func TestFileCredentialSinkSkipsHookOnInitialDelivery(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "/hook.sh", nil)
 
 	var calls int
@@ -153,16 +165,18 @@ func TestFileCredentialSinkSkipsHookOnInitialDelivery(t *testing.T) {
 	}
 
 	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Notify())
 	assert.Zero(t, calls, "the initial delivery must not run the hook")
 	assert.Equal(t, "g1", readCredentialFile(t, dir, mounterutils.KeyAccessKeyId),
 		"the initial credential must still be written")
 
 	require.NoError(t, sink.Deliver(genCred(2)))
+	require.NoError(t, sink.Notify())
 	assert.Equal(t, 1, calls, "a rotation must run the hook")
 }
 
 func TestFileCredentialSinkInitialDeliverySurvivesFailingHook(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "/hook.sh", nil)
 	sink.runHook = func(ctx context.Context, name string, env []string) ([]byte, error) {
 		return []byte("client not running yet"), assert.AnError
@@ -170,14 +184,16 @@ func TestFileCredentialSinkInitialDeliverySurvivesFailingHook(t *testing.T) {
 
 	require.NoError(t, sink.Deliver(genCred(1)),
 		"initial delivery must not fail because of the hook")
+	require.NoError(t, sink.Notify())
 	assert.Equal(t, "g1", readCredentialFile(t, dir, mounterutils.KeyAccessKeyId))
 
-	require.Error(t, sink.Deliver(genCred(2)),
+	require.NoError(t, sink.Deliver(genCred(2)))
+	require.Error(t, sink.Notify(),
 		"a rotation must still report a failing hook")
 }
 
 func TestFileCredentialSinkHookNeverReceivesCredentialMaterial(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "/hook.sh", nil)
 
 	const secret = "super-secret-sk"
@@ -189,12 +205,12 @@ func TestFileCredentialSinkHookNeverReceivesCredentialMaterial(t *testing.T) {
 	}
 
 	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Notify())
 	require.NoError(t, sink.Deliver(&jwtauth.STSToken{
 		AccessKeyID: "ak", AccessKeySecret: secret, SecurityToken: token, Expiration: "exp",
 	}))
+	require.NoError(t, sink.Notify())
 
-	// Without this the loop below would pass on an empty environment, asserting
-	// nothing.
 	require.NotEmpty(t, gotEnv, "the hook must have run for this to prove anything")
 	for _, e := range gotEnv {
 		assert.NotContains(t, e, secret, "hook environment must not carry the secret")
@@ -203,7 +219,7 @@ func TestFileCredentialSinkHookNeverReceivesCredentialMaterial(t *testing.T) {
 }
 
 func TestFileCredentialSinkSkipsHookWhenCredentialUnchanged(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "/hook.sh", nil)
 
 	calls := 0
@@ -215,31 +231,36 @@ func TestFileCredentialSinkSkipsHookWhenCredentialUnchanged(t *testing.T) {
 	// Get past the initial delivery, which never runs the hook, so that what is
 	// measured below is the unchanged-credential case and not that one.
 	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Notify())
 	require.NoError(t, sink.Deliver(genCred(2)))
+	require.NoError(t, sink.Notify())
 	require.Equal(t, 1, calls)
 
 	require.NoError(t, sink.Deliver(genCred(2)))
+	require.NoError(t, sink.Notify())
 
 	assert.Equal(t, 1, calls, "an unchanged credential must not disturb the client")
 }
 
 func TestFileCredentialSinkHookFailureIsReported(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "/hook.sh", nil)
 	sink.runHook = func(ctx context.Context, name string, env []string) ([]byte, error) {
 		return []byte("hook output"), assert.AnError
 	}
 
 	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Notify())
 
-	err := sink.Deliver(genCred(2))
+	require.NoError(t, sink.Deliver(genCred(2)))
+	err := sink.Notify()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "refresh hook")
 	assert.Contains(t, err.Error(), "hook output")
 }
 
 func TestFileCredentialSinkNoHookConfigured(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "creds", "sts")
+	dir := sinkTestDir(t)
 	sink := newFileCredentialSink(dir, "", nil)
 	sink.runHook = func(ctx context.Context, name string, env []string) ([]byte, error) {
 		t.Fatal("hook must not run when none is configured")

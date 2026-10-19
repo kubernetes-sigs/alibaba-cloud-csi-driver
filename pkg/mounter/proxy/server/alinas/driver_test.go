@@ -192,7 +192,9 @@ func TestExtendedMounterUnmountStopsJWTAuthRefresher(t *testing.T) {
 
 type noopCredentialSink struct{}
 
-func (noopCredentialSink) Apply(*jwtauth.STSToken) error { return nil }
+func (noopCredentialSink) Deliver(*jwtauth.STSToken) error { return nil }
+func (noopCredentialSink) Notify() error                   { return nil }
+func (noopCredentialSink) Cleanup()                        {}
 
 func TestShouldCleanup(t *testing.T) {
 	tmpDir := t.TempDir()

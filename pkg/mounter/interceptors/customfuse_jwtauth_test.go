@@ -83,31 +83,29 @@ func TestResolveCredentialDir(t *testing.T) {
 	})
 }
 
-func TestValidateNoSymlinksInPath(t *testing.T) {
-	t.Run("clean path passes", func(t *testing.T) {
+func TestOpenParentDir(t *testing.T) {
+	t.Run("clean path passes and creates intermediates", func(t *testing.T) {
 		root := t.TempDir()
-		sub := filepath.Join(root, "a", "b")
-		require.NoError(t, os.MkdirAll(sub, 0o755))
-		target := filepath.Join(sub, "sts")
-		assert.NoError(t, validateNoSymlinksInPath(target, root))
+		overrideCredentialBaseDir(t, root)
+		target := filepath.Join(root, "a", "b", "sts")
+		fd, err := openParentDir(target, root)
+		require.NoError(t, err)
+		closeFd(fd)
+		_, err = os.Stat(filepath.Join(root, "a", "b"))
+		assert.NoError(t, err)
 	})
 
 	t.Run("symlink parent is rejected", func(t *testing.T) {
 		root := t.TempDir()
+		overrideCredentialBaseDir(t, root)
 		real := filepath.Join(root, "real")
 		require.NoError(t, os.MkdirAll(real, 0o755))
 		link := filepath.Join(root, "link")
 		require.NoError(t, os.Symlink(real, link))
 		target := filepath.Join(link, "sts")
-		err := validateNoSymlinksInPath(target, root)
+		_, err := openParentDir(target, root)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "symlink")
-	})
-
-	t.Run("non-existent intermediate is allowed", func(t *testing.T) {
-		root := t.TempDir()
-		target := filepath.Join(root, "not-yet", "created", "sts")
-		assert.NoError(t, validateNoSymlinksInPath(target, root))
 	})
 
 	t.Run("symlinked allowedRoot is rejected", func(t *testing.T) {
@@ -117,9 +115,17 @@ func TestValidateNoSymlinksInPath(t *testing.T) {
 		link := filepath.Join(base, "symlinked-root")
 		require.NoError(t, os.Symlink(real, link))
 		target := filepath.Join(link, "vol", "sts")
-		err := validateNoSymlinksInPath(target, link)
+		_, err := openParentDir(target, link)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "symlink")
+	})
+
+	t.Run("path outside allowed root is rejected", func(t *testing.T) {
+		root := t.TempDir()
+		overrideCredentialBaseDir(t, root)
+		_, err := openParentDir("/etc/shadow", root)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be under")
 	})
 }
 

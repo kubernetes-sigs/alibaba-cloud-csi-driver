@@ -3,7 +3,6 @@ package interceptors
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
 
@@ -106,21 +106,32 @@ func (s *fileCredentialSink) Deliver(cred *jwtauth.STSToken) error {
 		return fmt.Errorf("nil credential")
 	}
 
-	if err := validateNoSymlinksInPath(s.dir, customFuseCredentialBaseDir); err != nil {
+	// Open the parent directory through openat with O_NOFOLLOW at each level,
+	// creating intermediate directories as needed. The returned fd is pinned to
+	// the real directory inode, so a symlink swap on the path after this call
+	// does not redirect subsequent writes.
+	parentFd, err := openParentDir(s.dir, customFuseCredentialBaseDir)
+	if err != nil {
 		return fmt.Errorf("credential path rejected: %w", err)
 	}
+	defer closeFd(parentFd)
 
+	basename := filepath.Base(s.dir)
 	if !s.delivered {
-		if fi, err := os.Lstat(s.dir); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		// Reject a pre-existing symlink at dir itself.
+		var stat unix.Stat_t
+		err := unix.Fstatat(parentFd, basename, &stat, unix.AT_SYMLINK_NOFOLLOW)
+		if err == nil && stat.Mode&unix.S_IFMT == unix.S_IFLNK {
 			return fmt.Errorf("credential path %s is a pre-existing symlink; refusing to write through it", s.dir)
 		}
 	}
 
-	if err := os.MkdirAll(filepath.Dir(s.dir), 0o755); err != nil {
-		return fmt.Errorf("create credential parent directory: %w", err)
-	}
+	// Construct a path through /proc/self/fd/<parentFd>/<basename> so that
+	// rotateTokenFiles operates under the pinned directory fd, immune to
+	// symlink swaps on the original path.
+	pinnedDir := fmt.Sprintf("/proc/self/fd/%d/%s", parentFd, basename)
 
-	rotated, err := rotateTokenFiles(s.dir, credentialSecrets(cred))
+	rotated, err := rotateTokenFiles(pinnedDir, credentialSecrets(cred))
 	if err != nil {
 		return fmt.Errorf("write credential files to %s: %w", s.dir, err)
 	}
@@ -137,6 +148,63 @@ func (s *fileCredentialSink) Deliver(cred *jwtauth.STSToken) error {
 		klog.V(4).InfoS("customfuse credential unchanged, skipping hook", "dir", s.dir)
 	}
 	return nil
+}
+
+// openParentDir opens the parent directory of dir by walking each path
+// component from allowedRoot with openat(O_DIRECTORY|O_NOFOLLOW), creating
+// intermediate directories as needed with mkdirat. Returns an fd pinned to
+// the real parent directory inode. The caller must close the fd.
+func openParentDir(dir, allowedRoot string) (int, error) {
+	if err := ValidateCredentialDir(dir); err != nil {
+		return -1, err
+	}
+
+	cleaned := filepath.Clean(dir)
+	parent := filepath.Dir(cleaned)
+	rel, err := filepath.Rel(allowedRoot, parent)
+	if err != nil {
+		return -1, fmt.Errorf("cannot compute relative path from %s to %s: %w", allowedRoot, parent, err)
+	}
+
+	fd, err := unix.Open(allowedRoot, unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return -1, fmt.Errorf("open credential root %s: %w", allowedRoot, err)
+	}
+
+	if rel == "." {
+		return fd, nil
+	}
+
+	for _, component := range strings.Split(rel, string(filepath.Separator)) {
+		nextFd, err := unix.Openat(fd, component, unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if err != nil {
+			switch err { //nolint:errorlint // syscall errors are not wrapped
+			case unix.ENOENT:
+				if mkErr := unix.Mkdirat(fd, component, 0o755); mkErr != nil && mkErr != unix.EEXIST {
+					closeFd(fd)
+					return -1, fmt.Errorf("mkdirat %s: %w", component, mkErr)
+				}
+				nextFd, err = unix.Openat(fd, component, unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+				if err != nil {
+					closeFd(fd)
+					return -1, fmt.Errorf("openat %s after mkdir: %w", component, err)
+				}
+			case unix.ELOOP, unix.ENOTDIR:
+				closeFd(fd)
+				return -1, fmt.Errorf("symlink at %s in credential path; refusing to write through a symlinked parent", component)
+			default:
+				closeFd(fd)
+				return -1, fmt.Errorf("openat %s: %w", component, err)
+			}
+		}
+		closeFd(fd)
+		fd = nextFd
+	}
+	return fd, nil
+}
+
+func closeFd(fd int) {
+	_ = unix.Close(fd)
 }
 
 func (s *fileCredentialSink) Notify() error {
@@ -190,39 +258,4 @@ func credentialSecrets(cred *jwtauth.STSToken) map[string]string {
 		mounterutils.KeySecurityToken:   cred.SecurityToken,
 		mounterutils.KeyExpiration:      cred.Expiration,
 	}
-}
-
-// validateNoSymlinksInPath checks that no component from the filesystem root
-// through allowedRoot and down to dir's parent is a symlink. dir itself is
-// excluded because rotateTokenFiles manages it as a symlink. The walk starts
-// at "/" so that allowedRoot itself and its ancestors are also covered.
-func validateNoSymlinksInPath(dir, allowedRoot string) error {
-	cleaned := filepath.Clean(dir)
-	parent := filepath.Dir(cleaned)
-
-	// Walk from "/" to parent, covering allowedRoot and everything below it.
-	rel, err := filepath.Rel("/", parent)
-	if err != nil {
-		return fmt.Errorf("cannot compute relative path from / to %s: %w", parent, err)
-	}
-
-	current := "/"
-	for _, component := range splitPathComponents(rel) {
-		current = filepath.Join(current, component)
-		fi, err := os.Lstat(current)
-		if os.IsNotExist(err) {
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("lstat %s: %w", current, err)
-		}
-		if fi.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("symlink at %s in credential path; refusing to write credentials through a symlinked parent", current)
-		}
-	}
-	return nil
-}
-
-func splitPathComponents(rel string) []string {
-	return strings.Split(rel, string(filepath.Separator))
 }
