@@ -13,7 +13,7 @@ for operational behavior.
 | `pkg/nas/controllerserver.go` | CSI dispatch, per-volume locking, PV lookup, shared volume attributes. |
 | `pkg/nas/agenticfs_controller.go` | Dependency initialization and create/delete/expand orchestration; AgenticSpace API calls. |
 | `pkg/nas/agenticfs_options.go` | Request validation, CNFS resolution, typed `agenticfsVolumeArgs`, and CSI volume construction. |
-| `pkg/nas/agenticfs_quota.go` | Capacity arithmetic and expansion policy; build quota requests without mutating cloud responses. |
+| `pkg/nas/agenticfs_quota.go` | Capacity arithmetic and quota validation. |
 | `pkg/nas/agenticfs_accesspoint.go` | Discover/create accesspoints, verify listings, prepare deletion order, and poll state. |
 | `pkg/nas/agenticfs_errors.go` | OpenAPI error classification and provisioning-failure diagnostics. |
 
@@ -73,15 +73,14 @@ the PV. The parent filesystem is never deleted.
 
 ```text
 validate stored identifiers and requested size
-  → GetAgenticSpace
-  → prepareAgenticSpaceExpansion(snapshot)
-  → SetAgenticSpaceQuota
+  → SetAgenticSpaceQuota(SizeLimit)
 ```
 
-The quota policy helper performs no API calls and does not modify the read response.
-It rejects incomplete usage data and shrinking, preserves valid file-count limits,
-and warns about and omits unreadable or invalid limits.
-Same-size requests still issue SetAgenticSpaceQuota. Expansion carries no ClientToken.
+Expansion is a single call that sets the absolute size, so a retry or a same-size
+request is harmless and needs no ClientToken. FileCountLimit is omitted, which
+keeps the space's current limit. NAS also accepts a smaller SizeLimit; this
+happens only when a user recovers from a failed expansion by lowering the PVC
+request, and is applied as requested.
 
 ## Time and cancellation
 
@@ -108,8 +107,7 @@ Focused tests cover the individual components:
 
 - `agenticfs_options_test.go`: validation order, direct-ID precedence, immutable
   request snapshots, and independent volume attribute maps.
-- `agenticfs_quota_test.go`: quota request shape, unchanged cloud snapshots,
-  incomplete/unsafe input rejection, and capacity fuzz invariants.
+- `agenticfs_quota_test.go`: capacity fuzz invariants.
 - `agenticfs_accesspoint_test.go`: deterministic polling, cancellation, timer
   cleanup, completion-versus-timeout ordering, and stable deletion order.
 - `pkg/nas/cloud` and `pkg/cloud/wrap`: real vendored SDK wire contracts and error

@@ -150,18 +150,14 @@ func (c *agenticfsController) ControllerExpandVolume(ctx context.Context, req *c
 		return nil, err
 	}
 
-	space, err := c.nasClient.GetAgenticSpace(ctx, &sdk.GetAgenticSpaceRequest{
+	// Omitting FileCountLimit keeps the space's current limit. NAS also accepts a
+	// smaller SizeLimit, which external-resizer requests only when recovering from
+	// a failed expansion.
+	if _, err := c.nasClient.SetAgenticSpaceQuota(ctx, &sdk.SetAgenticSpaceQuotaRequest{
 		FileSystemId:   tea.String(filesystemID),
 		AgenticSpaceId: tea.String(agenticSpaceID),
-	})
-	if err != nil {
-		return nil, apiStatusError("nas:GetAgenticSpace", err)
-	}
-	quota, err := prepareAgenticSpaceExpansion(klog.FromContext(ctx), filesystemID, agenticSpaceID, sizeLimit, space)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := c.nasClient.SetAgenticSpaceQuota(ctx, quota); err != nil {
+		SizeLimit:      tea.Int64(sizeLimit),
+	}); err != nil {
 		return nil, apiStatusError("nas:SetAgenticSpaceQuota", err)
 	}
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: sizeLimit}, nil

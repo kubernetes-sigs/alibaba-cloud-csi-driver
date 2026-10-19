@@ -1939,23 +1939,36 @@ func getSpaceResp(sizeLimit, fileCountLimit, spaceUsage, fileCountUsage int64) *
 }
 
 func TestAgenticfsControllerExpandVolume(t *testing.T) {
-	fake := newFakeNasClientV2()
-	fake.getAgenticSpaceResp = getSpaceResp(20*GiB, 500000, 1*GiB, 100)
-	ctrl := newAgenticfsCtrl(t, fake)
+	tests := []struct {
+		name          string
+		requiredBytes int64
+		want          int64
+	}{
+		{"grow", 30 * GiB, 30 * GiB},
+		{"roundedUpToGiB", 30*GiB + 1, 31 * GiB},
+		// external-resizer re-issues an expansion that already succeeded.
+		{"sameSize", 20 * GiB, 20 * GiB},
+		// Requested only when recovering from a failed expansion; NAS accepts it.
+		{"shrink", 15 * GiB, 15 * GiB},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFakeNasClientV2()
+			ctrl := newAgenticfsCtrl(t, fake)
 
-	resp, err := ctrl.ControllerExpandVolume(context.Background(), agenticfsExpandReq(30*GiB), agenticfsExpandPV())
-	require.NoError(t, err)
-	assert.Equal(t, int64(30*GiB), resp.CapacityBytes)
+			resp, err := ctrl.ControllerExpandVolume(context.Background(), agenticfsExpandReq(tt.requiredBytes), agenticfsExpandPV())
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, resp.CapacityBytes)
 
-	require.Len(t, fake.setQuotaReqs, 1)
-	q := fake.setQuotaReqs[0]
-	// Flat fields (not a nested Quota), not SetDirQuota.
-	assert.Equal(t, int64(30*GiB), tea.Int64Value(q.SizeLimit))
-	// Passed through unchanged instead of being silently rewritten to the default.
-	assert.Equal(t, int64(500000), tea.Int64Value(q.FileCountLimit))
-	assert.Equal(t, testAgenticFsFilesystemID, tea.StringValue(q.FileSystemId))
-	assert.Equal(t, testAgenticFsAgenticSpaceID, tea.StringValue(q.AgenticSpaceId))
-	assert.Equal(t, []string{"GetAgenticSpace", "SetAgenticSpaceQuota"}, fake.callOrder)
+			// FileCountLimit is omitted so the space keeps its current limit.
+			assert.Equal(t, []*sdk.SetAgenticSpaceQuotaRequest{{
+				FileSystemId:   tea.String(testAgenticFsFilesystemID),
+				AgenticSpaceId: tea.String(testAgenticFsAgenticSpaceID),
+				SizeLimit:      tea.Int64(tt.want),
+			}}, fake.setQuotaReqs)
+			assert.Equal(t, []string{"SetAgenticSpaceQuota"}, fake.callOrder)
+		})
+	}
 }
 
 func TestAgenticfsControllerExpandVolumeMissingAttributes(t *testing.T) {
@@ -1978,235 +1991,27 @@ func TestAgenticfsControllerExpandVolumeMissingAttributes(t *testing.T) {
 	}
 }
 
-// SetAgenticSpaceQuota overwrites the quota, so a missing size limit or usage is refused rather than guessed.
-func TestAgenticfsControllerExpandVolumeIncompleteQuota(t *testing.T) {
-	tests := []struct {
-		name string
-		resp *sdk.GetAgenticSpaceResponse
-	}{
-		{"nilResponse", nil},
-		{"nilBody", &sdk.GetAgenticSpaceResponse{}},
-		{"nilAgenticspace", &sdk.GetAgenticSpaceResponse{Body: &sdk.GetAgenticSpaceResponseBody{}}},
-		{"nilQuota", &sdk.GetAgenticSpaceResponse{Body: &sdk.GetAgenticSpaceResponseBody{
-			AgenticSpace: &sdk.GetAgenticSpaceResponseBodyAgenticSpace{},
-		}}},
-		// Trips the nil-usage guard before reaching the omit-the-unreadable-file-count-limit branch.
-		{"nilUsages", &sdk.GetAgenticSpaceResponse{Body: &sdk.GetAgenticSpaceResponseBody{
-			AgenticSpace: &sdk.GetAgenticSpaceResponseBodyAgenticSpace{
-				Quota: &sdk.GetAgenticSpaceResponseBodyAgenticSpaceQuota{SizeLimit: tea.Int64(20 * GiB)},
-			},
-		}}},
-		{"nilSizeLimit", &sdk.GetAgenticSpaceResponse{Body: &sdk.GetAgenticSpaceResponseBody{
-			AgenticSpace: &sdk.GetAgenticSpaceResponseBodyAgenticSpace{
-				Quota: &sdk.GetAgenticSpaceResponseBodyAgenticSpaceQuota{FileCountLimit: tea.Int64(500000)},
-			},
-		}}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fake := newFakeNasClientV2()
-			fake.getAgenticSpaceResp = tt.resp
-			ctrl := newAgenticfsCtrl(t, fake)
-			_, err := ctrl.ControllerExpandVolume(context.Background(), agenticfsExpandReq(30*GiB), agenticfsExpandPV())
-			require.Error(t, err)
-			assert.Equal(t, codes.Internal, status.Code(err))
-			assert.Contains(t, err.Error(), "refusing to guess")
-			assert.Empty(t, fake.setQuotaReqs)
-		})
-	}
-}
-
-func TestAgenticfsControllerExpandVolumeGetError(t *testing.T) {
-	tests := []struct {
-		name     string
-		err      error
-		wantCode codes.Code
-	}{
-		{"transient", errors.New("boom"), codes.Internal},
-		{"permanent", aliErr("InvalidAgenticSpaceId.NotFound"), codes.InvalidArgument},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fake := newFakeNasClientV2()
-			fake.getAgenticSpaceErr = tt.err
-			ctrl := newAgenticfsCtrl(t, fake)
-			_, err := ctrl.ControllerExpandVolume(context.Background(), agenticfsExpandReq(30*GiB), agenticfsExpandPV())
-			require.Error(t, err)
-			assert.Equal(t, tt.wantCode, status.Code(err))
-			assert.Empty(t, fake.setQuotaReqs)
-		})
-	}
-}
-
-func TestAgenticfsControllerExpandVolumeProtections(t *testing.T) {
+func TestAgenticfsControllerExpandVolumeInvalidCapacity(t *testing.T) {
 	tests := []struct {
 		name          string
-		space         *sdk.GetAgenticSpaceResponse
 		requiredBytes int64
 		limitBytes    int64
 		wantCode      codes.Code
 	}{
-		{
-			name:          "below10GibMinimum",
-			space:         getSpaceResp(20*GiB, 500000, 0, 0),
-			requiredBytes: 5 * GiB,
-			wantCode:      codes.InvalidArgument,
-		},
-		{
-			name:          "shrinkIsRefused",
-			space:         getSpaceResp(30*GiB, 500000, 0, 0),
-			requiredBytes: 20 * GiB,
-			wantCode:      codes.OutOfRange,
-		},
-		{
-			name:          "belowSpaceUsageIsRefused",
-			space:         getSpaceResp(20*GiB, 500000, 25*GiB, 0),
-			requiredBytes: 20 * GiB,
-			wantCode:      codes.OutOfRange,
-		},
-		{
-			name:          "roundingOverLimitBytesIsRefused",
-			space:         getSpaceResp(20*GiB, 500000, 0, 0),
-			requiredBytes: 30*GiB + 1,
-			limitBytes:    30 * GiB,
-			wantCode:      codes.OutOfRange,
-		},
-		{
-			name:          "noRequestedCapacity",
-			space:         getSpaceResp(20*GiB, 500000, 0, 0),
-			requiredBytes: 0,
-			wantCode:      codes.InvalidArgument,
-		},
+		{"below10GibMinimum", 5 * GiB, 0, codes.InvalidArgument},
+		{"roundingOverLimitBytes", 30*GiB + 1, 30 * GiB, codes.OutOfRange},
+		{"noRequestedCapacity", 0, 0, codes.InvalidArgument},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := newFakeNasClientV2()
-			fake.getAgenticSpaceResp = tt.space
 			ctrl := newAgenticfsCtrl(t, fake)
 			req := agenticfsExpandReq(tt.requiredBytes)
-			if tt.limitBytes > 0 {
-				req.CapacityRange.LimitBytes = tt.limitBytes
-			}
+			req.CapacityRange.LimitBytes = tt.limitBytes
 			_, err := ctrl.ControllerExpandVolume(context.Background(), req, agenticfsExpandPV())
 			require.Error(t, err)
 			assert.Equal(t, tt.wantCode, status.Code(err))
-			assert.Empty(t, fake.setQuotaReqs)
-		})
-	}
-}
-
-func TestAgenticfsControllerExpandVolumeSameSizeIsAccepted(t *testing.T) {
-	// external-resizer re-issues an expansion that already succeeded; a no-op grow must not read as a shrink.
-	fake := newFakeNasClientV2()
-	fake.getAgenticSpaceResp = getSpaceResp(30*GiB, 500000, 0, 0)
-	ctrl := newAgenticfsCtrl(t, fake)
-
-	resp, err := ctrl.ControllerExpandVolume(context.Background(), agenticfsExpandReq(30*GiB), agenticfsExpandPV())
-	require.NoError(t, err)
-	assert.Equal(t, int64(30*GiB), resp.CapacityBytes)
-}
-
-// Expand only grows SizeLimit and passes FileCountLimit through, so an out-of-range read-back is not this
-// expansion's fault. CreateVolume keeps the strict validator, where the value IS the caller's.
-func TestAgenticfsControllerExpandVolumeFileCountLimitOutOfRangeIsOmitted(t *testing.T) {
-	fake := newFakeNasClientV2()
-	// Below the OpenAPI minimum yet non-nil and non-zero, so the unreadable-value branch does not omit it.
-	fake.getAgenticSpaceResp = getSpaceResp(20*GiB, 5000, 0, 0)
-	ctrl := newAgenticfsCtrl(t, fake)
-	logger, ctx := newLogCapture(t)
-
-	resp, err := ctrl.ControllerExpandVolume(ctx, agenticfsExpandReq(30*GiB), agenticfsExpandPV())
-	require.NoError(t, err, "An out-of-range read-back FileCountLimit must NOT block the size expansion")
-	assert.Equal(t, int64(30*GiB), resp.CapacityBytes)
-	require.Len(t, fake.setQuotaReqs, 1, "the expansion must still reach SetAgenticSpaceQuota")
-	assert.Equal(t, int64(30*GiB), tea.Int64Value(fake.setQuotaReqs[0].SizeLimit))
-	assert.Nil(t, fake.setQuotaReqs[0].FileCountLimit,
-		"The illegal read-back FileCountLimit is OMITTED, not forwarded to the OpenAPI")
-
-	logs := logText(logger)
-	require.NotEmpty(t, logs, "the capture is vacuous - ktesting buffered nothing")
-	assert.Contains(t, logs, "WARNING", "The downgrade must be visible to an operator")
-	assert.Contains(t, logs, "OMITTED", "The warning must say the field was omitted")
-}
-
-func TestAgenticfsControllerExpandVolumeFileCountLimitBelowUsageIsWarning(t *testing.T) {
-	fake := newFakeNasClientV2()
-	fake.getAgenticSpaceResp = getSpaceResp(20*GiB, 10000, 0, 20000)
-	ctrl := newAgenticfsCtrl(t, fake)
-
-	resp, err := ctrl.ControllerExpandVolume(context.Background(), agenticfsExpandReq(30*GiB), agenticfsExpandPV())
-	require.NoError(t, err)
-	assert.Equal(t, int64(30*GiB), resp.CapacityBytes)
-	require.Len(t, fake.setQuotaReqs, 1)
-	assert.Equal(t, int64(30*GiB), tea.Int64Value(fake.setQuotaReqs[0].SizeLimit))
-	assert.Equal(t, int64(10000), tea.Int64Value(fake.setQuotaReqs[0].FileCountLimit))
-}
-
-// FileCountLimit is not stored in the VolumeContext and the OpenAPI minimum is 10000, so a nil or 0 read-back
-// must be OMITTED rather than sent as 0.
-func TestAgenticfsControllerExpandVolumeOmitsUnreadableFileCountLimit(t *testing.T) {
-	tests := []struct {
-		name string
-		resp *sdk.GetAgenticSpaceResponse
-	}{
-		{"nilFileCountLimit", &sdk.GetAgenticSpaceResponse{Body: &sdk.GetAgenticSpaceResponseBody{
-			AgenticSpace: &sdk.GetAgenticSpaceResponseBodyAgenticSpace{
-				Quota:          &sdk.GetAgenticSpaceResponseBodyAgenticSpaceQuota{SizeLimit: tea.Int64(20 * GiB)},
-				SpaceUsage:     tea.Int64(0),
-				FileCountUsage: tea.Int64(0),
-			},
-		}}},
-		{"zeroFileCountLimit", getSpaceResp(20*GiB, 0, 0, 0)},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fake := newFakeNasClientV2()
-			fake.getAgenticSpaceResp = tt.resp
-			ctrl := newAgenticfsCtrl(t, fake)
-			resp, err := ctrl.ControllerExpandVolume(context.Background(), agenticfsExpandReq(30*GiB), agenticfsExpandPV())
-			require.NoError(t, err)
-			assert.Equal(t, int64(30*GiB), resp.CapacityBytes)
-			require.Len(t, fake.setQuotaReqs, 1)
-			assert.Nil(t, fake.setQuotaReqs[0].FileCountLimit, "An unreadable file count limit is omitted, never sent as 0")
-		})
-	}
-}
-
-// A nil usage would make the shrink/usage guards evaluate against 0 and let a bad write through.
-func TestAgenticfsControllerExpandVolumeMissingUsageIsRefused(t *testing.T) {
-	tests := []struct {
-		name string
-		resp *sdk.GetAgenticSpaceResponse
-	}{
-		{"nilSpaceUsage", &sdk.GetAgenticSpaceResponse{Body: &sdk.GetAgenticSpaceResponseBody{
-			AgenticSpace: &sdk.GetAgenticSpaceResponseBodyAgenticSpace{
-				Quota: &sdk.GetAgenticSpaceResponseBodyAgenticSpaceQuota{
-					SizeLimit:      tea.Int64(20 * GiB),
-					FileCountLimit: tea.Int64(500000),
-				},
-				FileCountUsage: tea.Int64(0),
-			},
-		}}},
-		{"nilFileCountUsage", &sdk.GetAgenticSpaceResponse{Body: &sdk.GetAgenticSpaceResponseBody{
-			AgenticSpace: &sdk.GetAgenticSpaceResponseBodyAgenticSpace{
-				Quota: &sdk.GetAgenticSpaceResponseBodyAgenticSpaceQuota{
-					SizeLimit:      tea.Int64(20 * GiB),
-					FileCountLimit: tea.Int64(500000),
-				},
-				SpaceUsage: tea.Int64(0),
-			},
-		}}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fake := newFakeNasClientV2()
-			fake.getAgenticSpaceResp = tt.resp
-			ctrl := newAgenticfsCtrl(t, fake)
-			_, err := ctrl.ControllerExpandVolume(context.Background(), agenticfsExpandReq(30*GiB), agenticfsExpandPV())
-			require.Error(t, err)
-			assert.Equal(t, codes.Internal, status.Code(err))
-			assert.Contains(t, err.Error(), "refusing to guess")
-			assert.Empty(t, fake.setQuotaReqs)
+			assert.Empty(t, fake.callOrder)
 		})
 	}
 }
@@ -2219,11 +2024,11 @@ func TestAgenticfsControllerExpandVolumeSetQuotaError(t *testing.T) {
 	}{
 		{"transient", errors.New("boom"), codes.Internal},
 		{"permanent", aliErr("InvalidParameter.SizeLimit"), codes.InvalidArgument},
+		{"spaceNotFound", aliErr("InvalidAgenticSpace.NotFound"), codes.InvalidArgument},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := newFakeNasClientV2()
-			fake.getAgenticSpaceResp = getSpaceResp(20*GiB, 500000, 0, 0)
 			fake.setQuotaErr = tt.err
 			ctrl := newAgenticfsCtrl(t, fake)
 			_, err := ctrl.ControllerExpandVolume(context.Background(), agenticfsExpandReq(30*GiB), agenticfsExpandPV())
