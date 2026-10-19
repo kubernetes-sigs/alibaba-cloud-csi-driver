@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
@@ -98,67 +99,28 @@ type credentialResponse struct {
 // process, breaking unrelated OSS connections. Skipping verification keeps the
 // two concerns apart, matching how ossfs treats an empty agent_identity_ca_file.
 func buildHTTPClient(opts Opts) (*http.Client, error) {
-	tlsConfig := &tls.Config{}
-
 	if opts.SubstrateMode {
-		// Substrate mode: authenticate this Pod with its projected client certificate.
-		var err error
-		tlsConfig, err = substrateTLSConfig(agentidentity.PodCertBundleFile, agentidentity.PodCertTrustBundleFile)
+		return buildSubstrateHTTPClient()
+	}
+	tlsConfig := &tls.Config{}
+	if opts.CAFile != "" {
+		caCert, err := os.ReadFile(opts.CAFile)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("read CA file %s: %w", opts.CAFile, err)
 		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(caCert) {
+			return nil, fmt.Errorf("parse CA file %s: no valid certificate found", opts.CAFile)
+		}
+		tlsConfig.RootCAs = pool
 	} else {
-		// ACS sandbox mode: retain its configured-CA and missing-CA behavior.
-		if opts.CAFile != "" {
-			caCert, err := os.ReadFile(opts.CAFile)
-			if err != nil {
-				return nil, fmt.Errorf("read CA file %s: %w", opts.CAFile, err)
-			}
-			pool := x509.NewCertPool()
-			if !pool.AppendCertsFromPEM(caCert) {
-				return nil, fmt.Errorf("parse CA file %s: no valid certificate found", opts.CAFile)
-			}
-			tlsConfig.RootCAs = pool
-		} else {
-			klog.Warningf("no agent identity CA file configured, skipping TLS verification for the AgentIdentity endpoint")
-			tlsConfig.InsecureSkipVerify = true
-		}
+		klog.Warningf("no agent identity CA file configured, skipping TLS verification for the AgentIdentity endpoint")
+		tlsConfig.InsecureSkipVerify = true
 	}
 	return &http.Client{
 		Timeout:   httpTimeout,
 		Transport: &http.Transport{TLSClientConfig: tlsConfig},
 	}, nil
-}
-
-// substrateTLSConfig configures both PodCertificate client authentication and
-// the independent trust bundle used to verify the credential-provider server.
-func substrateTLSConfig(certFile, trustFile string) (*tls.Config, error) {
-	// Validate the projected client identity before accepting the mount setup.
-	_, err := tls.LoadX509KeyPair(certFile, certFile)
-	if err != nil {
-		return nil, fmt.Errorf("load PodCertificate %s: %w", certFile, err)
-	}
-	config := &tls.Config{
-		// Reload the PodCertificate on each new TLS handshake to pick up rotation.
-		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
-			cert, err := tls.LoadX509KeyPair(certFile, certFile)
-			if err != nil {
-				return nil, fmt.Errorf("reload PodCertificate %s: %w", certFile, err)
-			}
-			return &cert, nil
-		},
-	}
-	// The server trust root need not be the issuer of the client PodCertificate.
-	caPEM, err := os.ReadFile(trustFile)
-	if err != nil {
-		return nil, fmt.Errorf("read PodCertificate trust bundle %s: %w", trustFile, err)
-	}
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(caPEM) {
-		return nil, fmt.Errorf("parse PodCertificate trust bundle %s: no valid certificate found", trustFile)
-	}
-	config.RootCAs = pool
-	return config, nil
 }
 
 // readTokenFile reads the ACS sandbox identity document, not the Pod SA token.
@@ -189,10 +151,13 @@ func FetchSTSToken(ctx context.Context, opts Opts) (*STSToken, error) {
 }
 
 func exchangeSTSToken(ctx context.Context, client *http.Client, opts Opts) (*STSToken, error) {
+	if opts.SubstrateMode && !strings.HasPrefix(opts.Endpoint, "https://") {
+		return nil, fmt.Errorf("Substrate mode requires HTTPS endpoint, got %q", opts.Endpoint)
+	}
+
 	var bearerToken, resourceID string
 
 	if opts.SubstrateMode {
-		// Substrate mode: the Pod SA token is the bearer and the actor UID is the resource.
 		saToken, err := os.ReadFile(agentidentity.SATokenFile)
 		if err != nil {
 			return nil, fmt.Errorf("read SA token file %s: %w", agentidentity.SATokenFile, err)
