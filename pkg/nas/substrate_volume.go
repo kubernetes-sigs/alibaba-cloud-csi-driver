@@ -13,6 +13,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Substrate volume handle format: "substrate-agenticfs:v1:<filesystemID>:<spaceID>".
+// Handles issued under this format are a persistent contract: the parser must
+// remain for DeleteVolume/ExpandVolume of existing volumes even after runtime
+// Substrate support is removed. New-volume selection and authentication
+// adaptation can be retired independently.
 const substrateAgenticVolumePrefix = "substrate-agenticfs:"
 
 func substrateAgenticVolumeID(filesystemID, spaceID string) string {

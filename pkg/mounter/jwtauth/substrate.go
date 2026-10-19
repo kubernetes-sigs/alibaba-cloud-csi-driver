@@ -18,8 +18,8 @@ func buildSubstrateHTTPClient() (*http.Client, error) {
 		return nil, err
 	}
 	return &http.Client{
-		Timeout: httpTimeout,
-		Transport: &http.Transport{TLSClientConfig: tlsConfig},
+		Timeout:       httpTimeout,
+		Transport:     &http.Transport{TLSClientConfig: tlsConfig},
 		CheckRedirect: rejectRedirect,
 	}, nil
 }

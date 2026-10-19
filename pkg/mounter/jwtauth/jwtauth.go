@@ -152,7 +152,7 @@ func FetchSTSToken(ctx context.Context, opts Opts) (*STSToken, error) {
 
 func exchangeSTSToken(ctx context.Context, client *http.Client, opts Opts) (*STSToken, error) {
 	if opts.SubstrateMode && !strings.HasPrefix(opts.Endpoint, "https://") {
-		return nil, fmt.Errorf("Substrate mode requires HTTPS endpoint, got %q", opts.Endpoint)
+		return nil, fmt.Errorf("substrate mode requires HTTPS endpoint, got %q", opts.Endpoint)
 	}
 
 	var bearerToken, resourceID string
