@@ -437,9 +437,17 @@ func precheckAuthConfig(opts *fuseOptions) error {
 			return fmt.Errorf("credentialRefreshHookKey names a key in entrypointConfig, which is not set; a hook shipped in the image needs neither")
 		}
 		// A relative path would resolve against a working directory neither the
-		// volume author nor the entrypoint can see.
-		if opts.CredentialDir != "" && !filepath.IsAbs(opts.CredentialDir) {
-			return fmt.Errorf("credentialDir %q must be an absolute path", opts.CredentialDir)
+		// volume author nor the entrypoint can see. An absolute path that escapes
+		// the credential root — directly or through ".." — would let a volume
+		// author write STS credential files to an arbitrary location inside the
+		// privileged fuse container, which has bidirectional mount propagation.
+		if opts.CredentialDir != "" {
+			if !filepath.IsAbs(opts.CredentialDir) {
+				return fmt.Errorf("credentialDir %q must be an absolute path", opts.CredentialDir)
+			}
+			if err := interceptors.ValidateCredentialDir(opts.CredentialDir); err != nil {
+				return err
+			}
 		}
 		return nil
 	default:

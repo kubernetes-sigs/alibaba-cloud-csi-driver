@@ -103,13 +103,24 @@ supplies both.
 Two are optional, and only about where your scripts and the credential live:
 
 > `credentialDir`: pins the absolute path the credential files are written to.
-> Unset, each mount gets its own directory under `/run/customfuse-credentials`
-> and your entrypoint reads the path from `$credentialDir`, which is the normal
-> case. Set it only when your client's own configuration hardcodes where it reads
-> a credential from, and so cannot be told at mount time. That path is a symlink
+> The path **must** be under `/run/customfuse-credentials/`; any path outside
+> it is rejected. Unset, each mount gets its own directory there and your
+> entrypoint reads the path from `$credentialDir`, which is the normal case.
+> Set it only when your client's own configuration hardcodes where it reads a
+> credential from, and so cannot be told at mount time. That path is a symlink
 > to the directory actually holding the files, so it cannot be one your client
 > already created: rotating onto an existing directory fails the mount rather
 > than overwriting it.
+>
+> In a **fuse pod** the driver mounts a Memory-backed `emptyDir` at
+> `/run/customfuse-credentials` so credentials live on an isolated tmpfs,
+> never touch the host filesystem, and are reclaimed when the pod terminates.
+> In a **sandbox sidecar** the external controller builds the container spec,
+> so the driver cannot add this mount itself. Sandbox operators are advised to
+> mount an `emptyDir{medium: Memory}` at `/run/customfuse-credentials` in
+> their sidecar spec. The mount is optional — path validation and symlink
+> checks enforce confinement without it — but it adds defense-in-depth by
+> physically isolating the credential filesystem from the host.
 >
 > `credentialRefreshHookKey`: names an `entrypointConfig` key projected as the
 > refresh hook into a fuse pod. A sandbox has no fuse pod, so there the hook is

@@ -185,7 +185,26 @@ func (f *CustomFuse) buildPodSpec(config fpm.FuseContainerConfig, fuseType strin
 		},
 	}
 
-	spec.Volumes = []corev1.Volume{targetDirVolume, metricsDirVolume}
+	// Credential files are confined to /run/customfuse-credentials by path
+	// validation in the interceptor. Mounting a Memory-backed emptyDir there
+	// gives fuse pods an isolated tmpfs: credentials never touch the host
+	// filesystem and are reclaimed when the pod terminates.
+	//
+	// In the sandbox sidecar scenario an external controller builds the
+	// container spec, so this driver cannot add the mount itself. The path
+	// validation and symlink checks still enforce confinement without it;
+	// the tmpfs is defense-in-depth, not a prerequisite. Sandbox operators
+	// are advised to mount an emptyDir{medium:Memory} at the same path.
+	credentialDirVolume := corev1.Volume{
+		Name: "credential-dir",
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{
+				Medium: corev1.StorageMediumMemory,
+			},
+		},
+	}
+
+	spec.Volumes = []corev1.Volume{targetDirVolume, metricsDirVolume, credentialDirVolume}
 
 	bidirectional := corev1.MountPropagationBidirectional
 	socketPath := mounterutils.GetMountProxySocketPath(c.VolumeId, mounterutils.CustomFuseAttachDir)
@@ -199,6 +218,10 @@ func (f *CustomFuse) buildPodSpec(config fpm.FuseContainerConfig, fuseType strin
 		{
 			Name:      metricsDirVolume.Name,
 			MountPath: metricsDirVolume.HostPath.Path,
+		},
+		{
+			Name:      credentialDirVolume.Name,
+			MountPath: "/run/customfuse-credentials",
 		},
 	}
 

@@ -35,20 +35,114 @@ import (
 // A hook failure means the files rotated but the client was not told, which is a
 // half-applied rotation the refresh loop has to hear about.
 func TestResolveCredentialDir(t *testing.T) {
-	t.Run("pinned directory is used verbatim", func(t *testing.T) {
-		assert.Equal(t, "/credentials", resolveCredentialDir("/credentials", "/mnt/target"))
+	t.Run("pinned directory under credential root is accepted", func(t *testing.T) {
+		dir, err := resolveCredentialDir("/run/customfuse-credentials/my-client/sts", "/mnt/target")
+		require.NoError(t, err)
+		assert.Equal(t, "/run/customfuse-credentials/my-client/sts", dir)
 	})
 
 	t.Run("default is per-mount", func(t *testing.T) {
-		a := resolveCredentialDir("", "/mnt/volume-a")
-		b := resolveCredentialDir("", "/mnt/volume-b")
+		a, err := resolveCredentialDir("", "/mnt/volume-a")
+		require.NoError(t, err)
+		b, err := resolveCredentialDir("", "/mnt/volume-b")
+		require.NoError(t, err)
 		assert.NotEqual(t, a, b, "two mounts must not share a credential directory")
 		assert.Contains(t, a, customFuseCredentialBaseDir)
 	})
 
 	t.Run("default is stable for one mount", func(t *testing.T) {
-		assert.Equal(t, resolveCredentialDir("", "/mnt/t"), resolveCredentialDir("", "/mnt/t"))
+		a, err := resolveCredentialDir("", "/mnt/t")
+		require.NoError(t, err)
+		b, err := resolveCredentialDir("", "/mnt/t")
+		require.NoError(t, err)
+		assert.Equal(t, a, b)
 	})
+
+	t.Run("path outside credential root is rejected", func(t *testing.T) {
+		_, err := resolveCredentialDir("/etc/creds", "/mnt/target")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be under")
+	})
+
+	t.Run("dot-dot traversal out of credential root is rejected", func(t *testing.T) {
+		_, err := resolveCredentialDir("/run/customfuse-credentials/../../../etc/shadow", "/mnt/target")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be under")
+	})
+
+	t.Run("credential root itself without child is rejected", func(t *testing.T) {
+		_, err := resolveCredentialDir("/run/customfuse-credentials", "/mnt/target")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be under")
+	})
+
+	t.Run("sibling prefix is rejected", func(t *testing.T) {
+		_, err := resolveCredentialDir("/run/customfuse-credentialsX/sts", "/mnt/target")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be under")
+	})
+}
+
+func TestValidateNoSymlinksInPath(t *testing.T) {
+	t.Run("clean path passes", func(t *testing.T) {
+		root := t.TempDir()
+		sub := filepath.Join(root, "a", "b")
+		require.NoError(t, os.MkdirAll(sub, 0o755))
+		target := filepath.Join(sub, "sts")
+		assert.NoError(t, validateNoSymlinksInPath(target, root))
+	})
+
+	t.Run("symlink parent is rejected", func(t *testing.T) {
+		root := t.TempDir()
+		real := filepath.Join(root, "real")
+		require.NoError(t, os.MkdirAll(real, 0o755))
+		link := filepath.Join(root, "link")
+		require.NoError(t, os.Symlink(real, link))
+		target := filepath.Join(link, "sts")
+		err := validateNoSymlinksInPath(target, root)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "symlink")
+	})
+
+	t.Run("non-existent intermediate is allowed", func(t *testing.T) {
+		root := t.TempDir()
+		target := filepath.Join(root, "not-yet", "created", "sts")
+		assert.NoError(t, validateNoSymlinksInPath(target, root))
+	})
+
+	t.Run("symlinked allowedRoot is rejected", func(t *testing.T) {
+		base := t.TempDir()
+		real := filepath.Join(base, "real-creds")
+		require.NoError(t, os.MkdirAll(real, 0o755))
+		link := filepath.Join(base, "symlinked-root")
+		require.NoError(t, os.Symlink(real, link))
+		target := filepath.Join(link, "vol", "sts")
+		err := validateNoSymlinksInPath(target, link)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "symlink")
+	})
+}
+
+func TestFileCredentialSinkRejectsPreExistingSymlink(t *testing.T) {
+	root := t.TempDir()
+	overrideCredentialBaseDir(t, root)
+
+	malicious := filepath.Join(root, "escape")
+	require.NoError(t, os.MkdirAll(malicious, 0o755))
+
+	credDir := filepath.Join(root, "vol", "sts")
+	require.NoError(t, os.MkdirAll(filepath.Dir(credDir), 0o755))
+	require.NoError(t, os.Symlink(malicious, credDir))
+
+	sink := newFileCredentialSink(credDir, "", nil)
+	err := sink.Apply(&jwtauth.STSToken{
+		AccessKeyID:     "ak",
+		AccessKeySecret: "sk",
+		SecurityToken:   "tok",
+		Expiration:      "2099-01-01T00:00:00Z",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "pre-existing symlink")
 }
 
 func TestFirstExecutableHook(t *testing.T) {
@@ -191,8 +285,16 @@ func TestCustomFuseJWTAuthInterceptorConfigErrorSkipsMount(t *testing.T) {
 	assert.False(t, called, "mount must not run without a credential")
 }
 
+func overrideCredentialBaseDir(t *testing.T, dir string) {
+	t.Helper()
+	original := customFuseCredentialBaseDir
+	customFuseCredentialBaseDir = dir
+	t.Cleanup(func() { customFuseCredentialBaseDir = original })
+}
+
 func TestCustomFuseJWTAuthInterceptorProvisionsBeforeMount(t *testing.T) {
 	tmpDir := t.TempDir()
+	overrideCredentialBaseDir(t, tmpDir)
 	tokenPath := writeTokenFile(t, tmpDir, "sandbox-token", "client-1")
 	srv := newSTSServer(t, "ak-provisioned", "sk-provisioned", "tok-provisioned", time.Now().Add(time.Hour))
 	credDir := filepath.Join(tmpDir, "credentials", "sts")
@@ -246,6 +348,7 @@ func TestCustomFuseJWTAuthInterceptorProvisionsBeforeMount(t *testing.T) {
 
 func TestCustomFuseJWTAuthInterceptorMountFailureStopsRefresher(t *testing.T) {
 	tmpDir := t.TempDir()
+	overrideCredentialBaseDir(t, tmpDir)
 	tokenPath := writeTokenFile(t, tmpDir, "sandbox-token", "client-1")
 	srv := newSTSServer(t, "ak", "sk", "tok", time.Now().Add(time.Hour))
 	credDir := filepath.Join(tmpDir, "credentials", "sts")
@@ -277,6 +380,7 @@ func TestCustomFuseJWTAuthInterceptorMountFailureStopsRefresher(t *testing.T) {
 // would fail later and less clearly.
 func TestCustomFuseJWTAuthInterceptorExchangeFailureSkipsMount(t *testing.T) {
 	tmpDir := t.TempDir()
+	overrideCredentialBaseDir(t, tmpDir)
 	tokenPath := writeTokenFile(t, tmpDir, "sandbox-token", "client-1")
 
 	called := false

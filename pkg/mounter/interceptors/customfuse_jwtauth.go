@@ -34,12 +34,13 @@ const (
 	// and what it contains, never which executable this runs.
 	configMapRefreshHook = "/etc/fuse-config/refresh-hook.sh"
 	imageRefreshHook     = "/refresh-hook.sh"
-
-	// customFuseCredentialBaseDir is the parent of the default, per-mount
-	// credential directory. It lives under /run so the credential never
-	// survives a reboot of the node.
-	customFuseCredentialBaseDir = "/run/customfuse-credentials"
 )
+
+// customFuseCredentialBaseDir is the parent of the default, per-mount
+// credential directory. It lives under /run so the credential never
+// survives a reboot of the node. It is a var so tests can redirect
+// credential writes into a temporary directory.
+var customFuseCredentialBaseDir = "/run/customfuse-credentials"
 
 // CustomFuseJWTAuthInterceptor provisions scoped STS credentials for customfuse
 // mounts whose authType selects the agent-identity flow.
@@ -72,7 +73,10 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 		return fmt.Errorf("jwtauth config error: %w", err)
 	}
 
-	credDir := resolveCredentialDir(idx[OptCredentialDir], op.Target)
+	credDir, err := resolveCredentialDir(idx[OptCredentialDir], op.Target)
+	if err != nil {
+		return fmt.Errorf("credentialDir rejected: %w", err)
+	}
 
 	// Strip the infrastructure options before the entrypoint sees them: they
 	// configure this exchange and would otherwise reach the client as
@@ -123,15 +127,31 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 	return nil
 }
 
+// ValidateCredentialDir checks that a pinned credential directory, after
+// normalization, stays inside customFuseCredentialBaseDir. Called from
+// precheckAuthConfig (controller side, fast-fail) and again from
+// resolveCredentialDir (node side, defense-in-depth).
+func ValidateCredentialDir(dir string) error {
+	cleaned := filepath.Clean(dir)
+	if !strings.HasPrefix(cleaned, customFuseCredentialBaseDir+"/") {
+		return fmt.Errorf("credentialDir %q must be under %s", dir, customFuseCredentialBaseDir)
+	}
+	return nil
+}
+
 // resolveCredentialDir decides where the credential files go. A volume-pinned
-// directory is used as given, for clients configured with an absolute path;
+// directory is confined to customFuseCredentialBaseDir after filepath.Clean;
 // otherwise each mount gets its own directory keyed by the mount path, so two
 // volumes on one node cannot read each other's credential.
-func resolveCredentialDir(pinned, target string) string {
-	if pinned != "" {
-		return pinned
+func resolveCredentialDir(pinned, target string) (string, error) {
+	if pinned == "" {
+		return filepath.Join(customFuseCredentialBaseDir, mounterutils.ComputeMountPathHash(target), "sts"), nil
 	}
-	return filepath.Join(customFuseCredentialBaseDir, mounterutils.ComputeMountPathHash(target), "sts")
+	cleaned := filepath.Clean(pinned)
+	if err := ValidateCredentialDir(cleaned); err != nil {
+		return "", err
+	}
+	return cleaned, nil
 }
 
 func resolveRefreshHook() string {

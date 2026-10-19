@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
@@ -107,6 +108,24 @@ func (s *fileCredentialSink) Apply(cred *jwtauth.STSToken) error {
 		return fmt.Errorf("nil credential")
 	}
 
+	// Verify that no path component between the credential root and the target
+	// directory is a symlink. A symlink injected after the controller-side
+	// validation would redirect the credential write to an attacker-chosen
+	// location (TOCTOU). Lstat on each component catches this at write time.
+	if err := validateNoSymlinksInPath(s.dir, customFuseCredentialBaseDir); err != nil {
+		return fmt.Errorf("credential path rejected: %w", err)
+	}
+
+	// Reject a pre-existing symlink at dir itself. rotateTokenFiles creates
+	// and manages its own symlink there; a symlink that already exists before
+	// the first delivery was not placed by this driver and may point outside
+	// the credential root.
+	if !s.delivered {
+		if fi, err := os.Lstat(s.dir); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("credential path %s is a pre-existing symlink; refusing to write through it", s.dir)
+		}
+	}
+
 	// rotateTokenFiles writes the data directory next to the symlink, so the
 	// parent has to exist before the first rotation. The swap is a symlink
 	// rename, atomic per path lookup rather than per credential: a client
@@ -183,4 +202,39 @@ func credentialSecrets(cred *jwtauth.STSToken) map[string]string {
 		mounterutils.KeySecurityToken:   cred.SecurityToken,
 		mounterutils.KeyExpiration:      cred.Expiration,
 	}
+}
+
+// validateNoSymlinksInPath checks that no component from the filesystem root
+// through allowedRoot and down to dir's parent is a symlink. dir itself is
+// excluded because rotateTokenFiles manages it as a symlink. The walk starts
+// at "/" so that allowedRoot itself and its ancestors are also covered.
+func validateNoSymlinksInPath(dir, allowedRoot string) error {
+	cleaned := filepath.Clean(dir)
+	parent := filepath.Dir(cleaned)
+
+	// Walk from "/" to parent, covering allowedRoot and everything below it.
+	rel, err := filepath.Rel("/", parent)
+	if err != nil {
+		return fmt.Errorf("cannot compute relative path from / to %s: %w", parent, err)
+	}
+
+	current := "/"
+	for _, component := range splitPathComponents(rel) {
+		current = filepath.Join(current, component)
+		fi, err := os.Lstat(current)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("lstat %s: %w", current, err)
+		}
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink at %s in credential path; refusing to write credentials through a symlinked parent", current)
+		}
+	}
+	return nil
+}
+
+func splitPathComponents(rel string) []string {
+	return strings.Split(rel, string(filepath.Separator))
 }
