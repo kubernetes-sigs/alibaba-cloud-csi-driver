@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -92,6 +93,70 @@ func newMockControllerServer() *controllerServer {
 
 func newMockController(*internal.ControllerConfig) (internal.Controller, error) {
 	return internal.MockController{}, nil
+}
+
+func TestCreateVolumeForwardsAuthAndSubstrateMode(t *testing.T) {
+	cs := newMockControllerServer()
+	for _, tc := range []struct {
+		name       string
+		params     map[string]string
+		wantKeys   map[string]string
+		wantAbsent []string
+	}{
+		{
+			name: "agent-identity with substrate-mode",
+			params: map[string]string{
+				"volumeAs":                volumeAsKey,
+				"authType":                "agent-identity",
+				"sandboxCredProviderName": "nas-rw",
+				"mountProtocol":           "alinas",
+				common.SubstrateModeKey:   "true",
+				"unrelated":               "should-not-appear",
+			},
+			wantKeys: map[string]string{
+				"authType":                "agent-identity",
+				"sandboxCredProviderName": "nas-rw",
+				"mountProtocol":           "alinas",
+				common.SubstrateModeKey:   "true",
+			},
+			wantAbsent: []string{"unrelated"},
+		},
+		{
+			name: "no auth parameters",
+			params: map[string]string{
+				"volumeAs": volumeAsKey,
+			},
+			wantKeys:   map[string]string{},
+			wantAbsent: []string{"authType", "sandboxCredProviderName", "mountProtocol", common.SubstrateModeKey},
+		},
+		{
+			name: "auth without substrate-mode",
+			params: map[string]string{
+				"volumeAs": volumeAsKey,
+				"authType": "agent-identity",
+			},
+			wantKeys:   map[string]string{"authType": "agent-identity"},
+			wantAbsent: []string{common.SubstrateModeKey},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &csi.CreateVolumeRequest{
+				Name:       "test-vol-" + tc.name,
+				Parameters: tc.params,
+			}
+			req.Parameters["volumeAs"] = internal.MockVolumeAs
+			resp, err := cs.CreateVolume(context.Background(), req)
+			require.NoError(t, err)
+			vc := resp.Volume.VolumeContext
+			for k, v := range tc.wantKeys {
+				assert.Equal(t, v, vc[k], "key %s", k)
+			}
+			for _, k := range tc.wantAbsent {
+				_, present := vc[k]
+				assert.False(t, present, "key %s should be absent", k)
+			}
+		})
+	}
 }
 
 func TestControllerServer_CreateVolumeError(t *testing.T) {
