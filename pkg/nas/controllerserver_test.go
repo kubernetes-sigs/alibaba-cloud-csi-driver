@@ -130,13 +130,13 @@ func TestCreateVolumeForwardsAuthAndSubstrateMode(t *testing.T) {
 			wantAbsent: []string{"authType", "sandboxCredProviderName", "mountProtocol", common.SubstrateModeKey},
 		},
 		{
-			name: "auth without substrate-mode",
+			name: "auth without substrate-mode is not forwarded",
 			params: map[string]string{
 				"volumeAs": volumeAsKey,
 				"authType": "agent-identity",
 			},
-			wantKeys:   map[string]string{"authType": "agent-identity"},
-			wantAbsent: []string{common.SubstrateModeKey},
+			wantKeys:   map[string]string{},
+			wantAbsent: []string{"authType", common.SubstrateModeKey},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -115,16 +115,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	maps.Copy(resp.Volume.VolumeContext, rrsaAttrs)
 
-	// Forward authentication parameters from StorageClass to VolumeContext so
-	// NodePublishVolume can route credentials without re-reading the SC.
-	// This is generic (useful without Substrate) and uses an explicit allowlist.
-	for _, key := range []string{"authType", "sandboxCredProviderName", "mountProtocol"} {
-		if v := parameters[key]; v != "" {
-			resp.Volume.VolumeContext[key] = v
-		}
-	}
 	if common.IsSubstrateVolumeContext(parameters) {
 		resp.Volume.VolumeContext[common.SubstrateModeKey] = "true"
+		for _, key := range []string{"authType", "sandboxCredProviderName", "mountProtocol"} {
+			if v := parameters[key]; v != "" {
+				resp.Volume.VolumeContext[key] = v
+			}
+		}
 	}
 
 	klog.V(2).InfoS("CreateVolume: succeeded", "response", resp)
