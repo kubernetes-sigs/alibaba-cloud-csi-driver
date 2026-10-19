@@ -134,13 +134,6 @@ type NodeServerWithValidator struct {
 	csi.NodeServer
 }
 
-// IsSubstrateVolumeContext returns true when the volume is managed by Substrate
-// (atelet) rather than kubelet. Substrate uses its own staging/target paths
-// outside /var/lib/kubelet, so path validation must be skipped.
-func IsSubstrateVolumeContext(ctx map[string]string) bool {
-	return ctx != nil && ctx[SubstrateModeKey] == "true"
-}
-
 func (s NodeServerWithValidator) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
