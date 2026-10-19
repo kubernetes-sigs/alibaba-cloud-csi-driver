@@ -76,16 +76,14 @@ type fileCredentialSink struct {
 	// tests can inject a fake runner.
 	runHook func(ctx context.Context, name string, env []string) ([]byte, error)
 
-	// delivered records that a credential has been written at least once, which
-	// is what separates the initial delivery from a rotation. The hook tells a
-	// *running* client that its credential changed, and on the initial delivery
-	// there is no client yet — it is written so the entrypoint can read it as it
-	// starts. Running the hook then would at best do nothing, and at worst fail
-	// against a client that is not up, failing a mount that was fine.
-	//
-	// Apply is only ever called by one goroutine: Refresher.Start applies the
-	// initial credential synchronously and only then starts the refresh loop.
+	// delivered records that a credential has been written at least once.
+	// Deliver is only ever called by one goroutine: Refresher.Start delivers
+	// the initial credential synchronously and only then starts the refresh loop.
 	delivered bool
+
+	// notifyNeeded is set by Deliver when files were actually rotated (not
+	// initial, not unchanged). Notify checks and clears it.
+	notifyNeeded bool
 }
 
 var _ jwtauth.CredentialSink = &fileCredentialSink{}
@@ -103,35 +101,21 @@ func newFileCredentialSink(dir, hook string, env []string) *fileCredentialSink {
 	}
 }
 
-func (s *fileCredentialSink) Apply(cred *jwtauth.STSToken) error {
+func (s *fileCredentialSink) Deliver(cred *jwtauth.STSToken) error {
 	if cred == nil {
 		return fmt.Errorf("nil credential")
 	}
 
-	// Verify that no path component between the credential root and the target
-	// directory is a symlink. A symlink injected after the controller-side
-	// validation would redirect the credential write to an attacker-chosen
-	// location (TOCTOU). Lstat on each component catches this at write time.
 	if err := validateNoSymlinksInPath(s.dir, customFuseCredentialBaseDir); err != nil {
 		return fmt.Errorf("credential path rejected: %w", err)
 	}
 
-	// Reject a pre-existing symlink at dir itself. rotateTokenFiles creates
-	// and manages its own symlink there; a symlink that already exists before
-	// the first delivery was not placed by this driver and may point outside
-	// the credential root.
 	if !s.delivered {
 		if fi, err := os.Lstat(s.dir); err == nil && fi.Mode()&os.ModeSymlink != 0 {
 			return fmt.Errorf("credential path %s is a pre-existing symlink; refusing to write through it", s.dir)
 		}
 	}
 
-	// rotateTokenFiles writes the data directory next to the symlink, so the
-	// parent has to exist before the first rotation. The swap is a symlink
-	// rename, atomic per path lookup rather than per credential: a client
-	// reading the fields as separate lookups can in principle straddle it. A
-	// client is expected to verify a credential before relying on it, which it
-	// needs regardless for expiry and provider errors.
 	if err := os.MkdirAll(filepath.Dir(s.dir), 0o755); err != nil {
 		return fmt.Errorf("create credential parent directory: %w", err)
 	}
@@ -143,19 +127,23 @@ func (s *fileCredentialSink) Apply(cred *jwtauth.STSToken) error {
 
 	initial := !s.delivered
 	s.delivered = true
+	s.notifyNeeded = !initial && rotated
 
 	if initial {
 		klog.V(4).InfoS("delivered initial customfuse credential", "dir", s.dir, "expiration", cred.Expiration)
-		return nil
-	}
-	if !rotated {
-		// Same credential as the one already on disk; the client has nothing to
-		// pick up, so do not disturb it with a hook.
+	} else if rotated {
+		klog.V(4).InfoS("rotated customfuse credential files", "dir", s.dir, "expiration", cred.Expiration)
+	} else {
 		klog.V(4).InfoS("customfuse credential unchanged, skipping hook", "dir", s.dir)
+	}
+	return nil
+}
+
+func (s *fileCredentialSink) Notify() error {
+	if !s.notifyNeeded {
 		return nil
 	}
-	klog.V(4).InfoS("rotated customfuse credential files", "dir", s.dir, "expiration", cred.Expiration)
-
+	s.notifyNeeded = false
 	return s.runRefreshHook()
 }
 

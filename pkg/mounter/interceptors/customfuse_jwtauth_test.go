@@ -135,7 +135,7 @@ func TestFileCredentialSinkRejectsPreExistingSymlink(t *testing.T) {
 	require.NoError(t, os.Symlink(malicious, credDir))
 
 	sink := newFileCredentialSink(credDir, "", nil)
-	err := sink.Apply(&jwtauth.STSToken{
+	err := sink.Deliver(&jwtauth.STSToken{
 		AccessKeyID:     "ak",
 		AccessKeySecret: "sk",
 		SecurityToken:   "tok",

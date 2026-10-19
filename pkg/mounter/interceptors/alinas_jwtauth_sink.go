@@ -63,11 +63,15 @@ func newAlinasCertRefreshSink(mountPoint string) *alinasCertRefreshSink {
 	}
 }
 
-func (s *alinasCertRefreshSink) Apply(cred *jwtauth.STSToken) error {
+func (s *alinasCertRefreshSink) Deliver(cred *jwtauth.STSToken) error {
 	ctx, cancel := context.WithTimeout(context.Background(), alinasCertRefreshTimeout)
 	defer cancel()
 	return refreshAlinasCredential(ctx, s.runCommand, s.mountPoint, cred)
 }
+
+func (s *alinasCertRefreshSink) Notify() error { return nil }
+
+func (s *alinasCertRefreshSink) Cleanup() {}
 
 // RefreshAlinasCredential installs cred on a live alinas/cpfs mount by executing
 // the vendor refresh command. Shared with the jwtauth refresh loop, so a rotated
@@ -84,8 +88,6 @@ func refreshAlinasCredential(
 	mountPoint string,
 	cred *jwtauth.STSToken,
 ) error {
-	// SECURITY: this JSON is the credential; never log it. The CLI prefers it here
-	// precisely so it stays out of argv.
 	stdin, err := json.Marshal(map[string]string{
 		"ak":    cred.AccessKeyID,
 		"sk":    cred.AccessKeySecret,

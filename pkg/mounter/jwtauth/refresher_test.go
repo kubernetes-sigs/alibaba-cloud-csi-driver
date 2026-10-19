@@ -122,14 +122,13 @@ func expiresIn(d time.Duration) *STSToken {
 	}
 }
 
-// fakeSink records the AccessKeyID of each applied credential.
 type fakeSink struct {
 	mu      sync.Mutex
 	applied []string
 	err     error
 }
 
-func (s *fakeSink) Apply(cred *STSToken) error {
+func (s *fakeSink) Deliver(cred *STSToken) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
@@ -138,6 +137,10 @@ func (s *fakeSink) Apply(cred *STSToken) error {
 	s.applied = append(s.applied, cred.AccessKeyID)
 	return nil
 }
+
+func (s *fakeSink) Notify() error { return nil }
+
+func (s *fakeSink) Cleanup() {}
 
 func (s *fakeSink) appliedIDs() []string {
 	s.mu.Lock()
@@ -275,7 +278,7 @@ func TestRefreshLoopRetriesFailedFetch(t *testing.T) {
 	})
 }
 
-func TestRefreshLoopContinuesOnApplyError(t *testing.T) {
+func TestRefreshLoopContinuesOnDeliverError(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r, sink, mock := newMockRefresher(t)
 		sink.err = assert.AnError

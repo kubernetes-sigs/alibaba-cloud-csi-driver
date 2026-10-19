@@ -40,7 +40,7 @@ func TestFileCredentialSinkApplyWritesAllFields(t *testing.T) {
 		SecurityToken:   "token-1",
 		Expiration:      "2026-01-01T00:00:00Z",
 	}
-	require.NoError(t, sink.Apply(cred))
+	require.NoError(t, sink.Deliver(cred))
 
 	assert.Equal(t, "ak-1", readCredentialFile(t, dir, mounterutils.KeyAccessKeyId))
 	assert.Equal(t, "sk-1", readCredentialFile(t, dir, mounterutils.KeyAccessKeySecret))
@@ -51,7 +51,7 @@ func TestFileCredentialSinkApplyWritesAllFields(t *testing.T) {
 func TestFileCredentialSinkFileNamesMatchClientContract(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "creds", "sts")
 	sink := newFileCredentialSink(dir, "", nil)
-	require.NoError(t, sink.Apply(&jwtauth.STSToken{
+	require.NoError(t, sink.Deliver(&jwtauth.STSToken{
 		AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "tok", Expiration: "exp",
 	}))
 
@@ -65,10 +65,10 @@ func TestFileCredentialSinkApplyRotates(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "creds", "sts")
 	sink := newFileCredentialSink(dir, "", nil)
 
-	require.NoError(t, sink.Apply(&jwtauth.STSToken{
+	require.NoError(t, sink.Deliver(&jwtauth.STSToken{
 		AccessKeyID: "ak-1", AccessKeySecret: "sk-1", SecurityToken: "tok-1", Expiration: "exp-1",
 	}))
-	require.NoError(t, sink.Apply(&jwtauth.STSToken{
+	require.NoError(t, sink.Deliver(&jwtauth.STSToken{
 		AccessKeyID: "ak-2", AccessKeySecret: "sk-2", SecurityToken: "tok-2", Expiration: "exp-2",
 	}))
 
@@ -78,13 +78,13 @@ func TestFileCredentialSinkApplyRotates(t *testing.T) {
 
 func TestFileCredentialSinkApplyNilCredential(t *testing.T) {
 	sink := newFileCredentialSink(filepath.Join(t.TempDir(), "creds", "sts"), "", nil)
-	require.Error(t, sink.Apply(nil))
+	require.Error(t, sink.Deliver(nil))
 }
 
 func TestFileCredentialSinkCleanupRemovesCredential(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "creds", "sts")
 	sink := newFileCredentialSink(dir, "", nil)
-	require.NoError(t, sink.Apply(&jwtauth.STSToken{
+	require.NoError(t, sink.Deliver(&jwtauth.STSToken{
 		AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "tok", Expiration: "exp",
 	}))
 
@@ -105,8 +105,8 @@ func TestFileCredentialSinkRunsHookWithCredentialDir(t *testing.T) {
 		return nil, nil
 	}
 
-	require.NoError(t, sink.Apply(genCred(1)))
-	require.NoError(t, sink.Apply(genCred(2)))
+	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Deliver(genCred(2)))
 
 	assert.Equal(t, "/hook.sh", gotName)
 	assert.Contains(t, gotEnv, credentialDirEnvKey+"="+dir)
@@ -127,9 +127,9 @@ func TestFileCredentialSinkHookReceivesRecordedEnv(t *testing.T) {
 		return nil, nil
 	}
 
-	require.NoError(t, sink.Apply(genCred(1)))
-	require.NoError(t, sink.Apply(genCred(2)))
-	require.NoError(t, sink.Apply(genCred(3)))
+	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Deliver(genCred(2)))
+	require.NoError(t, sink.Deliver(genCred(3)))
 	require.Len(t, got, 2, "the initial delivery does not run the hook")
 
 	for i, env := range got {
@@ -152,12 +152,12 @@ func TestFileCredentialSinkSkipsHookOnInitialDelivery(t *testing.T) {
 		return nil, nil
 	}
 
-	require.NoError(t, sink.Apply(genCred(1)))
+	require.NoError(t, sink.Deliver(genCred(1)))
 	assert.Zero(t, calls, "the initial delivery must not run the hook")
 	assert.Equal(t, "g1", readCredentialFile(t, dir, mounterutils.KeyAccessKeyId),
 		"the initial credential must still be written")
 
-	require.NoError(t, sink.Apply(genCred(2)))
+	require.NoError(t, sink.Deliver(genCred(2)))
 	assert.Equal(t, 1, calls, "a rotation must run the hook")
 }
 
@@ -168,11 +168,11 @@ func TestFileCredentialSinkInitialDeliverySurvivesFailingHook(t *testing.T) {
 		return []byte("client not running yet"), assert.AnError
 	}
 
-	require.NoError(t, sink.Apply(genCred(1)),
+	require.NoError(t, sink.Deliver(genCred(1)),
 		"initial delivery must not fail because of the hook")
 	assert.Equal(t, "g1", readCredentialFile(t, dir, mounterutils.KeyAccessKeyId))
 
-	require.Error(t, sink.Apply(genCred(2)),
+	require.Error(t, sink.Deliver(genCred(2)),
 		"a rotation must still report a failing hook")
 }
 
@@ -188,8 +188,8 @@ func TestFileCredentialSinkHookNeverReceivesCredentialMaterial(t *testing.T) {
 		return nil, nil
 	}
 
-	require.NoError(t, sink.Apply(genCred(1)))
-	require.NoError(t, sink.Apply(&jwtauth.STSToken{
+	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Deliver(&jwtauth.STSToken{
 		AccessKeyID: "ak", AccessKeySecret: secret, SecurityToken: token, Expiration: "exp",
 	}))
 
@@ -214,11 +214,11 @@ func TestFileCredentialSinkSkipsHookWhenCredentialUnchanged(t *testing.T) {
 
 	// Get past the initial delivery, which never runs the hook, so that what is
 	// measured below is the unchanged-credential case and not that one.
-	require.NoError(t, sink.Apply(genCred(1)))
-	require.NoError(t, sink.Apply(genCred(2)))
+	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Deliver(genCred(2)))
 	require.Equal(t, 1, calls)
 
-	require.NoError(t, sink.Apply(genCred(2)))
+	require.NoError(t, sink.Deliver(genCred(2)))
 
 	assert.Equal(t, 1, calls, "an unchanged credential must not disturb the client")
 }
@@ -230,9 +230,9 @@ func TestFileCredentialSinkHookFailureIsReported(t *testing.T) {
 		return []byte("hook output"), assert.AnError
 	}
 
-	require.NoError(t, sink.Apply(genCred(1)))
+	require.NoError(t, sink.Deliver(genCred(1)))
 
-	err := sink.Apply(genCred(2))
+	err := sink.Deliver(genCred(2))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "refresh hook")
 	assert.Contains(t, err.Error(), "hook output")
@@ -245,7 +245,7 @@ func TestFileCredentialSinkNoHookConfigured(t *testing.T) {
 		t.Fatal("hook must not run when none is configured")
 		return nil, nil
 	}
-	require.NoError(t, sink.Apply(&jwtauth.STSToken{
+	require.NoError(t, sink.Deliver(&jwtauth.STSToken{
 		AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "tok", Expiration: "exp",
 	}))
 }
