@@ -63,14 +63,12 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 	if op == nil {
 		return handler(ctx, op)
 	}
-	idx := mounterutils.IndexMountOptions(op.Options)
-	if !jwtauth.IsAgentIdentity(idx[jwtauth.OptAuthType]) {
-		return handler(ctx, op)
+	opts, idx, active, err := resolveAgentIdentityOpts(op.Options)
+	if err != nil {
+		return err
 	}
-
-	opts := jwtauth.ResolveOpts(idx)
-	if err := opts.Validate(); err != nil {
-		return fmt.Errorf("jwtauth config error: %w", err)
+	if !active {
+		return handler(ctx, op)
 	}
 
 	credDir, err := resolveCredentialDir(idx[OptCredentialDir], op.Target)
