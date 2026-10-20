@@ -592,6 +592,10 @@ func FormatNewDisk(readOnly bool, source, fstype, target string, mkfsOptions, mo
 	return err
 }
 
+// Newest feature set alinux3 (kernel 5.10) can mount: no nrext64 (5.19).
+// Absent in images with older xfsprogs (e.g. 5.0, which does not support -c either), whose defaults are already compatible.
+const xfsMkfsConfig = "/usr/share/xfsprogs/mkfs/lts_6.1.conf"
+
 func mkfsDefaultArgs(fstype, source string) (args []string) {
 	// default args
 	if fstype == "ext4" || fstype == "ext3" {
@@ -601,10 +605,11 @@ func mkfsDefaultArgs(fstype, source string) (args []string) {
 			source,
 		}
 	} else if fstype == "xfs" {
-		args = []string{
-			"-f",
-			source,
+		args = []string{"-f"}
+		if _, err := os.Stat(xfsMkfsConfig); err == nil {
+			args = append(args, "-c", "options="+xfsMkfsConfig)
 		}
+		args = append(args, source)
 	}
 	return
 }
