@@ -25,7 +25,8 @@ these AgenticFS operations:
 | Discover/reuse and wait for access points | `nas:ListAccessPoints`, `nas:DescribeAccessPoint` |
 | Create an access point | `nas:CreateAccessPoint` |
 | Delete a volume | `nas:DeleteAccessPoint`, `nas:DeleteAgenticSpace` |
-| Read and expand quota; verify absence during deletion | `nas:GetAgenticSpace`, `nas:SetAgenticSpaceQuota` |
+| Expand quota | `nas:SetAgenticSpaceQuota` |
+| Verify absence during deletion | `nas:GetAgenticSpace` |
 
 The policy is a broad driver example using `Resource: "*"`. For a least-privilege
 installation, grant only the operations needed by enabled volume modes and scope
@@ -59,8 +60,8 @@ When the request omits capacity, the cap is used as the requested size and is
 subject to the same checks.
 
 `agenticSpaceFileCountLimit` defaults to 1000000, with the NAS-supported range
-10000–100000000. Expansion updates the existing space's size quota and does not
-shrink it.
+10000–100000000. Expansion sets the space's size quota to the new PVC request and
+leaves its file count limit unchanged.
 
 The controller supplies missing `tls,vers=3,ram` options. Explicit mount options
 must retain `tls` and `ram`: the node validates them rather than silently repairing
