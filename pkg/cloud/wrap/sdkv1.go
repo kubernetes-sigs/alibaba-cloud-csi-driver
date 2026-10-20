@@ -34,16 +34,20 @@ func V1[TReq requests.AcsRequest, TResp tResp](logger logr.Logger, f func(TReq) 
 		helper, logger := logger.WithCallStackHelper()
 		logger = logger.WithValues("api", req.GetActionName())
 		helper()
-		logger.V(5).Info("OpenAPI trace", "request", req)
-		logger.V(3).Info("OpenAPI start")
+
+		if logger.V(5).Enabled() {
+			logger.V(3).Info("OpenAPI start", "request", req)
+		} else {
+			logger.V(3).Info("OpenAPI start")
+		}
 
 		t := time.Now()
 		resp, err := f(req)
-		logger.V(5).Info("OpenAPI trace", "response", resp, "error", err)
 
 		level := 2
-		duration := time.Since(t)
-		attrs := []any{"elapsed", duration}
+		attrs := make([]any, 0, 8)
+		elapsed := time.Since(t)
+		attrs = append(attrs, "elapsed", elapsed)
 		var reqID string
 
 		var respZero TResp
@@ -67,6 +71,9 @@ func V1[TReq requests.AcsRequest, TResp tResp](logger logr.Logger, f func(TReq) 
 		}
 		if reqID != "" {
 			attrs = append(attrs, "requestID", reqID)
+		}
+		if logger.V(5).Enabled() && resp != respZero {
+			attrs = append(attrs, "response", resp)
 		}
 		logger.V(level).Info("OpenAPI finish", attrs...)
 		return resp, err
