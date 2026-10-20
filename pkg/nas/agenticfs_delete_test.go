@@ -106,8 +106,7 @@ func TestAgenticfsDeleteVolumeRetriesAfterAccesspointListNotFound(t *testing.T) 
 	assert.Equal(t, "DeleteAgenticSpace", fake.callOrder[len(fake.callOrder)-1])
 }
 
-// Use the error codes documented by GetAgenticSpace/DeleteAgenticSpace, not
-// just the legacy InvalidAgenticSpaceId spelling used in earlier fixtures.
+// Use the error codes documented by GetAgenticSpace/DeleteAgenticSpace
 func TestAgenticfsDeleteVolumeAcceptsDocumentedMissingSpace(t *testing.T) {
 	for _, code := range []string{
 		"InvalidAgenticSpace.NotFound",

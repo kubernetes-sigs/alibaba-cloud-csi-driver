@@ -2,12 +2,14 @@ package cloud
 
 import (
 	"testing"
+	"time"
 
 	nas "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
 )
 
@@ -15,8 +17,13 @@ const nasV2Region = "cn-hangzhou"
 
 func TestNewNasClientV2(t *testing.T) {
 	actual, err := NewNasClientV2(nasV2Region)
-	assert.NotNil(t, actual)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.NotNil(t, actual)
+
+	// This bounds the HTTP exchange, not credential resolution or the whole RPC.
+	assert.Equal(t, 10*time.Second, time.Duration(tea.IntValue(actual.ConnectTimeout))*time.Millisecond)
+	assert.Zero(t, tea.IntValue(actual.ReadTimeout))
+	assert.Nil(t, actual.RetryOptions)
 }
 
 func TestCreateDirSuccess(t *testing.T) {

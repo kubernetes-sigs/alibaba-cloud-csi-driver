@@ -322,8 +322,8 @@ func TestControllerServer_ControllerGetCapabilities(t *testing.T) {
 	assert.NotNil(t, resp)
 }
 
-// TestControllerServerCreateVolumeAgenticFsKeepsForcedMountOptions is the end-to-end half of W-1.
-// It drives the REAL generic wrapper in controllerserver.go with a StorageClass that sets
+// TestControllerServerCreateVolumeAgenticFsKeepsForcedMountOptions
+// drives the REAL generic wrapper in controllerserver.go with a StorageClass that sets
 // parameters.options, and asserts the mandatory tls/ram survive the verbatim overwrite. The wrapper
 // picks the agenticfs controller by volumeAs, calls its CreateVolume (which seeds options with
 // defaultAgenticFsMountOptions), overwrites options with the StorageClass value, and THEN calls
@@ -339,8 +339,7 @@ func TestControllerServerCreateVolumeAgenticFsKeepsForcedMountOptions(t *testing
 		locks:      utils.NewVolumeLocks(),
 	}
 
-	// A StorageClass that sets options the agenticfs defaults do not include, exactly the case that
-	// used to drop tls/ram.
+	// A StorageClass that sets options without tls/ram.
 	req := agenticfsCreateReq(testAgenticFsPVName, 20*GiB, map[string]string{"options": "vers=3,noresvport"})
 	resp, err := cs.CreateVolume(context.Background(), req)
 	require.NoError(t, err)
@@ -350,7 +349,7 @@ func TestControllerServerCreateVolumeAgenticFsKeepsForcedMountOptions(t *testing
 	require.NotEmpty(t, opts, "the final VolumeContext must carry options")
 	for _, want := range []string{"tls", "ram", "vers=3", "noresvport"} {
 		assert.Contains(t, opts, want,
-			"W-1: the StorageClass options overwrite must not drop a mandatory agenticfs mount option")
+			"the StorageClass options overwrite must not drop a mandatory agenticfs mount option")
 	}
 }
 

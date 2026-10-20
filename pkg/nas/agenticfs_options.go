@@ -31,9 +31,7 @@ const (
 	vcKeyAccesspointId  = "accesspointId"
 	vcKeyAgenticSpaceId = "agenticSpaceId"
 
-	// Read-only compatibility for an earlier build. Write filesystemIDKey instead.
-	vcKeyFilesystemIdLegacy = "filesystemId"
-	mountProtocolAlinas     = "alinas"
+	mountProtocolAlinas = "alinas"
 
 	defaultAgenticFsMountOptions = "tls,vers=3,ram"
 	maxVolumeNameLen             = 64
@@ -208,11 +206,4 @@ func validateVolumeName(name string) error {
 		}
 	}
 	return nil
-}
-
-func agenticfsFilesystemID(attributes map[string]string) string {
-	if id := attributes[filesystemIDKey]; id != "" {
-		return id
-	}
-	return attributes[vcKeyFilesystemIdLegacy]
 }

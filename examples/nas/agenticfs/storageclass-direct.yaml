@@ -15,11 +15,11 @@ parameters:
   # CreateAccessPoint.VpcId / .VswId; the vSwitch must be reachable from the mounting nodes.
   vpcId: "vpc-xxxxxxxxxxxxxxxxxxxxx"
   vSwitchId: "vsw-xxxxxxxxxxxxxxxxxxxxx"
-  # Caps, not defaults: the PVC's requests.storage wins within them.
-  # 10Gi-1024000Gi and [10000, 100000000].
+  # Upper bound on the PVC's requests.storage, and the size used when it requests none; 10Gi-1024000Gi.
   agenticSpaceSizeLimit: "10Gi"
+  # The AgenticSpace file count quota; [10000, 100000000], default 1000000.
   agenticSpaceFileCountLimit: "1000000"
-  # The controller already forces "tls,ram".
+  # The controller adds tls, vers=3 and ram when missing; the node rejects a mount without tls or ram.
   options: "tls,vers=3,ram"
 # Deletes the AgenticSpace and its accesspoints, never the filesystem itself.
 reclaimPolicy: Delete

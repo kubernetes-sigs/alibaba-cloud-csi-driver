@@ -12,11 +12,6 @@ import (
 	"k8s.io/klog/v2/ktesting"
 )
 
-// The guard used to read `if teaerr.Data != nil && (*teaerr.Data)[0] == '{'`. Data is a *string, so the nil
-// check does not cover a non-nil pointer to an EMPTY string, and indexing [0] of it panics. The worst caller is
-// the agenticfs compensating delete, on a detached goroutine where an unrecovered panic is fatal for the whole
-// csi-provisioner; that goroutine carries its own recover() as defense in depth and the two coexist on purpose.
-// An empty payload is not a JSON object, so every row pins both "does not panic" AND "classifies as before".
 func TestTransformV2ErrorForLogDataShapesNeverPanic(t *testing.T) {
 	tests := []struct {
 		name string
@@ -42,7 +37,7 @@ func TestTransformV2ErrorForLogDataShapesNeverPanic(t *testing.T) {
 			wantRequestID: "",
 		},
 		{
-			name:          "nilData", // already covered by the pre-existing nil check
+			name:          "nilData",
 			data:          nil,
 			wantMessage:   "sdk message",
 			wantRequestID: "",
@@ -91,7 +86,7 @@ func TestTransformV2ErrorForLogDataShapesNeverPanic(t *testing.T) {
 			// Turns this into a RED test rather than an unrecovered panic aborting the whole package run.
 			require.NotPanics(t, func() {
 				code, requestID, out = transformV2ErrorForLog(in)
-			}, "transformV2ErrorForLog must never index Data[0] without checking the length first")
+			})
 
 			assert.Equal(t, "TestErrorCode", code, "the error code is read from SDKError.Code, not from Data")
 			assert.Equal(t, tt.wantRequestID, requestID)
@@ -99,7 +94,7 @@ func TestTransformV2ErrorForLogDataShapesNeverPanic(t *testing.T) {
 			require.Error(t, out)
 			// Must happen for EVERY *tea.SDKError: Data's shape affects what gets logged, never how it is classified.
 			assert.Equal(t, "OpenAPI returned error: "+tt.wantMessage+" (TestErrorCode)", out.Error(),
-				"the classification contract must be identical before and after the length check")
+				"Data's shape must not change how the error is classified")
 			var teaErr *tea.SDKError
 			assert.ErrorAs(t, out, &teaErr, "the original SDK error must stay reachable")
 			assert.ErrorIs(t, out, ErrorCode("TestErrorCode"))
@@ -130,8 +125,7 @@ func TestV2EmptyDataErrorDoesNotPanic(t *testing.T) {
 	assert.NotNil(t, resp, "the response is passed through untouched; only the error is rewritten")
 }
 
-// Errors that are NOT *tea.SDKError must come back byte-for-byte, so the length check cannot have widened what
-// gets wrapped - the agenticfs compensating delete's error can be a rate-limiter "context canceled".
+// Errors that are NOT *tea.SDKError must come back byte-for-byte.
 func TestV2NotAnSDKErrorIsPassedThroughUnchanged(t *testing.T) {
 	t.Parallel()
 	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)

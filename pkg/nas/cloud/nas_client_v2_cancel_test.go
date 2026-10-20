@@ -14,7 +14,7 @@ import (
 )
 
 // The SDK's credential interface has no context. Simulate a refresh that only
-// completes after the cleanup deadline, without relying on a long sleep.
+// completes after the caller's deadline, without relying on a long sleep.
 type blockedDeleteCredential struct {
 	oldcred.Credential
 	started chan struct{}
@@ -70,5 +70,5 @@ func TestDeleteAccesspointDoesNotSendAfterCredentialRefreshExceedsDeadline(t *te
 	case <-time.After(5 * time.Second):
 		t.Fatal("SDK did not return after credential resolution completed")
 	}
-	assert.Zero(t, hits.Load(), "expired cleanup must not issue a late DeleteAccessPoint request")
+	assert.Zero(t, hits.Load(), "an expired context must not issue a late DeleteAccessPoint request")
 }
