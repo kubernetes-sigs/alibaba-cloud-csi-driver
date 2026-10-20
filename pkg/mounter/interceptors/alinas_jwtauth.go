@@ -53,8 +53,12 @@ func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, h
 	if err := opts.Validate(); err != nil {
 		return fmt.Errorf("jwtauth config error: %w", err)
 	}
+	refresher, err := jwtauth.NewRefresher(opts, newAlinasCertRefreshSink(op.Target))
+	if err != nil {
+		return err
+	}
 
-	cred, err := jwtauth.FetchSTSToken(ctx, opts)
+	cred, err := refresher.FetchCredentials(ctx)
 	if err != nil {
 		// STS acquisition failure is fatal: alinas requires cloud credentials
 		// and silently falling back to static AK/SK would broaden the effective
@@ -71,17 +75,7 @@ func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, h
 		return err
 	}
 
-	// Mount succeeded: keep the credential fresh for the mount lifetime. The
-	// STS triple was consumed by the mount itself, so the refresher only
-	// pushes subsequent rotations via alinas-tls-cert-refresh.
-	refresher := jwtauth.NewRefresher(opts, newAlinasCertRefreshSink(op.Target))
-	if err := refresher.StartWith(cred); err != nil {
-		// The mount itself succeeded; do not mask that. The credential will
-		// not be refreshed, so surface this loudly.
-		klog.ErrorS(err, "jwtauth: failed to start credential refresher, mounted credential will expire without refresh", "target", op.Target)
-		return nil
-	}
-	jwtauth.DefaultManager.Add(op.Target, refresher)
+	jwtauth.DefaultManager.Start(op.Target, refresher, cred)
 	return nil
 }
 

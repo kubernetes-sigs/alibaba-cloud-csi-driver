@@ -1,27 +1,39 @@
 package jwtauth
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"k8s.io/klog/v2"
 )
 
-// Manager tracks live credential refreshers so a driver can stop them when a
-// mount goes away (by target) and wait for all of them during Terminate. Its
-// shutdown is bounded by a timeout, mirroring
-// server.MountMonitorManager.WaitForAllMonitoring, so a hung HTTP call can
-// never stall driver Terminate indefinitely.
+// Manager runs one credential refresh loop per mount target, so a driver can
+// stop it when the mount goes away and wait for all of them during Terminate.
+// Its shutdown is bounded by a timeout, mirroring
+// server.MountMonitorManager.WaitForAllMonitoring, so a hung refresh can never
+// stall driver Terminate indefinitely.
 type Manager struct {
 	mu sync.Mutex
-	// refreshers maps each live refresher to the mount target it serves
-	// (may be empty when the caller has no target to key on).
-	refreshers map[*Refresher]string
+	// ctx is the parent of every loop; cancelled by StopAll, after which
+	// Start is rejected.
+	ctx    context.Context
+	cancel context.CancelFunc
+	loops  map[string]loop
+	wg     sync.WaitGroup
+}
+
+type loop struct {
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 func NewManager() *Manager {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
-		refreshers: make(map[*Refresher]string),
+		ctx:    ctx,
+		cancel: cancel,
+		loops:  make(map[string]loop),
 	}
 }
 
@@ -29,89 +41,71 @@ func NewManager() *Manager {
 // drivers of a mount-proxy process.
 var DefaultManager = NewManager()
 
-// Add registers a running refresher under the mount target it serves.
-func (m *Manager) Add(target string, r *Refresher) {
+// Start launches the refresh loop for target, starting from cred, which the
+// caller has already delivered to the mount. A loop already running for the
+// same target is replaced: the sink can only address the target path, so a
+// second loop would just duplicate the refreshes.
+//
+// Replacement means a mount was stacked on a target that is already mounted
+// (e.g. a retry after the client timed out on a slow mount), which should not
+// happen, so it is logged. The replaced loop is not waited for: both loops
+// serve the same volume, and the new mount has already installed its
+// credential before Start is called.
+func (m *Manager) Start(target string, r *Refresher, cred *STSToken) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.refreshers[r] = target
+	if m.ctx.Err() != nil {
+		klog.Warningf("jwtauth: manager stopped, not refreshing credentials for %s", target)
+		return
+	}
+	if old, ok := m.loops[target]; ok {
+		klog.Warningf("jwtauth: replacing the refresh loop of %s, which is mounted more than once", target)
+		old.cancel()
+	}
+	ctx, cancel := context.WithCancel(m.ctx)
+	l := loop{cancel: cancel, done: make(chan struct{})}
+	m.loops[target] = l
+	m.wg.Go(func() {
+		defer close(l.done)
+		r.refreshLoop(ctx, cred)
+	})
 }
 
-// StopRefresher stops the given refresher, cleans up its sink and removes it
-// from the manager. It is a no-op for refreshers that are not (or no longer)
-// tracked, so concurrent stop paths are safe.
-func (m *Manager) StopRefresher(r *Refresher) {
+// StopByTarget stops the refresh loop for target, if any, and waits for it to
+// exit, so no credential for the old mount is delivered to the target path
+// after it returns. An Apply in flight is not interrupted; the wait is bounded
+// by the sink's own timeout.
+func (m *Manager) StopByTarget(target string) {
 	m.mu.Lock()
-	_, ok := m.refreshers[r]
-	delete(m.refreshers, r)
+	l, ok := m.loops[target]
+	delete(m.loops, target)
 	m.mu.Unlock()
 	if !ok {
 		return
 	}
-	r.Stop()
-	r.Cleanup()
+	l.cancel()
+	<-l.done
 }
 
-// StopByTarget stops all refreshers registered for the given mount target.
-// It is a no-op when no refresher is tracked for the target.
-func (m *Manager) StopByTarget(target string) {
-	if target == "" {
-		return
-	}
-	m.mu.Lock()
-	var matched []*Refresher
-	for r, t := range m.refreshers {
-		if t == target {
-			matched = append(matched, r)
-			delete(m.refreshers, r)
-		}
-	}
-	m.mu.Unlock()
-	for _, r := range matched {
-		r.Stop()
-		r.Cleanup()
-	}
-}
-
-// HasTarget reports whether a refresher is tracked for the given mount target.
+// HasTarget reports whether a refresh loop is tracked for target.
 func (m *Manager) HasTarget(target string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for _, t := range m.refreshers {
-		if t == target {
-			return true
-		}
-	}
-	return false
+	_, ok := m.loops[target]
+	return ok
 }
 
-// StopAll stops every tracked refresher, cleans up its sink, and waits for
-// them to exit, bounded by timeout. Refreshers are stopped concurrently; each
-// refresher's own Stop is itself bounded, so this returns promptly.
+// StopAll stops every refresh loop and waits for them to exit, bounded by
+// timeout. The manager cannot be restarted afterwards.
 func (m *Manager) StopAll(timeout time.Duration) {
 	m.mu.Lock()
-	pending := make([]*Refresher, 0, len(m.refreshers))
-	for r := range m.refreshers {
-		pending = append(pending, r)
-		delete(m.refreshers, r)
-	}
+	m.cancel()
+	clear(m.loops)
 	m.mu.Unlock()
-
-	if len(pending) == 0 {
-		return
-	}
 
 	done := make(chan struct{})
 	go func() {
-		var wg sync.WaitGroup
-		for _, r := range pending {
-			wg.Add(1)
-			go func(r *Refresher) {
-				defer wg.Done()
-				r.Stop()
-				r.Cleanup()
-			}(r)
-		}
-		wg.Wait()
+		m.wg.Wait()
 		close(done)
 	}()
 
@@ -123,12 +117,10 @@ func (m *Manager) StopAll(timeout time.Duration) {
 	}
 }
 
-// defaultStopAllTimeout bounds the package-level StopAll. Refreshers are
-// stopped concurrently and each Refresher.Stop is itself bounded by
-// stopWaitTimeout, so this must be at least stopWaitTimeout (plus a small
-// margin) for the bound to actually hold; a smaller value would return early
-// and let refresh goroutines linger past the reported timeout.
-const defaultStopAllTimeout = stopWaitTimeout + 2*time.Second
+// defaultStopAllTimeout bounds the package-level StopAll. Cancellation aborts
+// in-flight STS requests, but a sink Apply already running is not
+// interruptible.
+const defaultStopAllTimeout = 10 * time.Second
 
 // StopAll stops all refreshers tracked by the DefaultManager. Intended to be
 // called from a driver's Terminate.

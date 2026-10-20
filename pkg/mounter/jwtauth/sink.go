@@ -1,8 +1,7 @@
 package jwtauth
 
 // CredentialSink delivers a freshly fetched STS credential to the consumer of
-// a mount. Apply is called for the initial credential and again on every
-// rotation; Cleanup is called once after the Refresher has stopped.
+// a mount.
 //
 // This is the seam where the storage-specific part of the credential flow
 // lives: how a credential is handed to a running mount differs per storage
@@ -12,5 +11,4 @@ package jwtauth
 // mount by executing the vendor refresh command (see the interceptors package).
 type CredentialSink interface {
 	Apply(cred *STSToken) error
-	Cleanup()
 }

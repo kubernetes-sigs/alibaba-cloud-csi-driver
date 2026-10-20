@@ -47,15 +47,40 @@ func newTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 
 func newTestRefresher(tokenPath, endpoint string) (*Refresher, *fakeSink) {
 	sink := &fakeSink{}
-	return NewRefresher(Opts{
-		TokenFile:    tokenPath,
-		Endpoint:     endpoint,
-		CredProvider: "my-provider",
-		SandboxId:    "sb-test",
-	}, sink), sink
+	return &Refresher{
+		opts: Opts{
+			TokenFile:    tokenPath,
+			Endpoint:     endpoint,
+			CredProvider: "my-provider",
+			SandboxId:    "sb-test",
+		},
+		sink:          sink,
+		minSleep:      defaultMinSleep,
+		refreshMargin: agentidentity.DefaultTokenRefreshMargin,
+		wallNow:       time.Now,
+		client:        &http.Client{Timeout: time.Second},
+	}, sink
 }
 
-func TestRefresherSuccessfulFetchAndApply(t *testing.T) {
+// startLoop runs r.refreshLoop in the background. The returned stop cancels
+// the loop and waits for it to exit; it is also registered as a test cleanup.
+func startLoop(t *testing.T, r *Refresher, cred *STSToken) (stop func()) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		r.refreshLoop(ctx, cred)
+	}()
+	stop = func() {
+		cancel()
+		<-done
+	}
+	t.Cleanup(stop)
+	return stop
+}
+
+func TestRefresherFetchCredentialsRequest(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "test-token", "client-123")
 
@@ -85,19 +110,13 @@ func TestRefresherSuccessfulFetchAndApply(t *testing.T) {
 
 	refresher, sink := newTestRefresher(tokenPath, srv.URL)
 
-	err := refresher.Start(context.Background())
+	got, err := refresher.FetchCredentials(t.Context())
 	require.NoError(t, err)
-	defer refresher.Stop()
-
-	// The initial credential must have been delivered through the sink.
-	require.Equal(t, 1, sink.appliedCount())
-	sink.mu.Lock()
-	got := sink.applied[0]
-	sink.mu.Unlock()
 	assert.Equal(t, "AKID-test", got.AccessKeyID)
 	assert.Equal(t, "AKSECRET-test", got.AccessKeySecret)
 	assert.Equal(t, "TOKEN-test", got.SecurityToken)
 	assert.NotEmpty(t, got.Expiration)
+	assert.Equal(t, 0, sink.appliedCount(), "FetchCredentials must not deliver to the sink")
 }
 
 func TestRefresherTokenFileErrors(t *testing.T) {
@@ -122,7 +141,7 @@ func TestRefresherTokenFileErrors(t *testing.T) {
 			}
 			refresher, _ := newTestRefresher(tokenPath, "http://localhost:0")
 
-			err := refresher.Start(context.Background())
+			_, err := refresher.FetchCredentials(t.Context())
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -139,7 +158,7 @@ func TestRefresherEndpointErrors(t *testing.T) {
 	})
 
 	refresher, _ := newTestRefresher(tokenPath, srv.URL)
-	err := refresher.Start(context.Background())
+	_, err := refresher.FetchCredentials(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
 }
@@ -153,7 +172,7 @@ func TestRefresherNilSTSToken(t *testing.T) {
 	})
 
 	refresher, _ := newTestRefresher(tokenPath, srv.URL)
-	err := refresher.Start(context.Background())
+	_, err := refresher.FetchCredentials(t.Context())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nil stsToken")
 }
@@ -182,23 +201,22 @@ func TestRefresherStopDuringRefresh(t *testing.T) {
 	refresher, _ := newTestRefresher(tokenPath, srv.URL)
 	refresher.minSleep = 20 * time.Millisecond
 
-	require.NoError(t, refresher.Start(context.Background()))
-	assert.Equal(t, int32(1), callCount.Load(), "Start performs the initial fetch")
+	stop := startLoop(t, refresher, &STSToken{Expiration: time.Now().Format(time.RFC3339)})
 
-	// Wait until the loop has actually rotated at least once. Without this the
-	// assertions below would hold even if Stop did nothing, because a loop that
-	// never fires also never increments the counter.
+	// Wait until the loop has actually rotated. Without this the assertions
+	// below would hold even if stopping did nothing, because a loop that never
+	// fires also never increments the counter.
 	require.Eventually(t, func() bool {
 		return callCount.Load() >= 2
 	}, 3*time.Second, 10*time.Millisecond, "refresh loop should be rotating before we stop it")
 
-	refresher.Stop()
+	stop()
 
 	// The loop is gone, so the counter must be frozen from here on. Wait for
 	// several refresh periods to give a still-running loop room to prove itself.
 	stoppedAt := callCount.Load()
 	time.Sleep(10 * refresher.minSleep)
-	assert.Equal(t, stoppedAt, callCount.Load(), "no fetch may happen after Stop returns")
+	assert.Equal(t, stoppedAt, callCount.Load(), "no fetch may happen after the loop is stopped")
 }
 
 // TestRefresherRotatesOnComputedSchedule covers the scheduling path that
@@ -235,8 +253,7 @@ func TestRefresherRotatesOnComputedSchedule(t *testing.T) {
 	require.Greater(t, time.Until(refresher.calcRefreshTarget(initial.Expiration)), refresher.minSleep,
 		"the computed interval, not the floor, must drive this test")
 
-	require.NoError(t, refresher.StartWith(initial))
-	defer refresher.Stop()
+	startLoop(t, refresher, initial)
 
 	require.Eventually(t, func() bool {
 		return sink.appliedCount() >= 1
@@ -248,35 +265,11 @@ func TestRefresherRotatesOnComputedSchedule(t *testing.T) {
 	assert.Equal(t, "ak2", got.AccessKeyID)
 }
 
-func TestRefresherCleanupDelegatesToSink(t *testing.T) {
-	tmpDir := t.TempDir()
-	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
-
-	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(credentialResponse{
-			RequestID: "r1",
-			STSToken: &STSToken{
-				AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "st",
-				Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
-			},
-		})
-	})
-
-	refresher, sink := newTestRefresher(tokenPath, srv.URL)
-	require.NoError(t, refresher.Start(context.Background()))
-	refresher.Stop()
-
-	assert.Equal(t, 0, sink.cleanedCount())
-	refresher.Cleanup()
-	assert.Equal(t, 1, sink.cleanedCount())
-}
-
-// fakeSink records applied credentials and cleanups for refresher tests that
-// do not need real files.
+// fakeSink records applied credentials for refresher tests that do not need
+// real files.
 type fakeSink struct {
 	mu      sync.Mutex
 	applied []*STSToken
-	cleaned int
 	err     error
 }
 
@@ -290,25 +283,13 @@ func (s *fakeSink) Apply(cred *STSToken) error {
 	return nil
 }
 
-func (s *fakeSink) Cleanup() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.cleaned++
-}
-
 func (s *fakeSink) appliedCount() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return len(s.applied)
 }
 
-func (s *fakeSink) cleanedCount() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.cleaned
-}
-
-func TestRefresherStartWithSkipsInitialApply(t *testing.T) {
+func TestRefreshLoopSkipsInitialApply(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -322,27 +303,20 @@ func TestRefresherStartWithSkipsInitialApply(t *testing.T) {
 		})
 	})
 
-	sink := &fakeSink{}
-	refresher := NewRefresher(Opts{
-		TokenFile:    tokenPath,
-		Endpoint:     srv.URL,
-		CredProvider: "cp",
-		SandboxId:    "sb",
-	}, sink)
+	refresher, sink := newTestRefresher(tokenPath, srv.URL)
 
 	initial := &STSToken{
 		AccessKeyID: "ak1", AccessKeySecret: "sk1", SecurityToken: "st1",
 		Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
 	}
-	require.NoError(t, refresher.StartWith(initial))
-	defer refresher.Stop()
+	startLoop(t, refresher, initial)
 
 	// The initial credential must not be re-applied through the sink.
 	time.Sleep(100 * time.Millisecond)
 	assert.Equal(t, 0, sink.appliedCount())
 }
 
-func TestRefresherStartWithAppliesRotations(t *testing.T) {
+func TestRefreshLoopAppliesRotations(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
@@ -356,13 +330,7 @@ func TestRefresherStartWithAppliesRotations(t *testing.T) {
 		})
 	})
 
-	sink := &fakeSink{}
-	refresher := NewRefresher(Opts{
-		TokenFile:    tokenPath,
-		Endpoint:     srv.URL,
-		CredProvider: "cp",
-		SandboxId:    "sb",
-	}, sink)
+	refresher, sink := newTestRefresher(tokenPath, srv.URL)
 
 	// An already-expired initial credential clamps the next refresh to
 	// minSleep, so shrink minSleep to make that first rotation happen fast.
@@ -371,8 +339,7 @@ func TestRefresherStartWithAppliesRotations(t *testing.T) {
 		Expiration: time.Now().Format(time.RFC3339),
 	}
 	refresher.minSleep = 50 * time.Millisecond
-	require.NoError(t, refresher.StartWith(initial))
-	defer refresher.Stop()
+	startLoop(t, refresher, initial)
 
 	assert.Eventually(t, func() bool {
 		return sink.appliedCount() >= 1
@@ -403,8 +370,7 @@ func TestRefresherRefreshesWhenWallClockPassesTarget(t *testing.T) {
 		}
 		return now
 	}
-	require.NoError(t, r.StartWith(&STSToken{Expiration: time.Now().Add(time.Hour).Format(time.RFC3339)}))
-	defer r.Stop()
+	startLoop(t, r, &STSToken{Expiration: time.Now().Add(time.Hour).Format(time.RFC3339)})
 	select {
 	case <-started:
 	case <-time.After(time.Second):
@@ -422,10 +388,15 @@ func TestRefresherRefreshesWhenWallClockPassesTarget(t *testing.T) {
 }
 
 func TestRefresherWaitUntilDue(t *testing.T) {
+	newRefresher := func(t *testing.T) *Refresher {
+		r, err := NewRefresher(Opts{}, &fakeSink{})
+		require.NoError(t, err)
+		return r
+	}
 	t.Run("normalTarget", func(t *testing.T) {
-		r := NewRefresher(Opts{}, &fakeSink{})
+		r := newRefresher(t)
 		start := time.Now()
-		assert.True(t, r.waitUntilDue(start.Add(30*time.Millisecond).Round(0)))
+		assert.True(t, r.waitUntilDue(t.Context(), start.Add(30*time.Millisecond).Round(0)))
 		assert.GreaterOrEqual(t, time.Since(start), 30*time.Millisecond)
 	})
 	for _, tc := range []struct {
@@ -437,7 +408,8 @@ func TestRefresherWaitUntilDue(t *testing.T) {
 		{"backwardJump", -time.Hour, 30 * time.Millisecond},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := NewRefresher(Opts{}, &fakeSink{})
+			r := newRefresher(t)
+			ctx, cancel := context.WithCancel(t.Context())
 			var reads atomic.Int32
 			r.wallNow = func() time.Time {
 				if reads.Add(1) == 1 && tc.offset < 0 {
@@ -446,7 +418,7 @@ func TestRefresherWaitUntilDue(t *testing.T) {
 				return time.Now().Add(tc.offset)
 			}
 			done := make(chan bool, 1)
-			go func() { done <- r.waitUntilDue(time.Now().Add(tc.wait).Round(0)) }()
+			go func() { done <- r.waitUntilDue(ctx, time.Now().Add(tc.wait).Round(0)) }()
 			if tc.offset < 0 {
 				assert.Eventually(t, func() bool { return reads.Load() >= 2 }, time.Second, time.Millisecond,
 					"the original timer must recheck the wall clock instead of refreshing after a backward jump")
@@ -456,7 +428,7 @@ func TestRefresherWaitUntilDue(t *testing.T) {
 				t.Fatal("a clock change must not refresh before the wall-clock target")
 			case <-time.After(30 * time.Millisecond):
 			}
-			close(r.stopCh)
+			cancel()
 			select {
 			case due := <-done:
 				assert.False(t, due, "stop must interrupt the pending wait")
@@ -466,9 +438,10 @@ func TestRefresherWaitUntilDue(t *testing.T) {
 		})
 	}
 	t.Run("stopInterruptsWait", func(t *testing.T) {
-		r := NewRefresher(Opts{}, &fakeSink{})
-		close(r.stopCh)
-		assert.False(t, r.waitUntilDue(time.Now().Add(time.Hour).Round(0)))
+		r := newRefresher(t)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		assert.False(t, r.waitUntilDue(ctx, time.Now().Add(time.Hour).Round(0)))
 	})
 }
 
@@ -495,19 +468,23 @@ func TestRefresherCalcRefreshTarget(t *testing.T) {
 		assert.Equal(t, now.Round(0).Add(5*time.Minute), r.calcRefreshTarget("not-a-date"))
 	})
 	t.Run("NewRefresher applies the default floor and the configured margin", func(t *testing.T) {
-		defaulted := NewRefresher(Opts{}, &fakeSink{})
+		defaulted, err := NewRefresher(Opts{}, &fakeSink{})
+		require.NoError(t, err)
 		assert.Equal(t, defaultMinSleep, defaulted.minSleep)
 		assert.Equal(t, agentidentity.DefaultTokenRefreshMargin, defaulted.refreshMargin)
 	})
 	t.Run("NewRefresher honours the margin from the environment", func(t *testing.T) {
 		t.Setenv("AGENT_IDENTITY_TOKEN_REFRESH_MARGIN", "90s")
-		assert.Equal(t, 90*time.Second, NewRefresher(Opts{}, &fakeSink{}).refreshMargin)
+		r, err := NewRefresher(Opts{}, &fakeSink{})
+		require.NoError(t, err)
+		assert.Equal(t, 90*time.Second, r.refreshMargin)
 	})
 	t.Run("the configured margin moves the next refresh", func(t *testing.T) {
 		// The knob is only useful if it reaches the schedule, so assert the
 		// interval a refresher built from the environment actually computes.
 		t.Setenv("AGENT_IDENTITY_TOKEN_REFRESH_MARGIN", "10m")
-		configured := NewRefresher(Opts{}, &fakeSink{})
+		configured, err := NewRefresher(Opts{}, &fakeSink{})
+		require.NoError(t, err)
 		exp := time.Now().Add(time.Hour).Format(time.RFC3339)
 		assert.InDelta(t, 50*time.Minute, time.Until(configured.calcRefreshTarget(exp)), float64(5*time.Second),
 			"an hour of validity minus a 10m margin should leave about 50m")
@@ -541,25 +518,17 @@ func TestOptsValidate(t *testing.T) {
 	}
 }
 
-func TestRefresherStartErrors(t *testing.T) {
+func TestRefresherFetchWithRetry(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
 
-	t.Run("bad CA file fails before any fetch", func(t *testing.T) {
-		sink := &fakeSink{}
-		r := NewRefresher(Opts{
-			TokenFile: tokenPath, Endpoint: "https://localhost:0",
-			CredProvider: "cp", SandboxId: "sb",
-			CAFile: filepath.Join(tmpDir, "missing-ca.crt"),
-		}, sink)
-		err := r.Start(context.Background())
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "build http client")
-		assert.Equal(t, 0, sink.appliedCount())
-	})
-
-	t.Run("sink apply failure surfaces", func(t *testing.T) {
+	t.Run("retries after a failed attempt", func(t *testing.T) {
+		var calls atomic.Int32
 		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			if calls.Add(1) == 1 {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 			_ = json.NewEncoder(w).Encode(credentialResponse{
 				RequestID: "r1",
 				STSToken: &STSToken{
@@ -568,76 +537,43 @@ func TestRefresherStartErrors(t *testing.T) {
 				},
 			})
 		})
-		refresher, sink := newTestRefresher(tokenPath, srv.URL)
-		sink.err = assert.AnError
-		err := refresher.Start(context.Background())
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "apply initial credentials")
+		refresher, _ := newTestRefresher(tokenPath, srv.URL)
+
+		cred, err := refresher.fetchWithRetry(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, "ak", cred.AccessKeyID)
+		assert.Equal(t, int32(2), calls.Load())
 	})
-}
 
-func TestRefresherStartWithBadCAFile(t *testing.T) {
-	tmpDir := t.TempDir()
-	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
-	sink := &fakeSink{}
-	r := NewRefresher(Opts{
-		TokenFile: tokenPath, Endpoint: "https://localhost:0",
-		CredProvider: "cp", SandboxId: "sb",
-		CAFile: filepath.Join(tmpDir, "missing-ca.crt"),
-	}, sink)
-	err := r.StartWith(&STSToken{Expiration: time.Now().Add(time.Hour).Format(time.RFC3339)})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "build http client")
-}
-
-func TestRefresherStopIdempotent(t *testing.T) {
-	tmpDir := t.TempDir()
-	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
-	refresher, _ := newTestRefresher(tokenPath, "http://localhost:0")
-	require.NoError(t, refresher.StartWith(&STSToken{
-		Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
-	}))
-
-	refresher.Stop()
-	// Second Stop must not panic on the already-closed stop channel.
-	refresher.Stop()
-}
-
-func TestRefresherFetchWithRetryStopped(t *testing.T) {
-	tmpDir := t.TempDir()
-	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
-
-	t.Run("stopped before first attempt", func(t *testing.T) {
+	t.Run("cancelled before first attempt", func(t *testing.T) {
 		refresher, _ := newTestRefresher(tokenPath, "http://localhost:0")
-		refresher.client = &http.Client{Timeout: time.Second}
-		close(refresher.stopCh)
-		_, err := refresher.fetchWithRetry()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "stopped")
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err := refresher.fetchWithRetry(ctx)
+		require.ErrorIs(t, err, context.Canceled)
 	})
 
-	t.Run("stopped during backoff after a failed attempt", func(t *testing.T) {
+	t.Run("cancelled during backoff after a failed attempt", func(t *testing.T) {
 		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		})
 		refresher, _ := newTestRefresher(tokenPath, srv.URL)
-		refresher.client = &http.Client{Timeout: time.Second}
+		ctx, cancel := context.WithCancel(t.Context())
 
 		result := make(chan error, 1)
 		go func() {
-			_, err := refresher.fetchWithRetry()
+			_, err := refresher.fetchWithRetry(ctx)
 			result <- err
 		}()
-		// Let the first attempt fail, then stop while the loop is backing off.
+		// Let the first attempt fail, then cancel while the loop is backing off.
 		time.Sleep(100 * time.Millisecond)
-		close(refresher.stopCh)
+		cancel()
 
 		select {
 		case err := <-result:
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "stopped")
+			require.ErrorIs(t, err, context.Canceled)
 		case <-time.After(3 * time.Second):
-			t.Fatal("fetchWithRetry did not return after stop")
+			t.Fatal("fetchWithRetry did not return after cancel")
 		}
 	})
 }
@@ -663,8 +599,7 @@ func TestRefresherRefreshLoopContinuesOnApplyError(t *testing.T) {
 	refresher.refreshMargin = 30 * time.Millisecond
 
 	// Invalid expiration forces sleep = refreshMargin, so rotations happen fast.
-	require.NoError(t, refresher.StartWith(&STSToken{Expiration: "not-a-date"}))
-	defer refresher.Stop()
+	startLoop(t, refresher, &STSToken{Expiration: "not-a-date"})
 
 	// Apply keeps failing but the loop must keep fetching (continue path).
 	assert.Eventually(t, func() bool {

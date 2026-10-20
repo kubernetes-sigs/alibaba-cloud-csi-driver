@@ -8,29 +8,45 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newStartedTestRefresher returns a refresher whose loop is running (so Stop
-// returns promptly) and whose sink records cleanups.
-func newStartedTestRefresher(t *testing.T) (*Refresher, *fakeSink) {
+// idleRefresher returns a refresher and a credential far from expiry, so its
+// loop only sleeps until cancelled.
+func idleRefresher(t *testing.T) (*Refresher, *STSToken) {
 	t.Helper()
-	sink := &fakeSink{}
-	r := NewRefresher(Opts{
+	r, err := NewRefresher(Opts{
 		TokenFile:    "/nonexistent",
 		Endpoint:     "http://localhost:0",
 		CredProvider: "cp",
 		SandboxId:    "sb",
-	}, sink)
-	require.NoError(t, r.StartWith(&STSToken{
-		Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
-	}))
-	return r, sink
+	}, &fakeSink{})
+	require.NoError(t, err)
+	return r, &STSToken{Expiration: time.Now().Add(time.Hour).Format(time.RFC3339)}
+}
+
+func startIdle(t *testing.T, m *Manager, target string) {
+	t.Helper()
+	r, cred := idleRefresher(t)
+	m.Start(target, r, cred)
+}
+
+// requireLoopsExited asserts that every loop started by m has returned.
+func requireLoopsExited(t *testing.T, m *Manager) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		m.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("refresh loops did not exit")
+	}
 }
 
 func TestManagerStopByTarget(t *testing.T) {
 	m := NewManager()
-	r1, s1 := newStartedTestRefresher(t)
-	r2, s2 := newStartedTestRefresher(t)
-	m.Add("/mnt/a", r1)
-	m.Add("/mnt/b", r2)
+	startIdle(t, m, "/mnt/a")
+	startIdle(t, m, "/mnt/b")
 
 	assert.True(t, m.HasTarget("/mnt/a"))
 	assert.True(t, m.HasTarget("/mnt/b"))
@@ -38,55 +54,55 @@ func TestManagerStopByTarget(t *testing.T) {
 	m.StopByTarget("/mnt/a")
 
 	assert.False(t, m.HasTarget("/mnt/a"))
-	assert.True(t, m.HasTarget("/mnt/b"))
-	assert.Equal(t, 1, s1.cleaned, "stopped refresher's sink should be cleaned")
-	assert.Equal(t, 0, s2.cleaned, "other refresher must stay running")
+	assert.True(t, m.HasTarget("/mnt/b"), "other loop must stay running")
 
-	// Unknown or empty targets are no-ops.
+	// Unknown, empty and already-stopped targets are no-ops.
 	m.StopByTarget("/mnt/unknown")
 	m.StopByTarget("")
+	m.StopByTarget("/mnt/a")
 
-	m.StopAll(time.Second)
+	m.StopByTarget("/mnt/b")
+	requireLoopsExited(t, m)
 }
 
-func TestManagerStopRefresherIdempotent(t *testing.T) {
+func TestManagerStartReplacesLoopForSameTarget(t *testing.T) {
 	m := NewManager()
-	r, sink := newStartedTestRefresher(t)
-	m.Add("/mnt/a", r)
+	startIdle(t, m, "/mnt/a")
+	startIdle(t, m, "/mnt/a")
+	assert.True(t, m.HasTarget("/mnt/a"))
 
-	m.StopRefresher(r)
-	assert.Equal(t, 1, sink.cleaned)
-	assert.False(t, m.HasTarget("/mnt/a"))
-
-	// Second stop is a no-op: no double cleanup.
-	m.StopRefresher(r)
-	assert.Equal(t, 1, sink.cleaned)
+	// A single stop must end both loops: the first was cancelled on replace.
+	m.StopByTarget("/mnt/a")
+	requireLoopsExited(t, m)
 }
 
 func TestManagerStopAll(t *testing.T) {
 	m := NewManager()
-	r1, s1 := newStartedTestRefresher(t)
-	r2, s2 := newStartedTestRefresher(t)
-	m.Add("/mnt/a", r1)
-	m.Add("/mnt/b", r2)
+	startIdle(t, m, "/mnt/a")
+	startIdle(t, m, "/mnt/b")
 
-	m.StopAll(2 * time.Second)
+	m.StopAll(time.Second)
 
-	assert.Equal(t, 1, s1.cleaned)
-	assert.Equal(t, 1, s2.cleaned)
 	assert.False(t, m.HasTarget("/mnt/a"))
 	assert.False(t, m.HasTarget("/mnt/b"))
+	requireLoopsExited(t, m)
 
-	// Empty manager StopAll returns immediately.
+	startIdle(t, m, "/mnt/c")
+	assert.False(t, m.HasTarget("/mnt/c"), "Start after StopAll must be rejected")
+
+	// Stopped manager StopAll returns immediately.
 	m.StopAll(time.Millisecond)
 }
 
 func TestPackageStopAll(t *testing.T) {
-	r, sink := newStartedTestRefresher(t)
-	DefaultManager.Add("/mnt/pkg-stopall", r)
+	orig := DefaultManager
+	DefaultManager = NewManager()
+	t.Cleanup(func() { DefaultManager = orig })
+
+	startIdle(t, DefaultManager, "/mnt/pkg-stopall")
 
 	StopAll()
 
-	assert.Equal(t, 1, sink.cleaned)
 	assert.False(t, DefaultManager.HasTarget("/mnt/pkg-stopall"))
+	requireLoopsExited(t, DefaultManager)
 }

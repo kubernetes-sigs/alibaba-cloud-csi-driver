@@ -1,7 +1,6 @@
 package jwtauth
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFetchSTSTokenSuccess(t *testing.T) {
+func TestRefresherFetchCredentials(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 
@@ -23,31 +22,31 @@ func TestFetchSTSTokenSuccess(t *testing.T) {
 			`"expiration":"` + time.Now().Add(time.Hour).Format(time.RFC3339) + `"}}`))
 	})
 
-	cred, err := FetchSTSToken(context.Background(), Opts{
+	r, err := NewRefresher(Opts{
 		TokenFile:    tokenPath,
 		Endpoint:     srv.URL,
 		CredProvider: "cp",
 		SandboxId:    "sb",
-	})
+	}, &fakeSink{})
+	require.NoError(t, err)
+	cred, err := r.FetchCredentials(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "ak", cred.AccessKeyID)
 	assert.Equal(t, "sk", cred.AccessKeySecret)
 	assert.Equal(t, "st", cred.SecurityToken)
 }
 
-func TestFetchSTSTokenBadCAFile(t *testing.T) {
+func TestNewRefresherBadCAFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
-
-	cred, err := FetchSTSToken(context.Background(), Opts{
-		TokenFile:    tokenPath,
+	r, err := NewRefresher(Opts{
+		TokenFile:    filepath.Join(tmpDir, "token.json"),
 		Endpoint:     "https://localhost:0",
 		CredProvider: "cp",
 		SandboxId:    "sb",
 		CAFile:       filepath.Join(tmpDir, "nonexistent-ca.crt"),
-	})
+	}, &fakeSink{})
 	require.Error(t, err)
-	assert.Nil(t, cred)
+	assert.Nil(t, r)
 	assert.Contains(t, err.Error(), "build http client")
 }
 
@@ -57,7 +56,7 @@ func TestExchangeSTSTokenErrors(t *testing.T) {
 	client := &http.Client{Timeout: time.Second}
 
 	t.Run("invalid endpoint URL", func(t *testing.T) {
-		_, err := exchangeSTSToken(context.Background(), client, Opts{
+		_, err := exchangeSTSToken(t.Context(), client, Opts{
 			TokenFile: tokenPath, Endpoint: "://invalid", CredProvider: "cp", SandboxId: "sb",
 		})
 		require.Error(t, err)
@@ -67,7 +66,7 @@ func TestExchangeSTSTokenErrors(t *testing.T) {
 	t.Run("unreachable endpoint", func(t *testing.T) {
 		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {})
 		srv.Close() // connection refused
-		_, err := exchangeSTSToken(context.Background(), client, Opts{
+		_, err := exchangeSTSToken(t.Context(), client, Opts{
 			TokenFile: tokenPath, Endpoint: srv.URL, CredProvider: "cp", SandboxId: "sb",
 		})
 		require.Error(t, err)
@@ -78,7 +77,7 @@ func TestExchangeSTSTokenErrors(t *testing.T) {
 		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte(`{"requestId":"r1","stsToken":{"accessKeyId":"","accessKeySecret":""}}`))
 		})
-		_, err := exchangeSTSToken(context.Background(), client, Opts{
+		_, err := exchangeSTSToken(t.Context(), client, Opts{
 			TokenFile: tokenPath, Endpoint: srv.URL, CredProvider: "cp", SandboxId: "sb",
 		})
 		require.Error(t, err)
@@ -89,7 +88,7 @@ func TestExchangeSTSTokenErrors(t *testing.T) {
 		srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte("not json"))
 		})
-		_, err := exchangeSTSToken(context.Background(), client, Opts{
+		_, err := exchangeSTSToken(t.Context(), client, Opts{
 			TokenFile: tokenPath, Endpoint: srv.URL, CredProvider: "cp", SandboxId: "sb",
 		})
 		require.Error(t, err)
