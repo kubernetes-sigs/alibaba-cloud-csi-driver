@@ -17,6 +17,8 @@ const (
 	initialRetryBackoff = 1 * time.Second
 	maxFetchRetries     = 5
 	stopWaitTimeout     = 15 * time.Second
+	// Recheck the absolute refresh target after a suspend/resume or clock change.
+	defaultClockCheckInterval = 5 * time.Second
 )
 
 // Refresher fetches scoped STS credentials for a jwtauth mount and keeps them
@@ -34,6 +36,8 @@ type Refresher struct {
 	// field rather than a constant so tests can drive the loop through its real
 	// scheduling path instead of only through the parse-failure branch.
 	minSleep time.Duration
+	// wallNow allows tests to simulate clock changes without changing system time.
+	wallNow func() time.Time
 
 	mu     sync.Mutex
 	stopCh chan struct{}
@@ -47,6 +51,7 @@ func NewRefresher(opts Opts, sink CredentialSink) *Refresher {
 		sink:          sink,
 		refreshMargin: agentidentity.GetTokenRefreshMargin(),
 		minSleep:      defaultMinSleep,
+		wallNow:       time.Now,
 		stopCh:        make(chan struct{}),
 		done:          make(chan struct{}),
 	}
@@ -122,13 +127,11 @@ func (r *Refresher) fetchCredentials(ctx context.Context) (*STSToken, error) {
 func (r *Refresher) refreshLoop(lastCred *STSToken) {
 	defer close(r.done)
 	for {
-		sleepDuration := r.calcSleepDuration(lastCred.Expiration)
-		klog.V(4).Infof("jwtauth refresher: next refresh in %v", sleepDuration)
+		target := r.calcRefreshTarget(lastCred.Expiration)
+		klog.V(4).Infof("jwtauth refresher: next refresh at %v", target)
 
-		select {
-		case <-r.stopCh:
+		if !r.waitUntilDue(target) {
 			return
-		case <-time.After(sleepDuration):
 		}
 
 		cred, err := r.fetchWithRetry()
@@ -177,15 +180,32 @@ func (r *Refresher) fetchWithRetry() (*STSToken, error) {
 	return nil, fmt.Errorf("all retries exhausted: %w", lastErr)
 }
 
-func (r *Refresher) calcSleepDuration(expiration string) time.Duration {
+// waitUntilDue polls the wall-clock target prepared by refreshLoop so clock
+// changes and sandbox resumes are reflected on the next check.
+func (r *Refresher) waitUntilDue(target time.Time) bool {
+	for {
+		dur := target.Sub(r.wallNow())
+		if dur <= 0 {
+			return true
+		}
+		select {
+		case <-r.stopCh:
+			return false
+		case <-time.After(min(dur, defaultClockCheckInterval)):
+		}
+	}
+}
+
+func (r *Refresher) calcRefreshTarget(expiration string) time.Time {
 	expTime, err := time.Parse(time.RFC3339, expiration)
 	if err != nil {
-		klog.Warningf("jwtauth refresher: parse expiration %q failed, using margin as sleep: %v", expiration, err)
-		return r.refreshMargin
+		klog.Warningf("jwtauth refresher: parse expiration %q failed, refresh after %v: %v", expiration, r.refreshMargin, err)
+		return r.wallNow().Round(0).Add(r.refreshMargin)
 	}
-	until := time.Until(expTime) - r.refreshMargin
-	if until < r.minSleep {
-		return r.minSleep
+	target := expTime.Add(-r.refreshMargin)
+	floor := r.wallNow().Round(0).Add(r.minSleep)
+	if target.Before(floor) {
+		return floor
 	}
-	return until
+	return target
 }

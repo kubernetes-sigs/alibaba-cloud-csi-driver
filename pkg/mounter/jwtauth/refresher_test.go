@@ -203,7 +203,7 @@ func TestRefresherStopDuringRefresh(t *testing.T) {
 
 // TestRefresherRotatesOnComputedSchedule covers the scheduling path that
 // production actually takes: a valid expiration far enough out that
-// calcSleepDuration returns the computed interval rather than the minSleep
+// calcRefreshTarget returns the computed target rather than the minSleep
 // floor or the parse-failure margin.
 //
 // Expirations are RFC3339, which has second granularity, so the interval has to
@@ -232,7 +232,7 @@ func TestRefresherRotatesOnComputedSchedule(t *testing.T) {
 		AccessKeyID: "ak1", AccessKeySecret: "sk1", SecurityToken: "st1",
 		Expiration: time.Now().Add(2 * time.Second).Format(time.RFC3339),
 	}
-	require.Greater(t, refresher.calcSleepDuration(initial.Expiration), refresher.minSleep,
+	require.Greater(t, time.Until(refresher.calcRefreshTarget(initial.Expiration)), refresher.minSleep,
 		"the computed interval, not the floor, must drive this test")
 
 	require.NoError(t, refresher.StartWith(initial))
@@ -384,24 +384,115 @@ func TestRefresherStartWithAppliesRotations(t *testing.T) {
 	assert.Equal(t, "ak2", got.AccessKeyID)
 }
 
-func TestRefresherCalcSleepDuration(t *testing.T) {
-	r := &Refresher{refreshMargin: 5 * time.Minute, minSleep: defaultMinSleep}
+func TestRefresherRefreshesWhenWallClockPassesTarget(t *testing.T) {
+	tokenPath := writeTokenFile(t, t.TempDir(), "tok", "cli")
+	var offset atomic.Int64
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(credentialResponse{STSToken: &STSToken{
+			AccessKeyID: "rotated", AccessKeySecret: "sk", SecurityToken: "st",
+			Expiration: time.Now().Add(time.Duration(offset.Load()) + time.Hour).Format(time.RFC3339),
+		}})
+	})
+	r, sink := newTestRefresher(tokenPath, srv.URL)
+	var reads atomic.Int32
+	started := make(chan struct{})
+	r.wallNow = func() time.Time {
+		now := time.Now().Round(0).Add(time.Duration(offset.Load()))
+		if reads.Add(1) == 1 {
+			close(started)
+		}
+		return now
+	}
+	require.NoError(t, r.StartWith(&STSToken{Expiration: time.Now().Add(time.Hour).Format(time.RFC3339)}))
+	defer r.Stop()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("refresh loop did not start")
+	}
+	require.Zero(t, sink.appliedCount())
+	offset.Store(int64(2 * time.Hour))
+	require.Eventually(t, func() bool { return sink.appliedCount() == 1 }, 7*time.Second, 10*time.Millisecond,
+		"passing the absolute refresh target must fetch and apply a token")
+	sink.mu.Lock()
+	assert.Equal(t, "rotated", sink.applied[0].AccessKeyID)
+	sink.mu.Unlock()
+	time.Sleep(30 * time.Millisecond)
+	assert.Equal(t, 1, sink.appliedCount(), "the new token's future target must prevent repeated refreshes")
+}
+
+func TestRefresherWaitUntilDue(t *testing.T) {
+	t.Run("normalTarget", func(t *testing.T) {
+		r := NewRefresher(Opts{}, &fakeSink{})
+		start := time.Now()
+		assert.True(t, r.waitUntilDue(start.Add(30*time.Millisecond).Round(0)))
+		assert.GreaterOrEqual(t, time.Since(start), 30*time.Millisecond)
+	})
+	for _, tc := range []struct {
+		name   string
+		offset time.Duration
+		wait   time.Duration
+	}{
+		{"forwardJumpBeforeTarget", 11 * time.Minute, time.Hour},
+		{"backwardJump", -time.Hour, 30 * time.Millisecond},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := NewRefresher(Opts{}, &fakeSink{})
+			var reads atomic.Int32
+			r.wallNow = func() time.Time {
+				if reads.Add(1) == 1 && tc.offset < 0 {
+					return time.Now()
+				}
+				return time.Now().Add(tc.offset)
+			}
+			done := make(chan bool, 1)
+			go func() { done <- r.waitUntilDue(time.Now().Add(tc.wait).Round(0)) }()
+			if tc.offset < 0 {
+				assert.Eventually(t, func() bool { return reads.Load() >= 2 }, time.Second, time.Millisecond,
+					"the original timer must recheck the wall clock instead of refreshing after a backward jump")
+			}
+			select {
+			case <-done:
+				t.Fatal("a clock change must not refresh before the wall-clock target")
+			case <-time.After(30 * time.Millisecond):
+			}
+			close(r.stopCh)
+			select {
+			case due := <-done:
+				assert.False(t, due, "stop must interrupt the pending wait")
+			case <-time.After(time.Second):
+				t.Fatal("wait did not stop")
+			}
+		})
+	}
+	t.Run("stopInterruptsWait", func(t *testing.T) {
+		r := NewRefresher(Opts{}, &fakeSink{})
+		close(r.stopCh)
+		assert.False(t, r.waitUntilDue(time.Now().Add(time.Hour).Round(0)))
+	})
+}
+
+func TestRefresherCalcRefreshTarget(t *testing.T) {
+	// Keep wall time distinct from system time and retain a monotonic reading
+	// in the source, so the existing fallback/floor cases verify both contracts.
+	now := time.Now().Add(-24 * time.Hour)
+	r := &Refresher{refreshMargin: 5 * time.Minute, minSleep: defaultMinSleep, wallNow: func() time.Time { return now }}
 
 	t.Run("normal expiration", func(t *testing.T) {
-		exp := time.Now().Add(30 * time.Minute).Format(time.RFC3339)
-		d := r.calcSleepDuration(exp)
+		exp := now.Add(30 * time.Minute).Format(time.RFC3339)
+		d := r.calcRefreshTarget(exp).Sub(now)
 		assert.InDelta(t, 25*time.Minute, d, float64(5*time.Second))
 	})
 	t.Run("near expiration clamps to min", func(t *testing.T) {
-		exp := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
-		assert.Equal(t, defaultMinSleep, r.calcSleepDuration(exp))
+		exp := now.Add(1 * time.Minute).Format(time.RFC3339)
+		assert.Equal(t, now.Round(0).Add(defaultMinSleep), r.calcRefreshTarget(exp))
 	})
 	t.Run("past expiration clamps to min", func(t *testing.T) {
-		exp := time.Now().Add(-10 * time.Minute).Format(time.RFC3339)
-		assert.Equal(t, defaultMinSleep, r.calcSleepDuration(exp))
+		exp := now.Add(-10 * time.Minute).Format(time.RFC3339)
+		assert.Equal(t, now.Round(0).Add(defaultMinSleep), r.calcRefreshTarget(exp))
 	})
 	t.Run("invalid format uses margin", func(t *testing.T) {
-		assert.Equal(t, 5*time.Minute, r.calcSleepDuration("not-a-date"))
+		assert.Equal(t, now.Round(0).Add(5*time.Minute), r.calcRefreshTarget("not-a-date"))
 	})
 	t.Run("NewRefresher applies the default floor and the configured margin", func(t *testing.T) {
 		defaulted := NewRefresher(Opts{}, &fakeSink{})
@@ -418,7 +509,7 @@ func TestRefresherCalcSleepDuration(t *testing.T) {
 		t.Setenv("AGENT_IDENTITY_TOKEN_REFRESH_MARGIN", "10m")
 		configured := NewRefresher(Opts{}, &fakeSink{})
 		exp := time.Now().Add(time.Hour).Format(time.RFC3339)
-		assert.InDelta(t, 50*time.Minute, configured.calcSleepDuration(exp), float64(5*time.Second),
+		assert.InDelta(t, 50*time.Minute, time.Until(configured.calcRefreshTarget(exp)), float64(5*time.Second),
 			"an hour of validity minus a 10m margin should leave about 50m")
 	})
 }
