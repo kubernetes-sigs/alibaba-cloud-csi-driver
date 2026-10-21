@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -246,6 +247,42 @@ func TestCustomFuseHookEnvOmitsEmptySource(t *testing.T) {
 
 	assert.NotContains(t, env, "source=",
 		"an empty source must be absent rather than present and empty, matching what the entrypoint sees")
+}
+
+func TestCustomFuseHookEnvDoesNotOverrideInherited(t *testing.T) {
+	t.Setenv("HOME", "/runtime-home")
+	t.Setenv("PATH", "/usr/bin")
+
+	op := &mounter.MountOperation{
+		Target:  "/mnt/data",
+		Options: []string{"HOME=/volume-home", "bucket=my-bucket"},
+	}
+	env := customFuseHookEnv(op)
+
+	homeCount := 0
+	for _, e := range env {
+		if k, v, _ := strings.Cut(e, "="); k == "HOME" {
+			homeCount++
+			assert.Equal(t, "/runtime-home", v,
+				"inherited HOME must not be overridden by a volume option")
+		}
+	}
+	assert.Equal(t, 1, homeCount, "HOME must appear exactly once")
+	assert.Contains(t, env, "bucket=my-bucket",
+		"non-colliding options must still be passed through")
+}
+
+func TestResolveAgentIdentityOptsDoesNotFlatten(t *testing.T) {
+	options := []string{"otherOpts=--flag1,--flag2", "bucket=b"}
+	idx := mounterutils.IndexMountOptions(options)
+	assert.Equal(t, "--flag1,--flag2", idx["otherOpts"],
+		"IndexMountOptions must preserve comma-separated values as-is")
+
+	optsCopy := make([]string, len(options))
+	copy(optsCopy, options)
+	_, _, _, _ = resolveAgentIdentityOpts(options)
+	assert.Equal(t, optsCopy, options,
+		"resolveAgentIdentityOpts must not modify the input options")
 }
 
 func TestCustomFuseJWTAuthInterceptorNoOpForOtherAuthTypes(t *testing.T) {

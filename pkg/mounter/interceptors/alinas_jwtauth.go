@@ -7,6 +7,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/klog/v2"
 )
 
@@ -40,7 +41,8 @@ func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, h
 	if op == nil {
 		return handler(ctx, op)
 	}
-	opts, _, active, err := resolveAgentIdentityOpts(op.Options)
+	flat := flattenMountOptions(op.Options)
+	opts, _, active, err := resolveAgentIdentityOpts(flat)
 	if err != nil {
 		return err
 	}
@@ -60,7 +62,7 @@ func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, h
 		return fmt.Errorf("jwtauth fetch STS token: %w", err)
 	}
 
-	options, sensitive := splitAlinasSTSOptions(flattenMountOptions(op.Options), cred)
+	options, sensitive := splitAlinasSTSOptions(flat, cred)
 	op.Options = options
 	op.SensitiveOptions = append(op.SensitiveOptions, sensitive...)
 	klog.V(4).InfoS("injected jwtauth STS credential into alinas sensitive mount options", "target", op.Target)
@@ -114,4 +116,16 @@ func splitAlinasSTSOptions(flatOptions []string, cred *jwtauth.STSToken) (option
 		optAlinasSecurityToken + "=" + cred.SecurityToken,
 	}
 	return options, sensitiveOptions
+}
+
+func flattenMountOptions(options []string) []string {
+	flat := make([]string, 0, len(options))
+	for _, o := range options {
+		for _, part := range mounterutils.SplitMountOptions(o) {
+			if part = strings.TrimSpace(part); part != "" {
+				flat = append(flat, part)
+			}
+		}
+	}
+	return flat
 }

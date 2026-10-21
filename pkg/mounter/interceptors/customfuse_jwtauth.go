@@ -208,14 +208,31 @@ func stripCustomFuseInfraOptions(options []string) []string {
 // a long-lived key to a process that lives as long as the mount. credentialDir is
 // left to the sink, which owns the resolved value.
 func customFuseHookEnv(op *mounter.MountOperation) []string {
-	env := append(os.Environ(), "mountpoint="+op.Target)
+	inherited := os.Environ()
+	taken := make(map[string]struct{}, len(inherited))
+	for _, kv := range inherited {
+		if name, _, found := strings.Cut(kv, "="); found {
+			taken[name] = struct{}{}
+		}
+	}
+
+	env := inherited
+	env = append(env, "mountpoint="+op.Target)
+	taken["mountpoint"] = struct{}{}
 	if op.Source != "" {
 		env = append(env, "source="+op.Source)
+		taken["source"] = struct{}{}
 	}
 	for _, opt := range op.Options {
-		if key, _, _ := strings.Cut(opt, "="); key != OptCredentialDir {
-			env = append(env, opt)
+		key, _, _ := strings.Cut(opt, "=")
+		if key == OptCredentialDir {
+			continue
 		}
+		if _, ok := taken[key]; ok {
+			continue
+		}
+		taken[key] = struct{}{}
+		env = append(env, opt)
 	}
 	return env
 }
