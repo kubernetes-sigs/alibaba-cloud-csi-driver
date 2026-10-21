@@ -2,15 +2,16 @@
 
 The customfuse driver can exchange a sandbox agent-identity token for a
 short-lived, scoped STS credential instead of taking a long-lived AccessKey from
-a Secret. The credential is delivered to the fuse container as files and kept
-fresh for the lifetime of the mount, so no AccessKey is stored in the cluster.
+a Secret. The credential is delivered via stdin and kept fresh for the lifetime
+of the mount, so no AccessKey is stored in the cluster and no credential touches
+the filesystem.
 
 Unlike the other drivers, customfuse runs a FUSE client chosen by the volume, so
 it cannot know how that client wants a credential handed to it — `alinas` can
 assume its client takes the STS triple as mount options, `ossfs` can assume its
 client performs the exchange itself. customfuse can assume neither. It therefore
-performs the exchange itself and delivers the result as files, leaving your
-entrypoint to adapt them to your client.
+performs the exchange itself and delivers the result via stdin, leaving your
+entrypoint to adapt it to your client.
 
 ## How it works
 
@@ -18,16 +19,13 @@ You supply the FUSE client and the script that mounts it. The driver supplies th
 credential:
 
 1. The volume sets `authType: agent-identity` and carries no Secret.
-2. **Before your entrypoint starts**, the driver has exchanged the sandbox token
-   for a scoped STS credential and written it to `$credentialDir`, one value per
-   file.
-3. Your entrypoint reads those files and mounts.
-4. **Before the credential expires**, the driver writes a new one to the same
-   directory. A client that re-reads the files picks it up on its own; one that
-   does not can be told through a *refresh hook* — a script of yours that the
-   driver runs after each rotation. See [Rotation](#rotation).
-5. **When your entrypoint exits** — unmounted or crashed — the credential is
-   removed.
+2. **Your entrypoint receives** the credential on stdin as four lines
+   (AccessKeyId, AccessKeySecret, SecurityToken, Expiration).
+3. Your entrypoint reads stdin and mounts.
+4. **Before the credential expires**, the driver runs the *refresh hook* with
+   the new credential on its stdin in the same format. See [Rotation](#rotation).
+5. **When your entrypoint exits** — unmounted or crashed — the refresh loop
+   stops.
 
 A failed exchange fails the mount: there is no static credential to fall back to,
 and a client started without one fails later and less clearly.
@@ -49,23 +47,20 @@ and a client started without one fails later and less clearly.
 **The driver does not:**
 
 * Assume anything about how your client consumes a credential, or prescribe how
-  it should. Delivery is files; everything above that is yours.
-* Guarantee your client notices a rotation. A client that re-reads the files does;
-  one that does not must be told, which is what the refresh hook is for.
+  it should. Delivery is stdin; everything above that is yours.
+* Guarantee your client notices a rotation. A refresh hook is run after each
+  rotation; what it does is up to you.
 * Work around a client that cannot accept a new credential at all while running.
   Such a client needs a credential outliving the mount; no delivery mechanism
   helps.
 
 **Your entrypoint is responsible for:**
 
-* Composing the credential into whatever form your client takes — a JSON
-  document, an ini profile, a properties file, command line arguments,
-  environment variables.
-* Reading all fields from a **single** resolved directory. See
-  [Reading the credential](#reading-the-credential) — getting this wrong produces
-  a credential that never existed, with no error raised.
-* Telling your client about a rotation, via the refresh hook, if it does not
-  re-read the files itself.
+* Reading the four lines from stdin and composing them into whatever form your
+  client takes — command line arguments, a config file, environment variables,
+  an ini profile.
+* Telling your client about a rotation, via the refresh hook, if it cannot
+  pick up the new credential on its own.
 
 ## Prerequisite
 
@@ -100,81 +95,38 @@ supplies both.
 > The provider that issues the STS credential, and therefore what the credential
 > is scoped to.
 
-Two are optional, and only about where your scripts and the credential live:
+One is optional:
 
-> `credentialDir`: pins the absolute path the credential files are written to.
-> The path **must** be under `/run/customfuse-credentials/`; any path outside
-> it is rejected. Unset, each mount gets its own directory there and your
-> entrypoint reads the path from `$credentialDir`, which is the normal case.
-> Set it only when your client's own configuration hardcodes where it reads a
-> credential from, and so cannot be told at mount time. That path is a symlink
-> to the directory actually holding the files, so it cannot be one your client
-> already created: rotating onto an existing directory fails the mount rather
-> than overwriting it.
->
-> In a **fuse pod** the driver mounts a Memory-backed `emptyDir` at
-> `/run/customfuse-credentials` so credentials live on an isolated tmpfs,
-> never touch the host filesystem, and are reclaimed when the pod terminates.
-> In a **sandbox sidecar** the external controller builds the container spec,
-> so the driver cannot add this mount itself. Sandbox operators are advised to
-> mount an `emptyDir{medium: Memory}` at `/run/customfuse-credentials` in
-> their sidecar spec. The mount is optional — path validation and symlink
-> checks enforce confinement without it — but it adds defense-in-depth by
-> physically isolating the credential filesystem from the host.
->
 > `credentialRefreshHookKey`: names an `entrypointConfig` key projected as the
 > refresh hook into a fuse pod. A sandbox has no fuse pod, so there the hook is
 > whichever of two fixed paths the sidecar finds — see [Rotation](#rotation).
 
 ## What the entrypoint receives
 
-| Variable | Value |
-|----------|-------|
-| `$credentialDir` | Directory holding the credential files. Set for the entrypoint **and** for the refresh hook. |
-| `$authType` | `agent-identity`, so one entrypoint can serve both this and the default Secret-passthrough flow. |
-
-The directory contains one file per field:
+The credential arrives on **stdin** as four lines, one field per line:
 
 ```
-$credentialDir/AccessKeyId
-$credentialDir/AccessKeySecret
-$credentialDir/SecurityToken
-$credentialDir/Expiration
+AccessKeyId
+AccessKeySecret
+SecurityToken
+Expiration
 ```
 
-One value per file rather than a finished format, because no format is neutral —
-even "JSON" is not one thing: the same three values are `AccessKeySecret` and
-`SecurityToken` in one ecosystem, `SecretAccessKey` and `SessionToken` in
-another. Composing from separate values needs no parsing; a finished format would
-force every entrypoint wanting a different one to first take it apart.
+The entrypoint also receives `$authType` (`agent-identity`) as an environment
+variable, so one script can serve both this and the default Secret-passthrough
+flow.
 
 ## Reading the credential
 
-`$credentialDir` is a symlink that a rotation replaces. Resolve it **once** and
-read every field from the result:
-
 ```bash
-read_credential() {
-    local dir
-    dir=$(readlink -f "$credentialDir") || return 1
-    ak=$(cat "$dir/AccessKeyId") || return 1
-    sk=$(cat "$dir/AccessKeySecret") || return 1
-    tk=$(cat "$dir/SecurityToken") || return 1
-}
-
-for attempt in 1 2 3; do
-    read_credential && break
-    [ "$attempt" = 3 ] && { echo "cannot read credential" >&2; exit 1; }
-    sleep 1
-done
+read -r ak
+read -r sk
+read -r token
+read -r expiration
 ```
 
-Reading `$credentialDir/AccessKeyId`, `$credentialDir/AccessKeySecret` and so on
-directly resolves the symlink once per field, so a rotation landing in between
-yields fields from two different credentials — a combination that never existed,
-with no error raised. The retry covers the opposite case: the directory a
-rotation replaced is deleted shortly afterwards, so a resolve landing just before
-one may find its files already gone.
+No files, no symlinks, no jq — just `read`. The credential never touches the
+filesystem, argv or `/proc/<pid>/environ`.
 
 ## Rotation
 
@@ -184,19 +136,19 @@ are only three behaviours it can have:
 
 | If your client… | Then… |
 |---|---|
-| re-reads the credential files | nothing to do — ship no hook |
+| re-reads credential files written by your entrypoint/hook | nothing to do — ship a hook that writes files, no further notification needed |
 | must be told (its credential is already parsed into memory, or lives in its own store) | supply a hook that tells it |
 | cannot accept a new credential while running | no hook helps; it needs a credential outliving the mount |
 
 The hook is an arbitrary executable, so "tell it" can be whatever your client
 supports — invoking its CLI, sending it a signal, calling its admin endpoint,
-rewriting its own config. It receives `$credentialDir` plus the volume's own
-attributes (`$mountpoint`, `$source`, and whatever the PersistentVolume set), so
-it can name the volume it is being asked about. No credential value reaches it,
-and neither does any Secret.
+rewriting its own config. It receives the new credential on **stdin** (same
+four-line format as the entrypoint) plus the volume's own attributes
+(`$mountpoint`, `$source`, and whatever the PersistentVolume set) as environment
+variables, so it can name the volume it is being asked about.
 
-A hook that fails is reported: the files rotated but the client was not told,
-which is a half-applied rotation and must not pass silently.
+A hook that fails is retried with exponential backoff. The credential was already
+fetched, so retries do not cause redundant STS exchanges.
 
 Where the hook comes from:
 
@@ -205,7 +157,7 @@ Where the hook comes from:
   the key is named.
 * **Sandbox sidecar** — `/etc/fuse-config/refresh-hook.sh` first, then
   `/refresh-hook.sh` in your image; whichever exists first runs, and if neither
-  does, no hook runs, which is what a client that re-reads the files wants. One
+  does, no hook runs. One
   that exists but is not executable is reported and skipped rather than failing
   the mount.
 

@@ -2,7 +2,7 @@
 
 Run a self-built FUSE client in an Alibaba Cloud ACS sandbox with no credential
 anywhere in the cluster. mount-proxy exchanges the sandbox's internal credential
-for a scoped STS credential, writes it into the sidecar as files, and rewrites it
+for a scoped STS credential, delivers it via stdin, and rotates it
 before it expires.
 
 Here both scripts live in your image, which keeps this the smallest working
@@ -52,40 +52,54 @@ because it is the case that needs the most work.
 
 | | JindoFS | JuiceFS (this demo) | s3fs |
 |---|---|---|---|
-| **Notices a rotation?** | **Yes**, on its own | **No**, must be told | **No, and cannot be told** |
-| **Why** | Its `secrets://` provider polls one file per field, using exactly the names the driver writes | The credential lives in its metadata engine; nothing watches the files | It does not re-read its credentials file and has no reload command |
-| **Ship `/refresh-hook.sh`?** | no | **yes** — runs `juicefs config` | no — a hook cannot help |
-| **`/entrypoint.sh` touches the credential?** | no — just points the SDK at `$credentialDir` | yes — reads the files, passes values as arguments | yes — reads the files, writes an AWS ini profile |
+| **Notices a rotation?** | **Yes**, if your hook writes files it polls | **No**, must be told | **No, and cannot be told** |
+| **Ship `/refresh-hook.sh`?** | **yes** — writes files from stdin, JindoFS polls them | **yes** — runs `juicefs config` | no — a hook cannot help |
+| **`/entrypoint.sh` reads stdin?** | yes — writes files for the SDK, then mounts | yes — passes values as arguments | yes — writes an AWS ini profile |
 
 Find the row that matches your client and start from this demo's
 [entrypoint.sh](entrypoint.sh) / [refresh-hook.sh](refresh-hook.sh).
 
-### If your client re-reads the files
+Both the entrypoint and the hook receive the credential on **stdin** as four
+lines: AccessKeyId, AccessKeySecret, SecurityToken, Expiration. Read them with
+`read -r`.
 
-Nothing to do. Point it at `$credentialDir` and ship no hook — it picks up each
-rotation itself. JindoFS needs the trailing slash, because its provider treats the
-value as a prefix:
+### If your client polls credential files
 
+Your entrypoint and hook both write the stdin lines to files. The SDK polls them.
+
+**entrypoint.sh** (JindoFS):
 ```bash
+read -r ak; read -r sk; read -r token; read -r expiration
+mkdir -p /run/creds
+echo "$ak" > /run/creds/AccessKeyId
+echo "$sk" > /run/creds/AccessKeySecret
+echo "$token" > /run/creds/SecurityToken
+
 cat > /jindosdk.cfg <<EOF
 [jindosdk]
 fs.oss.endpoint = ${url}
-aliyun.oss.provider.url = secrets://${credentialDir}/
+aliyun.oss.provider.url = secrets:///run/creds/
 EOF
+
+exec jindo-fuse -f -o "uri=$source" "$mountpoint"
 ```
 
-Such a client also needs `credentialDir` pinned on the PV: the path goes into a
-config file, so it has to be known before the mount request arrives rather than
-read from `$credentialDir`. This demo pins nothing — JuiceFS takes the values as
-arguments, so the default per-mount directory works.
+**refresh-hook.sh** (JindoFS):
+```bash
+read -r ak; read -r sk; read -r token; read -r expiration
+echo "$ak" > /run/creds/AccessKeyId
+echo "$sk" > /run/creds/AccessKeySecret
+echo "$token" > /run/creds/SecurityToken
+echo "rotated credential files for JindoFS (expires $expiration)"
+```
 
 ### If your client must be told
 
-The entrypoint mounts from the files once, and `/refresh-hook.sh` re-applies the
-credential after every rotation. The hook is an arbitrary executable, so "tell it"
-is whatever your client supports — its CLI, a signal, an admin endpoint, rewriting
-its own config. It receives `$credentialDir` plus this volume's attributes
-(`$mountpoint`, `$source`, and whatever the PV set), but never a credential value.
+The entrypoint reads stdin and mounts once. The hook reads stdin on each rotation
+and pushes the credential to the client. The hook is an arbitrary executable, so
+"tell it" is whatever your client supports — its CLI, a signal, an admin endpoint,
+rewriting its own config. It receives the volume's attributes (`$mountpoint`,
+`$source`, etc.) as environment variables.
 
 Note what [entrypoint.sh](entrypoint.sh) has to do twice: `juicefs format` creates
 the volume but **skips itself** once the volume exists, credential included, so
@@ -94,10 +108,11 @@ That kind of client-specific quirk is exactly what the adapter absorbs.
 
 ### If your client cannot rotate at all
 
-Mount from the files and accept that a rotation will not reach the running client;
-plan for the mount to be re-established, or give it a credential lifetime longer
-than the mount. s3fs is the example: it reads the standard AWS credentials file, so
-the entrypoint reshapes the four files into one profile —
+Read stdin, write whatever your client needs, and accept that a rotation will not
+reach the running client; plan for the mount to be re-established, or give it a
+credential lifetime longer than the mount. s3fs is the example: it reads the
+standard AWS credentials file, so the entrypoint reshapes the four stdin lines
+into one profile —
 
 ```bash
 mkdir -p /root/.aws
@@ -159,14 +174,8 @@ AGENT=<your agent container>     # the container the mount should be visible in
 # pod rather than trusting them here:
 #   kubectl -n "$NS" get "$POD" -o jsonpath='{.spec.containers[*].name}'
 
-# the credential is on disk in the sidecar, and moves forward before it expires.
-# the path comes from the entrypoint's own log line: $credentialDir is a shell
-# variable inside entrypoint.sh, not an env var of the container, so an exec'd
-# shell sees it empty and $credentialDir/ quietly becomes /.
-CRED_DIR=$(kubectl -n "$NS" logs "$POD" -c csi-customfuse-agent-sidecar \
-    | awk '/credentials from/ {print $NF}' | tail -1)
-kubectl -n "$NS" exec "$POD" -c csi-customfuse-agent-sidecar -- ls -l "$CRED_DIR"
-kubectl -n "$NS" exec "$POD" -c csi-customfuse-agent-sidecar -- cat "$CRED_DIR/Expiration"
+# the credential is delivered via stdin, so there are no files to inspect.
+# check the sidecar logs to confirm the credential was exchanged and delivered.
 
 # the exchange, the rotations, and the hook. Failures always print; the success
 # lines are klog V(2)/V(4) and the sidecar's verbosity is set by the platform,
@@ -185,12 +194,9 @@ kubectl -n "$NS" exec "$POD" -c "$AGENT" -- df -h /mnt/data
 
 ## Testing the read pattern
 
-`entrypoint.sh` and `refresh-hook.sh` read the credential through a helper that
-resolves `$credentialDir` once, so fields cannot come from two different rotations.
-That holds because of how the driver rotates: it writes a fresh directory and moves
-`$credentialDir` onto it, so a directory that has been published is never written
-again. A reader holding a resolution either keeps seeing its own generation or finds
-the files gone, and never finds someone else's values in them.
+`entrypoint.sh` and `refresh-hook.sh` read the credential from stdin as four
+lines. All four fields arrive atomically in a single write, so there is no risk
+of mixing fields from two different rotations.
 
 `TestRotateTokenFiles_PublishedGenerationIsNeverRewritten` in
 [ossfs_secret_test.go](../../../pkg/mounter/interceptors/ossfs_secret_test.go) pins a

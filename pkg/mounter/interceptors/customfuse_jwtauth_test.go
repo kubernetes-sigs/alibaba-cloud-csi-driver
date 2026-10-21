@@ -49,11 +49,11 @@ func TestFirstExecutableHook(t *testing.T) {
 		assert.Equal(t, projected, resolveRefreshHookFrom(projected, image))
 	})
 
-	t.Run("a broken projection does not fall back to the image", func(t *testing.T) {
+	t.Run("a non-executable projection is still selected", func(t *testing.T) {
 		dir := t.TempDir()
 		projected := write(t, dir, "projected.sh", 0o644)
 		_ = write(t, dir, "image.sh", 0o755)
-		assert.Empty(t, resolveRefreshHookFrom(projected))
+		assert.Equal(t, projected, resolveRefreshHookFrom(projected, filepath.Join(dir, "image.sh")))
 	})
 }
 

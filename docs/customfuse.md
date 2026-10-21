@@ -219,7 +219,7 @@ alive keeps the environment it was started with.
 
 `authType: agent-identity` avoids this entirely on the sandbox path, where the
 driver runs in an injected sidecar rather than a fuse pod: the credential is
-exchanged per mount, delivered as files rather than environment variables, and
+exchanged per mount, delivered via stdin rather than environment variables, and
 rotated before it expires. See
 [customfuse-agent-identity.md](./customfuse-agent-identity.md).
 
@@ -257,10 +257,8 @@ process.
 
 One exception runs the other way: under `authType: agent-identity`, two control
 fields do reach the entrypoint, because the script has to know which credential
-flow ran and where the credential landed. It receives `$authType`, and
-`$credentialDir` resolved to the directory actually used rather than the value the
-PV named. The options configuring the exchange itself are stripped before the
-entrypoint runs. See
+flow ran. It receives `$authType`, and the credential itself on stdin. The
+options configuring the exchange itself are stripped before the entrypoint runs. See
 [customfuse-agent-identity.md](./customfuse-agent-identity.md).
 
 Those refusals are not all enforced in the same place, and the plugin and
