@@ -444,7 +444,7 @@ func TestCustomFuseJWTAuthInterceptorExchangeFailureSkipsMount(t *testing.T) {
 		return nil
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "provision credential")
+	assert.Contains(t, err.Error(), "fetch initial credential")
 	assert.False(t, called)
 	assert.False(t, jwtauth.DefaultManager.HasTarget("/mnt/unreachable"))
 }

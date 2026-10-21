@@ -89,28 +89,28 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 	// the mount is the only correct outcome — there is no static credential to
 	// fall back to, and a client left to start without one would fail later and
 	// less clearly.
-	refresher := jwtauth.NewRefresher(opts, sink)
-	if err := refresher.Start(ctx); err != nil {
-		sink.Cleanup()
-		return fmt.Errorf("jwtauth provision credential: %w", err)
+	refresher, err := jwtauth.NewRefresher(opts, sink)
+	if err != nil {
+		return fmt.Errorf("jwtauth create refresher: %w", err)
+	}
+
+	cred, err := refresher.FetchCredentials(ctx)
+	if err != nil {
+		return fmt.Errorf("jwtauth fetch initial credential: %w", err)
+	}
+	if err := sink.Deliver(cred); err != nil {
+		return fmt.Errorf("jwtauth deliver initial credential: %w", err)
 	}
 	klog.V(4).InfoS("provisioned customfuse agent-identity credential", "target", op.Target, "dir", credDir)
 
-	// The refresher is already running, so it has to be tracked before the
-	// mount: a mount that fails or is skipped must not leave a refresh loop
-	// writing to a directory nobody reads.
-	jwtauth.DefaultManager.Add(op.Target, refresher)
+	jwtauth.DefaultManager.Start(op.Target, refresher, cred)
 
 	if err := handler(ctx, op); err != nil {
-		jwtauth.DefaultManager.StopRefresher(refresher)
+		jwtauth.DefaultManager.StopByTarget(op.Target)
+		sink.Cleanup()
 		return err
 	}
 
-	// A customfuse mount lives exactly as long as the entrypoint process, so
-	// the process exiting is what ends the credential's usefulness — whether it
-	// exited because of an unmount or because it crashed. Waiting on it covers
-	// both, so this driver needs no unmount hook to stop the refresher.
-	// StopRefresher also runs the sink's Cleanup, removing the files.
 	result, ok := op.MountResult.(server.FuseMountResult)
 	if !ok {
 		klog.ErrorS(errors.New("mount result is not a FuseMountResult"),
@@ -119,7 +119,8 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 	}
 	go func() {
 		<-result.ExitChan
-		jwtauth.DefaultManager.StopRefresher(refresher)
+		jwtauth.DefaultManager.StopByTarget(op.Target)
+		sink.Cleanup()
 		klog.V(4).InfoS("stopped customfuse credential refresher", "target", op.Target, "dir", credDir)
 	}()
 	return nil

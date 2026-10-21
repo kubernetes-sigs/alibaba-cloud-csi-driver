@@ -465,8 +465,6 @@ func TestOptsValidate(t *testing.T) {
 	}
 }
 
-
-
 // generateTestCA returns a self-signed CA certificate encoded as PEM.
 func generateTestCA(t *testing.T) []byte {
 	t.Helper()
