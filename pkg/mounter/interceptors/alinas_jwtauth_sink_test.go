@@ -75,11 +75,6 @@ func TestAlinasCertRefreshSinkApply(t *testing.T) {
 		assert.Contains(t, err.Error(), "/mnt/nas")
 	})
 
-	t.Run("cleanup does nothing", func(t *testing.T) {
-		sink := newAlinasCertRefreshSink("/mnt/nas")
-		sink.Cleanup() // must not panic
-	})
-
 	t.Run("default runner executes a real command and feeds it stdin", func(t *testing.T) {
 		sink := newAlinasCertRefreshSink("/mnt/nas")
 		out, err := sink.runCommand(t.Context(), []byte("from-stdin"), "cat")

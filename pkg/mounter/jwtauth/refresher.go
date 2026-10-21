@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
@@ -12,13 +11,14 @@ import (
 )
 
 const (
-	defaultMinSleep     = 30 * time.Second
+	// minSleep floors the interval between two refreshes so an already-expired
+	// or near-expiry credential cannot turn the loop into a busy loop.
+	minSleep            = 30 * time.Second
 	maxRetryBackoff     = 30 * time.Second
 	initialRetryBackoff = 1 * time.Second
 	maxFetchRetries     = 5
-	stopWaitTimeout     = 15 * time.Second
 	// Recheck the absolute refresh target after a suspend/resume or clock change.
-	defaultClockCheckInterval = 5 * time.Second
+	clockCheckInterval = 5 * time.Second
 )
 
 // Refresher fetches scoped STS credentials for a jwtauth mount and keeps them
@@ -31,111 +31,49 @@ type Refresher struct {
 	// resolved from the environment per refresher, so an operator can tune it
 	// without a rebuild.
 	refreshMargin time.Duration
-	// minSleep floors the interval between two refreshes so an already-expired
-	// or near-expiry credential cannot turn the loop into a busy loop. It is a
-	// field rather than a constant so tests can drive the loop through its real
-	// scheduling path instead of only through the parse-failure branch.
-	minSleep time.Duration
 	// wallNow allows tests to simulate clock changes without changing system time.
 	wallNow func() time.Time
 
-	mu     sync.Mutex
-	stopCh chan struct{}
-	done   chan struct{}
 	client *http.Client
 }
 
-func NewRefresher(opts Opts, sink CredentialSink) *Refresher {
+func NewRefresher(opts Opts, sink CredentialSink) (*Refresher, error) {
+	client, err := buildHTTPClient(opts.CAFile)
+	if err != nil {
+		return nil, fmt.Errorf("build http client: %w", err)
+	}
 	return &Refresher{
 		opts:          opts,
 		sink:          sink,
 		refreshMargin: agentidentity.GetTokenRefreshMargin(),
-		minSleep:      defaultMinSleep,
 		wallNow:       time.Now,
-		stopCh:        make(chan struct{}),
-		done:          make(chan struct{}),
-	}
+		client:        client,
+	}, nil
 }
 
-// Start performs the initial credential fetch synchronously, applies it via
-// the sink and, on success, launches the background refresh loop. The
-// provided context bounds only the initial fetch; the loop is stopped via
-// Stop.
-func (r *Refresher) Start(ctx context.Context) error {
-	client, err := buildHTTPClient(r.opts.CAFile)
-	if err != nil {
-		return fmt.Errorf("build http client: %w", err)
-	}
-	r.client = client
-
-	cred, err := r.fetchCredentials(ctx)
-	if err != nil {
-		return fmt.Errorf("initial credential fetch: %w", err)
-	}
-	if err := r.sink.Apply(cred); err != nil {
-		return fmt.Errorf("apply initial credentials: %w", err)
-	}
-
-	go r.refreshLoop(cred)
-	return nil
-}
-
-// StartWith launches the background refresh loop using an already fetched
-// credential, without applying it through the sink first. Intended for
-// consumers that obtained the initial credential via FetchSTSToken and
-// delivered it themselves (e.g. injected into mount options); the sink is
-// only invoked on subsequent rotations.
-func (r *Refresher) StartWith(cred *STSToken) error {
-	client, err := buildHTTPClient(r.opts.CAFile)
-	if err != nil {
-		return fmt.Errorf("build http client: %w", err)
-	}
-	r.client = client
-
-	go r.refreshLoop(cred)
-	return nil
-}
-
-// Stop signals the refresh loop to stop and waits for it to exit, bounded by
-// stopWaitTimeout so a hung HTTP call cannot stall driver Terminate.
-func (r *Refresher) Stop() {
-	r.mu.Lock()
-	select {
-	case <-r.stopCh:
-	default:
-		close(r.stopCh)
-	}
-	r.mu.Unlock()
-
-	select {
-	case <-r.done:
-	case <-time.After(stopWaitTimeout):
-		klog.Warningf("jwtauth refresher: Stop timed out after %v, goroutine may still be running", stopWaitTimeout)
-	}
-}
-
-// Cleanup delegates to the sink. It should be called after Stop once the
-// consuming mount has gone away.
-func (r *Refresher) Cleanup() {
-	r.sink.Cleanup()
-}
-
-func (r *Refresher) fetchCredentials(ctx context.Context) (*STSToken, error) {
+// FetchCredentials performs a single exchange of the jwtauth token for an STS
+// credential, without delivering it to the sink.
+func (r *Refresher) FetchCredentials(ctx context.Context) (*STSToken, error) {
 	return exchangeSTSToken(ctx, r.client, r.opts)
 }
 
-func (r *Refresher) refreshLoop(lastCred *STSToken) {
-	defer close(r.done)
+// refreshLoop keeps the credential fresh until ctx is cancelled. lastCred has
+// already been delivered by the caller (e.g. injected into mount options), so
+// the sink is only invoked on subsequent rotations.
+func (r *Refresher) refreshLoop(ctx context.Context, lastCred *STSToken) {
 	for {
 		target := r.calcRefreshTarget(lastCred.Expiration)
 		klog.V(4).Infof("jwtauth refresher: next refresh at %v", target)
 
-		if !r.waitUntilDue(target) {
+		if !r.waitUntilDue(ctx, target) {
 			return
 		}
 
-		cred, err := r.fetchWithRetry()
+		cred, err := r.fetchWithRetry(ctx)
 		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			klog.Errorf("jwtauth refresher: fetch failed after retries: %v", err)
 			continue
 		}
@@ -148,18 +86,18 @@ func (r *Refresher) refreshLoop(lastCred *STSToken) {
 	}
 }
 
-func (r *Refresher) fetchWithRetry() (*STSToken, error) {
+func (r *Refresher) fetchWithRetry(ctx context.Context) (*STSToken, error) {
 	backoff := initialRetryBackoff
 	var lastErr error
 	for i := 0; i < maxFetchRetries; i++ {
 		select {
-		case <-r.stopCh:
-			return nil, fmt.Errorf("stopped")
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		default:
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
-		cred, err := r.fetchCredentials(ctx)
+		reqCtx, cancel := context.WithTimeout(ctx, httpTimeout)
+		cred, err := r.FetchCredentials(reqCtx)
 		cancel()
 		if err == nil {
 			return cred, nil
@@ -168,8 +106,8 @@ func (r *Refresher) fetchWithRetry() (*STSToken, error) {
 		klog.Warningf("jwtauth refresher: fetch attempt %d failed: %v", i+1, err)
 
 		select {
-		case <-r.stopCh:
-			return nil, fmt.Errorf("stopped")
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		case <-time.After(backoff):
 		}
 		backoff *= 2
@@ -182,16 +120,16 @@ func (r *Refresher) fetchWithRetry() (*STSToken, error) {
 
 // waitUntilDue polls the wall-clock target prepared by refreshLoop so clock
 // changes and sandbox resumes are reflected on the next check.
-func (r *Refresher) waitUntilDue(target time.Time) bool {
+func (r *Refresher) waitUntilDue(ctx context.Context, target time.Time) bool {
 	for {
 		dur := target.Sub(r.wallNow())
 		if dur <= 0 {
 			return true
 		}
 		select {
-		case <-r.stopCh:
+		case <-ctx.Done():
 			return false
-		case <-time.After(min(dur, defaultClockCheckInterval)):
+		case <-time.After(min(dur, clockCheckInterval)):
 		}
 	}
 }
@@ -203,7 +141,7 @@ func (r *Refresher) calcRefreshTarget(expiration string) time.Time {
 		return r.wallNow().Round(0).Add(r.refreshMargin)
 	}
 	target := expTime.Add(-r.refreshMargin)
-	floor := r.wallNow().Round(0).Add(r.minSleep)
+	floor := r.wallNow().Round(0).Add(minSleep)
 	if target.Before(floor) {
 		return floor
 	}

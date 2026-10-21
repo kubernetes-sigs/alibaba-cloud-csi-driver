@@ -79,7 +79,7 @@ func TestAlinasJWTAuthInterceptorNoOpForOtherAuthTypes(t *testing.T) {
 	for _, opts := range cases {
 		called := false
 		op := &mounter.MountOperation{Options: opts}
-		err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		err := AlinasJWTAuthInterceptor(t.Context(), op, func(ctx context.Context, o *mounter.MountOperation) error {
 			called = true
 			return nil
 		})
@@ -90,7 +90,7 @@ func TestAlinasJWTAuthInterceptorNoOpForOtherAuthTypes(t *testing.T) {
 
 func TestAlinasJWTAuthInterceptorNilOp(t *testing.T) {
 	called := false
-	err := AlinasJWTAuthInterceptor(context.Background(), nil, func(ctx context.Context, o *mounter.MountOperation) error {
+	err := AlinasJWTAuthInterceptor(t.Context(), nil, func(ctx context.Context, o *mounter.MountOperation) error {
 		called = true
 		return nil
 	})
@@ -103,7 +103,7 @@ func TestAlinasJWTAuthInterceptorConfigError(t *testing.T) {
 	// handler must not run.
 	called := false
 	op := &mounter.MountOperation{Options: []string{"authType=agent-identity"}}
-	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+	err := AlinasJWTAuthInterceptor(t.Context(), op, func(ctx context.Context, o *mounter.MountOperation) error {
 		called = true
 		return nil
 	})
@@ -132,7 +132,7 @@ func TestAlinasJWTAuthInterceptorFetchFailFast(t *testing.T) {
 			"jwtauth_token_file=" + tokenPath,
 		},
 	}
-	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+	err := AlinasJWTAuthInterceptor(t.Context(), op, func(ctx context.Context, o *mounter.MountOperation) error {
 		called = true
 		return nil
 	})
@@ -163,7 +163,7 @@ func TestAlinasJWTAuthInterceptorEndToEnd(t *testing.T) {
 	}
 
 	var seenOptions, seenSensitive map[string]string
-	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+	err := AlinasJWTAuthInterceptor(t.Context(), op, func(ctx context.Context, o *mounter.MountOperation) error {
 		seenOptions = mounterutils.IndexMountOptions(o.Options)
 		seenSensitive = mounterutils.IndexMountOptions(o.SensitiveOptions)
 		return nil
@@ -236,7 +236,7 @@ func TestAlinasJWTAuthInterceptorAgentIdentityTriggers(t *testing.T) {
 	}
 
 	var seenSensitive map[string]string
-	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+	err := AlinasJWTAuthInterceptor(t.Context(), op, func(ctx context.Context, o *mounter.MountOperation) error {
 		seenSensitive = mounterutils.IndexMountOptions(o.SensitiveOptions)
 		return nil
 	})
@@ -267,7 +267,7 @@ func TestAlinasJWTAuthInterceptorHandlerErrorStartsNoRefresher(t *testing.T) {
 	}
 
 	handlerErr := assert.AnError
-	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+	err := AlinasJWTAuthInterceptor(t.Context(), op, func(ctx context.Context, o *mounter.MountOperation) error {
 		return handlerErr
 	})
 	require.ErrorIs(t, err, handlerErr)
@@ -290,18 +290,42 @@ func TestSplitAlinasSTSOptionsAddsTLSAndRAMWhenMissing(t *testing.T) {
 	assert.Equal(t, "st", sensIdx[optAlinasSecurityToken])
 }
 
-func TestAlinasJWTAuthInterceptorRefresherStartFailureDoesNotFailMount(t *testing.T) {
+func TestAlinasJWTAuthInterceptorBadCAFileFailsMount(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 	srv := newSTSServer(t, "ak", "sk", "st", time.Now().Add(time.Hour))
 
-	// A CA file that is valid during the initial fetch but disappears before
-	// the refresher starts: the mount succeeded, so the interceptor must log
-	// and return nil instead of failing the mount.
+	const target = "/mnt/nas-bad-ca"
+	op := &mounter.MountOperation{
+		Target: target,
+		Options: []string{
+			"authType=agent-identity",
+			"sandboxId=sb-1",
+			"sandboxCredProviderName=cp",
+			"jwtauth_endpoint=" + srv.URL,
+			"jwtauth_token_file=" + tokenPath,
+			"jwtauth_ca_file=" + filepath.Join(tmpDir, "missing-ca.crt"),
+		},
+	}
+
+	err := AlinasJWTAuthInterceptor(t.Context(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		t.Fatal("handler must not be called when the CA file is unusable")
+		return nil
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "build http client")
+	assert.False(t, jwtauth.DefaultManager.HasTarget(target))
+}
+
+func TestAlinasJWTAuthInterceptorRefresherReusesInitialClient(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
+	srv := newSTSServer(t, "ak", "sk", "st", time.Now().Add(time.Hour))
+
 	caPath := filepath.Join(tmpDir, "ca.crt")
 	require.NoError(t, os.WriteFile(caPath, generateTestCAPEM(t), 0600))
 
-	const target = "/mnt/nas-refresher-err"
+	const target = "/mnt/nas-ca-removed"
 	op := &mounter.MountOperation{
 		Target: target,
 		Options: []string{
@@ -314,12 +338,14 @@ func TestAlinasJWTAuthInterceptorRefresherStartFailureDoesNotFailMount(t *testin
 		},
 	}
 
-	err := AlinasJWTAuthInterceptor(context.Background(), op, func(ctx context.Context, o *mounter.MountOperation) error {
-		// Simulate the CA file vanishing after the mount succeeded.
+	err := AlinasJWTAuthInterceptor(t.Context(), op, func(ctx context.Context, o *mounter.MountOperation) error {
+		// The CA file vanishing after the initial fetch must not matter: the
+		// refresher keeps the client it was built with.
 		return os.Remove(caPath)
 	})
-	require.NoError(t, err, "a refresher start failure must not fail a successful mount")
-	assert.False(t, jwtauth.DefaultManager.HasTarget(target), "no refresher should be registered when StartWith fails")
+	require.NoError(t, err)
+	defer jwtauth.DefaultManager.StopByTarget(target)
+	assert.True(t, jwtauth.DefaultManager.HasTarget(target))
 }
 
 func TestSplitAlinasSTSOptionsPreservesExistingTLSAndRAM(t *testing.T) {

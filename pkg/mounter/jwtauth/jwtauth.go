@@ -131,19 +131,6 @@ func readTokenFile(tokenFile string) (*tokenFileContent, error) {
 	return &token, nil
 }
 
-// FetchSTSToken performs a one-shot, stateless exchange of the jwtauth token
-// for an STS credential. It builds its own HTTP client (honoring the CA
-// settings) and never touches the filesystem beyond reading the configured
-// token file. Intended for consumers that need the initial credential up
-// front (e.g. to inject it into mount options) before starting a Refresher.
-func FetchSTSToken(ctx context.Context, opts Opts) (*STSToken, error) {
-	client, err := buildHTTPClient(opts.CAFile)
-	if err != nil {
-		return nil, fmt.Errorf("build http client: %w", err)
-	}
-	return exchangeSTSToken(ctx, client, opts)
-}
-
 func exchangeSTSToken(ctx context.Context, client *http.Client, opts Opts) (*STSToken, error) {
 	token, err := readTokenFile(opts.TokenFile)
 	if err != nil {

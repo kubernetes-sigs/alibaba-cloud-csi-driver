@@ -159,12 +159,17 @@ func TestExtendedMounterPassesSensitiveOptions(t *testing.T) {
 }
 
 func TestExtendedMounterUnmountStopsJWTAuthRefresher(t *testing.T) {
+	// Terminate tests stop DefaultManager for good; use a fresh one.
+	orig := jwtauth.DefaultManager
+	jwtauth.DefaultManager = jwtauth.NewManager()
+	t.Cleanup(func() { jwtauth.DefaultManager = orig })
+
 	driver := &Driver{}
 	fakeMounter := mount.NewFakeMounter(nil)
 	m := &extendedMounter{driver: driver, Interface: fakeMounter}
 
 	const target = "/mnt/nas-jwt"
-	err := m.ExtendedMount(context.Background(), &mounter.MountOperation{
+	err := m.ExtendedMount(t.Context(), &mounter.MountOperation{
 		Source: "192.168.1.1:/share",
 		Target: target,
 		FsType: "alinas",
@@ -173,11 +178,12 @@ func TestExtendedMounterUnmountStopsJWTAuthRefresher(t *testing.T) {
 
 	// Simulate the refresher registered by AlinasJWTAuthInterceptor. The sink
 	// is irrelevant here: this test only covers the unmount -> stop wiring.
-	refresher := jwtauth.NewRefresher(jwtauth.Opts{}, noopCredentialSink{})
-	require.NoError(t, refresher.StartWith(&jwtauth.STSToken{
+	refresher, err := jwtauth.NewRefresher(jwtauth.Opts{}, noopCredentialSink{})
+	require.NoError(t, err)
+	jwtauth.DefaultManager.Start(target, refresher, &jwtauth.STSToken{
 		Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
-	}))
-	jwtauth.DefaultManager.Add(target, refresher)
+	})
+	require.True(t, jwtauth.DefaultManager.HasTarget(target))
 
 	require.NoError(t, m.Unmount(target))
 	assert.False(t, jwtauth.DefaultManager.HasTarget(target),
@@ -187,8 +193,6 @@ func TestExtendedMounterUnmountStopsJWTAuthRefresher(t *testing.T) {
 type noopCredentialSink struct{}
 
 func (noopCredentialSink) Apply(*jwtauth.STSToken) error { return nil }
-
-func (noopCredentialSink) Cleanup() {}
 
 func TestShouldCleanup(t *testing.T) {
 	tmpDir := t.TempDir()

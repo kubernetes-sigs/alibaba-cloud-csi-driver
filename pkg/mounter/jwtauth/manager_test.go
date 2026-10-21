@@ -1,92 +1,152 @@
 package jwtauth
 
 import (
+	"net/http"
+	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// newStartedTestRefresher returns a refresher whose loop is running (so Stop
-// returns promptly) and whose sink records cleanups.
-func newStartedTestRefresher(t *testing.T) (*Refresher, *fakeSink) {
+// startCounted starts a loop for target that refreshes every 40m and returns
+// its mock transport, whose call count shows whether the loop still runs.
+func startCounted(t *testing.T, m *Manager, target string) *httpmock.MockTransport {
 	t.Helper()
-	sink := &fakeSink{}
-	r := NewRefresher(Opts{
-		TokenFile:    "/nonexistent",
-		Endpoint:     "http://localhost:0",
-		CredProvider: "cp",
-		SandboxId:    "sb",
-	}, sink)
-	require.NoError(t, r.StartWith(&STSToken{
-		Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
-	}))
-	return r, sink
+	r, _, mock := newMockRefresher(t)
+	mock.RegisterResponder(http.MethodPost, testEndpoint, stsResponder(time.Hour))
+	m.Start(target, r, expiresIn(time.Hour))
+	return mock
 }
 
 func TestManagerStopByTarget(t *testing.T) {
-	m := NewManager()
-	r1, s1 := newStartedTestRefresher(t)
-	r2, s2 := newStartedTestRefresher(t)
-	m.Add("/mnt/a", r1)
-	m.Add("/mnt/b", r2)
+	synctest.Test(t, func(t *testing.T) {
+		m := NewManager()
+		a := startCounted(t, m, "/mnt/a")
+		b := startCounted(t, m, "/mnt/b")
+		assert.True(t, m.HasTarget("/mnt/a"))
+		assert.True(t, m.HasTarget("/mnt/b"))
 
-	assert.True(t, m.HasTarget("/mnt/a"))
-	assert.True(t, m.HasTarget("/mnt/b"))
+		m.StopByTarget("/mnt/a")
+		assert.False(t, m.HasTarget("/mnt/a"))
+		assert.True(t, m.HasTarget("/mnt/b"))
 
-	m.StopByTarget("/mnt/a")
+		time.Sleep(time.Hour)
+		assert.Zero(t, a.GetTotalCallCount(), "stopped loop must not refresh")
+		assert.Equal(t, 1, b.GetTotalCallCount(), "other loop must keep refreshing")
 
-	assert.False(t, m.HasTarget("/mnt/a"))
-	assert.True(t, m.HasTarget("/mnt/b"))
-	assert.Equal(t, 1, s1.cleaned, "stopped refresher's sink should be cleaned")
-	assert.Equal(t, 0, s2.cleaned, "other refresher must stay running")
+		// Unknown, empty and already-stopped targets are no-ops.
+		m.StopByTarget("/mnt/unknown")
+		m.StopByTarget("")
+		m.StopByTarget("/mnt/a")
 
-	// Unknown or empty targets are no-ops.
-	m.StopByTarget("/mnt/unknown")
-	m.StopByTarget("")
-
-	m.StopAll(time.Second)
+		m.StopByTarget("/mnt/b")
+		m.wg.Wait()
+	})
 }
 
-func TestManagerStopRefresherIdempotent(t *testing.T) {
-	m := NewManager()
-	r, sink := newStartedTestRefresher(t)
-	m.Add("/mnt/a", r)
+type sinkFunc func(*STSToken) error
 
-	m.StopRefresher(r)
-	assert.Equal(t, 1, sink.cleaned)
-	assert.False(t, m.HasTarget("/mnt/a"))
+func (f sinkFunc) Apply(cred *STSToken) error { return f(cred) }
 
-	// Second stop is a no-op: no double cleanup.
-	m.StopRefresher(r)
-	assert.Equal(t, 1, sink.cleaned)
+// TestManagerStopByTargetWaitsForInflightApply: once StopByTarget returns
+// (i.e. after unmount), the old loop must not deliver a credential that would
+// override one installed by a new mount at the same path.
+func TestManagerStopByTargetWaitsForInflightApply(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var mu sync.Mutex
+		installed := ""
+		install := func(akid string) {
+			mu.Lock()
+			defer mu.Unlock()
+			installed = akid
+		}
+
+		m := NewManager()
+		r, _, mock := newMockRefresher(t)
+		mock.RegisterResponder(http.MethodPost, testEndpoint, stsResponder(time.Hour))
+		release := make(chan struct{})
+		r.sink = sinkFunc(func(cred *STSToken) error {
+			<-release
+			install(cred.AccessKeyID)
+			return nil
+		})
+		m.Start("/mnt/a", r, expiresIn(time.Hour))
+
+		time.Sleep(41 * time.Minute) // the 40m refresh is now blocked in Apply
+		stopped := make(chan struct{})
+		go func() {
+			m.StopByTarget("/mnt/a")
+			close(stopped)
+		}()
+		synctest.Wait()
+		select {
+		case <-stopped:
+			t.Fatal("StopByTarget returned while Apply was in flight")
+		default:
+		}
+
+		close(release)
+		<-stopped
+		install("new-mount")
+		synctest.Wait()
+
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, "new-mount", installed)
+	})
+}
+
+func TestManagerStartReplacesLoopForSameTarget(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := NewManager()
+		first := startCounted(t, m, "/mnt/a")
+		second := startCounted(t, m, "/mnt/a")
+		assert.True(t, m.HasTarget("/mnt/a"))
+
+		time.Sleep(time.Hour)
+		assert.Zero(t, first.GetTotalCallCount(), "replaced loop must not refresh")
+		assert.Equal(t, 1, second.GetTotalCallCount())
+
+		m.StopByTarget("/mnt/a")
+		m.wg.Wait()
+	})
 }
 
 func TestManagerStopAll(t *testing.T) {
-	m := NewManager()
-	r1, s1 := newStartedTestRefresher(t)
-	r2, s2 := newStartedTestRefresher(t)
-	m.Add("/mnt/a", r1)
-	m.Add("/mnt/b", r2)
+	synctest.Test(t, func(t *testing.T) {
+		m := NewManager()
+		startCounted(t, m, "/mnt/a")
+		startCounted(t, m, "/mnt/b")
 
-	m.StopAll(2 * time.Second)
+		m.StopAll(time.Second)
+		assert.False(t, m.HasTarget("/mnt/a"))
+		assert.False(t, m.HasTarget("/mnt/b"))
+		m.wg.Wait()
 
-	assert.Equal(t, 1, s1.cleaned)
-	assert.Equal(t, 1, s2.cleaned)
-	assert.False(t, m.HasTarget("/mnt/a"))
-	assert.False(t, m.HasTarget("/mnt/b"))
+		c := startCounted(t, m, "/mnt/c")
+		assert.False(t, m.HasTarget("/mnt/c"), "Start after StopAll must be rejected")
+		time.Sleep(time.Hour)
+		assert.Zero(t, c.GetTotalCallCount())
 
-	// Empty manager StopAll returns immediately.
-	m.StopAll(time.Millisecond)
+		// A stopped manager's StopAll returns immediately.
+		m.StopAll(time.Millisecond)
+	})
 }
 
 func TestPackageStopAll(t *testing.T) {
-	r, sink := newStartedTestRefresher(t)
-	DefaultManager.Add("/mnt/pkg-stopall", r)
+	synctest.Test(t, func(t *testing.T) {
+		orig := DefaultManager
+		DefaultManager = NewManager()
+		t.Cleanup(func() { DefaultManager = orig })
 
-	StopAll()
+		startCounted(t, DefaultManager, "/mnt/pkg-stopall")
 
-	assert.Equal(t, 1, sink.cleaned)
-	assert.False(t, DefaultManager.HasTarget("/mnt/pkg-stopall"))
+		StopAll()
+
+		assert.False(t, DefaultManager.HasTarget("/mnt/pkg-stopall"))
+		DefaultManager.wg.Wait()
+	})
 }

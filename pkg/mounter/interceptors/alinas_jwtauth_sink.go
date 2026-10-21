@@ -19,7 +19,8 @@ const (
 	alinasCertRefreshCommand = "alinas-tls-cert-refresh"
 
 	// alinasCertRefreshTimeout bounds a single refresh command invocation so a
-	// hung command cannot stall the refresh loop or Stop.
+	// hung command cannot stall the refresh loop or jwtauth.Manager.StopByTarget,
+	// which waits for it.
 	alinasCertRefreshTimeout = 30 * time.Second
 
 	// redactedPlaceholder replaces credential material in command output.
@@ -28,7 +29,7 @@ const (
 
 // alinasCertRefreshSink is the NAS/CPFS credential delivery mechanism: it
 // pushes each rotated STS credential to a live alinas mount by executing
-// alinas-tls-cert-refresh. Nothing is written to disk, so Cleanup is a no-op.
+// alinas-tls-cert-refresh. Nothing is written to disk.
 //
 // The credential goes in on stdin, never on argv: argv is world-readable through
 // /proc/<pid>/cmdline for as long as the command runs, which is enough for any
@@ -101,9 +102,6 @@ func refreshAlinasCredential(
 	klog.V(4).InfoS("refreshed alinas mount credential", "command", alinasCertRefreshCommand, "mountpoint", mountPoint)
 	return nil
 }
-
-// Cleanup is a no-op: this sink never persists anything.
-func (s *alinasCertRefreshSink) Cleanup() {}
 
 // redactCredential replaces every field of cred that appears in s with a
 // placeholder, so command output stays diagnosable (exit status, mount point,
