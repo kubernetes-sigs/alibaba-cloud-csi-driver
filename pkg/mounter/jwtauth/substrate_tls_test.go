@@ -61,7 +61,11 @@ func TestSubstrateTLSReloadsProjectedCertificate(t *testing.T) {
 	require.NoError(t, os.WriteFile(trustFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600))
 	config, err := substrateTLSConfig(certFile, trustFile)
 	require.NoError(t, err)
-	require.False(t, config.InsecureSkipVerify)
+	// InsecureSkipVerify is true because VerifyConnection handles CA
+	// verification with a freshly loaded trust bundle on every handshake.
+	// Hostname verification is included via DNSName in VerifyConnection.
+	require.True(t, config.InsecureSkipVerify)
+	require.NotNil(t, config.VerifyConnection)
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}, Timeout: time.Second}
 	defer client.CloseIdleConnections()
 	for i, bundle := range [][]byte{first, second} {
@@ -139,4 +143,78 @@ func mustParseURL(s string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func TestSubstrateTLSReloadsTrustBundle(t *testing.T) {
+	// Generate two self-signed CA certs to simulate CA rotation.
+	makeCA := func(serial int64) (certPEM []byte, tlsCert tls.Certificate) {
+		t.Helper()
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		template := &x509.Certificate{
+			SerialNumber:          big.NewInt(serial),
+			NotBefore:             time.Now().Add(-time.Minute),
+			NotAfter:              time.Now().Add(time.Hour),
+			KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+			BasicConstraintsValid: true,
+			IsCA:                  true,
+		}
+		der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+		require.NoError(t, err)
+		certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+		tlsCert = tls.Certificate{
+			Certificate: [][]byte{der},
+			PrivateKey:  key,
+		}
+		return certPEM, tlsCert
+	}
+
+	ca1PEM, ca1TLS := makeCA(100)
+	ca2PEM, ca2TLS := makeCA(200)
+
+	dir := t.TempDir()
+	trustFile := filepath.Join(dir, "trust-bundle.pem")
+
+	// Client cert (PodCertificate) - just needs to exist for substrateTLSConfig.
+	clientBundle, _ := testPodCertificate(t, 1)
+	certFile := filepath.Join(dir, "credential-bundle.pem")
+	require.NoError(t, os.WriteFile(certFile, clientBundle, 0600))
+
+	// Start with CA1 in the trust bundle.
+	require.NoError(t, os.WriteFile(trustFile, ca1PEM, 0600))
+
+	tlsConfig, err := substrateTLSConfig(certFile, trustFile)
+	require.NoError(t, err)
+
+	// Server using CA1 certificate — should succeed.
+	server1 := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	server1.TLS = &tls.Config{Certificates: []tls.Certificate{ca1TLS}}
+	server1.StartTLS()
+	defer server1.Close()
+
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig.Clone()}}
+	resp, err := client.Get(server1.URL)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	client.CloseIdleConnections()
+
+	// Rotate trust bundle to CA2.
+	require.NoError(t, os.WriteFile(trustFile, ca2PEM, 0600))
+
+	// Server using CA2 certificate — should succeed because trust bundle is re-read.
+	server2 := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	server2.TLS = &tls.Config{Certificates: []tls.Certificate{ca2TLS}}
+	server2.StartTLS()
+	defer server2.Close()
+
+	client2 := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig.Clone()}}
+	resp2, err := client2.Get(server2.URL)
+	require.NoError(t, err)
+	_ = resp2.Body.Close()
+	assert.Equal(t, http.StatusNoContent, resp2.StatusCode)
 }
