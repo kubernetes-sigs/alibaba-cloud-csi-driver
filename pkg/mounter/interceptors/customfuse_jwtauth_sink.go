@@ -1,11 +1,13 @@
 package interceptors
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
@@ -90,14 +92,10 @@ var _ jwtauth.CredentialSink = &fileCredentialSink{}
 
 func newFileCredentialSink(dir, hook string, env []string) *fileCredentialSink {
 	return &fileCredentialSink{
-		dir:  dir,
-		hook: hook,
-		env:  env,
-		runHook: func(ctx context.Context, name string, env []string) ([]byte, error) {
-			cmd := exec.CommandContext(ctx, name)
-			cmd.Env = env
-			return cmd.CombinedOutput()
-		},
+		dir:     dir,
+		hook:    hook,
+		env:     env,
+		runHook: runHookInProcessGroup,
 	}
 }
 
@@ -263,5 +261,35 @@ func credentialSecrets(cred *jwtauth.STSToken) map[string]string {
 		mounterutils.KeyAccessKeySecret: cred.AccessKeySecret,
 		mounterutils.KeySecurityToken:   cred.SecurityToken,
 		mounterutils.KeyExpiration:      cred.Expiration,
+	}
+}
+
+// runHookInProcessGroup runs a hook script in its own process group so that
+// context cancellation kills the entire tree, not just the direct child.
+// Without Setpgid, children inherit stdout/stderr pipes and CombinedOutput
+// blocks until those pipes close — potentially long after the context deadline.
+func runHookInProcessGroup(ctx context.Context, name string, env []string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name)
+	cmd.Env = env
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case err := <-done:
+		return buf.Bytes(), err
+	case <-ctx.Done():
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		<-done
+		return buf.Bytes(), ctx.Err()
 	}
 }

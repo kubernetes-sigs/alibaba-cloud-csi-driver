@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -305,4 +306,20 @@ func TestFileCredentialSinkNotifyRetriesAfterFailure(t *testing.T) {
 	require.Error(t, sink.Notify(), "first notify should fail")
 	require.NoError(t, sink.Notify(), "second notify should retry and succeed")
 	assert.Equal(t, 2, calls)
+}
+
+func TestRunHookInProcessGroupKillsChildren(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "hook.sh")
+	require.NoError(t, os.WriteFile(script, []byte("#!/bin/sh\nsleep 60 &\nwait\n"), 0o755))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := runHookInProcessGroup(ctx, script, nil)
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.Less(t, elapsed, 2*time.Second,
+		"process group kill must not wait for orphaned children")
 }
