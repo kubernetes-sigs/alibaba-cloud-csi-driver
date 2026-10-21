@@ -27,8 +27,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -45,9 +43,6 @@ type nodeServer struct {
 	common.GenericNodeServer
 	mounter mount.Interface
 	locks   *utils.VolumeLocks
-
-	detachDelay      time.Duration
-	unstageStartTime sync.Map // map[volumeID]time.Time
 	// credsRoot is where per-volume EFC credential files live; a field so
 	// tests can redirect it away from the /run/cnfs hostPath.
 	credsRoot string
@@ -101,20 +96,10 @@ func newNodeServer(meta metadata.MetadataProvider) (*nodeServer, error) {
 	}
 	klog.Infof("bmcpfsplugin nodeId: %s", nodeID)
 	mounter := mounter.NewProxyMounter(defaultAlinasMountProxySocket, mount.NewWithoutSystemd(""))
-
-	var detachDelay time.Duration
-	if delay := os.Getenv("BMCPFS_DETACH_DELAY"); delay != "" {
-		if delay, err := time.ParseDuration(delay); err == nil {
-			detachDelay = delay
-		} else {
-			return nil, fmt.Errorf("parse BMCPFS_DETACH_DELAY: %w", err)
-		}
-	}
 	return &nodeServer{
 		GenericNodeServer: common.GenericNodeServer{NodeID: nodeID},
 		locks:             utils.NewVolumeLocks(),
 		mounter:           mounter,
-		detachDelay:       detachDelay,
 		credsRoot:         defaultCredentialsRoot,
 	}, nil
 }
@@ -134,32 +119,12 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 }
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	ns.unstageStartTime.Delete(req.VolumeId)   // in case NodeUnstageVolume never finished and next Pod comes
 	return &csi.NodeStageVolumeResponse{}, nil // no-op
 }
 
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	if ns.detachDelay == 0 {
-		if err := ns.cleanupCredentials(req.VolumeId); err != nil {
-			return nil, status.Errorf(codes.Internal, "cleanup credentials: %v", err)
-		}
-		return &csi.NodeUnstageVolumeResponse{}, nil
-	}
-	actual, _ := ns.unstageStartTime.LoadOrStore(req.VolumeId, time.Now())
-	startTime := actual.(time.Time)
-	select {
-	case <-time.After(time.Until(startTime.Add(ns.detachDelay))):
-	case <-time.After(1 * time.Second):
-		// Return fast, so the returning pod don't need to wait for the long timeout.
-		// But still wait 1s to avoid busy loop.
-		return nil, status.Error(codes.DeadlineExceeded, "delaying detach for possible reuse")
-	case <-ctx.Done():
-		return nil, status.Errorf(codes.DeadlineExceeded, "delaying detach for possible reuse: %v", ctx.Err())
-	}
-	ns.unstageStartTime.Delete(req.VolumeId)
 	// All publishes for this volume on the node are gone; drop its EFC
-	// credential files. Only done on the success path so a returning pod
-	// within the detach delay keeps its credentials.
+	// credential files.
 	if err := ns.cleanupCredentials(req.VolumeId); err != nil {
 		return nil, status.Errorf(codes.Internal, "cleanup credentials: %v", err)
 	}
