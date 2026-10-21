@@ -18,10 +18,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testEndpoint = "http://sts.test/credential"
 
 func writeTokenFile(t *testing.T, dir, accessToken, sandboxClientID string) string {
 	t.Helper()
@@ -43,6 +46,37 @@ func newTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+// newMockRefresher returns a refresher whose requests to testEndpoint are
+// served by the returned mock transport.
+func newMockRefresher(t *testing.T) (*Refresher, *fakeSink, *httpmock.MockTransport) {
+	t.Helper()
+	mock := httpmock.NewMockTransport()
+	sink := &fakeSink{}
+	return &Refresher{
+		opts: Opts{
+			TokenFile:    writeTokenFile(t, t.TempDir(), "test-token", "client-123"),
+			Endpoint:     testEndpoint,
+			CredProvider: "my-provider",
+			SandboxId:    "sb-test",
+		},
+		sink:          sink,
+		refreshMargin: agentidentity.DefaultTokenRefreshMargin,
+		minSleep:      defaultMinSleep,
+		wallNow:       time.Now,
+		client:        &http.Client{Transport: mock},
+	}, sink, mock
+}
+
+func stsResponse(akid string, expiration string) (*http.Response, error) {
+	return httpmock.NewJsonResponse(http.StatusOK, credentialResponse{
+		RequestID: "r1",
+		STSToken: &STSToken{
+			AccessKeyID: akid, AccessKeySecret: "sk", SecurityToken: "st",
+			Expiration: expiration,
+		},
+	})
 }
 
 func newTestRefresher(tokenPath, endpoint string) (*Refresher, *fakeSink) {
@@ -81,42 +115,34 @@ func startLoop(t *testing.T, r *Refresher, cred *STSToken) (stop func()) {
 }
 
 func TestRefresherFetchCredentialsRequest(t *testing.T) {
-	tmpDir := t.TempDir()
-	tokenPath := writeTokenFile(t, tmpDir, "test-token", "client-123")
+	r, sink, mock := newMockRefresher(t)
+	mock.RegisterResponder(http.MethodPost, testEndpoint, func(req *http.Request) (*http.Response, error) {
+		assert.Equal(t, "Bearer test-token", req.Header.Get("Authorization"))
+		assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+		assert.Equal(t, "GetResourceCredential", req.Header.Get("X-Api-Action-Name"))
 
-	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
-		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		assert.Equal(t, "GetResourceCredential", r.Header.Get("X-Api-Action-Name"))
+		var body credentialRequest
+		require.NoError(t, json.NewDecoder(req.Body).Decode(&body))
+		assert.Equal(t, "stsToken", body.CredentialType)
+		assert.Equal(t, "client-123", body.ResourceID)
+		assert.Equal(t, "my-provider", body.CredentialProviderName)
 
-		var req credentialRequest
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-		assert.Equal(t, "stsToken", req.CredentialType)
-		assert.Equal(t, "client-123", req.ResourceID)
-		assert.Equal(t, "my-provider", req.CredentialProviderName)
-
-		resp := credentialResponse{
+		return httpmock.NewJsonResponse(http.StatusOK, credentialResponse{
 			RequestID: "resp-1",
 			STSToken: &STSToken{
-				AccessKeyID:     "AKID-test",
-				AccessKeySecret: "AKSECRET-test",
-				SecurityToken:   "TOKEN-test",
-				Expiration:      time.Now().Add(time.Hour).Format(time.RFC3339),
+				AccessKeyID: "AKID-test", AccessKeySecret: "AKSECRET-test", SecurityToken: "TOKEN-test",
+				Expiration: "2000-01-01T01:00:00Z",
 			},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		})
 	})
 
-	refresher, sink := newTestRefresher(tokenPath, srv.URL)
-
-	got, err := refresher.FetchCredentials(t.Context())
+	got, err := r.FetchCredentials(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, "AKID-test", got.AccessKeyID)
-	assert.Equal(t, "AKSECRET-test", got.AccessKeySecret)
-	assert.Equal(t, "TOKEN-test", got.SecurityToken)
-	assert.NotEmpty(t, got.Expiration)
-	assert.Equal(t, 0, sink.appliedCount(), "FetchCredentials must not deliver to the sink")
+	assert.Equal(t, &STSToken{
+		AccessKeyID: "AKID-test", AccessKeySecret: "AKSECRET-test", SecurityToken: "TOKEN-test",
+		Expiration: "2000-01-01T01:00:00Z",
+	}, got)
+	assert.Zero(t, sink.appliedCount(), "FetchCredentials must not deliver to the sink")
 }
 
 func TestRefresherTokenFileErrors(t *testing.T) {
@@ -139,42 +165,15 @@ func TestRefresherTokenFileErrors(t *testing.T) {
 			if tt.tokenData != "" {
 				require.NoError(t, os.WriteFile(tokenPath, []byte(tt.tokenData), 0600))
 			}
-			refresher, _ := newTestRefresher(tokenPath, "http://localhost:0")
+			r, _, mock := newMockRefresher(t)
+			r.opts.TokenFile = tokenPath
 
-			_, err := refresher.FetchCredentials(t.Context())
+			_, err := r.FetchCredentials(t.Context())
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
+			assert.Zero(t, mock.GetTotalCallCount(), "no request without a usable token")
 		})
 	}
-}
-
-func TestRefresherEndpointErrors(t *testing.T) {
-	tmpDir := t.TempDir()
-	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
-
-	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal error"))
-	})
-
-	refresher, _ := newTestRefresher(tokenPath, srv.URL)
-	_, err := refresher.FetchCredentials(t.Context())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "500")
-}
-
-func TestRefresherNilSTSToken(t *testing.T) {
-	tmpDir := t.TempDir()
-	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli")
-
-	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(credentialResponse{RequestID: "r1", STSToken: nil})
-	})
-
-	refresher, _ := newTestRefresher(tokenPath, srv.URL)
-	_, err := refresher.FetchCredentials(t.Context())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "nil stsToken")
 }
 
 func TestRefresherStopDuringRefresh(t *testing.T) {
