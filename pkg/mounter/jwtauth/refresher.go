@@ -11,7 +11,9 @@ import (
 )
 
 const (
-	defaultMinSleep     = 30 * time.Second
+	// minSleep floors the interval between two refreshes so an already-expired
+	// or near-expiry credential cannot turn the loop into a busy loop.
+	minSleep            = 30 * time.Second
 	maxRetryBackoff     = 30 * time.Second
 	initialRetryBackoff = 1 * time.Second
 	maxFetchRetries     = 5
@@ -29,11 +31,6 @@ type Refresher struct {
 	// resolved from the environment per refresher, so an operator can tune it
 	// without a rebuild.
 	refreshMargin time.Duration
-	// minSleep floors the interval between two refreshes so an already-expired
-	// or near-expiry credential cannot turn the loop into a busy loop. It is a
-	// field rather than a constant so tests can drive the loop through its real
-	// scheduling path instead of only through the parse-failure branch.
-	minSleep time.Duration
 	// wallNow allows tests to simulate clock changes without changing system time.
 	wallNow func() time.Time
 
@@ -49,7 +46,6 @@ func NewRefresher(opts Opts, sink CredentialSink) (*Refresher, error) {
 		opts:          opts,
 		sink:          sink,
 		refreshMargin: agentidentity.GetTokenRefreshMargin(),
-		minSleep:      defaultMinSleep,
 		wallNow:       time.Now,
 		client:        client,
 	}, nil
@@ -145,7 +141,7 @@ func (r *Refresher) calcRefreshTarget(expiration string) time.Time {
 		return r.wallNow().Round(0).Add(r.refreshMargin)
 	}
 	target := expTime.Add(-r.refreshMargin)
-	floor := r.wallNow().Round(0).Add(r.minSleep)
+	floor := r.wallNow().Round(0).Add(minSleep)
 	if target.Before(floor) {
 		return floor
 	}

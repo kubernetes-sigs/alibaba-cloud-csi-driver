@@ -20,12 +20,13 @@ func TestRefresherFetchCredentials(t *testing.T) {
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "tok", "cli-1")
 
-	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"requestId":"r1","stsToken":{` +
 			`"accessKeyId":"ak","accessKeySecret":"sk","securityToken":"st",` +
 			`"expiration":"` + time.Now().Add(time.Hour).Format(time.RFC3339) + `"}}`))
-	})
+	}))
+	t.Cleanup(srv.Close)
 
 	r, err := NewRefresher(Opts{
 		TokenFile:    tokenPath,
