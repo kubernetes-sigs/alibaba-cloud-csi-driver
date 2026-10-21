@@ -270,3 +270,39 @@ func TestFileCredentialSinkNoHookConfigured(t *testing.T) {
 		AccessKeyID: "ak", AccessKeySecret: "sk", SecurityToken: "tok", Expiration: "exp",
 	}))
 }
+
+func TestFileCredentialSinkCleanupNoOpWhenNotDelivered(t *testing.T) {
+	dir := sinkTestDir(t)
+
+	existing := filepath.Join(dir, mounterutils.KeyAccessKeyId)
+	require.NoError(t, os.MkdirAll(filepath.Dir(existing), 0o755))
+	require.NoError(t, os.WriteFile(existing, []byte("pre-existing"), 0o600))
+
+	sink := newFileCredentialSink(dir, "", nil)
+	sink.Cleanup()
+
+	data, err := os.ReadFile(existing)
+	require.NoError(t, err, "cleanup must not remove files it did not create")
+	assert.Equal(t, "pre-existing", string(data))
+}
+
+func TestFileCredentialSinkNotifyRetriesAfterFailure(t *testing.T) {
+	dir := sinkTestDir(t)
+	sink := newFileCredentialSink(dir, "/hook.sh", nil)
+
+	calls := 0
+	sink.runHook = func(ctx context.Context, name string, env []string) ([]byte, error) {
+		calls++
+		if calls == 1 {
+			return nil, assert.AnError
+		}
+		return nil, nil
+	}
+
+	require.NoError(t, sink.Deliver(genCred(1)))
+	require.NoError(t, sink.Deliver(genCred(2)))
+
+	require.Error(t, sink.Notify(), "first notify should fail")
+	require.NoError(t, sink.Notify(), "second notify should retry and succeed")
+	assert.Equal(t, 2, calls)
+}

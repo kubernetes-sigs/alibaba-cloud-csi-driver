@@ -211,14 +211,20 @@ func (s *fileCredentialSink) Notify() error {
 	if !s.notifyNeeded {
 		return nil
 	}
+	if err := s.runRefreshHook(); err != nil {
+		return err
+	}
 	s.notifyNeeded = false
-	return s.runRefreshHook()
+	return nil
 }
 
 // Cleanup removes the credential files and the symlink. It runs after the
 // refresher has stopped and the mount is gone, so nothing is left readable
 // once there is no client to serve.
 func (s *fileCredentialSink) Cleanup() {
+	if !s.delivered {
+		return
+	}
 	cleanupTokenFiles(s.dir)
 }
 
