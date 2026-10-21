@@ -63,13 +63,11 @@ func newAlinasCertRefreshSink(mountPoint string) *alinasCertRefreshSink {
 	}
 }
 
-func (s *alinasCertRefreshSink) Deliver(cred *jwtauth.STSToken) error {
+func (s *alinasCertRefreshSink) Apply(cred *jwtauth.STSToken) error {
 	ctx, cancel := context.WithTimeout(context.Background(), alinasCertRefreshTimeout)
 	defer cancel()
 	return refreshAlinasCredential(ctx, s.runCommand, s.mountPoint, cred)
 }
-
-func (s *alinasCertRefreshSink) Notify() error { return nil }
 
 func (s *alinasCertRefreshSink) Cleanup() {}
 

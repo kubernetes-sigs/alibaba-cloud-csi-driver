@@ -198,6 +198,7 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 	// Safe to append after the inherited environment: buildEnvVars refuses any
 	// name it already defines, so nothing here can shadow it.
 	cmd.Env = append(os.Environ(), env...)
+	cmd.Stdin = op.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = sw
 	// Its own process group, so that cleanup reaches what the entrypoint starts

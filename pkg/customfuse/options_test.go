@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
@@ -479,50 +478,6 @@ func TestPrecheckAuthConfigAgentIdentity(t *testing.T) {
 		assert.NoError(t, precheckAuthConfig(complete()))
 	})
 
-	t.Run("credentialDir must be absolute", func(t *testing.T) {
-		opts := complete()
-		opts.CredentialDir = "credentials"
-		err := precheckAuthConfig(opts)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "absolute path")
-
-		opts.CredentialDir = "/run/customfuse-credentials/my-client/sts"
-		assert.NoError(t, precheckAuthConfig(opts))
-	})
-
-	t.Run("credentialDir must be under the credential root", func(t *testing.T) {
-		cases := []struct {
-			name string
-			dir  string
-		}{
-			{"direct escape", "/etc/creds"},
-			{"dot-dot traversal", "/run/customfuse-credentials/../../../etc/shadow"},
-			{"sibling of root", "/run/customfuse-credentialsX/sts"},
-			{"root itself without trailing child", "/run/customfuse-credentials"},
-			{"under the mounted target", "/mnt/data/credentials/sts"},
-		}
-		for _, tc := range cases {
-			t.Run(tc.name, func(t *testing.T) {
-				opts := complete()
-				opts.CredentialDir = tc.dir
-				err := precheckAuthConfig(opts)
-				require.Error(t, err, "credentialDir %q must be rejected", tc.dir)
-				assert.Contains(t, err.Error(), "must be under")
-			})
-		}
-	})
-
-	t.Run("credentialDir under the credential root is accepted", func(t *testing.T) {
-		cases := []string{
-			"/run/customfuse-credentials/my-client/sts",
-			"/run/customfuse-credentials/abc123/sts",
-		}
-		for _, dir := range cases {
-			opts := complete()
-			opts.CredentialDir = dir
-			assert.NoError(t, precheckAuthConfig(opts), "credentialDir %q should be accepted", dir)
-		}
-	})
 }
 
 func TestParseOptionsAgentIdentity(t *testing.T) {
@@ -531,7 +486,6 @@ func TestParseOptionsAgentIdentity(t *testing.T) {
 			"authType":                 "agent-identity",
 			"sandboxId":                "sbx-1",
 			"sandboxCredProviderName":  "provider-1",
-			"credentialDir":            "/run/customfuse-credentials/my-client/sts",
 			"credentialRefreshHookKey": "refresh.sh",
 		},
 	}
@@ -541,7 +495,6 @@ func TestParseOptionsAgentIdentity(t *testing.T) {
 	assert.Equal(t, "agent-identity", opts.AuthType)
 	assert.Equal(t, "sbx-1", opts.SandboxId)
 	assert.Equal(t, "provider-1", opts.SandboxCredProviderName)
-	assert.Equal(t, "/run/customfuse-credentials/my-client/sts", opts.CredentialDir)
 	assert.Equal(t, "refresh.sh", opts.CredentialRefreshHookKey)
 }
 
@@ -563,7 +516,6 @@ func TestMakeMountOptionsAgentIdentity(t *testing.T) {
 		AuthType:                jwtauth.AuthTypeAgentIdentity,
 		SandboxId:               "sbx-1",
 		SandboxCredProviderName: "provider-1",
-		CredentialDir:           "/run/customfuse-credentials/my-client/sts",
 	}
 	got := opts.makeMountOptions()
 
@@ -571,7 +523,6 @@ func TestMakeMountOptionsAgentIdentity(t *testing.T) {
 	assert.Contains(t, got, "authType=agent-identity")
 	assert.Contains(t, got, "sandboxId=sbx-1")
 	assert.Contains(t, got, "sandboxCredProviderName=provider-1")
-	assert.Contains(t, got, "credentialDir=/run/customfuse-credentials/my-client/sts")
 }
 
 // The default auth flow passes Secret entries through as environment variables,
@@ -789,7 +740,6 @@ func TestParseOptionsMountOptionsCannotSetControlFields(t *testing.T) {
 		"sandboxId=other-sandbox",
 		"sandboxCredProviderName=other-provider",
 		"credentialProviderName=other-provider",
-		"credentialDir=/tmp/other",
 		"credentialRefreshHookKey=other.sh",
 	))
 	assert.NoError(t, err)
@@ -802,7 +752,6 @@ func TestParseOptionsMountOptionsCannotSetControlFields(t *testing.T) {
 	assert.Empty(t, opts.AuthType, "precheckAuthConfig must see the default, not a value from an editable PV field")
 	assert.Empty(t, opts.SandboxId)
 	assert.Empty(t, opts.SandboxCredProviderName)
-	assert.Empty(t, opts.CredentialDir)
 	assert.Empty(t, opts.CredentialRefreshHookKey)
 }
 
@@ -816,20 +765,17 @@ func TestParseOptionsMountOptionsCannotSetControlFields(t *testing.T) {
 func TestParseOptionsMountOptionsCannotOverrideTheAgentIdentitySettings(t *testing.T) {
 	req := mountFlagsReq(
 		"sandboxId=other-sandbox",
-		"credentialDir=/tmp/other",
 		"sandboxCredProviderName=other-provider",
 	)
 	req.VolumeContext = map[string]string{
-		"sandboxId":     "real-sandbox",
-		"credentialDir": "/run/customfuse-credentials/real-client/sts",
+		"sandboxId": "real-sandbox",
 	}
 	opts, err := parseOptions(req)
 	require.NoError(t, err)
-	assert.Empty(t, opts.MountOptions, "nothing may be appended after the driver's own emissions")
+	assert.Empty(t, opts.MountOptions)
 
 	idx := mounterutils.IndexMountOptions(opts.makeMountOptions())
 	assert.Equal(t, "real-sandbox", idx[jwtauth.OptSandboxId])
-	assert.Equal(t, "/run/customfuse-credentials/real-client/sts", idx[interceptors.OptCredentialDir])
 	assert.NotContains(t, idx, jwtauth.OptSandboxCredProviderName)
 }
 

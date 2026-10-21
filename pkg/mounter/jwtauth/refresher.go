@@ -61,7 +61,7 @@ func (r *Refresher) FetchCredentials(ctx context.Context) (*STSToken, error) {
 // already been delivered by the caller (e.g. injected into mount options), so
 // the sink is only invoked on subsequent rotations.
 func (r *Refresher) refreshLoop(ctx context.Context, lastCred *STSToken) {
-	notifyBackoff := initialRetryBackoff
+	applyBackoff := initialRetryBackoff
 	for {
 		target := r.calcRefreshTarget(lastCred.Expiration)
 		klog.V(4).Infof("jwtauth refresher: next refresh at %v", target)
@@ -78,21 +78,17 @@ func (r *Refresher) refreshLoop(ctx context.Context, lastCred *STSToken) {
 			klog.Errorf("jwtauth refresher: fetch failed after retries: %v", err)
 			continue
 		}
-		if err := r.sink.Deliver(cred); err != nil {
-			klog.Errorf("jwtauth refresher: deliver credentials failed: %v", err)
-			continue
-		}
-		lastCred = cred
-		for err := r.sink.Notify(); err != nil; err = r.sink.Notify() {
-			klog.Errorf("jwtauth refresher: notify failed (credential is on disk): %v", err)
+		for err := r.sink.Apply(cred); err != nil; err = r.sink.Apply(cred) {
+			klog.Errorf("jwtauth refresher: apply credentials failed: %v", err)
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(notifyBackoff):
+			case <-time.After(applyBackoff):
 			}
-			notifyBackoff = min(notifyBackoff*2, maxRetryBackoff)
+			applyBackoff = min(applyBackoff*2, maxRetryBackoff)
 		}
-		notifyBackoff = initialRetryBackoff
+		applyBackoff = initialRetryBackoff
+		lastCred = cred
 		klog.V(2).Infof("jwtauth refresher: credentials refreshed, expires %s", cred.Expiration)
 	}
 }

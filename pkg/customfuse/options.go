@@ -4,12 +4,10 @@ package customfuse
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -81,13 +79,6 @@ type fuseOptions struct {
 	// SandboxCredProviderName names the credential provider that issues the
 	// scoped credential. Required when AuthType is "agent-identity".
 	SandboxCredProviderName string
-	// CredentialDir pins the directory the STS credential files are written to
-	// inside the fuse container, for a client whose credential path is fixed in
-	// its own configuration and so cannot be told where to look at mount time.
-	// When empty each mount gets its own directory, whose path the entrypoint
-	// reads from $credentialDir. Only meaningful when AuthType is
-	// "agent-identity".
-	CredentialDir string
 	// CredentialRefreshHookKey is the key in EntrypointConfig holding a script to
 	// run after each credential rotation, projected as
 	// /etc/fuse-config/refresh-hook.sh. Only needed to override a hook, or to
@@ -229,7 +220,7 @@ func applyMountOptions(opts *fuseOptions) error {
 			klog.Warningf("mountOptions %s is ignored: mountpoint is the path the driver tells the client to mount on, not a volume parameter", key)
 		// The agent-identity settings join the six above for a stronger reason than
 		// "nothing would read them": makeMountOptions emits sandboxId,
-		// sandboxCredProviderName and credentialDir ahead of the entries left here,
+		// sandboxCredProviderName ahead of the entries left here,
 		// and IndexMountOptions keeps the last value for a repeated key. Left
 		// unrecognised, one of them in this editable PV field would redefine the
 		// setting the credential exchange is resolved from, on a volume whose
@@ -336,8 +327,6 @@ func parseOptions(req publishRequest) (*fuseOptions, error) {
 			opts.SandboxId = value
 		case "sandboxcredprovidername", "credentialprovidername":
 			opts.SandboxCredProviderName = value
-		case "credentialdir":
-			opts.CredentialDir = value
 		case "credentialrefreshhookkey":
 			opts.CredentialRefreshHookKey = value
 		case "capacity":
@@ -436,19 +425,6 @@ func precheckAuthConfig(opts *fuseOptions) error {
 		if opts.CredentialRefreshHookKey != "" && opts.EntrypointConfig == "" {
 			return fmt.Errorf("credentialRefreshHookKey names a key in entrypointConfig, which is not set; a hook shipped in the image needs neither")
 		}
-		// A relative path would resolve against a working directory neither the
-		// volume author nor the entrypoint can see. An absolute path that escapes
-		// the credential root — directly or through ".." — would let a volume
-		// author write STS credential files to an arbitrary location inside the
-		// privileged fuse container, which has bidirectional mount propagation.
-		if opts.CredentialDir != "" {
-			if !filepath.IsAbs(opts.CredentialDir) {
-				return fmt.Errorf("credentialDir %q must be an absolute path", opts.CredentialDir)
-			}
-			if err := interceptors.ValidateCredentialDir(opts.CredentialDir); err != nil {
-				return err
-			}
-		}
 		return nil
 	default:
 		return fmt.Errorf("unsupported authType %q; supported: default (secret passthrough), %s", opts.AuthType, jwtauth.AuthTypeAgentIdentity)
@@ -459,7 +435,7 @@ func precheckAuthConfig(opts *fuseOptions) error {
 // The auth type determines how credentials are provisioned to the FUSE entrypoint:
 //   - "" (default): secrets are passed as env vars directly (key=value, no transformation)
 //   - "agent-identity": mount-proxy exchanges the sandbox token for a scoped STS
-//     credential, delivers it as files under credentialDir, and refreshes it
+//     credential, delivers it via stdin to the entrypoint and hook, and refreshes it
 //     before it expires
 //   - "rrsa": (planned) RRSA-based auth via mount-proxy
 func makeAuthConfig(opts *fuseOptions) *fpm.AuthConfig {
@@ -516,9 +492,6 @@ func (o *fuseOptions) makeMountOptions() []string {
 	}
 	if o.SandboxCredProviderName != "" {
 		opts = append(opts, jwtauth.OptSandboxCredProviderName+"="+o.SandboxCredProviderName)
-	}
-	if o.CredentialDir != "" {
-		opts = append(opts, interceptors.OptCredentialDir+"="+o.CredentialDir)
 	}
 	opts = append(opts, o.MountOptions...)
 	return opts

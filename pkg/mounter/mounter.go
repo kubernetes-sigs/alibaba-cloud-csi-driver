@@ -3,6 +3,7 @@ package mounter
 import (
 	"context"
 	"errors"
+	"io"
 
 	mountutils "k8s.io/mount-utils"
 )
@@ -77,10 +78,11 @@ type MountOperation struct {
 	// credentials). They are passed to the mount via MountSensitive so they
 	// are masked in logs and error messages, and must never be logged.
 	SensitiveOptions []string
-	FuseFd           int  // FUSE file descriptor from client; 0 means not available; valid fd > 0
-	FdPassing        bool // whether to use fd-passing mode (client does kernel mount, passes fd to server)
-	Recovery         bool // whether to enable recovery loop on process exit
-	HasActiveDaemon  bool // server-side: true when a FUSE daemon is already running for this target (token rotation)
+	Stdin            io.Reader // data piped to the entrypoint's stdin (e.g. credential for agent-identity)
+	FuseFd           int       // FUSE file descriptor from client; 0 means not available; valid fd > 0
+	FdPassing        bool      // whether to use fd-passing mode (client does kernel mount, passes fd to server)
+	Recovery         bool      // whether to enable recovery loop on process exit
+	HasActiveDaemon  bool      // server-side: true when a FUSE daemon is already running for this target (token rotation)
 
 	MountResult any
 

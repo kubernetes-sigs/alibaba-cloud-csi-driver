@@ -343,31 +343,6 @@ func TestBuildPodSpecConfigMapKeysAreOptional(t *testing.T) {
 	assert.True(t, *cm.Optional)
 }
 
-func TestBuildPodSpecCredentialDirIsTmpfs(t *testing.T) {
-	spec := buildSpec(t, testContext())
-
-	var vol *corev1.Volume
-	for i := range spec.Volumes {
-		if spec.Volumes[i].Name == "credential-dir" {
-			vol = &spec.Volumes[i]
-			break
-		}
-	}
-	require.NotNil(t, vol, "credential-dir volume must exist")
-	require.NotNil(t, vol.EmptyDir)
-	assert.Equal(t, corev1.StorageMediumMemory, vol.EmptyDir.Medium)
-
-	var mount *corev1.VolumeMount
-	for i := range spec.Containers[0].VolumeMounts {
-		if spec.Containers[0].VolumeMounts[i].MountPath == "/run/customfuse-credentials" {
-			mount = &spec.Containers[0].VolumeMounts[i]
-			break
-		}
-	}
-	require.NotNil(t, mount, "/run/customfuse-credentials must be mounted")
-	assert.Equal(t, "credential-dir", mount.Name)
-}
-
 // Both scripts have to be executable for the driver to exec them, and the mount
 // has to be read-only so the container cannot rewrite what the driver runs.
 func TestBuildPodSpecConfigMapIsExecutableAndReadOnly(t *testing.T) {

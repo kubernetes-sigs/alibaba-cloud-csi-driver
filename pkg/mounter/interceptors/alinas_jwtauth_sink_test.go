@@ -31,7 +31,7 @@ func TestAlinasCertRefreshSinkApply(t *testing.T) {
 			return nil, nil
 		}
 
-		require.NoError(t, sink.Deliver(cred))
+		require.NoError(t, sink.Apply(cred))
 		assert.Equal(t, "alinas-tls-cert-refresh", gotName)
 		assert.Equal(t, []string{"--mount-point", "/mnt/nas"}, gotArgs)
 		assert.JSONEq(t, `{"ak":"AKID","sk":"AKSECRET","token":"STOKEN"}`, string(gotStdin))
@@ -48,7 +48,7 @@ func TestAlinasCertRefreshSinkApply(t *testing.T) {
 			return []byte("boom"), errors.New("exit status 1")
 		}
 
-		err := sink.Deliver(cred)
+		err := sink.Apply(cred)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "alinas-tls-cert-refresh")
 		assert.Contains(t, err.Error(), "/mnt/nas")
@@ -65,7 +65,7 @@ func TestAlinasCertRefreshSinkApply(t *testing.T) {
 				name, name, cred.AccessKeyID, cred.AccessKeySecret, cred.SecurityToken)), errors.New("exit status 2")
 		}
 
-		err := sink.Deliver(cred)
+		err := sink.Apply(cred)
 		require.Error(t, err)
 		assert.NotContains(t, err.Error(), cred.AccessKeySecret, "error must not contain the access key secret")
 		assert.NotContains(t, err.Error(), cred.SecurityToken, "error must not contain the security token")
