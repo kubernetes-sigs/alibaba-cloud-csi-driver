@@ -133,6 +133,7 @@ func TestSubstrateEnabledWiresControllerNodeAndTrust(t *testing.T) {
 		t.Fatal(err)
 	}
 	node := container(t, daemon.Template.Spec, "csi-plugin")
+
 	for _, flag := range []string{"--substrate-api-endpoint=k8s:///ate-system/api:443", "--substrate-api-server-name=api.ate-system.svc", "--substrate-api-ca-file=/run/podidentity.podcert.ate.dev/trust-bundle.pem", "--substrate-api-token-file=/run/ateapi/token"} {
 		if !slices.Contains(node.Args, flag) {
 			t.Errorf("missing node flag %s", flag)
@@ -191,14 +192,26 @@ func TestSubstrateEnabledWiresControllerNodeAndTrust(t *testing.T) {
 	}
 	findResource(t, resources, "CSIDriver", "substrate.csi.alibabacloud.com")
 	findResource(t, resources, "StorageClass", "ate-storage")
+
 	findResource(t, resources, "CSIDriverConfig", "substrate.csi.alibabacloud.com")
 	findResource(t, resources, "CSIDriverConfig", "nasplugin.csi.alibabacloud.com")
 	var service corev1.ServiceSpec
 	if err := json.Unmarshal(findResource(t, resources, "Service", "csi-provisioner").Spec, &service); err != nil {
 		t.Fatal(err)
 	}
-	if service.Selector["app"] != "csi-provisioner" || len(service.Ports) != 2 {
+	if service.Selector["app"] != "csi-provisioner" {
 		t.Fatal("NAS and bridge must share the existing controller service")
+	}
+	// Named ports rather than a bare count: a count silently accepts one driver's
+	// endpoint going missing while another is duplicated.
+	gotPorts := map[string]int32{}
+	for _, port := range service.Ports {
+		gotPorts[port.Name] = port.Port
+	}
+	for name, want := range map[string]int32{"nas-grpc-tls": 443, "bridge-grpc-tls": 444} {
+		if gotPorts[name] != want {
+			t.Errorf("controller service port %s = %d, want %d (all ports: %v)", name, gotPorts[name], want, gotPorts)
+		}
 	}
 	config := findResource(t, resources, "ConfigMap", "csi-provisioner-substrate")
 	for _, socket := range []string{"/csi/nasplugin.csi.alibabacloud.com/csi.sock", "/csi/substrate.csi.alibabacloud.com/csi.sock"} {
@@ -206,8 +219,87 @@ func TestSubstrateEnabledWiresControllerNodeAndTrust(t *testing.T) {
 			t.Fatalf("missing backend %s", socket)
 		}
 	}
-	if strings.Count(config.Data["envoy.yaml"], "require_client_certificate: true") != 2 {
-		t.Fatal("both controller endpoints require mTLS")
+	// Parsed rather than counted. A bare count of "require_client_certificate: true"
+	// silently accepts one listener gaining mTLS while another loses it, and had to be
+	// bumped by hand every time an endpoint was added.
+	var bootstrap struct {
+		Node struct {
+			ID      string `json:"id"`
+			Cluster string `json:"cluster"`
+		} `json:"node"`
+		StaticResources struct {
+			Listeners []struct {
+				Name         string `json:"name"`
+				FilterChains []struct {
+					TransportSocket struct {
+						TypedConfig struct {
+							RequireClientCertificate bool           `json:"require_client_certificate"`
+							CommonTLSContext         map[string]any `json:"common_tls_context"`
+						} `json:"typed_config"`
+					} `json:"transport_socket"`
+				} `json:"filter_chains"`
+			} `json:"listeners"`
+		} `json:"static_resources"`
+	}
+	if err := yamlutil.Unmarshal([]byte(config.Data["envoy.yaml"]), &bootstrap); err != nil {
+		t.Fatalf("parsing envoy.yaml: %v", err)
+	}
+	if len(bootstrap.StaticResources.Listeners) == 0 {
+		t.Fatal("envoy.yaml declares no listeners")
+	}
+	// SDS will not initialize without a node identity: Envoy exits at startup with
+	// "TlsCertificateSdsApi: node 'id' and 'cluster' are required". A bootstrap that
+	// only ever used inline certificates needs no node block, so this is easy to drop
+	// when moving to SDS and only shows up as a CrashLoopBackOff sidecar.
+	if bootstrap.Node.ID == "" || bootstrap.Node.Cluster == "" {
+		t.Errorf("envoy.yaml node is %+v; SDS requires both id and cluster", bootstrap.Node)
+	}
+	for _, listener := range bootstrap.StaticResources.Listeners {
+		if len(listener.FilterChains) != 1 {
+			t.Fatalf("listener %s has %d filter chains, want exactly 1", listener.Name, len(listener.FilterChains))
+		}
+		tlsContext := listener.FilterChains[0].TransportSocket.TypedConfig
+		if !tlsContext.RequireClientCertificate {
+			t.Errorf("listener %s does not require a client certificate", listener.Name)
+		}
+		// Both the serving certificate and the client CA must arrive through SDS.
+		// Envoy silently ignores watched_directory on an inline tls_certificates or
+		// validation_context in the bootstrap, so an inline entry is read once at
+		// startup and never again. kubelet rotates the projected podCertificate
+		// roughly daily; from the moment the startup leaf expires every mTLS
+		// handshake fails with "x509: certificate has expired" while the Pod keeps
+		// reporting Ready, so nothing detects it and the driver stays unreachable
+		// until it is restarted.
+		for _, inline := range []string{"tls_certificates", "validation_context"} {
+			if _, found := tlsContext.CommonTLSContext[inline]; found {
+				t.Errorf("listener %s carries an inline %s entry; certificate rotation would be silently broken, deliver it through SDS instead", listener.Name, inline)
+			}
+		}
+		for _, sds := range []string{"tls_certificate_sds_secret_configs", "validation_context_sds_secret_config"} {
+			if _, found := tlsContext.CommonTLSContext[sds]; !found {
+				t.Errorf("listener %s is missing %s", listener.Name, sds)
+			}
+		}
+	}
+	// The SDS resources are where watched_directory actually takes effect, and each
+	// one has to be reachable as a file: the ConfigMap is mounted whole at /etc/envoy
+	// with no items filter, so a key and a path_config_source that disagrees with it
+	// is a startup failure rather than a silent one.
+	sdsKeys := 0
+	for key, body := range config.Data {
+		if !strings.HasPrefix(key, "sds-") {
+			continue
+		}
+		sdsKeys++
+		if !strings.Contains(body, "watched_directory") {
+			t.Errorf("SDS resource %s is missing watched_directory; rotation would be silently broken", key)
+		}
+		if !strings.Contains(config.Data["envoy.yaml"], "/etc/envoy/"+key) {
+			t.Errorf("SDS resource %s is never referenced as /etc/envoy/%s", key, key)
+		}
+	}
+	if sdsKeys != 2 {
+		t.Errorf("found %d SDS resources, want exactly the serving certificate and the client CA", sdsKeys)
 	}
 }
 

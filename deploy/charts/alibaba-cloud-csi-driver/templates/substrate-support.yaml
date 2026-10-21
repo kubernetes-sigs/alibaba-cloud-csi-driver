@@ -63,6 +63,14 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   envoy.yaml: |
+    # SDS needs a node identity. Without node.id and node.cluster Envoy refuses to
+    # initialize the TlsCertificateSdsApi and exits at startup with "node 'id' and
+    # 'cluster' are required. Set it either in 'node' config or via --service-node
+    # and --service-cluster options." A bootstrap that only ever used inline
+    # certificates does not need this block, so it is easy to miss when moving to SDS.
+    node:
+      id: csi-provisioner-substrate
+      cluster: csi-provisioner
     static_resources:
       listeners:
         {{- range $endpoint := $endpoints }}
@@ -77,13 +85,26 @@ data:
                   require_client_certificate: true
                   common_tls_context:
                     alpn_protocols: [h2]
-                    tls_certificates:
-                      - certificate_chain: {filename: /run/servicedns.podcert.ate.dev/credential-bundle.pem}
-                        private_key: {filename: /run/servicedns.podcert.ate.dev/credential-bundle.pem}
-                        watched_directory: {path: /run/servicedns.podcert.ate.dev}
-                    validation_context:
-                      trusted_ca: {filename: /run/podidentity.podcert.ate.dev/client-trust-bundle.pem}
-                      watched_directory: {path: /run/podidentity.podcert.ate.dev}
+                    # Both secrets reach Envoy through filesystem SDS instead of an
+                    # inline entry, because Envoy silently ignores watched_directory
+                    # on an inline tls_certificates / validation_context in the
+                    # bootstrap: the file is read once at startup and never again.
+                    # kubelet rotates a projected podCertificate roughly daily, so an
+                    # Envoy that never re-reads it starts failing every mTLS handshake
+                    # with "x509: certificate has expired" about 24h after the Pod
+                    # starts — while the Pod still reports Ready, so nothing detects
+                    # it. The SDS resource files further down this ConfigMap carry the
+                    # watched_directory that does take effect.
+                    tls_certificate_sds_secret_configs:
+                      - name: substrate_serving_cert
+                        sds_config:
+                          resource_api_version: V3
+                          path_config_source: {path: /etc/envoy/sds-substrate-serving-cert.yaml}
+                    validation_context_sds_secret_config:
+                      name: substrate_client_validation
+                      sds_config:
+                        resource_api_version: V3
+                        path_config_source: {path: /etc/envoy/sds-substrate-client-validation.yaml}
               filters:
                 - name: envoy.filters.network.http_connection_manager
                   typed_config:
@@ -119,6 +140,30 @@ data:
                       address:
                         pipe: {path: /csi/{{ $endpoint.driver }}/csi.sock}
         {{- end }}
+  # SDS resources for the two podCertificate bundles the listeners above reference.
+  # watched_directory has to live here and nowhere else: kubelet rotates a projected
+  # volume by creating a new timestamped directory and atomically re-pointing the
+  # ..data symlink inside it, which fires the directory watch and makes Envoy
+  # re-read the bundle. This ConfigMap is mounted whole at /etc/envoy with no items
+  # filter, so these keys appear as files with no volume or volumeMount change.
+  #
+  # Both bundles are leaf cert and key concatenated in one file, which is why
+  # certificate_chain and private_key name the same path.
+  sds-substrate-serving-cert.yaml: |
+    resources:
+    - "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.Secret
+      name: substrate_serving_cert
+      tls_certificate:
+        certificate_chain: {filename: /run/servicedns.podcert.ate.dev/credential-bundle.pem}
+        private_key: {filename: /run/servicedns.podcert.ate.dev/credential-bundle.pem}
+        watched_directory: {path: /run/servicedns.podcert.ate.dev}
+  sds-substrate-client-validation.yaml: |
+    resources:
+    - "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.Secret
+      name: substrate_client_validation
+      validation_context:
+        trusted_ca: {filename: /run/podidentity.podcert.ate.dev/client-trust-bundle.pem}
+        watched_directory: {path: /run/podidentity.podcert.ate.dev}
 {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
