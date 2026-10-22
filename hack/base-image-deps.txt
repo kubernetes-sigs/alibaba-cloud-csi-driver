@@ -1,5 +1,5 @@
 base-files 13.8+deb13u7
-ca-certificates 20250419
+ca-certificates 20250419+deb13u1
 coreutils 9.7-3
 e2fsprogs 1.47.2-3+b12
 fdisk 2.41.5-0+deb13u1
