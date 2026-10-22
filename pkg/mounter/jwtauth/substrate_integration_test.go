@@ -147,12 +147,23 @@ func TestSubstrateExchangeAndRefreshIntegration(t *testing.T) {
 			}
 			return nil
 		}}
-		refresher := NewRefresher(opts, sink)
+		refresher, err := NewRefresher(opts, sink)
+		require.NoError(t, err)
 		refresher.refreshMargin = 2 * time.Hour
-		refresher.minSleep = time.Millisecond
-		require.NoError(t, refresher.Start(context.Background()))
-		defer refresher.Stop()
-		assert.False(t, refresher.client.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify)
+
+		cred, err := refresher.FetchCredentials(context.Background())
+		require.NoError(t, err)
+		require.NoError(t, sink.Apply(cred))
+
+		mgr := NewManager()
+		mgr.Start("/mnt/integration-test", refresher, cred)
+		defer mgr.StopAll(5 * time.Second)
+
+		// Substrate mode uses VerifyConnection with InsecureSkipVerify=true
+		// (the custom callback does the actual verification).
+		tlsCfg := refresher.client.Transport.(*http.Transport).TLSClientConfig
+		assert.True(t, tlsCfg.InsecureSkipVerify)
+		assert.NotNil(t, tlsCfg.VerifyConnection)
 		select {
 		case credential := <-rotated:
 			assert.Equal(t, "STS.integration-2", credential.AccessKeyID)

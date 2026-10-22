@@ -51,12 +51,15 @@ func (f *fakeNodeServer) NodePublishVolume(_ context.Context, _ *csi.NodePublish
 	return &csi.NodePublishVolumeResponse{}, f.publishErr
 }
 
-func TestNodeStageVolumeSubstrateBypassesStagingPathCheck(t *testing.T) {
-	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
+func TestNodeStageVolumeSubstrateAcceptsActorRootPath(t *testing.T) {
+	old := SubstrateActorRootDir
+	SubstrateActorRootDir = "/var/lib/ate/actors"
+	defer func() { SubstrateActorRootDir = old }()
 
+	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
 	resp, err := validator.NodeStageVolume(context.Background(), &csi.NodeStageVolumeRequest{
 		VolumeId:          "vol-1",
-		StagingTargetPath: "/var/lib/ateom-gvisor/staging/vol-1",
+		StagingTargetPath: "/var/lib/ate/actors/uid-123/volumes/data",
 		VolumeCapability:  &csi.VolumeCapability{},
 		VolumeContext:     map[string]string{SubstrateModeKey: "true"},
 	})
@@ -64,24 +67,42 @@ func TestNodeStageVolumeSubstrateBypassesStagingPathCheck(t *testing.T) {
 	assert.NotNil(t, resp)
 }
 
-func TestNodeStageVolumeNonSubstrateRejectsBadPath(t *testing.T) {
-	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
+func TestNodeStageVolumeSubstrateRejectsBadPath(t *testing.T) {
+	old := SubstrateActorRootDir
+	SubstrateActorRootDir = "/var/lib/ate/actors"
+	defer func() { SubstrateActorRootDir = old }()
 
+	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
 	_, err := validator.NodeStageVolume(context.Background(), &csi.NodeStageVolumeRequest{
 		VolumeId:          "vol-1",
-		StagingTargetPath: "/var/lib/ateom-gvisor/staging/vol-1",
+		StagingTargetPath: "/tmp/evil/path",
+		VolumeCapability:  &csi.VolumeCapability{},
+		VolumeContext:     map[string]string{SubstrateModeKey: "true"},
+	})
+	assert.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+func TestNodeStageVolumeNonSubstrateRejectsBadPath(t *testing.T) {
+	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
+	_, err := validator.NodeStageVolume(context.Background(), &csi.NodeStageVolumeRequest{
+		VolumeId:          "vol-1",
+		StagingTargetPath: "/var/lib/ate/actors/uid-123/volumes/data",
 		VolumeCapability:  &csi.VolumeCapability{},
 	})
 	assert.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
-func TestNodePublishVolumeSubstrateBypassesTargetPathCheck(t *testing.T) {
-	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
+func TestNodePublishVolumeSubstrateAcceptsActorRootPath(t *testing.T) {
+	old := SubstrateActorRootDir
+	SubstrateActorRootDir = "/var/lib/ate/actors"
+	defer func() { SubstrateActorRootDir = old }()
 
+	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
 	resp, err := validator.NodePublishVolume(context.Background(), &csi.NodePublishVolumeRequest{
 		VolumeId:         "vol-1",
-		TargetPath:       "/var/lib/ateom-gvisor/actors/uid/volumes/data",
+		TargetPath:       "/var/lib/ate/actors/uid-123/volumes/data",
 		VolumeCapability: &csi.VolumeCapability{},
 		VolumeContext:    map[string]string{SubstrateModeKey: "true"},
 	})
@@ -89,12 +110,27 @@ func TestNodePublishVolumeSubstrateBypassesTargetPathCheck(t *testing.T) {
 	assert.NotNil(t, resp)
 }
 
-func TestNodePublishVolumeNonSubstrateRejectsBadPath(t *testing.T) {
-	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
+func TestNodePublishVolumeSubstrateRejectsBadPath(t *testing.T) {
+	old := SubstrateActorRootDir
+	SubstrateActorRootDir = "/var/lib/ate/actors"
+	defer func() { SubstrateActorRootDir = old }()
 
+	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
 	_, err := validator.NodePublishVolume(context.Background(), &csi.NodePublishVolumeRequest{
 		VolumeId:         "vol-1",
-		TargetPath:       "/var/lib/ateom-gvisor/actors/uid/volumes/data",
+		TargetPath:       "/tmp/evil/path",
+		VolumeCapability: &csi.VolumeCapability{},
+		VolumeContext:    map[string]string{SubstrateModeKey: "true"},
+	})
+	assert.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
+func TestNodePublishVolumeNonSubstrateRejectsBadPath(t *testing.T) {
+	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
+	_, err := validator.NodePublishVolume(context.Background(), &csi.NodePublishVolumeRequest{
+		VolumeId:         "vol-1",
+		TargetPath:       "/var/lib/ate/actors/uid-123/volumes/data",
 		VolumeCapability: &csi.VolumeCapability{},
 	})
 	assert.Error(t, err)

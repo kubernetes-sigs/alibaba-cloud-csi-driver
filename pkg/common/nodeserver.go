@@ -144,15 +144,13 @@ func (s NodeServerWithValidator) NodeStageVolume(ctx context.Context, req *csi.N
 	if len(req.StagingTargetPath) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "StagingTargetPath is required")
 	}
-	if !IsSubstrateVolumeContext(req.VolumeContext) {
-		ok, err := filepathContains(utils.KubeletRootDir, req.StagingTargetPath)
-		if err != nil || !ok {
-			return nil, status.Errorf(codes.InvalidArgument, "Staging path %q is not a subpath of %s", req.StagingTargetPath, utils.KubeletRootDir)
-		}
+	rootDir := utils.KubeletRootDir
+	if IsSubstrateVolumeContext(req.VolumeContext) {
+		rootDir = SubstrateActorRootDir
 	}
-	// TODO: once Substrate's base path is stable, add path validation against
-	// the substrate root dir (e.g. from a VolumeContext key) instead of
-	// skipping validation entirely for substrate-mode volumes.
+	if ok, err := filepathContains(rootDir, req.StagingTargetPath); err != nil || !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "Staging path %q is not a subpath of %s", req.StagingTargetPath, rootDir)
+	}
 	return s.NodeServer.NodeStageVolume(ctx, req)
 }
 
@@ -166,11 +164,12 @@ func (s NodeServerWithValidator) NodePublishVolume(ctx context.Context, req *csi
 	if len(req.TargetPath) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "TargetPath is required")
 	}
-	if !IsSubstrateVolumeContext(req.VolumeContext) {
-		ok, err := filepathContains(utils.KubeletRootDir, req.TargetPath)
-		if err != nil || !ok {
-			return nil, status.Errorf(codes.InvalidArgument, "Target path %q is not a subpath of %s", req.TargetPath, utils.KubeletRootDir)
-		}
+	rootDir := utils.KubeletRootDir
+	if IsSubstrateVolumeContext(req.VolumeContext) {
+		rootDir = SubstrateActorRootDir
+	}
+	if ok, err := filepathContains(rootDir, req.TargetPath); err != nil || !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "Target path %q is not a subpath of %s", req.TargetPath, rootDir)
 	}
 	return s.NodeServer.NodePublishVolume(ctx, req)
 }
