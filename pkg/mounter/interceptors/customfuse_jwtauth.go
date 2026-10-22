@@ -16,7 +16,7 @@ import (
 
 var _ mounter.MountInterceptor = CustomFuseJWTAuthInterceptor
 
-const (
+var (
 	configMapRefreshHook = "/etc/fuse-config/refresh-hook.sh"
 	imageRefreshHook     = "/refresh-hook.sh"
 )
@@ -46,7 +46,11 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 	// Strip infrastructure options before the entrypoint sees them.
 	op.Options = stripCustomFuseInfraOptions(op.Options)
 
-	sink := newStdinCredentialSink(resolveRefreshHook(configMapRefreshHook, imageRefreshHook), customFuseHookEnv(op))
+	hook := resolveRefreshHook(configMapRefreshHook, imageRefreshHook)
+	if hook == "" {
+		return fmt.Errorf("agent-identity requires a credential refresh hook; provide one via credentialRefreshHookKey or ship /refresh-hook.sh in the image")
+	}
+	sink := newStdinCredentialSink(hook, customFuseHookEnv(op))
 
 	refresher, err := jwtauth.NewRefresher(opts, sink)
 	if err != nil {
@@ -65,10 +69,10 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 	op.Stdin = bytes.NewReader(formatCredential(cred))
 	klog.V(4).InfoS("provisioned customfuse agent-identity credential via stdin", "target", op.Target)
 
-	jwtauth.DefaultManager.Start(op.Target, refresher, cred)
+	stopRefresher := jwtauth.DefaultManager.Start(op.Target, refresher, cred)
 
 	if err := handler(ctx, op); err != nil {
-		jwtauth.DefaultManager.StopByTarget(op.Target)
+		stopRefresher()
 		return err
 	}
 
@@ -80,7 +84,7 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 	}
 	go func() {
 		<-result.ExitChan
-		jwtauth.DefaultManager.StopByTarget(op.Target)
+		stopRefresher()
 		klog.V(4).InfoS("stopped customfuse credential refresher", "target", op.Target)
 	}()
 	return nil

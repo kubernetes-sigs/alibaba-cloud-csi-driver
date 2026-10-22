@@ -173,7 +173,17 @@ func TestCustomFuseJWTAuthInterceptorConfigErrorSkipsMount(t *testing.T) {
 	assert.False(t, called)
 }
 
+func installFakeHook(t *testing.T) {
+	t.Helper()
+	hook := filepath.Join(t.TempDir(), "hook.sh")
+	require.NoError(t, os.WriteFile(hook, []byte("#!/bin/sh\ncat > /dev/null\n"), 0o755))
+	orig := imageRefreshHook
+	imageRefreshHook = hook
+	t.Cleanup(func() { imageRefreshHook = orig })
+}
+
 func TestCustomFuseJWTAuthInterceptorProvisionsBeforeMount(t *testing.T) {
+	installFakeHook(t)
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "sandbox-token", "client-1")
 	srv := newSTSServer(t, "ak-provisioned", "sk-provisioned", "tok-provisioned", time.Now().Add(time.Hour))
@@ -217,6 +227,7 @@ func TestCustomFuseJWTAuthInterceptorProvisionsBeforeMount(t *testing.T) {
 }
 
 func TestCustomFuseJWTAuthInterceptorMountFailureStopsRefresher(t *testing.T) {
+	installFakeHook(t)
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "sandbox-token", "client-1")
 	srv := newSTSServer(t, "ak", "sk", "tok", time.Now().Add(time.Hour))
@@ -240,6 +251,7 @@ func TestCustomFuseJWTAuthInterceptorMountFailureStopsRefresher(t *testing.T) {
 }
 
 func TestCustomFuseJWTAuthInterceptorExchangeFailureSkipsMount(t *testing.T) {
+	installFakeHook(t)
 	tmpDir := t.TempDir()
 	tokenPath := writeTokenFile(t, tmpDir, "sandbox-token", "client-1")
 

@@ -46,11 +46,6 @@ func (s *stdinCredentialSink) Apply(cred *jwtauth.STSToken) error {
 		return fmt.Errorf("nil credential")
 	}
 
-	if s.hook == "" {
-		klog.V(4).InfoS("no hook configured, credential rotated silently", "expiration", cred.Expiration)
-		return nil
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), credentialRefreshHookTimeout)
 	defer cancel()
 
@@ -60,7 +55,7 @@ func (s *stdinCredentialSink) Apply(cred *jwtauth.STSToken) error {
 
 	output, err := s.runHook(ctx, s.hook, env, stdin)
 	if err != nil {
-		return fmt.Errorf("credential refresh hook %s failed: %w, output: %s", s.hook, err, string(output))
+		return fmt.Errorf("credential refresh hook %s failed: %w, output: %s", s.hook, err, redactCredential(string(output), cred))
 	}
 	klog.V(4).InfoS("ran customfuse credential refresh hook", "hook", s.hook, "expiration", cred.Expiration)
 	return nil
@@ -87,24 +82,9 @@ func runHookWithStdin(ctx context.Context, name string, env []string, stdin []by
 	cmd.Env = env
 	cmd.Stdin = bytes.NewReader(stdin)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
-
-	if err := cmd.Start(); err != nil {
-		return nil, err
+	cmd.Cancel = func() error {
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	select {
-	case err := <-done:
-		return buf.Bytes(), err
-	case <-ctx.Done():
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		<-done
-		return buf.Bytes(), ctx.Err()
-	}
+	cmd.WaitDelay = 5 * time.Second
+	return cmd.CombinedOutput()
 }

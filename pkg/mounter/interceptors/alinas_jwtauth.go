@@ -71,7 +71,7 @@ func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, h
 		return err
 	}
 
-	jwtauth.DefaultManager.Start(op.Target, refresher, cred)
+	_ = jwtauth.DefaultManager.Start(op.Target, refresher, cred)
 	return nil
 }
 

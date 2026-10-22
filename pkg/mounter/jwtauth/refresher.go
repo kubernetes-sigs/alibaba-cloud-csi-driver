@@ -90,17 +90,17 @@ func (r *Refresher) refreshLoop(ctx context.Context, lastCred *STSToken) {
 // succeeded, false if the credential expired during retries (caller should
 // re-fetch) or if ctx was cancelled.
 func (r *Refresher) applyWithRetry(ctx context.Context, cred *STSToken, backoff *time.Duration) bool {
-	for {
+	for range maxFetchRetries {
+		if r.credentialExpiredOrUnparsable(cred) {
+			klog.Warningf("jwtauth refresher: credential expired or unparsable before apply, will re-fetch")
+			*backoff = initialRetryBackoff
+			return false
+		}
 		if err := r.sink.Apply(cred); err == nil {
 			*backoff = initialRetryBackoff
 			return true
 		} else {
 			klog.Errorf("jwtauth refresher: apply credentials failed: %v", err)
-		}
-		if r.credentialExpired(cred) {
-			klog.Warningf("jwtauth refresher: credential expired during apply retries, will re-fetch")
-			*backoff = initialRetryBackoff
-			return false
 		}
 		select {
 		case <-ctx.Done():
@@ -109,12 +109,15 @@ func (r *Refresher) applyWithRetry(ctx context.Context, cred *STSToken, backoff 
 		}
 		*backoff = min(*backoff*2, maxRetryBackoff)
 	}
+	klog.Warningf("jwtauth refresher: apply retries exhausted, will re-fetch")
+	*backoff = initialRetryBackoff
+	return false
 }
 
-func (r *Refresher) credentialExpired(cred *STSToken) bool {
+func (r *Refresher) credentialExpiredOrUnparsable(cred *STSToken) bool {
 	expTime, err := time.Parse(time.RFC3339, cred.Expiration)
 	if err != nil {
-		return false
+		return true
 	}
 	return r.wallNow().After(expTime)
 }

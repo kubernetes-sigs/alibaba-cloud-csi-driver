@@ -41,10 +41,18 @@ func TestStdinCredentialSinkApplyRunsHook(t *testing.T) {
 	assert.Equal(t, expected, string(gotStdin))
 }
 
-func TestStdinCredentialSinkNoHookConfigured(t *testing.T) {
-	sink := newStdinCredentialSink("", nil)
-	require.NoError(t, sink.Apply(genCred(1)))
-	require.NoError(t, sink.Apply(genCred(2)))
+func TestStdinCredentialSinkHookFailureRedactsCredential(t *testing.T) {
+	cred := genCred(1)
+	sink := newStdinCredentialSink("/hook.sh", nil)
+	sink.runHook = func(ctx context.Context, name string, env []string, stdin []byte) ([]byte, error) {
+		return []byte("error: " + cred.AccessKeySecret + " leaked"), assert.AnError
+	}
+
+	err := sink.Apply(cred)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), cred.AccessKeySecret)
+	assert.NotContains(t, err.Error(), cred.SecurityToken)
+	assert.Contains(t, err.Error(), "error:")
 }
 
 func TestStdinCredentialSinkHookFailureReturnsError(t *testing.T) {
