@@ -5,5 +5,4 @@ package jwtauth
 // rotation; Cleanup is called once after the Refresher has stopped.
 type CredentialSink interface {
 	Apply(cred *STSToken) error
-	Cleanup()
 }

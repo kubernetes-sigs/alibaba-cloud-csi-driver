@@ -138,8 +138,6 @@ func (s *fakeSink) Apply(cred *STSToken) error {
 	return nil
 }
 
-func (s *fakeSink) Cleanup() {}
-
 func (s *fakeSink) appliedIDs() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()

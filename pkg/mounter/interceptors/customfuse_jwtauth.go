@@ -46,7 +46,7 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 	// Strip infrastructure options before the entrypoint sees them.
 	op.Options = stripCustomFuseInfraOptions(op.Options)
 
-	sink := newStdinCredentialSink(resolveRefreshHook(), customFuseHookEnv(op))
+	sink := newStdinCredentialSink(resolveRefreshHook(configMapRefreshHook, imageRefreshHook), customFuseHookEnv(op))
 
 	refresher, err := jwtauth.NewRefresher(opts, sink)
 	if err != nil {
@@ -63,12 +63,6 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 	// its client requires. No credential value touches the filesystem, argv
 	// or environment.
 	op.Stdin = bytes.NewReader(formatCredential(cred))
-
-	// Mark the sink as having delivered the initial credential so Apply
-	// skips the first call (the entrypoint already has it from stdin).
-	if err := sink.Apply(cred); err != nil {
-		return fmt.Errorf("jwtauth initial apply: %w", err)
-	}
 	klog.V(4).InfoS("provisioned customfuse agent-identity credential via stdin", "target", op.Target)
 
 	jwtauth.DefaultManager.Start(op.Target, refresher, cred)
@@ -92,8 +86,8 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 	return nil
 }
 
-func resolveRefreshHook() string {
-	for _, path := range []string{configMapRefreshHook, imageRefreshHook} {
+func resolveRefreshHook(candidates ...string) string {
+	for _, path := range candidates {
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}

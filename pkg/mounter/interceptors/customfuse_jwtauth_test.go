@@ -27,43 +27,34 @@ func TestFirstExecutableHook(t *testing.T) {
 
 	t.Run("no hook anywhere", func(t *testing.T) {
 		dir := t.TempDir()
-		assert.Empty(t, resolveRefreshHookFrom(filepath.Join(dir, "a"), filepath.Join(dir, "b")))
+		assert.Empty(t, resolveRefreshHook(filepath.Join(dir, "a"), filepath.Join(dir, "b")))
 	})
 
 	t.Run("shipped by the image only", func(t *testing.T) {
 		dir := t.TempDir()
 		image := write(t, dir, "image.sh", 0o755)
-		assert.Equal(t, image, resolveRefreshHookFrom(filepath.Join(dir, "absent"), image))
+		assert.Equal(t, image, resolveRefreshHook(filepath.Join(dir, "absent"), image))
 	})
 
 	t.Run("projected by a ConfigMap only", func(t *testing.T) {
 		dir := t.TempDir()
 		projected := write(t, dir, "projected.sh", 0o755)
-		assert.Equal(t, projected, resolveRefreshHookFrom(projected, filepath.Join(dir, "absent")))
+		assert.Equal(t, projected, resolveRefreshHook(projected, filepath.Join(dir, "absent")))
 	})
 
 	t.Run("a projection overrides what the image ships", func(t *testing.T) {
 		dir := t.TempDir()
 		projected := write(t, dir, "projected.sh", 0o755)
 		image := write(t, dir, "image.sh", 0o755)
-		assert.Equal(t, projected, resolveRefreshHookFrom(projected, image))
+		assert.Equal(t, projected, resolveRefreshHook(projected, image))
 	})
 
 	t.Run("a non-executable projection is still selected", func(t *testing.T) {
 		dir := t.TempDir()
 		projected := write(t, dir, "projected.sh", 0o644)
 		_ = write(t, dir, "image.sh", 0o755)
-		assert.Equal(t, projected, resolveRefreshHookFrom(projected, filepath.Join(dir, "image.sh")))
+		assert.Equal(t, projected, resolveRefreshHook(projected, filepath.Join(dir, "image.sh")))
 	})
-}
-
-func resolveRefreshHookFrom(paths ...string) string {
-	for _, path := range paths {
-		if _, err := os.Stat(path); err == nil {
-			return path
-		}
-	}
-	return ""
 }
 
 func TestStripCustomFuseInfraOptions(t *testing.T) {

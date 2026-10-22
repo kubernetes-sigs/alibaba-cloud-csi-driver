@@ -50,7 +50,6 @@ func TestManagerStopByTarget(t *testing.T) {
 type sinkFunc func(*STSToken) error
 
 func (f sinkFunc) Apply(cred *STSToken) error { return f(cred) }
-func (f sinkFunc) Cleanup()                   {}
 
 // TestManagerStopByTargetWaitsForInflightApply: once StopByTarget returns
 // (i.e. after unmount), the old loop must not deliver a credential that would

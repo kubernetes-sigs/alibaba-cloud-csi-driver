@@ -29,8 +29,6 @@ type stdinCredentialSink struct {
 	env  []string
 
 	runHook func(ctx context.Context, name string, env []string, stdin []byte) ([]byte, error)
-
-	applied bool // true after the first Apply
 }
 
 var _ jwtauth.CredentialSink = &stdinCredentialSink{}
@@ -46,12 +44,6 @@ func newStdinCredentialSink(hook string, env []string) *stdinCredentialSink {
 func (s *stdinCredentialSink) Apply(cred *jwtauth.STSToken) error {
 	if cred == nil {
 		return fmt.Errorf("nil credential")
-	}
-
-	if !s.applied {
-		s.applied = true
-		klog.V(4).InfoS("skipped initial hook (entrypoint reads stdin)", "expiration", cred.Expiration)
-		return nil
 	}
 
 	if s.hook == "" {
@@ -73,8 +65,6 @@ func (s *stdinCredentialSink) Apply(cred *jwtauth.STSToken) error {
 	klog.V(4).InfoS("ran customfuse credential refresh hook", "hook", s.hook, "expiration", cred.Expiration)
 	return nil
 }
-
-func (s *stdinCredentialSink) Cleanup() {}
 
 // formatCredential produces the stdin payload: four lines, one field per line.
 // Entrypoint and hook scripts read them with:

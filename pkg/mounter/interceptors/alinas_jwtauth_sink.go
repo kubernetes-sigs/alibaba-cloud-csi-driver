@@ -69,8 +69,6 @@ func (s *alinasCertRefreshSink) Apply(cred *jwtauth.STSToken) error {
 	return refreshAlinasCredential(ctx, s.runCommand, s.mountPoint, cred)
 }
 
-func (s *alinasCertRefreshSink) Cleanup() {}
-
 // RefreshAlinasCredential installs cred on a live alinas/cpfs mount by executing
 // the vendor refresh command. Shared with the jwtauth refresh loop, so a rotated
 // credential reaches a mount the same way whoever decided to rotate it.

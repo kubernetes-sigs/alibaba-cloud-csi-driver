@@ -27,19 +27,7 @@ func TestStdinCredentialSinkApplyNil(t *testing.T) {
 	require.Error(t, sink.Apply(nil))
 }
 
-func TestStdinCredentialSinkInitialApplySkipsHook(t *testing.T) {
-	calls := 0
-	sink := newStdinCredentialSink("/hook.sh", nil)
-	sink.runHook = func(ctx context.Context, name string, env []string, stdin []byte) ([]byte, error) {
-		calls++
-		return nil, nil
-	}
-
-	require.NoError(t, sink.Apply(genCred(1)))
-	assert.Equal(t, 0, calls, "initial Apply must not run the hook")
-}
-
-func TestStdinCredentialSinkSubsequentApplyRunsHook(t *testing.T) {
+func TestStdinCredentialSinkApplyRunsHook(t *testing.T) {
 	var gotStdin []byte
 	sink := newStdinCredentialSink("/hook.sh", []string{"ENV=val"})
 	sink.runHook = func(ctx context.Context, name string, env []string, stdin []byte) ([]byte, error) {
@@ -48,9 +36,8 @@ func TestStdinCredentialSinkSubsequentApplyRunsHook(t *testing.T) {
 	}
 
 	require.NoError(t, sink.Apply(genCred(1)))
-	require.NoError(t, sink.Apply(genCred(2)))
 
-	expected := "ak2\nsk2\ntok2\n2099-01-02T00:00:00Z\n"
+	expected := "ak1\nsk1\ntok1\n2099-01-01T00:00:00Z\n"
 	assert.Equal(t, expected, string(gotStdin))
 }
 
@@ -66,8 +53,7 @@ func TestStdinCredentialSinkHookFailureReturnsError(t *testing.T) {
 		return []byte("hook output"), assert.AnError
 	}
 
-	require.NoError(t, sink.Apply(genCred(1)))
-	err := sink.Apply(genCred(2))
+	err := sink.Apply(genCred(1))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "refresh hook")
 	assert.Contains(t, err.Error(), "hook output")

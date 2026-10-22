@@ -34,15 +34,14 @@ and a client started without one fails later and less clearly.
 
 **The driver guarantees:**
 
-* The credential is on disk before your entrypoint starts.
-* What is on disk is always one complete credential — a rotation is never observed
-  half-written. Reading it correctly is still on you; see
-  [Reading the credential](#reading-the-credential).
+* The initial credential is on your entrypoint's stdin before it runs.
+* Each rotation delivers a complete credential to the hook's stdin — all four
+  fields arrive atomically.
 * The credential is renewed before it expires, for as long as the mount lives.
-* The credential is removed once the mount is gone.
-* No credential value is ever passed to your entrypoint or hook as an argument or
-  an environment variable — only the directory to read it from. Nothing lands in
-  `/proc/<pid>/cmdline` or in another process's environment.
+* The refresh loop stops when the entrypoint exits. The driver does not write or
+  remove any files — if your scripts write credential files, cleanup is yours.
+* No credential value is ever passed as an argument or an environment variable.
+  Nothing lands in `/proc/<pid>/cmdline` or `/proc/<pid>/environ`.
 
 **The driver does not:**
 
