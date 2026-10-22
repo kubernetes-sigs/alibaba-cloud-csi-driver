@@ -15,7 +15,7 @@ RUN --mount=type=bind,target=. \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -trimpath -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian13:latest@sha256:389cad21f73e4c37b94ffe5b13736d5a92bd5bd3c6c6b38c2be1c881e14ba2bd as distroless-base
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian13:latest@sha256:44a80dc28b49f47396e72ab2dc644b3f849880335de09625762faed207bb891d as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 ARG OSSFS_IMAGE_TAG=v1.91.12.ack.2-5cf3371
 ARG OSSFS2_IMAGE_TAG=v2.0.9.ack.3-a1f29fc
