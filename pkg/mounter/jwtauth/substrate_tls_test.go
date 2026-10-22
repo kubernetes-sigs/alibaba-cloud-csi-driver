@@ -68,6 +68,9 @@ func TestSubstrateTLSReloadsProjectedCertificate(t *testing.T) {
 	require.NoError(t, os.WriteFile(trustFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600))
 	config, err := substrateTLSConfig(certFile, trustFile)
 	require.NoError(t, err)
+	// InsecureSkipVerify is true because VerifyConnection handles CA
+	// verification with a freshly loaded trust bundle on every handshake.
+	// Hostname verification is included via DNSName in VerifyConnection.
 	require.True(t, config.InsecureSkipVerify)
 	require.NotNil(t, config.VerifyConnection)
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: config}, Timeout: time.Second}

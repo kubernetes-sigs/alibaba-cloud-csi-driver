@@ -114,28 +114,14 @@ func buildHTTPClient(opts Opts) (*http.Client, error) {
 		}
 		tlsConfig.RootCAs = pool
 	} else {
-		// ACS sandbox mode: retain its configured-CA and missing-CA behavior.
-		if opts.CAFile != "" {
-			caCert, err := os.ReadFile(opts.CAFile)
-			if err != nil {
-				return nil, fmt.Errorf("read CA file %s: %w", opts.CAFile, err)
-			}
-			pool := x509.NewCertPool()
-			if !pool.AppendCertsFromPEM(caCert) {
-				return nil, fmt.Errorf("parse CA file %s: no valid certificate found", opts.CAFile)
-			}
-			tlsConfig.RootCAs = pool
-		} else {
-			klog.Warningf("no agent identity CA file configured, skipping TLS verification for the AgentIdentity endpoint")
-			tlsConfig.InsecureSkipVerify = true
-		}
+		klog.Warningf("no agent identity CA file configured, skipping TLS verification for the AgentIdentity endpoint")
+		tlsConfig.InsecureSkipVerify = true
 	}
 	return &http.Client{
 		Timeout:   httpTimeout,
 		Transport: &http.Transport{TLSClientConfig: tlsConfig},
 	}, nil
 }
-
 
 // readTokenFile reads the ACS sandbox identity document, not the Pod SA token.
 func readTokenFile(tokenFile string) (*tokenFileContent, error) {
