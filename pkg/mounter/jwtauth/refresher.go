@@ -61,6 +61,7 @@ func (r *Refresher) FetchCredentials(ctx context.Context) (*STSToken, error) {
 // already been delivered by the caller (e.g. injected into mount options), so
 // the sink is only invoked on subsequent rotations.
 func (r *Refresher) refreshLoop(ctx context.Context, lastCred *STSToken) {
+	applyBackoff := initialRetryBackoff
 	for {
 		target := r.calcRefreshTarget(lastCred.Expiration)
 		klog.V(4).Infof("jwtauth refresher: next refresh at %v", target)
@@ -77,13 +78,48 @@ func (r *Refresher) refreshLoop(ctx context.Context, lastCred *STSToken) {
 			klog.Errorf("jwtauth refresher: fetch failed after retries: %v", err)
 			continue
 		}
-		if err := r.sink.Apply(cred); err != nil {
-			klog.Errorf("jwtauth refresher: apply credentials failed: %v", err)
+		if !r.applyWithRetry(ctx, cred, &applyBackoff) {
 			continue
 		}
 		lastCred = cred
 		klog.V(2).Infof("jwtauth refresher: credentials refreshed, expires %s", cred.Expiration)
 	}
+}
+
+// applyWithRetry retries Apply with exponential backoff. Returns true if Apply
+// succeeded, false if the credential expired during retries (caller should
+// re-fetch) or if ctx was cancelled.
+func (r *Refresher) applyWithRetry(ctx context.Context, cred *STSToken, backoff *time.Duration) bool {
+	for range maxFetchRetries {
+		if r.credentialExpiredOrUnparsable(cred) {
+			klog.Warningf("jwtauth refresher: credential expired or unparsable before apply, will re-fetch")
+			*backoff = initialRetryBackoff
+			return false
+		}
+		if err := r.sink.Apply(cred); err == nil {
+			*backoff = initialRetryBackoff
+			return true
+		} else {
+			klog.Errorf("jwtauth refresher: apply credentials failed: %v", err)
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(*backoff):
+		}
+		*backoff = min(*backoff*2, maxRetryBackoff)
+	}
+	klog.Warningf("jwtauth refresher: apply retries exhausted, will re-fetch")
+	*backoff = initialRetryBackoff
+	return false
+}
+
+func (r *Refresher) credentialExpiredOrUnparsable(cred *STSToken) bool {
+	expTime, err := time.Parse(time.RFC3339, cred.Expiration)
+	if err != nil {
+		return true
+	}
+	return r.wallNow().After(expTime)
 }
 
 func (r *Refresher) fetchWithRetry(ctx context.Context) (*STSToken, error) {

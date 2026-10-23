@@ -121,6 +121,11 @@ type FusePodContext struct {
 	// EntrypointKey is the ConfigMap key containing the script.
 	// Defaults to "entrypoint.sh". Always mounted as /etc/fuse-config/entrypoint.sh.
 	EntrypointKey string
+	// CredentialRefreshHookKey is the EntrypointConfig key holding a script to
+	// run after each credential rotation, mounted as
+	// /etc/fuse-config/refresh-hook.sh. Empty means no hook is mounted, and
+	// mount-proxy runs none.
+	CredentialRefreshHookKey string
 }
 
 type FuseMounterType interface {

@@ -51,12 +51,12 @@ var DefaultManager = NewManager()
 // happen, so it is logged. The replaced loop is not waited for: both loops
 // serve the same volume, and the new mount has already installed its
 // credential before Start is called.
-func (m *Manager) Start(target string, r *Refresher, cred *STSToken) {
+func (m *Manager) Start(target string, r *Refresher, cred *STSToken) func() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.ctx.Err() != nil {
 		klog.Warningf("jwtauth: manager stopped, not refreshing credentials for %s", target)
-		return
+		return func() {}
 	}
 	if old, ok := m.loops[target]; ok {
 		klog.Warningf("jwtauth: replacing the refresh loop of %s, which is mounted more than once", target)
@@ -69,6 +69,15 @@ func (m *Manager) Start(target string, r *Refresher, cred *STSToken) {
 		defer close(l.done)
 		r.refreshLoop(ctx, cred)
 	})
+	return func() {
+		m.mu.Lock()
+		if cur, ok := m.loops[target]; ok && cur.done == l.done {
+			delete(m.loops, target)
+		}
+		m.mu.Unlock()
+		l.cancel()
+		<-l.done
+	}
 }
 
 // StopByTarget stops the refresh loop for target, if any, and waits for it to

@@ -41,17 +41,13 @@ func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, h
 	if op == nil {
 		return handler(ctx, op)
 	}
-	// alinas mount options may arrive as comma-joined compound strings
-	// (e.g. "tls,vers=3,authType=agent-identity"), so flatten before indexing.
 	flat := flattenMountOptions(op.Options)
-	idx := mounterutils.IndexMountOptions(flat)
-	if !jwtauth.IsAgentIdentity(idx[jwtauth.OptAuthType]) {
-		return handler(ctx, op)
+	opts, _, active, err := resolveAgentIdentityOpts(flat)
+	if err != nil {
+		return err
 	}
-
-	opts := jwtauth.ResolveOpts(idx)
-	if err := opts.Validate(); err != nil {
-		return fmt.Errorf("jwtauth config error: %w", err)
+	if !active {
+		return handler(ctx, op)
 	}
 	refresher, err := jwtauth.NewRefresher(opts, newAlinasCertRefreshSink(op.Target))
 	if err != nil {
@@ -75,22 +71,8 @@ func AlinasJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperation, h
 		return err
 	}
 
-	jwtauth.DefaultManager.Start(op.Target, refresher, cred)
+	_ = jwtauth.DefaultManager.Start(op.Target, refresher, cred)
 	return nil
-}
-
-// flattenMountOptions splits any comma-joined compound options into individual
-// options so key lookups and rewriting operate on single "key=value" entries.
-func flattenMountOptions(options []string) []string {
-	flat := make([]string, 0, len(options))
-	for _, o := range options {
-		for _, part := range mounterutils.SplitMountOptions(o) {
-			if part = strings.TrimSpace(part); part != "" {
-				flat = append(flat, part)
-			}
-		}
-	}
-	return flat
 }
 
 // splitAlinasSTSOptions strips the infrastructure-only jwtauth options and
@@ -134,4 +116,16 @@ func splitAlinasSTSOptions(flatOptions []string, cred *jwtauth.STSToken) (option
 		optAlinasSecurityToken + "=" + cred.SecurityToken,
 	}
 	return options, sensitiveOptions
+}
+
+func flattenMountOptions(options []string) []string {
+	flat := make([]string, 0, len(options))
+	for _, o := range options {
+		for _, part := range mounterutils.SplitMountOptions(o) {
+			if part = strings.TrimSpace(part); part != "" {
+				flat = append(flat, part)
+			}
+		}
+	}
+	return flat
 }
