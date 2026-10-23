@@ -2,6 +2,7 @@ package alinas
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,11 +12,97 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/mount-utils"
 )
+
+func TestDriverUnmount_AfterRestart(t *testing.T) {
+	// The kernel type need not be alinas. The caller supplies the type used
+	// for Mount, so the helper can resolve the mount without a target map.
+	fake := mount.NewFakeMounter([]mount.MountPoint{{Path: "/mnt/efc", Type: "nfs"}})
+	driver := &Driver{}
+	driver.Mounter = &extendedMounter{driver: driver, Interface: fake}
+	owned, err := driver.Unmount(&proxy.UnmountRequest{Target: "/mnt/efc"})
+	require.NoError(t, err)
+	assert.False(t, owned, "requests without Fstype still require tracked ownership")
+	assert.Len(t, fake.MountPoints, 1)
+	owned, err = driver.Unmount(&proxy.UnmountRequest{Target: "/mnt/efc", Fstype: "alinas"})
+	require.NoError(t, err)
+	assert.True(t, owned)
+	assert.Empty(t, fake.MountPoints)
+}
+
+func TestDriverUnmount_AfterRestartPropagatesHelperError(t *testing.T) {
+	fake := mount.NewFakeMounter([]mount.MountPoint{{Path: "/mnt/efc", Type: "nfs"}})
+	helperErr := errors.New("EFC bindroot is busy")
+	fake.UnmountFunc = func(string) error { return helperErr }
+	driver := &Driver{}
+	driver.Mounter = &extendedMounter{driver: driver, Interface: fake}
+	owned, err := driver.Unmount(&proxy.UnmountRequest{Target: "/mnt/efc", Fstype: "alinas"})
+	assert.True(t, owned)
+	assert.ErrorIs(t, err, helperErr)
+	assert.Len(t, fake.MountPoints, 1)
+}
+
+func TestDriverUnmount_EFCHelper(t *testing.T) {
+	orig := jwtauth.DefaultManager
+	jwtauth.DefaultManager = jwtauth.NewManager()
+	t.Cleanup(func() {
+		jwtauth.DefaultManager.StopAll(time.Second)
+		jwtauth.DefaultManager = orig
+	})
+	for _, tc := range []struct {
+		name   string
+		fstype string
+		exit   string
+	}{
+		{name: "fuse", fstype: "fuse.aliyun-alinas-efc", exit: "0"},
+		{name: "alifuse", fstype: "alifuse.aliyun-alinas-efc", exit: "0"},
+		{name: "legacy eac", fstype: "alifuse.aliyun-alinas-eac", exit: "0"},
+		{name: "helper failure", fstype: "fuse.aliyun-alinas-efc", exit: "1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			binDir := t.TempDir()
+			argsFile := filepath.Join(binDir, "args")
+			// No utab or real vendor helper is available in this test.
+			require.NoError(t, os.WriteFile(filepath.Join(binDir, "mount.alinas"), []byte(`#!/bin/sh
+printf '%s\n' "$@" > "$EFC_UNMOUNT_ARGS"
+echo 'EFC bindroot is busy' >&2
+exit "$EFC_UNMOUNT_EXIT"
+`), 0755))
+			t.Setenv("PATH", binDir)
+			t.Setenv("EFC_UNMOUNT_ARGS", argsFile)
+			t.Setenv("EFC_UNMOUNT_EXIT", tc.exit)
+			const target = "/mnt/efc with spaces"
+			fake := mount.NewFakeMounter([]mount.MountPoint{{Path: target, Type: tc.fstype}})
+			driver := &Driver{}
+			driver.Mounter = &extendedMounter{driver: driver, Interface: fake}
+			refresher, err := jwtauth.NewRefresher(jwtauth.Opts{}, noopCredentialSink{})
+			require.NoError(t, err)
+			jwtauth.DefaultManager.Start(target, refresher, &jwtauth.STSToken{
+				Expiration: time.Now().Add(time.Hour).Format(time.RFC3339),
+			})
+			// No tracked target: explicit routing must work after a restart.
+			owned, err := driver.Unmount(&proxy.UnmountRequest{Target: target, Fstype: "alinas"})
+			assert.True(t, owned)
+			if tc.exit == "0" {
+				require.NoError(t, err)
+				assert.False(t, jwtauth.DefaultManager.HasTarget(target))
+			} else {
+				require.ErrorContains(t, err, "EFC bindroot is busy")
+				assert.True(t, jwtauth.DefaultManager.HasTarget(target))
+				jwtauth.DefaultManager.StopByTarget(target)
+			}
+			args, err := os.ReadFile(argsFile)
+			require.NoError(t, err)
+			assert.Equal(t, "-u\n"+target+"\n-o\nefc\n", string(args))
+			assert.Empty(t, fake.GetLog(), "ordinary umount must not bypass the EFC helper")
+		})
+	}
+}
 
 func TestAddAutoFallbackNFSMountOptions(t *testing.T) {
 	tests := []struct {

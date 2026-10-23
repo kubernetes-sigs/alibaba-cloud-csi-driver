@@ -63,7 +63,7 @@ type fakeProxyUnmounter struct {
 	extendedErr error
 }
 
-func (f *fakeProxyUnmounter) ExtendedUnmount(_ context.Context, target string) error {
+func (f *fakeProxyUnmounter) ExtendedUnmount(_ context.Context, target, _ string) error {
 	f.calls = append(f.calls, target)
 	if f.notManaged {
 		return mounter.ErrTargetNotManagedByBroker
