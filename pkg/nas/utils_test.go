@@ -24,6 +24,8 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/interceptors"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	mountutils "k8s.io/mount-utils"
@@ -303,6 +305,26 @@ func TestAppendJWTAuthOptions(t *testing.T) {
 			want: []string{"tls", "authType=agent-identity", "sandboxId=sb-1", "sandboxCredProviderName=cp-1"},
 		},
 		{
+			name:    "non agent-identity: sandboxId and authType not injected",
+			options: []string{"tls"},
+			opt: &Options{
+				AuthType:                "",
+				SandboxId:               "sb-1",
+				SandboxCredProviderName: "cp-1",
+			},
+			want: []string{"tls"},
+		},
+		{
+			name:    "explicit non agent-identity authType: sandboxId not injected",
+			options: []string{"tls"},
+			opt: &Options{
+				AuthType:                "access-key",
+				SandboxId:               "sb-1",
+				SandboxCredProviderName: "cp-1",
+			},
+			want: []string{"tls"},
+		},
+		{
 			name:    "do not overwrite key already present in options",
 			options: []string{"authType=preset"},
 			opt:     &Options{AuthType: "agent-identity"},
@@ -323,10 +345,6 @@ func TestAppendJWTAuthOptions(t *testing.T) {
 	}
 }
 
-// TestPrepareRefreshMatchesTheMount is the invariant the prepare/do split exists
-// for: what a refresh tells the mount broker has to be what the mount was made
-// of. A stale fstype would route the rotation to the wrong driver (or to none),
-// and stale secrets would install a credential the mount never used.
 func TestPrepareRefreshMatchesTheMount(t *testing.T) {
 	cred := stsCredential{AkID: "ak", AkSecret: "sk", SecurityToken: "token"}
 	tests := []struct {
@@ -370,19 +388,35 @@ func TestPrepareRefreshMatchesTheMount(t *testing.T) {
 	}
 }
 
-// TestPrepareRefreshRejectsWhatWouldNotMount keeps a refresh from inventing a
-// mount the driver would have refused.
+func TestSubstrateAuthOptionsRequireVolumeContextMarker(t *testing.T) {
+	for _, mode := range []string{"", "false", "true"} {
+		t.Run(mode, func(t *testing.T) {
+			opt, _, err := parseVolumeContext(map[string]string{
+				"csi.alibabacloud.com/substrate-mode": mode,
+				"csi.storage.k8s.io/pod.uid":          "actor-uid",
+				"authType":                            "agent-identity",
+				"sandboxCredProviderName":             "nas-provider",
+				"unrelated":                           "must-not-be-forwarded",
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+			got := appendJWTAuthOptions([]string{"tls,csi.alibabacloud.com/substrate-mode=true"}, opt)
+			want := []string{"tls", "authType=agent-identity", "sandboxCredProviderName=nas-provider"}
+			if mode == "true" {
+				want = []string{"tls", "authType=agent-identity", "sandboxId=actor-uid", "sandboxCredProviderName=nas-provider", "csi.alibabacloud.com/substrate-mode=true"}
+			}
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
 func TestPrepareRefreshRejectsWhatWouldNotMount(t *testing.T) {
 	_, err := prepareRefresh(&Options{ClientType: NativeClient, FSType: "standard"}, "/target", "vol-123", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Native Client don't support this storage type")
 }
 
-// TestPrepareMountForwardsSTSCredential covers a credential a user rotates
-// themselves: an STS token in the publish secret has to reach mount.alinas, which
-// needs all three parts to sign. A lone token is not forwarded at all, because that
-// selects the CLI's ID token-only mode and then hangs against a server that
-// rejects it.
 func TestPrepareMountForwardsSTSCredential(t *testing.T) {
 	base := func() *Options {
 		return &Options{Accesspoint: "ap-xxx.nas.aliyuncs.com", Path: "/", Vers: "3", MountProtocol: MountProtocolNFS}
@@ -403,4 +437,28 @@ func TestPrepareMountForwardsSTSCredential(t *testing.T) {
 	op, _, err = prepareMount(opt, "/mnt/target", "vol-123", "pod-uid", false)
 	require.NoError(t, err)
 	assert.Empty(t, op.Secrets, "a token without an access key must not reach mount.alinas")
+}
+
+func TestSubstrateAuthUsesEffectiveMountAuthType(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		mountOptions    []string
+		contextAuthType string
+		wantSubstrate   bool
+	}{
+		{"auth supplied by mount options", []string{"tls,authType=agent-identity"}, "", true},
+		{"mount options override context auth", []string{"authType=agent-identity"}, "workrole", true},
+		{"legacy mount auth remains legacy", []string{"authType=workrole"}, "agent-identity", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			options := appendJWTAuthOptions(tc.mountOptions, &Options{
+				SubstrateMode:           true,
+				AuthType:                tc.contextAuthType,
+				SandboxId:               "actor-uid",
+				SandboxCredProviderName: "nas-provider",
+			})
+			resolved := jwtauth.ResolveOpts(mounterutils.IndexMountOptions(options))
+			assert.Equal(t, tc.wantSubstrate, resolved.SubstrateMode)
+		})
+	}
 }

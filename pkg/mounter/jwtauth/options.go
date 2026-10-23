@@ -4,6 +4,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 // This file owns the mount-option contract of the agent-identity credential
@@ -27,6 +28,10 @@ const (
 	OptTokenFile               = "jwtauth_token_file"
 	OptCredProvider            = "jwtauth_cred_provider"
 	OptCAFile                  = "jwtauth_ca_file"
+
+	// OptSubstrateMode reuses the CSI VolumeContext key on the internal proxy wire.
+	// It is consumed here and stripped before calling the actual mount program.
+	OptSubstrateMode = utils.SubstrateModeKey
 )
 
 // InfraOptionKeys is the set of infrastructure-only options that every
@@ -39,6 +44,7 @@ var InfraOptionKeys = map[string]struct{}{
 	OptTokenFile:               {},
 	OptCredProvider:            {},
 	OptCAFile:                  {},
+	OptSubstrateMode:           {},
 }
 
 // IsAgentIdentity reports whether the given authType selects the
@@ -53,20 +59,26 @@ func IsAgentIdentity(authType string) bool {
 // only used when it is actually readable, since it is optional.
 func ResolveOpts(idx map[string]string) Opts {
 	opts := Opts{
-		TokenFile:    idx[OptTokenFile],
-		Endpoint:     idx[OptEndpoint],
-		CredProvider: idx[OptCredProvider],
-		CAFile:       idx[OptCAFile],
-		SandboxId:    idx[OptSandboxId],
+		TokenFile:     idx[OptTokenFile],
+		Endpoint:      idx[OptEndpoint],
+		CredProvider:  idx[OptCredProvider],
+		CAFile:        idx[OptCAFile],
+		SandboxId:     idx[OptSandboxId],
+		SubstrateMode: utils.IsSubstrateVolumeContext(idx),
 	}
 	if opts.Endpoint == "" {
 		opts.Endpoint = agentidentity.GetEndpoint()
 	}
-	if opts.TokenFile == "" && opts.SandboxId != "" {
-		opts.TokenFile = agentidentity.GetTokenFilePath(opts.SandboxId)
-	}
 	if opts.CredProvider == "" {
 		opts.CredProvider = idx[OptSandboxCredProviderName]
+	}
+	if opts.SubstrateMode {
+		// Substrate mode uses fixed Pod credential paths, not ACS token/CA defaults.
+		return opts
+	}
+	// ACS sandbox mode resolves the sandbox token file and optional server CA.
+	if opts.TokenFile == "" && opts.SandboxId != "" {
+		opts.TokenFile = agentidentity.GetTokenFilePath(opts.SandboxId)
 	}
 	if opts.CAFile == "" {
 		if caPath := agentidentity.GetCAFilePath(); caPath != "" && unix.Access(caPath, unix.R_OK) == nil {

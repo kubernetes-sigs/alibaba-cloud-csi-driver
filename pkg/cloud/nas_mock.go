@@ -141,6 +141,21 @@ func (mr *MockNasInterfaceMockRecorder) DescribeAccessPoint(request interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAccessPoint", reflect.TypeOf((*MockNasInterface)(nil).DescribeAccessPoint), request)
 }
 
+// DescribeAgenticSpacesWithContext mocks base method.
+func (m *MockNasInterface) DescribeAgenticSpacesWithContext(ctx context.Context, request *client.DescribeAgenticSpacesRequest, runtime *dara.RuntimeOptions) (*client.DescribeAgenticSpacesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeAgenticSpacesWithContext", ctx, request, runtime)
+	ret0, _ := ret[0].(*client.DescribeAgenticSpacesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeAgenticSpacesWithContext indicates an expected call of DescribeAgenticSpacesWithContext.
+func (mr *MockNasInterfaceMockRecorder) DescribeAgenticSpacesWithContext(ctx, request, runtime interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAgenticSpacesWithContext", reflect.TypeOf((*MockNasInterface)(nil).DescribeAgenticSpacesWithContext), ctx, request, runtime)
+}
+
 // DescribeFileSystems mocks base method.
 func (m *MockNasInterface) DescribeFileSystems(request *client.DescribeFileSystemsRequest) (*client.DescribeFileSystemsResponse, error) {
 	m.ctrl.T.Helper()
