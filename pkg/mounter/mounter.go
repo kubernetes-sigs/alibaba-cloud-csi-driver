@@ -25,11 +25,11 @@ type Mounter interface {
 // allowed to reach the mount broker port (tcp 12049) under the csi_mount_proxy
 // nftables rule. A local umount from a container cgroup would be dropped.
 //
-// ExtendedUnmount returns ErrTargetNotManagedByBroker when the broker has no
-// record of target (it was not mounted through the broker), so the caller can
-// fall back to a local unmount.
+// fstype, when supplied, is the type used for Mount, not the kernel fstype.
+// It selects the driver even after the broker loses its target map on restart.
+// Without it, ownership is decided by the broker's target map.
 type ProxyUnmounter interface {
-	ExtendedUnmount(ctx context.Context, target string) error
+	ExtendedUnmount(ctx context.Context, target, fstype string) error
 }
 
 // RefreshOperation identifies a mount whose cloud credential is being replaced.

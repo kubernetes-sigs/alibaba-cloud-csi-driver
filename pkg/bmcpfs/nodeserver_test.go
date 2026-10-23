@@ -20,11 +20,15 @@ package bmcpfs
 
 import (
 	"context"
+	"errors"
+	"net"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,6 +36,115 @@ import (
 	"google.golang.org/grpc/status"
 	k8smount "k8s.io/mount-utils"
 )
+
+type fakeProxyUnmounter struct {
+	*k8smount.FakeMounter
+	proxyCalls   []string
+	fstypes      []string
+	localCalls   []string
+	unmountError error
+	localError   error
+}
+
+func (m *fakeProxyUnmounter) ExtendedUnmount(ctx context.Context, target, fstype string) error {
+	m.proxyCalls = append(m.proxyCalls, target)
+	m.fstypes = append(m.fstypes, fstype)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if m.unmountError != nil {
+		return m.unmountError
+	}
+	return m.FakeMounter.Unmount(target)
+}
+
+func (m *fakeProxyUnmounter) Unmount(target string) error {
+	m.localCalls = append(m.localCalls, target)
+	if m.localError != nil {
+		return m.localError
+	}
+	return m.FakeMounter.Unmount(target)
+}
+
+func TestNodeUnpublishVolume_ProxyUnmount(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		err       error
+		unmounted bool
+		cancel    bool
+		fallback  bool
+		localErr  error
+		wantErr   bool
+	}{
+		{name: "mounted"},
+		{name: "already unmounted", unmounted: true},
+		{name: "helper failure", err: errors.New("EFC unmount failed"), wantErr: true},
+		{name: "old broker or lost ownership", err: mounter.ErrTargetNotManagedByBroker, fallback: true},
+		{name: "broker unavailable before request", err: &net.OpError{Op: "dial", Err: syscall.ECONNREFUSED}, wantErr: true},
+		{name: "response lost after request", err: &net.OpError{Op: "read", Err: syscall.ECONNRESET}, wantErr: true},
+		{name: "local fallback failure", err: mounter.ErrTargetNotManagedByBroker, fallback: true, localErr: errors.New("local unmount failed"), wantErr: true},
+		{name: "canceled", cancel: true, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			target := filepath.Join(t.TempDir(), "mount")
+			require.NoError(t, os.Mkdir(target, 0755))
+			fake := &fakeProxyUnmounter{
+				FakeMounter: k8smount.NewFakeMounter(nil), unmountError: tc.err, localError: tc.localErr,
+			}
+			if !tc.unmounted {
+				fake.MountPoints = []k8smount.MountPoint{{Path: target, Type: "nfs"}}
+			}
+			ns := &nodeServer{mounter: fake, locks: utils.NewVolumeLocks()}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if tc.cancel {
+				cancel()
+			}
+			_, err := ns.NodeUnpublishVolume(ctx, &csi.NodeUnpublishVolumeRequest{
+				VolumeId: "vol-1", TargetPath: target,
+			})
+			if tc.fallback {
+				assert.Equal(t, []string{target}, fake.localCalls)
+			} else {
+				assert.Empty(t, fake.localCalls, "do not bypass EFC cleanup")
+			}
+			if tc.unmounted {
+				assert.Empty(t, fake.proxyCalls)
+			} else {
+				assert.Equal(t, []string{target}, fake.proxyCalls)
+				assert.Equal(t, []string{"alinas"}, fake.fstypes)
+			}
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, codes.Internal, status.Code(err))
+				assert.DirExists(t, target, "failed EFC cleanup must not complete unpublish")
+				assert.Len(t, fake.MountPoints, 1)
+			} else {
+				require.NoError(t, err)
+				assert.NoDirExists(t, target)
+				assert.Empty(t, fake.MountPoints)
+			}
+		})
+	}
+}
+
+func TestNodeUnpublishVolume_ProxyUnavailable(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "mount")
+	require.NoError(t, os.Mkdir(target, 0755))
+	local := k8smount.NewFakeMounter([]k8smount.MountPoint{{Path: target, Type: "nfs"}})
+	ns := &nodeServer{
+		mounter: mounter.NewProxyMounter(filepath.Join(t.TempDir(), "absent.sock"), local),
+		locks:   utils.NewVolumeLocks(),
+	}
+	_, err := ns.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{
+		VolumeId: "vol-1", TargetPath: target,
+	})
+	require.Error(t, err)
+	assert.Equal(t, codes.Internal, status.Code(err))
+	assert.Len(t, local.MountPoints, 1, "retain the mount while the proxy is unavailable")
+	assert.Empty(t, local.GetLog(), "do not unmount locally when dialing the proxy fails")
+	assert.DirExists(t, target)
+}
 
 func TestHasMountOption(t *testing.T) {
 	tests := []struct {

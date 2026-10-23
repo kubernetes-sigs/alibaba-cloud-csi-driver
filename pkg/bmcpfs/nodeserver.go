@@ -48,6 +48,24 @@ type nodeServer struct {
 	credsRoot string
 }
 
+// Keep CleanupMountPoint's checks and directory cleanup, preferring the EFC
+// helper in mount-proxy. Fall back to the legacy local unmount only when the
+// broker does not support the request or cannot claim the target.
+type proxyUnmounter struct {
+	mount.Interface
+	ctx context.Context
+}
+
+func (m *proxyUnmounter) Unmount(target string) error {
+	err := m.Interface.(mounter.ProxyUnmounter).ExtendedUnmount(m.ctx, target, "alinas")
+	if m.ctx.Err() == nil && errors.Is(err, mounter.ErrTargetNotManagedByBroker) {
+		klog.InfoS("Falling back to legacy local unmount", "target", target, "proxyError", err)
+		return m.Interface.Unmount(target)
+	}
+	// Return connection and helper errors for retry instead of bypassing EFC cleanup.
+	return err
+}
+
 const (
 	defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
 	metricsPathPrefix             = "/run/cnfs/efc/"
@@ -217,7 +235,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
 	defer ns.locks.Release(req.VolumeId)
-	err := mount.CleanupMountPoint(req.TargetPath, ns.mounter, false)
+	err := mount.CleanupMountPoint(req.TargetPath, &proxyUnmounter{Interface: ns.mounter, ctx: ctx}, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cleanup mount point: %v", err)
 	}
