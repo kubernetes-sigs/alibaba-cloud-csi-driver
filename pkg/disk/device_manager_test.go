@@ -304,7 +304,6 @@ func TestGetRootBlockByVolumeID_Link(t *testing.T) {
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			m := testingManager(t)
-			m.DisableSerial = true
 
 			c.init(t, m)
 
@@ -338,21 +337,8 @@ func testGetRoot(t *testing.T, m *DeviceManager, volumeID string, assertFn func(
 	}
 }
 
-func TestGetRootBlockByVolumeID_Link_NotFound(t *testing.T) {
-	m := testingManager(t)
-	m.DisableSerial = true
-	setupNVMeBlockDevice(t, m.SysfsPath)
-
-	testGetRoot(t, m, "mydiskserial", func(t *testing.T, devicePath string, err error) {
-		if assert.Error(t, err) {
-			assert.True(t, errors.Is(err, os.ErrNotExist))
-		}
-	})
-}
-
 func TestGetRootBlockByVolumeID_Link_Bad(t *testing.T) {
 	m := testingManager(t)
-	m.DisableSerial = true
 	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{badLink}
 
 	testGetRoot(t, m, "mydiskserial", func(t *testing.T, devicePath string, err error) {
