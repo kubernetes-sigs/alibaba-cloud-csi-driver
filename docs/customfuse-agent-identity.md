@@ -40,8 +40,11 @@ and a client started without one fails later and less clearly.
 * The credential is renewed before it expires, for as long as the mount lives.
 * The refresh loop stops when the entrypoint exits. The driver does not write or
   remove any files — if your scripts write credential files, cleanup is yours.
-* No credential value is ever passed as an argument or an environment variable.
-  Nothing lands in `/proc/<pid>/cmdline` or `/proc/<pid>/environ`.
+* The driver itself never passes a credential value as a command-line argument
+  or an environment variable. How your entrypoint and hook consume the stdin
+  lines is up to you — some clients only accept credentials as CLI flags
+  (visible in `/proc/<pid>/cmdline`), others support environment variables or
+  config files. Choose the least-exposed channel your client supports.
 
 **The driver does not:**
 

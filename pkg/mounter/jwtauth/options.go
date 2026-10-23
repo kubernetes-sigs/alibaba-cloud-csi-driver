@@ -23,6 +23,7 @@ const (
 	OptAuthType                = "authType"
 	OptSandboxId               = "sandboxId"
 	OptSandboxCredProviderName = "sandboxCredProviderName"
+	OptCredProviderName        = "credentialProviderName" // alias for sandboxCredProviderName used by customfuse volumeAttributes
 	OptEndpoint                = "jwtauth_endpoint"
 	OptTokenFile               = "jwtauth_token_file"
 	OptCredProvider            = "jwtauth_cred_provider"
@@ -35,6 +36,7 @@ const (
 var InfraOptionKeys = map[string]struct{}{
 	OptSandboxId:               {},
 	OptSandboxCredProviderName: {},
+	OptCredProviderName:        {},
 	OptEndpoint:                {},
 	OptTokenFile:               {},
 	OptCredProvider:            {},
