@@ -1,5 +1,5 @@
 // Package jwtauth implements the jwtauth credential flow shared by the
-// mount-proxy drivers: it exchanges a sandbox jwtauth token for a scoped STS
+// mount-proxy drivers: it exchanges pod or ACS sandbox identity for a scoped STS
 // credential and keeps it fresh for the lifetime of a mount. Credential
 // delivery is pluggable via CredentialSink so each driver can consume the
 // credential in its native form (files on disk, exec-based refresh, ...).
@@ -15,8 +15,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"k8s.io/klog/v2"
 )
 
@@ -28,11 +30,15 @@ const (
 
 // Opts is the resolved configuration for a jwtauth mount.
 type Opts struct {
-	TokenFile    string
+	TokenFile    string // ACS sandbox JSON identity file.
 	Endpoint     string
 	CredProvider string
-	CAFile       string
-	SandboxId    string
+	CAFile       string // Optional server CA for ACS sandbox mode.
+	// SandboxId is the actor UID in Substrate mode, or the sandbox ID in ACS mode.
+	SandboxId string
+
+	// SubstrateMode comes from the explicit request marker, not credential-file presence.
+	SubstrateMode bool
 }
 
 // Validate checks that all settings required for the credential exchange are
@@ -44,11 +50,11 @@ func (o Opts) Validate() error {
 	if o.CredProvider == "" {
 		return fmt.Errorf("credential provider name is required")
 	}
-	if o.TokenFile == "" {
-		return fmt.Errorf("token file path could not be resolved")
-	}
 	if o.Endpoint == "" {
 		return fmt.Errorf("endpoint could not be resolved")
+	}
+	if !o.SubstrateMode && o.TokenFile == "" {
+		return fmt.Errorf("token file path could not be resolved")
 	}
 	return nil
 }
@@ -81,26 +87,30 @@ type credentialResponse struct {
 }
 
 // buildHTTPClient builds the HTTP client used to exchange the jwtauth token
-// for STS credentials. A configured CA file must be readable and parsable,
-// otherwise it fails.
+// for STS credentials. Substrate mode uses PodCertificate client authentication
+// and its separately mounted server trust bundle. In ACS sandbox mode, a
+// configured CA file must be readable and parsable, otherwise it fails.
 //
-// Without a CA file, verification is skipped rather than deferred to the system
-// root pool. The AgentIdentity endpoint is an in-cluster service holding a
+// In ACS sandbox mode without a CA file, verification is skipped rather than
+// deferred to the system root pool. The AgentIdentity endpoint is an in-cluster service holding a
 // private certificate that no public root signs, so the system pool can only
 // accept it while something injects that private CA into the process-wide trust
 // store — and such an injection also hides every public root from the same
 // process, breaking unrelated OSS connections. Skipping verification keeps the
 // two concerns apart, matching how ossfs treats an empty agent_identity_ca_file.
-func buildHTTPClient(caFile string) (*http.Client, error) {
+func buildHTTPClient(opts Opts) (*http.Client, error) {
+	if opts.SubstrateMode {
+		return buildSubstrateHTTPClient()
+	}
 	tlsConfig := &tls.Config{}
-	if caFile != "" {
-		caCert, err := os.ReadFile(caFile)
+	if opts.CAFile != "" {
+		caCert, err := os.ReadFile(opts.CAFile)
 		if err != nil {
-			return nil, fmt.Errorf("read CA file %s: %w", caFile, err)
+			return nil, fmt.Errorf("read CA file %s: %w", opts.CAFile, err)
 		}
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM(caCert) {
-			return nil, fmt.Errorf("parse CA file %s: no valid certificate found", caFile)
+			return nil, fmt.Errorf("parse CA file %s: no valid certificate found", opts.CAFile)
 		}
 		tlsConfig.RootCAs = pool
 	} else {
@@ -113,6 +123,7 @@ func buildHTTPClient(caFile string) (*http.Client, error) {
 	}, nil
 }
 
+// readTokenFile reads the ACS sandbox identity document, not the Pod SA token.
 func readTokenFile(tokenFile string) (*tokenFileContent, error) {
 	data, err := os.ReadFile(tokenFile)
 	if err != nil {
@@ -131,15 +142,41 @@ func readTokenFile(tokenFile string) (*tokenFileContent, error) {
 	return &token, nil
 }
 
-func exchangeSTSToken(ctx context.Context, client *http.Client, opts Opts) (*STSToken, error) {
-	token, err := readTokenFile(opts.TokenFile)
+func FetchSTSToken(ctx context.Context, opts Opts) (*STSToken, error) {
+	client, err := buildHTTPClient(opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build http client: %w", err)
+	}
+	return exchangeSTSToken(ctx, client, opts)
+}
+
+func exchangeSTSToken(ctx context.Context, client *http.Client, opts Opts) (*STSToken, error) {
+	if opts.SubstrateMode && !strings.HasPrefix(opts.Endpoint, "https://") {
+		return nil, fmt.Errorf("substrate mode requires HTTPS endpoint, got %q", opts.Endpoint)
+	}
+
+	var bearerToken, resourceID string
+
+	if opts.SubstrateMode {
+		saToken, err := os.ReadFile(agentidentity.SATokenFile)
+		if err != nil {
+			return nil, fmt.Errorf("read SA token file %s: %w", agentidentity.SATokenFile, err)
+		}
+		bearerToken = string(bytes.TrimSpace(saToken))
+		resourceID = opts.SandboxId
+	} else {
+		// ACS sandbox mode: both values come from the sandbox identity token file.
+		token, err := readTokenFile(opts.TokenFile)
+		if err != nil {
+			return nil, err
+		}
+		bearerToken = token.AccessToken
+		resourceID = token.SandboxClientID
 	}
 
 	reqBody := credentialRequest{
 		CredentialType:         credentialTypeSTSToken,
-		ResourceID:             token.SandboxClientID,
+		ResourceID:             resourceID,
 		CredentialProviderName: opts.CredProvider,
 	}
 	bodyBytes, err := json.Marshal(reqBody)
@@ -151,7 +188,7 @@ func exchangeSTSToken(ctx context.Context, client *http.Client, opts Opts) (*STS
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+	req.Header.Set("Authorization", "Bearer "+bearerToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Api-Action-Name", apiActionGetCredential)
 

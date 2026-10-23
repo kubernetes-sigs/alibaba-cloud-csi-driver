@@ -4,7 +4,9 @@ package nas
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"strings"
 	"time"
 
 	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
@@ -19,6 +21,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
+)
+
+const (
+	spaceListMaxResults = 100
+	spaceListMaxPages   = 50
 )
 
 // agenticfsController orchestrates one PVC -> one AgenticSpace -> one AccessPoint.
@@ -177,6 +184,16 @@ func (c *agenticfsController) createAgenticSpace(ctx context.Context, args *agen
 		},
 	})
 	if err != nil {
+		// WORKAROUND: NAS CreateAgenticSpace does not honor ClientToken for
+		// idempotency. Retrying the same ClientToken+Path after a partial
+		// CreateVolume attempt can return InvalidArgument with "Path already
+		// used" instead of the existing AgenticSpaceId.
+		//
+		// DescribeAgenticSpaces recovers the ID even if no AccessPoint was
+		// created. Remove this workaround once NAS replays the ClientToken.
+		if strings.Contains(err.Error(), "Path already used") {
+			return c.recoverExistingAgenticSpace(ctx, args.FileSystemID, args.FileSystemPath)
+		}
 		return "", apiStatusError("nas:CreateAgenticSpace", err)
 	}
 	if resp == nil || resp.Body == nil {
@@ -190,10 +207,14 @@ func (c *agenticfsController) createAgenticSpace(ctx context.Context, args *agen
 }
 
 func (c *agenticfsController) deleteAgenticSpace(ctx context.Context, filesystemID, agenticSpaceID, volumeID string) error {
+	clientToken := volumeID
+	if strings.HasPrefix(volumeID, substrateAgenticVolumePrefix) {
+		clientToken = fmt.Sprintf("%x", sha256.Sum256([]byte(volumeID)))
+	}
 	_, err := c.nasClient.DeleteAgenticSpace(ctx, &sdk.DeleteAgenticSpaceRequest{
 		FileSystemId:   tea.String(filesystemID),
 		AgenticSpaceId: tea.String(agenticSpaceID),
-		ClientToken:    tea.String(volumeID),
+		ClientToken:    tea.String(clientToken),
 	})
 	if err == nil {
 		return nil
