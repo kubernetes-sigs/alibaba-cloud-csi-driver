@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -310,8 +311,8 @@ func TestGetRootBlockByVolumeID_Link(t *testing.T) {
 
 			devicePath, err := m.GetRootBlockBySerial("mydiskserial")
 			if c.err != nil {
-				assert.True(t, errors.Is(err, c.err), err)
-				assert.False(t, errors.Is(err, os.ErrNotExist), err) // bad link error should suppress os.ErrNotExist
+				assert.ErrorIs(t, err, c.err)
+				assert.NotErrorIs(t, err, os.ErrNotExist, "bad link error should suppress os.ErrNotExist")
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, filepath.Join(m.DevicePath, c.devicePath), devicePath)
@@ -320,22 +321,18 @@ func TestGetRootBlockByVolumeID_Link(t *testing.T) {
 	}
 }
 
-func getRoot(m *DeviceManager, serial string, wait bool) (string, error) {
-	if wait {
-		return m.WaitRootBlock(context.Background(), serial)
-	} else {
-		return m.GetRootBlockBySerial(serial)
-	}
-}
-
-func testGetRoot(t *testing.T, m *DeviceManager, volumeID string, assertFn func(t *testing.T, devicePath string, err error)) {
-	t.Parallel() // WaitRootBlock needs 10s to timeout
-	for _, wait := range []bool{true, false} {
-		t.Run(fmt.Sprintf("wait=%v", wait), func(t *testing.T) {
-			devicePath, err := getRoot(m, volumeID, wait)
+func testGetRoot(t *testing.T, m *DeviceManager, serial string, assertFn func(t *testing.T, devicePath string, err error)) {
+	t.Run("wait", func(t *testing.T) {
+		// Fake clock, so that the 10s timeout of WaitRootBlock passes instantly.
+		synctest.Test(t, func(t *testing.T) {
+			devicePath, err := m.WaitRootBlock(t.Context(), serial)
 			assertFn(t, devicePath, err)
 		})
-	}
+	})
+	t.Run("nowait", func(t *testing.T) {
+		devicePath, err := m.GetRootBlockBySerial(serial)
+		assertFn(t, devicePath, err)
+	})
 }
 
 func TestGetRootBlockByVolumeID_Link_NotFound(t *testing.T) {
@@ -356,10 +353,8 @@ func TestGetRootBlockByVolumeID_Link_Bad(t *testing.T) {
 	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{badLink}
 
 	testGetRoot(t, m, "mydiskserial", func(t *testing.T, devicePath string, err error) {
-		if assert.Error(t, err) {
-			assert.True(t, errors.Is(err, badLink.Err))
-			assert.False(t, errors.Is(err, os.ErrNotExist)) // bad link error should suppress os.ErrNotExist
-		}
+		assert.ErrorIs(t, err, badLink.Err)
+		assert.NotErrorIs(t, err, os.ErrNotExist, "bad link error should suppress os.ErrNotExist")
 	})
 }
 
@@ -378,9 +373,7 @@ func TestGetRootBlockByVolumeID_NotFound(t *testing.T) {
 	m := testingManager(t)
 
 	testGetRoot(t, m, "mydiskserial", func(t *testing.T, devicePath string, err error) {
-		if assert.Error(t, err) {
-			assert.True(t, errors.Is(err, os.ErrNotExist))
-		}
+		assert.ErrorIs(t, err, os.ErrNotExist)
 	})
 }
 
@@ -396,7 +389,7 @@ func TestGetDeviceByVolumeID_Positive(t *testing.T) {
 				var devicePath string
 				var err error
 				if wait {
-					devicePath, err = m.WaitDevice(context.Background(), "mydiskserial")
+					devicePath, err = m.WaitDevice(t.Context(), "mydiskserial")
 				} else {
 					devicePath, err = m.GetDeviceBySerial("mydiskserial")
 				}
@@ -500,7 +493,7 @@ func TestGetDeviceRootAndPartitionIndex_Partition(t *testing.T) {
 func TestWaitDeviceCancel(t *testing.T) {
 	m := testingManager(t)
 
-	ctx, cancel := context.WithDeadlineCause(context.Background(), time.Time{}, fmt.Errorf("test"))
+	ctx, cancel := context.WithDeadlineCause(t.Context(), time.Time{}, fmt.Errorf("test"))
 	defer cancel()
 	// ctx already DeadlineExceeded
 
