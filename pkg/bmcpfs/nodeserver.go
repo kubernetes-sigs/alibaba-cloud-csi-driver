@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"slices"
@@ -46,6 +47,27 @@ type nodeServer struct {
 	// credsRoot is where per-volume EFC credential files live; a field so
 	// tests can redirect it away from the /run/cnfs hostPath.
 	credsRoot string
+}
+
+// Keep CleanupMountPoint's checks and directory cleanup, preferring the EFC
+// helper in mount-proxy. Fall back to the legacy local unmount only when the
+// broker cannot handle the request or could not be reached before sending it.
+type proxyUnmounter struct {
+	mount.Interface
+	ctx context.Context
+}
+
+func (m *proxyUnmounter) Unmount(target string) error {
+	err := m.Interface.(mounter.ProxyUnmounter).ExtendedUnmount(m.ctx, target, "alinas")
+	var dialErr *net.OpError
+	if err != nil && m.ctx.Err() == nil && (errors.Is(err, mounter.ErrTargetNotManagedByBroker) ||
+		(errors.As(err, &dialErr) && dialErr.Op == "dial")) {
+		klog.InfoS("Falling back to legacy local unmount", "target", target, "proxyError", err)
+		return m.Interface.Unmount(target)
+	}
+	// A helper error or lost response may follow a partially completed unmount.
+	// Return it for retry instead of bypassing unfinished EFC cleanup.
+	return err
 }
 
 const (
@@ -217,7 +239,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
 	defer ns.locks.Release(req.VolumeId)
-	err := mount.CleanupMountPoint(req.TargetPath, ns.mounter, false)
+	err := mount.CleanupMountPoint(req.TargetPath, &proxyUnmounter{Interface: ns.mounter, ctx: ctx}, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cleanup mount point: %v", err)
 	}
