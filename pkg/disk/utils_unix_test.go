@@ -46,7 +46,7 @@ func TestGetUnmanagedDiskCount(t *testing.T) {
 
 	var describeDisksResp ecs20140526.DescribeDisksResponse
 	cloud.UnmarshalV2Response([]byte(DescribeDisksResponse), &describeDisksResp)
-	c.EXPECT().DescribeDisks(gomock.Any()).Return(&describeDisksResp, nil)
+	c.EXPECT().DescribeDisksWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&describeDisksResp, nil)
 
 	dev := MockDisks{base: t.TempDir() + "/dev"}
 	assert.NoError(t, os.MkdirAll(dev.base, 0755))
@@ -59,7 +59,7 @@ func TestGetUnmanagedDiskCount(t *testing.T) {
 	dev.AddDisk(t, "node-for-testinglocaldisk", []byte(longDiskID))
 
 	getNode := func() (*corev1.Node, error) { return testNode(), nil }
-	count, err := getUnmanagedDiskCount(getNode, c, "i-2ze0yyw7rf00yz9fttpg", "cn-beijing", &dev)
+	count, err := getUnmanagedDiskCount(t.Context(), getNode, c, "i-2ze0yyw7rf00yz9fttpg", "cn-beijing", &dev)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, count) // 1 system disk (d-2ze49fivxwkwxl36o1d3) + 1 manually attached (d-2zeh74nnxxrobxz49eug)
 }

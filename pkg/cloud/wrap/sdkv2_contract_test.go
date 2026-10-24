@@ -1,7 +1,6 @@
 package wrap
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +10,9 @@ import (
 
 	openapiutil "github.com/alibabacloud-go/darabonba-openapi/v2/utils"
 	nas20170626 "github.com/alibabacloud-go/nas-20170626/v4/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2/ktesting"
@@ -20,8 +21,8 @@ import (
 // Guards the real SDK error contract transformV2ErrorForLog relies on. sdkv2.go deliberately uses a direct type
 // assertion - err.(*tea.SDKError) - instead of errors.As, which only holds because darabonba-openapi v2 converts
 // its own *ClientError / *ServerError / *ThrottlingError right before returning. A base-library bump can break it
-// invisibly: the assertion misses and callers stop recognising "NotFound", or SDKError.Data stops being a JSON
-// object and the request id leaks into PVC events. TestV2_Error injects a fixture, so drive the real client.
+// invisibly: the assertion misses and the brief message is lost, or SDKError.Data stops being a JSON object and the
+// request id leaks into PVC events. TestV2_Error injects a fixture, so drive the real client.
 const (
 	contractRequestID = "deadbeef-0000-1111-2222-333344445555"
 	contractErrorCode = "NotFound"
@@ -61,7 +62,7 @@ func newFailingNasClient(t *testing.T) (client *nas20170626.Client, hits func() 
 }
 
 func TestV2ErrorContractRealSDK(t *testing.T) {
-	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+	_, ctx := ktesting.NewTestContext(t)
 	client, hits := newFailingNasClient(t)
 	req := &nas20170626.CreateDirRequest{}
 
@@ -76,8 +77,7 @@ func TestV2ErrorContractRealSDK(t *testing.T) {
 		sdkErr, ok := rawErr.(*tea.SDKError)
 		assert.True(t, ok,
 			"darabonba no longer returns a bare *tea.SDKError (got %T); the direct assertion in "+
-				"transformV2ErrorForLog will silently stop matching, losing both the brief message "+
-				"and the ErrorCode unwrap chain", rawErr)
+				"transformV2ErrorForLog will silently stop matching, losing the brief message", rawErr)
 		require.True(t, ok)
 
 		assert.Equal(t, contractErrorCode, tea.StringValue(sdkErr.Code))
@@ -96,19 +96,14 @@ func TestV2ErrorContractRealSDK(t *testing.T) {
 	})
 
 	// --------------------------------------------------------------------------- wrapped behaviour
-	t.Run("wrappedErrorKeepsErrorCodeChainAndStaysBrief", func(t *testing.T) {
+	t.Run("wrappedErrorKeepsErrorCodeAndStaysBrief", func(t *testing.T) {
 		before := hits()
-		resp, err := V2(logger, client.CreateDir)(req)
+		resp, err := NAS(client).CreateDirWithContext(ctx, req, &dara.RuntimeOptions{})
 		require.Error(t, err)
 
 		var sdkErr *tea.SDKError
 		assert.ErrorAs(t, err, &sdkErr)
-
-		assert.True(t, errors.Is(err, ErrorCode(contractErrorCode)),
-			"ErrorCode(%q) is no longer in the unwrap chain", contractErrorCode)
-		var code ErrorCode
-		require.ErrorAs(t, err, &code)
-		assert.Equal(t, ErrorCode(contractErrorCode), code)
+		assert.Equal(t, contractErrorCode, cloud.ErrorCodeV2(err))
 
 		// Identical for every repeat of the same failure, so kubelet can aggregate the events.
 		assert.EqualError(t, err, contractBriefErr)
@@ -118,7 +113,7 @@ func TestV2ErrorContractRealSDK(t *testing.T) {
 		assert.NotContains(t, err.Error(), "code: 404")
 		assert.NotContains(t, err.Error(), "request id")
 
-		// On error the SDK still hands back a non-nil empty response, which v2Impl dereferences.
+		// On error the SDK still hands back a non-nil empty response, which logV2 dereferences.
 		require.NotNil(t, resp)
 		assert.Nil(t, resp.GetHeaders())
 		assert.Equal(t, int32(1), hits()-before,

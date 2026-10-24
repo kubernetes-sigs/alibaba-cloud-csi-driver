@@ -1,11 +1,13 @@
 package metadata
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
 
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -56,14 +58,14 @@ func testEcsClient(t *testing.T) *cloud.MockECSv2Interface {
 
 	ctrl := gomock.NewController(t)
 	ecsClient := cloud.NewMockECSv2Interface(ctrl)
-	ecsClient.EXPECT().DescribeInstances(gomock.Any()).Return(res, nil)
+	ecsClient.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(res, nil)
 	return ecsClient
 }
 
 func TestGetOpenAPI(t *testing.T) {
 	ecsClient := testEcsClient(t)
 
-	m, err := NewOpenAPIMetadata(ecsClient, "i-2zec1slzwdzrwmvlr4w2")
+	m, err := NewOpenAPIMetadata(t.Context(), ecsClient, "i-2zec1slzwdzrwmvlr4w2")
 	require.NoError(t, err)
 
 	ctx := testMContext(t)
@@ -101,14 +103,14 @@ func TestGetOpenAPIHighDensity(t *testing.T) {
 					},
 				},
 			}
-			client.EXPECT().DescribeInstances(gomock.Any()).DoAndReturn(
-				func(req *ecs20140526.DescribeInstancesRequest) (*ecs20140526.DescribeInstancesResponse, error) {
+			client.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+				func(_ context.Context, req *ecs20140526.DescribeInstancesRequest, _ *dara.RuntimeOptions) (*ecs20140526.DescribeInstancesResponse, error) {
 					require.Len(t, req.AdditionalAttributes, 1)
 					assert.Equal(t, "DISK_HIGH_DENSITY_MODE", ptr.Deref(req.AdditionalAttributes[0], ""))
 					return resp, nil
 				})
 
-			m, err := NewOpenAPIMetadata(client, "i-hd")
+			m, err := NewOpenAPIMetadata(t.Context(), client, "i-hd")
 			require.NoError(t, err)
 			v, err := m.GetAny(testMContext(t), isHighDensityMode)
 			assert.NoError(t, err)
@@ -130,13 +132,13 @@ func TestGetOpenAPINoAttrWhenGateOff(t *testing.T) {
 			},
 		},
 	}
-	client.EXPECT().DescribeInstances(gomock.Any()).DoAndReturn(
-		func(req *ecs20140526.DescribeInstancesRequest) (*ecs20140526.DescribeInstancesResponse, error) {
+	client.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, req *ecs20140526.DescribeInstancesRequest, _ *dara.RuntimeOptions) (*ecs20140526.DescribeInstancesResponse, error) {
 			assert.Empty(t, req.AdditionalAttributes, "must not send the non-standard attribute when the feature is off")
 			return resp, nil
 		})
 
-	_, err := NewOpenAPIMetadata(client, "i-hd")
+	_, err := NewOpenAPIMetadata(t.Context(), client, "i-hd")
 	require.NoError(t, err)
 }
 
@@ -148,19 +150,19 @@ func TestGetOpenAPIError(t *testing.T) {
 		{
 			name: "describe_instances_error",
 			configClient: func(client *cloud.MockECSv2Interface) {
-				client.EXPECT().DescribeInstances(gomock.Any()).Return(nil, errors.New("failed to describe instances"))
+				client.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed to describe instances"))
 			},
 		},
 		{
 			name: "missing_field",
 			configClient: func(client *cloud.MockECSv2Interface) {
-				client.EXPECT().DescribeInstances(gomock.Any()).Return(&ecs20140526.DescribeInstancesResponse{}, nil)
+				client.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.DescribeInstancesResponse{}, nil)
 			},
 		},
 		{
 			name: "missing_instance",
 			configClient: func(client *cloud.MockECSv2Interface) {
-				client.EXPECT().DescribeInstances(gomock.Any()).Return(&ecs20140526.DescribeInstancesResponse{
+				client.EXPECT().DescribeInstancesWithContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(&ecs20140526.DescribeInstancesResponse{
 					Body: &ecs20140526.DescribeInstancesResponseBody{
 						Instances: &ecs20140526.DescribeInstancesResponseBodyInstances{
 							Instance: []*ecs20140526.DescribeInstancesResponseBodyInstancesInstance{},

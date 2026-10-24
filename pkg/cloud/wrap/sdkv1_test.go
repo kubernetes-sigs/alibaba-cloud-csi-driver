@@ -45,15 +45,14 @@ func TestV1_Error(t *testing.T) {
 	req := ecs.CreateDescribeDisksRequest()
 	resp, err := V1(logger, ecsClient.DescribeDisks)(req)
 
+	// errors.As still reaches the SDK error through the brief wrapper, so the code
+	// is readable via the SDK's own ErrorCode() method (as V1 call sites do).
 	var svrErr *alierrors.ServerError
 	assert.ErrorAs(t, err, &svrErr)
-	assert.ErrorIs(t, err, ErrorCode("TestErrorCode"))
-	var code ErrorCode
-	assert.ErrorAs(t, err, &code)
-	assert.Equal(t, ErrorCode("TestErrorCode"), code)
+	assert.Equal(t, "TestErrorCode", svrErr.ErrorCode())
 	assert.Equal(t, "test-request-id-in-error", svrErr.RequestId())
+	// brief, stable message (no requestID) for k8s event aggregation
 	assert.ErrorContains(t, err, "OpenAPI returned error: Message in Unit Test. (TestErrorCode)")
-	assert.ErrorContains(t, code, "Alibaba Cloud error: TestErrorCode")
 	assert.Nil(t, resp)
 }
 

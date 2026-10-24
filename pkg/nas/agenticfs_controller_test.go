@@ -15,7 +15,6 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
@@ -228,7 +227,7 @@ func (f *fakeNasClientV2) DescribeAccesspoint(_ context.Context, _, accessPointI
 		f.describeIdx++
 	}
 	if st == fakeStatusNotFound {
-		return nil, wrap.ErrorCode("NotFound")
+		return nil, aliErr("NotFound")
 	}
 	domain := testAgenticFsAPDomain
 	if f.apDomainSet {
@@ -294,28 +293,20 @@ func (g forbiddenCNFSGetter) GetCNFS(_ context.Context, name string) (*cnfsv1bet
 	return nil, apierrors.NewNotFound(cnfsv1beta1.GVR.GroupResource(), name)
 }
 
-// Exposes ErrorCode() so the classification helpers can be tested without a real tea.SDKError.
-type fakeAliError struct {
-	code string
+// Shaped like wrap.NAS output: a brief one-line message with the SDK error in the chain.
+type briefSDKError struct {
+	msg string
+	err *tea.SDKError
 }
 
-func (e *fakeAliError) Error() string     { return "OpenAPI returned error: fake (" + e.code + ")" }
-func (e *fakeAliError) ErrorCode() string { return e.code }
-func (e *fakeAliError) Message() string   { return "fake" }
-
-func aliErr(code string) error { return &fakeAliError{code: code} }
-
-// Carries a message that differs from its code, pinning "classify on the code, never on the message".
-type fakeAliErrorWithMessage struct {
-	code    string
-	message string
+func (e *briefSDKError) Error() string {
+	return "OpenAPI returned error: " + e.msg + " (" + *e.err.Code + ")"
 }
+func (e *briefSDKError) Unwrap() error { return e.err }
 
-func (e *fakeAliErrorWithMessage) Error() string {
-	return "OpenAPI returned error: " + e.code + " (" + e.message + ")"
+func aliErr(code string) error {
+	return &briefSDKError{msg: "fake", err: &tea.SDKError{Code: &code}}
 }
-func (e *fakeAliErrorWithMessage) ErrorCode() string { return e.code }
-func (e *fakeAliErrorWithMessage) Message() string   { return e.message }
 
 func agenticfsCNFS(name string) *cnfsv1beta1.ContainerNetworkFileSystem {
 	return &cnfsv1beta1.ContainerNetworkFileSystem{
@@ -1716,8 +1707,8 @@ func TestAgenticfsDeleteVolumeDeletesEveryAccessPointOfTheSpace(t *testing.T) {
 
 func TestAgenticfsDeleteVolumeIdempotent(t *testing.T) {
 	fake := newDeleteFakeNasClientV2()
-	fake.deleteAccessPointErr = wrap.ErrorCode("NotFound")
-	fake.deleteAgenticSpaceErr = wrap.ErrorCode("NotFound")
+	fake.deleteAccessPointErr = aliErr("NotFound")
+	fake.deleteAgenticSpaceErr = aliErr("NotFound")
 	ctrl := newAgenticfsCtrl(t, fake)
 
 	resp, err := ctrl.DeleteVolume(context.Background(), agenticfsDeleteReq(), agenticfsDeletePV())
@@ -2046,8 +2037,6 @@ func TestIsNotFoundError(t *testing.T) {
 		want bool
 	}{
 		{"nil", nil, false},
-		{"bareWrapErrorCode", wrap.ErrorCode("NotFound"), true},
-		{"wrappedWrapErrorCode", fmt.Errorf("outer: %w", wrap.ErrorCode("NotFound")), true},
 		{"exactCodeFromTheSdk", aliErr("NotFound"), true},
 		{"documentedAgenticspace", aliErr("InvalidAgenticSpace.NotFound"), true},
 		{"paddedDocumentedAgenticspace", aliErr("\tInvalidAgenticSpace.NotFound\n"), true},
@@ -2130,9 +2119,9 @@ func TestIsPermanentAPIError(t *testing.T) {
 		{"unrelatedNotfoundIsRetryable", aliErr("Quota.NotFound"), false},
 		{"resourceNotfoundIsRetryable", aliErr("ResourceNotFound"), false},
 		// The classification reads the CODE only, never the Message.
-		{"messageIsNeverMatched", &fakeAliErrorWithMessage{
-			code:    "Throttling.User",
-			message: "region InvalidParameter Forbidden NotFound UnsupportedRegion notsupported",
+		{"messageIsNeverMatched", &briefSDKError{
+			msg: "region InvalidParameter Forbidden NotFound UnsupportedRegion notsupported",
+			err: &tea.SDKError{Code: new("Throttling.User")},
 		}, false},
 		// Padding must not change the verdict in EITHER direction.
 		{"paddedRegionNotSupportedIsTerminal", aliErr("OperationDenied.RegionNotSupported\n"), true},

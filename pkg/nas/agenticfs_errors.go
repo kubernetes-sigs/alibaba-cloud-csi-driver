@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
@@ -21,17 +21,8 @@ const (
 	orphanLogPrefix = "agenticfs-orphan-resource"
 )
 
-// A v2 SDK failure unwraps to an error exposing the OpenAPI code.
-type aliErrorCode interface {
-	ErrorCode() string
-}
-
 func apiErrorCode(err error) string {
-	var e aliErrorCode
-	if errors.As(err, &e) {
-		return strings.TrimSpace(e.ErrorCode())
-	}
-	return ""
+	return strings.TrimSpace(cloud.ErrorCodeV2(err))
 }
 
 // Match whole codes, not a .NotFound suffix: other missing resources do not
@@ -39,9 +30,6 @@ func apiErrorCode(err error) string {
 func isNotFoundError(err error) bool {
 	if err == nil {
 		return false
-	}
-	if errors.Is(err, wrap.ErrorCode("NotFound")) {
-		return true
 	}
 	switch strings.ToLower(apiErrorCode(err)) {
 	case "notfound",

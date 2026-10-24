@@ -1,7 +1,6 @@
 package wrap
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +11,9 @@ import (
 	openapiutil "github.com/alibabacloud-go/darabonba-openapi/v2/utils"
 	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	nas20170626 "github.com/alibabacloud-go/nas-20170626/v4/client"
+	"github.com/alibabacloud-go/tea/dara"
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2/ktesting"
@@ -66,36 +67,9 @@ func newFailingEcsClient(t *testing.T, status int, code, msg string) (client *ec
 // pkg/disk/modify.go switches on.
 const incorrectDiskStatus = "IncorrectDiskStatus"
 
-// modify.go has no arm for the bare namespace, so normalising "InvalidStatus.DiskNotReady" down to
-// "InvalidStatus" would make mapModifySpecCode return codes.Internal - an unbounded retry.
-func assertDottedCodeIsOpaque(dotted, sibling string) func(*testing.T, error) {
-	namespace, _, hasDot := strings.Cut(dotted, ".")
-	if !hasDot {
-		panic("assertDottedCodeIsOpaque is only meaningful for a dotted code, got " + dotted)
-	}
-
-	return func(t *testing.T, err error) {
-		t.Helper()
-
-		// The exact mechanism modify.go uses to get at the code before switching on it.
-		code, ok := errors.AsType[ErrorCode](err)
-		require.True(t, ok,
-			"errors.AsType[wrap.ErrorCode] - the mechanism pkg/disk/modify.go:155 uses - found no ErrorCode")
-		assert.Equal(t, ErrorCode(dotted), code)
-
-		// errors.Is walks the whole unwrap tree, so a regression that added the truncated namespace would satisfy the
-		// equality above and still break modify.go's switches.
-		assert.False(t, errors.Is(err, ErrorCode(namespace)),
-			"the error must not also match the bare namespace %q", namespace)
-		assert.False(t, errors.Is(err, ErrorCode(sibling)),
-			"the error for %q must not match its switch-arm sibling %q: pkg/disk/modify.go:120 and :162 "+
-				"list them in one arm but they are distinct strings and must stay distinguishable", dotted, sibling)
-	}
-}
-
 // Table-driven to prove the contract is code-independent: a base-library regression breaks every row.
 func TestV2ErrorContractRealSDKECS(t *testing.T) {
-	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+	_, ctx := ktesting.NewTestContext(t)
 
 	// Derived, not hard-coded, so it always equals what briefAliError must produce.
 	brief := func(msg, code string) string {
@@ -107,8 +81,6 @@ func TestV2ErrorContractRealSDKECS(t *testing.T) {
 		status int // HTTP status the fake OpenAPI returns; representative of the real code's class.
 		code   string
 		msg    string
-		// Pins a code-specific property of the unwrap chain. Only used by the dotted codes.
-		extraAssert func(t *testing.T, err error)
 	}{
 		{
 			// The disk-side NotFound code modify.go maps to codes.NotFound.
@@ -140,12 +112,11 @@ func TestV2ErrorContractRealSDKECS(t *testing.T) {
 		},
 		{
 			// The only DOTTED code besides InvalidDiskId.NotFound. Its status deliberately differs from the 403 the
-			// IncorrectDiskStatus row uses, proving the wrap chain does not smuggle the status into the ErrorCode.
-			name:        "InvalidStatus.DiskNotReady",
-			status:      http.StatusConflict,
-			code:        "InvalidStatus.DiskNotReady",
-			msg:         "The specified disk is not ready yet.",
-			extraAssert: assertDottedCodeIsOpaque("InvalidStatus.DiskNotReady", incorrectDiskStatus),
+			// IncorrectDiskStatus row uses, proving the status is not smuggled into the error code.
+			name:   "InvalidStatus.DiskNotReady",
+			status: http.StatusConflict,
+			code:   "InvalidStatus.DiskNotReady",
+			msg:    "The specified disk is not ready yet.",
 		},
 	}
 
@@ -167,8 +138,7 @@ func TestV2ErrorContractRealSDKECS(t *testing.T) {
 				sdkErr, ok := rawErr.(*tea.SDKError)
 				assert.True(t, ok,
 					"darabonba no longer returns a bare *tea.SDKError from ECS (got %T); the direct "+
-						"assertion in transformV2ErrorForLog will silently stop matching, losing both the "+
-						"brief message and the ErrorCode unwrap chain that pkg/disk/modify.go relies on", rawErr)
+						"assertion in transformV2ErrorForLog will silently stop matching, losing the brief message", rawErr)
 				require.True(t, ok)
 
 				assert.Equal(t, tc.code, tea.StringValue(sdkErr.Code))
@@ -188,19 +158,15 @@ func TestV2ErrorContractRealSDKECS(t *testing.T) {
 			})
 
 			// ------------------------------------------------------------ wrapped behaviour
-			t.Run("wrappedErrorKeepsErrorCodeChainAndStaysBrief", func(t *testing.T) {
+			t.Run("wrappedErrorKeepsErrorCodeAndStaysBrief", func(t *testing.T) {
 				before := hits()
-				resp, err := V2(logger, client.ModifyDiskSpec)(req)
+				resp, err := ECS(client).ModifyDiskSpecWithContext(ctx, req, &dara.RuntimeOptions{})
 				require.Error(t, err)
 
+				// The exact mechanism pkg/disk/modify.go uses to get at the code before switching on it.
 				var sdkErr *tea.SDKError
 				assert.ErrorAs(t, err, &sdkErr)
-
-				assert.True(t, errors.Is(err, ErrorCode(tc.code)),
-					"ErrorCode(%q) is no longer in the unwrap chain", tc.code)
-				var code ErrorCode
-				require.ErrorAs(t, err, &code)
-				assert.Equal(t, ErrorCode(tc.code), code)
+				assert.Equal(t, tc.code, cloud.ErrorCodeV2(err))
 
 				// Identical for every repeat of the same failure, so kubelet can aggregate the events.
 				assert.EqualError(t, err, brief(tc.msg, tc.code))
@@ -210,23 +176,18 @@ func TestV2ErrorContractRealSDKECS(t *testing.T) {
 				assert.NotContains(t, err.Error(), verbose)
 				assert.NotContains(t, err.Error(), "request id")
 
-				// On error the SDK still hands back a non-nil empty response, which v2Impl dereferences.
+				// On error the SDK still hands back a non-nil empty response, which logV2 dereferences.
 				require.NotNil(t, resp)
 				assert.Nil(t, resp.GetHeaders())
 				assert.Equal(t, int32(1), hits()-before,
 					"a 4xx must not trigger an SDK retry storm: the ECS client leaves RetryOptions nil, "+
 						"so dara.ShouldRetry stops after the first attempt")
-
-				if tc.extraAssert != nil {
-					tc.extraAssert(t, err)
-				}
 			})
 		})
 	}
 }
 
-// modify.go matches this code with errors.Is on a literal, which needs the ErrorCode reachable through the
-// unwrap TREE (briefAliError returns a []error); a single-error chain would leave the table rows green.
+// modifyDiskAttribute retries on this code, so it must stay readable through the decorator.
 func TestV2ErrorContractRealSDKECSModifyDiskAttribute(t *testing.T) {
 	const (
 		burstingCode   = "BurstingEnabledForModifyingDiskUnsupported"
@@ -234,7 +195,7 @@ func TestV2ErrorContractRealSDKECSModifyDiskAttribute(t *testing.T) {
 		burstingStatus = http.StatusConflict
 		burstingBrief  = "OpenAPI returned error: " + burstingMsg + " (" + burstingCode + ")"
 	)
-	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+	_, ctx := ktesting.NewTestContext(t)
 
 	endpoint, hits := newFailingOpenAPIServer(t, "ecs.aliyuncs.com", burstingStatus, burstingCode, burstingMsg)
 	client, err := ecs20140526.NewClient(failingOpenAPIConfig(endpoint))
@@ -253,8 +214,7 @@ func TestV2ErrorContractRealSDKECSModifyDiskAttribute(t *testing.T) {
 		sdkErr, ok := rawErr.(*tea.SDKError)
 		assert.True(t, ok,
 			"darabonba no longer returns a bare *tea.SDKError from ECS ModifyDiskAttribute (got %T); the "+
-				"direct assertion in transformV2ErrorForLog would miss it and pkg/disk/modify.go:240 would "+
-				"stop recognising the code, turning a transient retry into a hard failure", rawErr)
+				"direct assertion in transformV2ErrorForLog would miss it and lose the brief message", rawErr)
 		require.True(t, ok)
 
 		assert.Equal(t, burstingCode, tea.StringValue(sdkErr.Code))
@@ -271,37 +231,17 @@ func TestV2ErrorContractRealSDKECSModifyDiskAttribute(t *testing.T) {
 	})
 
 	// ------------------------------------------------------------ wrapped behaviour
-	t.Run("wrappedErrorKeepsErrorsIsPredicateModifyDiskAttributeUses", func(t *testing.T) {
+	t.Run("wrappedErrorKeepsErrorCodeModifyDiskAttributeUses", func(t *testing.T) {
 		before := hits()
-		resp, err := V2(logger, client.ModifyDiskAttribute)(req)
+		resp, err := ECS(client).ModifyDiskAttributeWithContext(ctx, req, &dara.RuntimeOptions{})
 		require.Error(t, err)
 
-		// Verbatim the predicate at pkg/disk/modify.go:240. While it holds, modifyDiskAttribute sleeps 2s and re-issues
-		// up to 3 times; once it stops holding, the whole ControllerExpandVolume fails on a transient condition.
-		assert.True(t, errors.Is(err, ErrorCode(burstingCode)),
-			"ErrorCode(%q) is no longer reachable with errors.Is; pkg/disk/modify.go:240 would stop "+
-				"retrying and the 2s x 3 tolerance for a still-modifying disk would be gone", burstingCode)
+		// Verbatim the predicate in modifyDiskAttribute. While it holds, it sleeps 2s and re-issues up to 3 times;
+		// once it stops holding, the whole ControllerExpandVolume fails on a transient condition.
+		assert.Equal(t, burstingCode, cloud.ErrorCodeV2(err))
 
-		// Otherwise the multi-error Unwrap that makes the errors.Is above work has been collapsed to a single error.
 		var sdkErr *tea.SDKError
 		assert.ErrorAs(t, err, &sdkErr)
-
-		// ErrorCode has no custom Is, so the retry loop can neither fire for a near-miss nor survive a namespace prefix.
-		for _, nearMiss := range []string{
-			"BurstingEnabled",
-			"BurstingEnabledForModifyingDisk",
-			"OperationDenied.BurstingEnabledForModifyingDiskUnsupported",
-			incorrectDiskStatus,
-		} {
-			assert.False(t, errors.Is(err, ErrorCode(nearMiss)),
-				"the error for %q must not match %q: pkg/disk/modify.go:240 compares whole code strings, so "+
-					"if ECS ever namespaces this code the literal there has to be updated too", burstingCode, nearMiss)
-		}
-
-		// modify.go uses both mechanisms on this RPC's errors: AsType in verifyModifyDiskSpec, Is in modifyDiskAttribute.
-		code, ok := errors.AsType[ErrorCode](err)
-		require.True(t, ok)
-		assert.Equal(t, ErrorCode(burstingCode), code)
 
 		assert.EqualError(t, err, burstingBrief)
 		assert.NotContains(t, err.Error(), contractRequestID)
@@ -325,7 +265,7 @@ func TestV2ErrorContractRealSDKNasCancelDirQuota(t *testing.T) {
 		quotaStatus = http.StatusBadRequest
 		quotaBrief  = "OpenAPI returned error: " + quotaMsg + " (" + quotaCode + ")"
 	)
-	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+	_, ctx := ktesting.NewTestContext(t)
 
 	endpoint, hits := newFailingOpenAPIServer(t, "nas.aliyuncs.com", quotaStatus, quotaCode, quotaMsg)
 	client, err := nas20170626.NewClient(failingOpenAPIConfig(endpoint))
@@ -358,17 +298,14 @@ func TestV2ErrorContractRealSDKNasCancelDirQuota(t *testing.T) {
 	})
 
 	// ------------------------------------------------------------ wrapped behaviour
-	t.Run("wrappedErrorKeepsErrorCodeChainAndStaysBrief", func(t *testing.T) {
+	t.Run("wrappedErrorKeepsErrorCodeAndStaysBrief", func(t *testing.T) {
 		before := hits()
-		resp, err := V2(logger, client.CancelDirQuota)(req)
+		resp, err := NAS(client).CancelDirQuotaWithContext(ctx, req, &dara.RuntimeOptions{})
 		require.Error(t, err)
 
 		// The exact predicate CancelDirQuota uses to ignore a missing quota.
-		assert.True(t, errors.Is(err, ErrorCode(quotaCode)),
-			"ErrorCode(%q) is no longer in the unwrap chain; CancelDirQuota would stop being idempotent", quotaCode)
-		var code ErrorCode
-		require.ErrorAs(t, err, &code)
-		assert.Equal(t, ErrorCode(quotaCode), code)
+		assert.Equal(t, quotaCode, cloud.ErrorCodeV2(err),
+			"CancelDirQuota would stop being idempotent")
 
 		assert.EqualError(t, err, quotaBrief)
 		assert.NotContains(t, err.Error(), contractRequestID)

@@ -14,6 +14,7 @@ import (
 
 	openapiutil "github.com/alibabacloud-go/darabonba-openapi/v2/utils"
 	nas20170626 "github.com/alibabacloud-go/nas-20170626/v4/client"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
@@ -50,9 +51,16 @@ const (
 	wireTimeoutAccessPointID = "ap-1v6dwivx62nxerv6r"
 )
 
-// A REAL vendored client wrapped in the production NasClientV2, so the call travels rate limiter -> wrap.V2 ->
+// A REAL vendored client wrapped in the production NasClientV2, so the call travels rate limiter -> wrap.NAS ->
 // SDK -> dara -> net/http. ReadTimeout and RetryOptions stay unset, so one call is ONE HTTP attempt.
 func newTimeoutWireNasClient(t *testing.T, handler http.HandlerFunc) *NasClientV2 {
+	t.Helper()
+	client, _ := newTimeoutWireNasClientWithSDK(t, handler)
+	return client
+}
+
+// Also returns the raw SDK client underneath the decorator, for tests that need to tamper with it.
+func newTimeoutWireNasClientWithSDK(t *testing.T, handler http.HandlerFunc) (*NasClientV2, *nas20170626.Client) {
 	t.Helper()
 
 	srv := httptest.NewServer(handler)
@@ -82,8 +90,8 @@ func newTimeoutWireNasClient(t *testing.T, handler http.HandlerFunc) *NasClientV
 		region: region,
 		// The limiter is not what this file measures, and a throttled Wait would race the 1s ctx deadline.
 		limiter: rate.NewLimiter(rate.Limit(1000), 1000),
-		client:  sdkClient,
-	}
+		client:  wrap.NAS(sdkClient),
+	}, sdkClient
 }
 
 // Without it a MISSING bound would surface as the test binary's own 10-minute timeout and a goroutine dump.
@@ -141,7 +149,7 @@ func assertClientTimeoutError(t *testing.T, err error, scenario string) {
 
 	var urlErr *url.Error
 	require.ErrorAs(t, err, &urlErr,
-		"%s: expected the raw *url.Error net/http produces for a client-deadline abort (wrap.V2 only "+
+		"%s: expected the raw *url.Error net/http produces for a client-deadline abort (wrap.NAS only "+
 			"rewrites *tea.SDKError, so a transport failure must come through untouched); got %T",
 		scenario, err)
 	assert.NotEmpty(t, urlErr.Op, "%s: a *url.Error with an op proves the failure came from the HTTP "+

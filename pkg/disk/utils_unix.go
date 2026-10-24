@@ -23,7 +23,7 @@ import (
 	k8smount "k8s.io/mount-utils"
 )
 
-func getUnmanagedDiskCount(getNode func() (*v1.Node, error), ecs cloud.ECSv2Interface, instanceID, regionID string, dev utilsio.DiskLister) (int, error) {
+func getUnmanagedDiskCount(ctx context.Context, getNode func() (*v1.Node, error), ecs cloud.ECSv2Interface, instanceID, regionID string, dev utilsio.DiskLister) (int, error) {
 	// An attached disk is not managed by us if:
 	// 1. it is not in node.Status.VolumesInUse or node.Status.VolumesAttached; and
 	// 2. it does not have the xattr set.
@@ -44,7 +44,7 @@ func getUnmanagedDiskCount(getNode func() (*v1.Node, error), ecs cloud.ECSv2Inte
 	// disappear from ListDisks after OpenAPI;
 	// ECS OpenAPI should goes before getNode because the just attached disk should
 	// appear in node before OpenAPI;
-	attachedDisks, err := GetAttachedCloudDisks(ecs, instanceID, regionID)
+	attachedDisks, err := GetAttachedCloudDisks(ctx, ecs, instanceID, regionID)
 	if err != nil {
 		return 0, err
 	}
