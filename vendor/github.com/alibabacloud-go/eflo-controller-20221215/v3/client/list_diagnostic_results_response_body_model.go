@@ -22,23 +22,23 @@ type iListDiagnosticResultsResponseBody interface {
 type ListDiagnosticResultsResponseBody struct {
 	// The diagnostic information.
 	DiagnosticResults []*ListDiagnosticResultsResponseBodyDiagnosticResults `json:"DiagnosticResults,omitempty" xml:"DiagnosticResults,omitempty" type:"Repeated"`
-	// Number of items per page in a paginated query. The maximum value is 100.
+	// The number of entries per page in a paged query. Maximum value: 100.
 	//
 	// Default value:
 	//
-	// - If no value is set or the set value is less than 20, the default value is 20.
+	// - If this parameter is not specified or is set to a value less than 20, the default value is 20.
 	//
-	// - If the set value is greater than 100, the default value is 100.
+	// - If this parameter is set to a value greater than 100, the default value is 100.
 	//
 	// example:
 	//
 	// 20
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// NextToken for the next page. Include this value when requesting the next page.
+	// The NextToken for the next page. Include this value when you request the next page.
 	//
 	// example:
 	//
-	// a3f2224a5ec7224116c4f5246120abe4
+	// a3f2224a5ec7224116c4f5246120****
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	// The request ID.
 	//
@@ -110,39 +110,39 @@ type ListDiagnosticResultsResponseBodyDiagnosticResults struct {
 	//
 	// example:
 	//
-	// i118578141694745246055
+	// i11857814169474524****
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// Cluster Name
+	// The cluster name.
 	//
 	// example:
 	//
 	// pjlab-lingjun
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
-	// Creation time of the diagnostic task.
+	// The time when the diagnostic task was created. The time is in ISO 8601 format. Z in the example indicates UTC.
 	//
 	// example:
 	//
 	// 2024-01-15T02:01:12Z
 	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// Diagnostic content. For example, in network diagnostics, there are static configuration checks, dynamic operation checks, and other diagnostic contents.
+	// The diagnostic content. For example, in the network diagnostic type, the diagnostic content includes static configuration checks and dynamic runtime checks.
 	//
 	// example:
 	//
-	// diagcontent
+	// Test diagnostic information
 	DiagContent *string `json:"DiagContent,omitempty" xml:"DiagContent,omitempty"`
-	// Diagnosis ID
+	// The diagnostic ID.
 	//
 	// example:
 	//
 	// 123
 	DiagId *string `json:"DiagId,omitempty" xml:"DiagId,omitempty"`
-	// Diagnostic result, either success or failure.
+	// The diagnostic result, which indicates success or failure.
 	//
 	// example:
 	//
 	// Success
 	DiagResult *string `json:"DiagResult,omitempty" xml:"DiagResult,omitempty"`
-	// Completion time of the diagnostic task.
+	// The time when the diagnostic task was completed. The time is in ISO 8601 format. Z in the example indicates UTC.
 	//
 	// example:
 	//
@@ -152,21 +152,15 @@ type ListDiagnosticResultsResponseBodyDiagnosticResults struct {
 	//
 	// example:
 	//
-	// e01-cn-bl03ofg6206
+	// e01-cn-bl03ofg6****
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// Server name.
+	// The service name.
 	//
 	// example:
 	//
 	// proxy-rps.mos.csvw.com
 	ServerName *string `json:"ServerName,omitempty" xml:"ServerName,omitempty"`
-	// Status of the diagnostic task. Possible values:
-	//
-	// - InProgress: Diagnosing.
-	//
-	// - Finished: Diagnosis completed.
-	//
-	// - Failed: Diagnosis failed.
+	// The governance status.
 	//
 	// example:
 	//

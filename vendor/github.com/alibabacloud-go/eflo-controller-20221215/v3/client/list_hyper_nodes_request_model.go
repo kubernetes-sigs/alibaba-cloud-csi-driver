@@ -38,42 +38,74 @@ type iListHyperNodesRequest interface {
 }
 
 type ListHyperNodesRequest struct {
+	// The cluster name.
+	//
 	// example:
 	//
 	// Standard_Cluster
-	ClusterName   *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
+	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
+	// The commodity code.
+	//
+	// example:
+	//
+	// rds_machineinstanceba_public_cn
 	CommodityCode *string `json:"CommodityCode,omitempty" xml:"CommodityCode,omitempty"`
+	// The cluster number.
+	//
 	// example:
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	// The node ID.
+	//
 	// example:
 	//
 	// e01-cn-zvp2tgykr08
-	HyperNodeId  *string   `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
+	HyperNodeId *string `json:"HyperNodeId,omitempty" xml:"HyperNodeId,omitempty"`
+	// The list of node IDs.
 	HyperNodeIds []*string `json:"HyperNodeIds,omitempty" xml:"HyperNodeIds,omitempty" type:"Repeated"`
+	// The machine type.
+	//
 	// example:
 	//
 	// efg1.nvga1
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
+	// The number of entries per page in a paged query. Maximum value: 100.
+	//
+	// Default value:
+	//
+	// - If this parameter is not specified or is set to a value less than 20, the default value is 20.
+	//
+	// - If this parameter is set to a value greater than 100, the default value is 100.
+	//
 	// example:
 	//
 	// 100
 	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// The pagination token. Set this parameter to the NextToken value returned in the previous API call.
+	//
 	// example:
 	//
 	// 3a6b93229825ac667104463b56790c91
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The name of the node group.
+	//
 	// example:
 	//
 	// emr-default
-	NodeGroupName   *string   `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
+	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
+	// The node status. If this parameter is not specified, all statuses are returned. Valid values: Extending, UnusedNodeStopped, UnusedNodeStopping, Unused, Using, ReleaseLocking, Operating, Cutting, ClusterNodeStopped, UnusedNodeRecovering, ClusterNodeStopping, ClusterNodeRecovering, and Replacing.
 	OperatingStates []*string `json:"OperatingStates,omitempty" xml:"OperatingStates,omitempty" type:"Repeated"`
+	// The resource group ID.
+	//
 	// example:
 	//
 	// rg-acfmwfm33rlt6zi
-	ResourceGroupId *string                      `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	Tags            []*ListHyperNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	// The tag information.
+	Tags []*ListHyperNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	// The zone ID.
+	//
 	// example:
 	//
 	// cn-hangzhou-i
@@ -219,10 +251,14 @@ func (s *ListHyperNodesRequest) Validate() error {
 }
 
 type ListHyperNodesRequestTags struct {
+	// The tag key.
+	//
 	// example:
 	//
 	// alarm_xdc
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The tag value.
+	//
 	// example:
 	//
 	// 129

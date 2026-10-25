@@ -24,13 +24,13 @@ type iCreateVscRequest interface {
 }
 
 type CreateVscRequest struct {
-	// The client token that is used to ensure the idempotence of the request.
+	// A client token to ensure the idempotency of the request.
 	//
 	// example:
 	//
 	// 123e4567-e89b-12d3-a456-426655440000
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// The node ID.
+	// The ID of the node.
 	//
 	// This parameter is required.
 	//
@@ -38,21 +38,21 @@ type CreateVscRequest struct {
 	//
 	// e01-cn-zvp2tgykr08
 	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
-	// The resource group ID.
+	// The ID of the resource group.
 	//
 	// example:
 	//
 	// rg-aek2xdkc6icwfha
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The resource tags.
+	// The tags of the resource.
 	Tag []*CreateVscRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-	// The custom name of the VSC, which is unique on a compute node.
+	// The custom name of the VSC. The name must be unique on a single compute node.
 	//
 	// example:
 	//
 	// test_name
 	VscName *string `json:"VscName,omitempty" xml:"VscName,omitempty"`
-	// The VSC type. Valid values: primary and standard. Default value: primary.
+	// The type of the VSC. Valid values: primary and standard. The default value is primary.
 	//
 	// example:
 	//
@@ -136,13 +136,13 @@ func (s *CreateVscRequest) Validate() error {
 }
 
 type CreateVscRequestTag struct {
-	// The resource tag key.
+	// The tag key.
 	//
 	// example:
 	//
 	// key001
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The resource tag value.
+	// The tag value.
 	//
 	// example:
 	//

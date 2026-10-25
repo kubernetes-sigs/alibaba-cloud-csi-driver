@@ -20,25 +20,25 @@ type iListNetTestResultsResponseBody interface {
 }
 
 type ListNetTestResultsResponseBody struct {
-	// The number of entries to return on each page. Maximum value: 100.
+	// The number of entries per page in a paged query. Maximum value: 100.
 	//
 	// Default value:
 	//
-	// 	- If you do not configure this parameter or if you set this parameter to a value less than 20, the default value is 20.
+	// - If this parameter is not specified or is set to a value less than 20, the default value is 20.
 	//
-	// 	- If you set this parameter to a value that is greater than 100, the default value is 100.
+	// - If this parameter is set to a value greater than 100, the default value is 100.
 	//
 	// example:
 	//
 	// 20
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The results.
+	// The node list.
 	NetTestResults []*ListNetTestResultsResponseBodyNetTestResults `json:"NetTestResults,omitempty" xml:"NetTestResults,omitempty" type:"Repeated"`
-	// The token that is used in the next request to retrieve a new page of results.
+	// The NextToken for the next page. Include this value when requesting the next page.
 	//
 	// example:
 	//
-	// 3a6b93229825ac667104463b56790c91
+	// 3a6b93229825ac667104463b5679****
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	// The request ID.
 	//
@@ -110,7 +110,7 @@ type ListNetTestResultsResponseBodyNetTestResults struct {
 	//
 	// example:
 	//
-	// i110667211718265012218
+	// i11066721171826501****
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
 	// The cluster name.
 	//
@@ -118,23 +118,23 @@ type ListNetTestResultsResponseBodyNetTestResults struct {
 	//
 	// test
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
-	// Returned when NetTestType is CommTest.
+	// The communication library test information. This parameter is required when the test type is communication library test.
 	CommTest *ListNetTestResultsResponseBodyNetTestResultsCommTest `json:"CommTest,omitempty" xml:"CommTest,omitempty" type:"Struct"`
-	// The creation time.
+	// The creation time. The time is in ISO 8601 format. Z in the example indicates UTC.
 	//
 	// example:
 	//
 	// 2024-01-19T02:18:12Z
 	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// Returned when NetTestType is DelayTest.
+	// The latency test information. This parameter is returned when the network test type is latency test.
 	DelayTest *ListNetTestResultsResponseBodyNetTestResultsDelayTest `json:"DelayTest,omitempty" xml:"DelayTest,omitempty" type:"Struct"`
-	// The finish time.
+	// The completion time. The time is in ISO 8601 format. Z in the example indicates UTC.
 	//
 	// example:
 	//
 	// 2024-10-30T02:07Z
 	FinishedTime *string `json:"FinishedTime,omitempty" xml:"FinishedTime,omitempty"`
-	// The type of the network test.
+	// The network test type.
 	//
 	// example:
 	//
@@ -146,19 +146,19 @@ type ListNetTestResultsResponseBodyNetTestResults struct {
 	//
 	// 01
 	NetworkMode *string `json:"NetworkMode,omitempty" xml:"NetworkMode,omitempty"`
-	// The port number.
+	// The test port number.
 	//
 	// example:
 	//
 	// 80
 	Port *string `json:"Port,omitempty" xml:"Port,omitempty"`
-	// The status of the network test task. Valid values:\\
+	// The network test task status. Valid values:</br>
 	//
-	// ● InProgress\\
+	// ● InProgress: The test is in progress.</br>
 	//
-	// ● Finished\\
+	// ● Finished: The test is complete.</br>
 	//
-	// ● Failed
+	// ● Failed: The test failed.
 	//
 	// example:
 	//
@@ -170,7 +170,7 @@ type ListNetTestResultsResponseBodyNetTestResults struct {
 	//
 	// String	i-uf6i0tv2refv8wz*****
 	TestId *string `json:"TestId,omitempty" xml:"TestId,omitempty"`
-	// Returned when NetTestType is TrafficTest.
+	// The traffic test information. This parameter is returned when the network test type is traffic test.
 	TrafficTest *ListNetTestResultsResponseBodyNetTestResultsTrafficTest `json:"TrafficTest,omitempty" xml:"TrafficTest,omitempty" type:"Struct"`
 }
 
@@ -316,7 +316,7 @@ type ListNetTestResultsResponseBodyNetTestResultsCommTest struct {
 	//
 	// 4
 	GPUNum *string `json:"GPUNum,omitempty" xml:"GPUNum,omitempty"`
-	// The hosts of the test node.
+	// The hosts of the test nodes.
 	Hosts []*ListNetTestResultsResponseBodyNetTestResultsCommTestHosts `json:"Hosts,omitempty" xml:"Hosts,omitempty" type:"Repeated"`
 	// The communication library model.
 	//
@@ -324,7 +324,7 @@ type ListNetTestResultsResponseBodyNetTestResultsCommTest struct {
 	//
 	// AllToAll
 	Model *string `json:"Model,omitempty" xml:"Model,omitempty"`
-	// The CommTest type, which can be ACCL or NCCL.
+	// The communication library test category. Valid values: ACCL or NCCL.
 	//
 	// example:
 	//
@@ -390,7 +390,7 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) Validate() error 
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsCommTestHosts struct {
-	// The IP address of the node.
+	// The node IP address.
 	//
 	// example:
 	//
@@ -400,9 +400,9 @@ type ListNetTestResultsResponseBodyNetTestResultsCommTestHosts struct {
 	//
 	// example:
 	//
-	// e01-cn-wwo3eteze19
+	// e01-cn-wwo3ete****
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The name of the service.
+	// The service name.
 	//
 	// example:
 	//
@@ -450,7 +450,7 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsCommTestHosts) Validate() e
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsDelayTest struct {
-	// The hosts.
+	// The resources.
 	Hosts []*ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts `json:"Hosts,omitempty" xml:"Hosts,omitempty" type:"Repeated"`
 }
 
@@ -485,13 +485,13 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTest) Validate() error
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts struct {
-	// The bonding of network interface card.
+	// The NIC bond interface.
 	//
 	// example:
 	//
 	// bond1
 	Bond *string `json:"Bond,omitempty" xml:"Bond,omitempty"`
-	// The IP address of the node.
+	// The node IP address.
 	//
 	// example:
 	//
@@ -501,9 +501,9 @@ type ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts struct {
 	//
 	// example:
 	//
-	// e01-cn-wwo3eteze19
+	// e01-cn-wwo3ete****
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The name of the service.
+	// The service name.
 	//
 	// example:
 	//
@@ -562,33 +562,33 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) Validate() 
 type ListNetTestResultsResponseBodyNetTestResultsTrafficTest struct {
 	// The clients.
 	Clients []*ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients `json:"Clients,omitempty" xml:"Clients,omitempty" type:"Repeated"`
-	// The running duration of the pipeline job. Unit: seconds.
+	// The duration of the workflow task. Unit: seconds.
 	//
 	// example:
 	//
 	// 1
 	Duration *int64 `json:"Duration,omitempty" xml:"Duration,omitempty"`
-	// If the protocol is RDMA, can be True or False. If the protocol is TCP, this field is empty.
+	// Specifies whether GPUDirect RDMA is enabled. Valid values: True and False. This parameter is returned only when the protocol is RDMA. This field is empty when the protocol is TCP.
 	//
 	// example:
 	//
 	// True
 	GDR *string `json:"GDR,omitempty" xml:"GDR,omitempty"`
-	// The network protocol, which can be RDMA or TCP.
+	// The network protocol. Valid values: RDMA or TCP.
 	//
 	// example:
 	//
 	// TCP
 	Protocol *string `json:"Protocol,omitempty" xml:"Protocol,omitempty"`
-	// If the protocol is TCP, the number of concurrent connections. If the protocol is RDMA, the configured QP value.
+	// The number of concurrent connections for TCP tests, or the QP value for RDMA tests.
 	//
 	// example:
 	//
 	// RDMA
 	QP *int64 `json:"QP,omitempty" xml:"QP,omitempty"`
-	// If the TrafficModel is Fullmesh, this parameter is empty.
+	// The servers. This field is empty when the traffic model (TrafficModel) is Fullmesh.
 	Servers []*ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers `json:"Servers,omitempty" xml:"Servers,omitempty" type:"Repeated"`
-	// The traffic model, which can be MTON or Fullmesh.
+	// The traffic model. Valid values: MTON or Fullmesh.
 	//
 	// example:
 	//
@@ -690,7 +690,7 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) Validate() err
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients struct {
-	// The bonding of network interface card.
+	// The NIC bond interface.
 	//
 	// example:
 	//
@@ -708,7 +708,7 @@ type ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients struct {
 	//
 	// e01-cn-20p36bqet39
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The name of the service.
+	// The service name.
 	//
 	// example:
 	//
@@ -765,13 +765,13 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) Validat
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers struct {
-	// The bonding of network interface card.
+	// The NIC bond interface.
 	//
 	// example:
 	//
 	// bond1
 	Bond *string `json:"Bond,omitempty" xml:"Bond,omitempty"`
-	// The IP address of the node.
+	// The node IP address.
 	//
 	// example:
 	//
@@ -781,9 +781,9 @@ type ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers struct {
 	//
 	// example:
 	//
-	// e01-cn-wwo3eteze19
+	// e01-cn-wwo3ete****
 	ResourceId *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
-	// The name of the service.
+	// The service name.
 	//
 	// example:
 	//

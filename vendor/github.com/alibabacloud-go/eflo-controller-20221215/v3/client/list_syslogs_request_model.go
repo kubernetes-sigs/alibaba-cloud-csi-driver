@@ -24,30 +24,42 @@ type iListSyslogsRequest interface {
 }
 
 type ListSyslogsRequest struct {
+	// The start time. Specify a UNIX timestamp in seconds.
+	//
 	// This parameter is required.
 	//
 	// example:
 	//
 	// 1659745800
 	FromTime *string `json:"FromTime,omitempty" xml:"FromTime,omitempty"`
+	// The token for the next page. Include this token when you retrieve the next page of results.
+	//
 	// example:
 	//
 	// 392e8b4a03ed171433cc39f5b464ec9d
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The node ID.
+	//
 	// This parameter is required.
 	//
 	// example:
 	//
 	// e01-cn-nwy37atbj44
 	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	// The query condition.
+	//
 	// example:
 	//
 	// *
 	Query *string `json:"Query,omitempty" xml:"Query,omitempty"`
+	// Specifies whether to query logs in reverse chronological order.
+	//
 	// example:
 	//
 	// true
 	Reverse *bool `json:"Reverse,omitempty" xml:"Reverse,omitempty"`
+	// The end time. Specify a UNIX timestamp in seconds.
+	//
 	// This parameter is required.
 	//
 	// example:

@@ -44,19 +44,19 @@ type DescribeTaskResponseBody struct {
 	//
 	// Standard_Cluster
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
-	// The create time.
+	// The start time. The value is in ISO 8601 format. Z in the example indicates UTC.
 	//
 	// example:
 	//
 	// 2022-11-30T02:00:00.852Z
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The error message returned for failed tasks.
+	// The task failure message.
 	//
 	// example:
 	//
 	// Releasing [prod_main_mid_26e234cf] in region [cn-beijing] with weight [0]
 	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// The IDs of the nodes.
+	// The list of node IDs.
 	NodeIds []*string `json:"NodeIds,omitempty" xml:"NodeIds,omitempty" type:"Repeated"`
 	// The request ID.
 	//
@@ -64,19 +64,9 @@ type DescribeTaskResponseBody struct {
 	//
 	// A7FD7411-9395-52E8-AF42-EB3A4A55446D
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The steps.
+	// The execution steps.
 	Steps []*DescribeTaskResponseBodySteps `json:"Steps,omitempty" xml:"Steps,omitempty" type:"Repeated"`
-	// The task status.
-	//
-	// Valid values:
-	//
-	// 	- running
-	//
-	// 	- execution_success
-	//
-	// 	- execution_fail
-	//
-	// 	- waiting_to_run
+	// The task state.
 	//
 	// example:
 	//
@@ -84,43 +74,11 @@ type DescribeTaskResponseBody struct {
 	TaskState *string `json:"TaskState,omitempty" xml:"TaskState,omitempty"`
 	// The task type.
 	//
-	// Valid values:
-	//
-	// 	- reclone_node_sub_task
-	//
-	// 	- initialize_bare_cluster
-	//
-	// 	- extend_bare_cluster
-	//
-	// 	- reclone_node
-	//
-	// 	- reboot_node
-	//
-	// 	- extend_ack_edge_cluster
-	//
-	// 	- extend_cluster
-	//
-	// 	- initialize_ack_edge_cluster
-	//
-	// 	- cut_node_sub_task
-	//
-	// 	- reboot_node_sub_task
-	//
-	// 	- reclone_ack_edge_node
-	//
-	// 	- initialize_cluster
-	//
-	// 	- cut_cluster
-	//
-	// 	- reclone_bare_node
-	//
-	// 	- cut_bare_cluster
-	//
 	// example:
 	//
 	// cut_cluster
 	TaskType *string `json:"TaskType,omitempty" xml:"TaskType,omitempty"`
-	// The update time.
+	// The update time. Uses ISO 8601 format. The Z in the example indicates UTC.
 	//
 	// example:
 	//
@@ -240,87 +198,45 @@ func (s *DescribeTaskResponseBody) Validate() error {
 }
 
 type DescribeTaskResponseBodySteps struct {
-	// The error message of the step.
+	// The step failure message.
 	//
 	// example:
 	//
 	// get taskinfo failed
 	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// The stage marker.
-	//
-	// Valid values:
-	//
-	// 	- 机器释放: Machine release.
-	//
-	// 	- 节点并发初始化: Node concurrent initialization.
-	//
-	// 	- 节点释放: Node release.
-	//
-	// 	- 机器替换: Machine replacement.
-	//
-	// 	- 节点缩容: Node scale-in.
-	//
-	// 	- 提前续费: Early renewal.
-	//
-	// 	- 物理机清理: Physical machine cleanup.
-	//
-	// 	- 节点清理: Node cleanup.
-	//
-	// 	- 创建K8s集群: Create Kubernetes cluster.
-	//
-	// 	- 网络初始化: Network initialization.
-	//
-	// 	- 节点重启: Node restart.
-	//
-	// 	- 节点退订: Node unsubscribe.
-	//
-	// 	- 集群扩容: Cluster scale-out.
-	//
-	// 	- 异常机器释放: Abnormal machine release.
+	// The stage tag.
 	//
 	// example:
 	//
-	// 节点缩容
+	// node scale-in
 	StageTag *string `json:"StageTag,omitempty" xml:"StageTag,omitempty"`
-	// The start time.
+	// The start time. Z in the example indicates UTC.
 	//
 	// example:
 	//
 	// 2022-11-30T2:00:00.852Z
 	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The name of the step.
+	// The step name.
 	//
 	// example:
 	//
 	// create_vpd
 	StepName *string `json:"StepName,omitempty" xml:"StepName,omitempty"`
-	// The step status.
-	//
-	// Valid values:
-	//
-	// 	- execution_success
-	//
-	// 	- execution_failed
+	// The step execution state.
 	//
 	// example:
 	//
 	// execution_success
 	StepState *string `json:"StepState,omitempty" xml:"StepState,omitempty"`
-	// The type of the step.
-	//
-	// Valid values:
-	//
-	// 	- normal: A normal step has only one successor step.
-	//
-	// 	- dispersive: A dispersive step has multiple successor steps.
+	// The step type.
 	//
 	// example:
 	//
 	// normal
 	StepType *string `json:"StepType,omitempty" xml:"StepType,omitempty"`
-	// The sub tasks.
+	// The subtasks.
 	SubTasks []*DescribeTaskResponseBodyStepsSubTasks `json:"SubTasks,omitempty" xml:"SubTasks,omitempty" type:"Repeated"`
-	// The update time.
+	// The update time. Uses ISO 8601 format. The Z in the example indicates UTC.
 	//
 	// example:
 	//
@@ -422,25 +338,25 @@ func (s *DescribeTaskResponseBodySteps) Validate() error {
 }
 
 type DescribeTaskResponseBodyStepsSubTasks struct {
-	// The creation time.
+	// The creation time. The Z in the example indicates UTC.
 	//
 	// example:
 	//
 	// 2022-11-30T2:00:00.852Z
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// The error message returned for failed sub tasks.
+	// The subtask failure message.
 	//
 	// example:
 	//
 	// Releasing [prod_main_mid_26e234cf] in region [cn-beijing] with weight [0]
 	Message *string `json:"Message,omitempty" xml:"Message,omitempty"`
-	// The task ID.
+	// The node ID.
 	//
 	// example:
 	//
 	// i158805051661047928377
 	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
-	// The task status.
+	// The task execution state.
 	//
 	// example:
 	//
@@ -448,43 +364,11 @@ type DescribeTaskResponseBodyStepsSubTasks struct {
 	TaskState *string `json:"TaskState,omitempty" xml:"TaskState,omitempty"`
 	// The task type.
 	//
-	// Valid values:
-	//
-	// 	- reclone_node_sub_task
-	//
-	// 	- initialize_bare_cluster
-	//
-	// 	- extend_bare_cluster
-	//
-	// 	- reclone_node
-	//
-	// 	- reboot_node
-	//
-	// 	- extend_ack_edge_cluster
-	//
-	// 	- extend_cluster
-	//
-	// 	- initialize_ack_edge_cluster
-	//
-	// 	- cut_node_sub_task
-	//
-	// 	- reboot_node_sub_task
-	//
-	// 	- reclone_ack_edge_node
-	//
-	// 	- initialize_cluster
-	//
-	// 	- cut_cluster
-	//
-	// 	- reclone_bare_node
-	//
-	// 	- cut_bare_cluster
-	//
 	// example:
 	//
 	// cut_node_sub_task
 	TaskType *string `json:"TaskType,omitempty" xml:"TaskType,omitempty"`
-	// The update time.
+	// The update time. Uses ISO 8601 format. The Z in the example indicates UTC.
 	//
 	// example:
 	//

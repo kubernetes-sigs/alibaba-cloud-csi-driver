@@ -20,13 +20,13 @@ type iDescribeSendFileResultsResponseBody interface {
 type DescribeSendFileResultsResponseBody struct {
 	// The file sending records.
 	Invocations *DescribeSendFileResultsResponseBodyInvocations `json:"Invocations,omitempty" xml:"Invocations,omitempty" type:"Struct"`
-	// The request ID.
+	// Id of the request
 	//
 	// example:
 	//
 	// 4FD06DF0-9167-5C6F-A145-F30CA4A15D54
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The total number of the commands.
+	// The total number of commands.
 	//
 	// example:
 	//
@@ -114,23 +114,29 @@ func (s *DescribeSendFileResultsResponseBodyInvocations) Validate() error {
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
-	// The command output.
+	// The output information after command execution.
 	//
-	// If ContentEncoding is set to PlainText in the request, the original command output is returned. If ContentEncoding is set to Base64 in the request, the Base64-encoded command output is returned.
+	// If ContentEncoding is set to PlainText, the original output information is returned.
+	//
+	// If ContentEncoding is set to Base64, the Base64-encoded output information is returned.
 	//
 	// example:
 	//
 	// Base64
 	Content *string `json:"Content,omitempty" xml:"Content,omitempty"`
-	// The content type of the file.
+	// The file content type. Valid values:
 	//
-	// PlainText: The file content is not encoded. Base64: The file content is encoded in Base64. Default value: PlainText.
+	// - PlainText: Plain text.
+	//
+	// - Base64: Base64 encoding.
+	//
+	// Default value: PlainText.
 	//
 	// example:
 	//
 	// PlainText
 	ContentType *string `json:"ContentType,omitempty" xml:"ContentType,omitempty"`
-	// The time when the file sending task was created.
+	// The time when the sending task was created. The time is in ISO 8601 format and includes the time zone offset.
 	//
 	// example:
 	//
@@ -140,7 +146,7 @@ type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
 	//
 	// example:
 	//
-	// Description
+	// Description information
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// The user group of the file.
 	//
@@ -148,39 +154,39 @@ type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
 	//
 	// root
 	FileGroup *string `json:"FileGroup,omitempty" xml:"FileGroup,omitempty"`
-	// The permissions on the file.
+	// The permissions of the file.
 	//
 	// example:
 	//
 	// 0644
 	FileMode *string `json:"FileMode,omitempty" xml:"FileMode,omitempty"`
-	// The owner of the file.
+	// The user of the file.
 	//
 	// example:
 	//
 	// root
 	FileOwner *string `json:"FileOwner,omitempty" xml:"FileOwner,omitempty"`
-	// The overall sending status of the file. The overall sending status of the file varies based on the sending status of the file on all destination instances. Valid values:
+	// The overall sending status of the file. The overall status depends on the combined execution status of all instances in this sending operation. Valid values:
 	//
-	// 	- Pending: The file is being verified or sent. If the sending state of the file on at least one instance is Pending, the overall sending state of the file is Pending.
+	// - Pending: The system is validating or sending the file. If the file sending status of at least one instance is Pending, the overall status is Pending.
 	//
-	// 	- Running: The file is being sent to the instance. If the sending state of the file on at least one instance is Running, the overall sending state of the file is Running.
+	// - Running: The file is being sent on the instance. If the file sending status of at least one instance is Running, the overall status is Running.
 	//
-	// 	- Success: If the sending state of the file on all instances is Success, the overall sending state of the file is Success.
+	// - Success: If the file sending status on all instances is Success, the overall status is Success.
 	//
-	// 	- Failed: If the sending state of the file on all instances is Failed, the overall sending state of the file is Failed. If the sending state of the file on one or more instances is one of the following values, the overall sending state of the file is Failed:
+	// - Failed: If the file sending status on all instances is Failed, the overall status is Failed. The return value is Failed when one or more of the following statuses occur on an instance:
 	//
-	//     	- Invalid: The file is invalid.
+	//     - The specified file parameters are invalid and validation failed (Invalid).
 	//
-	//     	- Aborted: The file failed to be sent to the instances.
+	//     - Failed to send the file to the instance (Aborted).
 	//
-	//     	- Failed: The file failed to be created on the instances.
+	//     - Failed to create the file on the instance (Failed).
 	//
-	//     	- Timeout: The file sending task timed out.
+	//     - File sending timed out (Timeout).
 	//
-	//     	- Error: An error occurred and interrupted the file sending task.
+	//     - An exception occurred during file sending and the operation cannot continue (Error).
 	//
-	// 	- PartialFailed: The file sending task was completed on some instances but failed on other instances. If the sending state of the file is Success on some instances and is Failed on other instances, the overall sending state of the file is PartialFailed.
+	// - PartialFailed: File sending succeeded on some instances but failed on others. If the file sending status on all instances is either Success or Failed, the overall status is PartialFailed.
 	//
 	// example:
 	//
@@ -188,7 +194,7 @@ type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
 	InvocationStatus *string `json:"InvocationStatus,omitempty" xml:"InvocationStatus,omitempty"`
 	// The file sending records.
 	InvokeNodes *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes `json:"InvokeNodes,omitempty" xml:"InvokeNodes,omitempty" type:"Struct"`
-	// The name of the file sending task.
+	// The file sending name.
 	//
 	// example:
 	//
@@ -200,11 +206,11 @@ type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
 	//
 	// 3
 	NodeCount *int32 `json:"NodeCount,omitempty" xml:"NodeCount,omitempty"`
-	// Indicates whether a file was overwritten in the destination directory if the file has the same name as the sent file.
+	// Specifies whether to overwrite the file if a file with the same name already exists in the target directory. Valid values:
 	//
-	// 	- true
+	// - true: Overwrite the file.
 	//
-	// 	- false
+	// - false: Do not overwrite the file.
 	//
 	// Default value: false.
 	//
@@ -212,7 +218,7 @@ type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
 	//
 	// true
 	Overwrite *bool `json:"Overwrite,omitempty" xml:"Overwrite,omitempty"`
-	// The destination directory.
+	// The target path.
 	//
 	// example:
 	//
@@ -355,7 +361,7 @@ func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) Validate() er
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes struct {
-	// The file sending records on a node.
+	// The file sending record of a node.
 	InvokeNode []*DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode `json:"InvokeNode,omitempty" xml:"InvokeNode,omitempty" type:"Repeated"`
 }
 
@@ -390,85 +396,117 @@ func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes) Va
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode struct {
-	// The time when the file sending task was created.
+	// The time when the file sending task was created. The time is in ISO 8601 format. Z in the example indicates UTC.
 	//
 	// example:
 	//
 	// 2023-02-06T07:12:50Z
 	CreationTime *string `json:"CreationTime,omitempty" xml:"CreationTime,omitempty"`
-	// The error code returned when the file failed to be sent to the instance. Valid values:
+	// The error code for the file sending failure. Valid values:
 	//
-	// Null: The file is sent to the instance. NodeNotExists: The specified instance does not exist or has been released. NodeReleased: The instance was released while the file was being sent. NodeNotRunning: The instance was not running while the file sending task was being created. AccountNotExists: The specified account does not exist. ClientNotRunning: Cloud Assistant Agent is not running. ClientNotResponse: Cloud Assistant Agent did not respond. ClientIsUpgrading: Cloud Assistant Agent was being upgraded. ClientNeedUpgrade: Cloud Assistant Agent needs to be upgraded. DeliveryTimeout: The file sending task timed out. FileCreateFail: The file failed to be created. FileAlreadyExists: A file with the same name exists in the specified directory. FileContentInvalid: The file content is invalid. FileNameInvalid: The file name is invalid. FilePathInvalid: The specified directory is invalid. FileAuthorityInvalid: The specified permissions on the file are invalid. UserGroupNotExists: The specified user group does not exist.
+	// - Empty: File sending was normal.
+	//
+	// - NodeNotExists: The specified instance does not exist or has been released.
+	//
+	// - NodeReleased: The instance was released during file sending.
+	//
+	// - NodeNotRunning: The instance was not running when the file sending task was created.
+	//
+	// - AccountNotExists: The specified account does not exist.
+	//
+	// - ClientNotRunning: Cloud Assistant Agent is not running.
+	//
+	// - ClientNotResponse: Cloud Assistant Agent is not responding.
+	//
+	// - ClientIsUpgrading: Cloud Assistant Agent is being upgraded.
+	//
+	// - ClientNeedUpgrade: Cloud Assistant Agent needs to be upgraded.
+	//
+	// - DeliveryTimeout: File sending timed out.
+	//
+	// - FileCreateFail: File creation failed.
+	//
+	// - FileAlreadyExists: A file with the same name already exists in the same path.
+	//
+	// - FileContentInvalid: The file content is invalid.
+	//
+	// - FileNameInvalid: The file name is invalid.
+	//
+	// - FilePathInvalid: The file path is invalid.
+	//
+	// - FileAuthorityInvalid: The file permissions are invalid.
+	//
+	// - UserGroupNotExists: The user group specified during file sending does not exist.
 	//
 	// example:
 	//
 	// AccountNotExists
 	ErrorCode *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
-	// The error message returned if the command failed to be sent or run. Valid values:
+	// The details of the reason why the command failed to be sent or executed. Valid values:
 	//
-	// 	- null: The command is run as expected.
+	// - Empty: The command was executed normally.
 	//
-	// 	- the specified instance does not exists: The specified instance does not exist or is released.
+	// - the specified instance does not exists: The specified instance does not exist or has been released.
 	//
-	// 	- the node has released when create task: The instance is released when the command is being run.
+	// - the node has released when create task: The instance was released during command execution.
 	//
-	// 	- the node is not running when create task: The instance is not in the Running state while the command is being run.
+	// - the node is not running when create task: The instance was not running when the command was executed.
 	//
-	// 	- the command is not applicable: The command is not applicable to the specified instance.
+	// - the command is not applicable: The command is not applicable to the specified instance.
 	//
-	// 	- the specified account does not exists: The specified account does not exist.
+	// - the specified account does not exists: The specified account does not exist.
 	//
-	// 	- the specified directory does not exists: The specified directory does not exist.
+	// - the specified directory does not exists: The specified directory does not exist.
 	//
-	// 	- the cron job expression is invalid: The cron expression that specifies the execution time is invalid.
+	// - the cron job expression is invalid: The specified execution time expression is invalid.
 	//
-	// 	- the aliyun service is not running on the instance: Cloud Assistant Agent is not running.
+	// - the aliyun service is not running on the instance: Cloud Assistant Agent is not running.
 	//
-	// 	- the aliyun service in the instance does not response: Cloud Assistant Agent does not respond.
+	// - the aliyun service in the instance does not response: Cloud Assistant Agent is not responding.
 	//
-	// 	- the aliyun service in the node is upgrading now: Cloud Assistant Agent is being upgraded.
+	// - the aliyun service in the node is upgrading now: Cloud Assistant Agent is being upgraded.
 	//
-	// 	- the aliyun service in the node need upgrade: Cloud Assistant Agent needs to be upgraded.
+	// - the aliyun service in the node need upgrade: Cloud Assistant Agent needs to be upgraded.
 	//
-	// 	- the command delivery has been timeout: The request to send the command timed out.
+	// - the command delivery has been timeout: Sending the command timed out.
 	//
-	// 	- the command execution has been timeout: The command execution timed out.
+	// - the command execution has been timeout: Command execution timed out.
 	//
-	// 	- the command execution got an exception: An exception occurred when the command is being run.
+	// - the command execution got an exception: An exception occurred during command execution.
 	//
-	// 	- the command execution has been interrupted: The command execution is interrupted.
+	// - the command execution has been interrupted: Command execution was interrupted.
 	//
-	// 	- the command execution exit code is not zero: The command execution completes, but the exit code is not 0.
+	// - the command execution exit code is not zero: Command execution ended with a non-zero exit code.
 	//
-	// 	- the specified instance has been released: The instance is released while the file is being sent.
+	// - the specified instance has been released: The instance was released during file sending.
 	//
 	// example:
 	//
 	// the specified instance does not exists
 	ErrorInfo *string `json:"ErrorInfo,omitempty" xml:"ErrorInfo,omitempty"`
-	// The time when the file sending task ends. The time is in the 2020-05-22T17:04:18 format.
+	// The end time, in the format: "2020-05-22T17:04:18".
 	//
 	// example:
 	//
 	// 2023-04-10T10:53:46.156+08:00
 	FinishTime *string `json:"FinishTime,omitempty" xml:"FinishTime,omitempty"`
-	// The status of the file sending task on an instance. Valid values:
+	// The file sending status on a single instance. Valid values:
 	//
-	// 	- Pending: The file is being verified or sent.
+	// - Pending: The system is validating or sending the file.
 	//
-	// 	- Invalid: The file is invalid.
+	// - Invalid: The specified file parameters are invalid and validation failed.
 	//
-	// 	- Running: The file is being sent to the instance.
+	// - Running: The file is being sent on the instance.
 	//
-	// 	- Aborted: The file failed to be sent to the instance.
+	// - Aborted: Failed to send the file to the instance.
 	//
-	// 	- Success: The file is sent.
+	// - Success: File sending completed.
 	//
-	// 	- Failed: The file failed to be created on the instance.
+	// - Failed: Failed to create the file on the instance.
 	//
-	// 	- Error: An error occurred and interrupted the file sending task.
+	// - Error: An exception occurred during file sending and the operation cannot continue.
 	//
-	// 	- Timeout: The file sending task timed out.
+	// - Timeout: File sending timed out.
 	//
 	// example:
 	//
@@ -480,13 +518,13 @@ type DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNo
 	//
 	// e01-cn-9lb3c15m81j
 	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
-	// The start time.
+	// The start time. The time is in ISO 8601 format. Z in the example indicates UTC.
 	//
 	// example:
 	//
 	// 2023-03-30T16:00:00Z
 	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	// The update time.
+	// The update time. The time is in ISO 8601 format. Z in the example indicates UTC.
 	//
 	// example:
 	//

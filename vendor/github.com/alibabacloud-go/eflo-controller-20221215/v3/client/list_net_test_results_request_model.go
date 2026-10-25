@@ -20,35 +20,35 @@ type iListNetTestResultsRequest interface {
 }
 
 type ListNetTestResultsRequest struct {
-	// The number of entries to return on each page. Maximum value: 100.
+	// The number of entries per page in a paged query. Maximum value: 100.
 	//
 	// Default value:
 	//
-	// 	- If you do not configure this parameter or if you set this parameter to a value less than 20, the default value is 20.
+	// - If this parameter is not specified or is set to a value less than 20, the default value is 20.
 	//
-	// 	- If you set this parameter to a value that is greater than 100, the default value is 100.
+	// - If this parameter is set to a value greater than 100, the default value is 100.
 	//
 	// example:
 	//
 	// 20
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The type of the network test.
+	// The network test type.
 	//
 	// example:
 	//
 	// DelayTest
 	NetTestType *string `json:"NetTestType,omitempty" xml:"NetTestType,omitempty"`
-	// The token that determines the start position of the query. Set this parameter to the value of the NextToken parameter that is returned from the last call.
+	// The pagination token. Set this parameter to the value of NextToken that is returned from the previous API call.
 	//
 	// example:
 	//
-	// 3a6b93229825ac667104463b56790c91
+	// 3a6b93229825ac667104463b5679****
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 	// The resource group ID.
 	//
 	// example:
 	//
-	// rg-acfmxno4vh5muoq
+	// rg-acfmxno4vh5****
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 }
 
