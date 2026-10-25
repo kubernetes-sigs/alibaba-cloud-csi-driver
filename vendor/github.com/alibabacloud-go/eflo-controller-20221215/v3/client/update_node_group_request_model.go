@@ -21,56 +21,64 @@ type iUpdateNodeGroupRequest interface {
 	GetNewNodeGroupName() *string
 	SetNodeGroupId(v string) *UpdateNodeGroupRequest
 	GetNodeGroupId() *string
+	SetRamRoleName(v string) *UpdateNodeGroupRequest
+	GetRamRoleName() *string
+	SetSystemDisk(v *UpdateNodeGroupRequestSystemDisk) *UpdateNodeGroupRequest
+	GetSystemDisk() *UpdateNodeGroupRequestSystemDisk
 	SetUserData(v string) *UpdateNodeGroupRequest
 	GetUserData() *string
 }
 
 type UpdateNodeGroupRequest struct {
-	// Whether file storage mounting is supported
+	// Specifies whether file storage mounting is supported.
 	//
 	// example:
 	//
 	// True
 	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
-	// The default image ID of the node group. If not set, it will not change.
+	// The default image ID of the node group. If you do not specify this parameter, the image ID remains unchanged.
 	//
 	// example:
 	//
 	// i1232142432432
 	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
-	// Key pair name.
+	// The name of the key pair.
 	//
 	// example:
 	//
 	// test
 	KeyPairName *string `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
-	// Login password for machines within the node group
+	// The logon password for the machines in the node group.
 	//
 	// example:
 	//
-	// LoginPassword
+	// Password
 	LoginPassword *string `json:"LoginPassword,omitempty" xml:"LoginPassword,omitempty"`
-	// Node group name
+	// The name of the node group.
 	//
 	// example:
 	//
 	// test-update
 	NewNodeGroupName *string `json:"NewNodeGroupName,omitempty" xml:"NewNodeGroupName,omitempty"`
-	// Node group ID
+	// The ID of the node group.
 	//
 	// example:
 	//
 	// i120021051733814190732
 	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
-	// User-defined script
+	// The name of the RAM role for the node. You can call the ListRoles API operation of RAM to query the RAM roles that you have created. The trusted entity of the role must be Lingjun AI Computing Service. <warning>Submitting an empty string "" clears the RAM role of the node group.</warning>
 	//
 	// example:
 	//
-	// #!/bin/bash
+	// xianwen-test-ram-role
+	RamRoleName *string `json:"RamRoleName,omitempty" xml:"RamRoleName,omitempty"`
+	// The system cloud disk configuration.
+	SystemDisk *UpdateNodeGroupRequestSystemDisk `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
+	// The custom executable shell script. It must be Base64-encoded, and the maximum size of the raw data is 16 KB.
 	//
-	// uptime
+	// example:
 	//
-	// echo "aaaaaaa" >> /tmp/ttttt20250110141010.sh
+	// ZWNobyBoZWxsbyBlY3Mh
 	UserData *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
 }
 
@@ -104,6 +112,14 @@ func (s *UpdateNodeGroupRequest) GetNewNodeGroupName() *string {
 
 func (s *UpdateNodeGroupRequest) GetNodeGroupId() *string {
 	return s.NodeGroupId
+}
+
+func (s *UpdateNodeGroupRequest) GetRamRoleName() *string {
+	return s.RamRoleName
+}
+
+func (s *UpdateNodeGroupRequest) GetSystemDisk() *UpdateNodeGroupRequestSystemDisk {
+	return s.SystemDisk
 }
 
 func (s *UpdateNodeGroupRequest) GetUserData() *string {
@@ -140,11 +156,56 @@ func (s *UpdateNodeGroupRequest) SetNodeGroupId(v string) *UpdateNodeGroupReques
 	return s
 }
 
+func (s *UpdateNodeGroupRequest) SetRamRoleName(v string) *UpdateNodeGroupRequest {
+	s.RamRoleName = &v
+	return s
+}
+
+func (s *UpdateNodeGroupRequest) SetSystemDisk(v *UpdateNodeGroupRequestSystemDisk) *UpdateNodeGroupRequest {
+	s.SystemDisk = v
+	return s
+}
+
 func (s *UpdateNodeGroupRequest) SetUserData(v string) *UpdateNodeGroupRequest {
 	s.UserData = &v
 	return s
 }
 
 func (s *UpdateNodeGroupRequest) Validate() error {
+	if s.SystemDisk != nil {
+		if err := s.SystemDisk.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type UpdateNodeGroupRequestSystemDisk struct {
+	// The performance level.
+	//
+	// example:
+	//
+	// PL1
+	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
+}
+
+func (s UpdateNodeGroupRequestSystemDisk) String() string {
+	return dara.Prettify(s)
+}
+
+func (s UpdateNodeGroupRequestSystemDisk) GoString() string {
+	return s.String()
+}
+
+func (s *UpdateNodeGroupRequestSystemDisk) GetPerformanceLevel() *string {
+	return s.PerformanceLevel
+}
+
+func (s *UpdateNodeGroupRequestSystemDisk) SetPerformanceLevel(v string) *UpdateNodeGroupRequestSystemDisk {
+	s.PerformanceLevel = &v
+	return s
+}
+
+func (s *UpdateNodeGroupRequestSystemDisk) Validate() error {
 	return dara.Validate(s)
 }

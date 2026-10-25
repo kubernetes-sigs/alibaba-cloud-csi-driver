@@ -14,6 +14,8 @@ type iDescribeNodeTypeRequest interface {
 }
 
 type DescribeNodeTypeRequest struct {
+	// The node scaling mode.
+	//
 	// example:
 	//
 	// standard

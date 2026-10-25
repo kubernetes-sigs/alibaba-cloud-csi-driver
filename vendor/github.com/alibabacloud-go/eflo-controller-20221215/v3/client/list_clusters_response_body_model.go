@@ -18,9 +18,9 @@ type iListClustersResponseBody interface {
 }
 
 type ListClustersResponseBody struct {
-	// The clusters.
+	// The cluster information.
 	Clusters []*ListClustersResponseBodyClusters `json:"Clusters,omitempty" xml:"Clusters,omitempty" type:"Repeated"`
-	// The returned pagination token which can be used in the next request to retrieve a new page of results.
+	// The pagination token returned by this call.
 	//
 	// example:
 	//
@@ -87,7 +87,7 @@ type ListClustersResponseBodyClusters struct {
 	//
 	// example:
 	//
-	// PPU-cluster2 bz
+	// Test cluster
 	ClusterDescription *string `json:"ClusterDescription,omitempty" xml:"ClusterDescription,omitempty"`
 	// The cluster ID.
 	//
@@ -103,14 +103,6 @@ type ListClustersResponseBodyClusters struct {
 	ClusterName *string `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
 	// The cluster type.
 	//
-	// Valid values:
-	//
-	// 	- AckEdgePro
-	//
-	// 	- ExclusiveBareCluster
-	//
-	// 	- Lite
-	//
 	// example:
 	//
 	// AckEdgePro
@@ -121,17 +113,17 @@ type ListClustersResponseBodyClusters struct {
 	//
 	// {}
 	Components interface{} `json:"Components,omitempty" xml:"Components,omitempty"`
-	// The IP type of the computing network.
+	// The IP version of the computing network.
 	//
 	// example:
 	//
 	// IPv4
 	ComputingIpVersion *string `json:"ComputingIpVersion,omitempty" xml:"ComputingIpVersion,omitempty"`
-	// The creation time.
+	// The creation time. The time is in ISO 8601 format.
 	//
 	// example:
 	//
-	// 1672134938
+	// 2026-01-27T14:54:02.360
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
 	// The cluster number.
 	//
@@ -153,16 +145,6 @@ type ListClustersResponseBodyClusters struct {
 	NodeGroupCount *int64 `json:"NodeGroupCount,omitempty" xml:"NodeGroupCount,omitempty"`
 	// The cluster status.
 	//
-	// Valid values:
-	//
-	// 	- running
-	//
-	// 	- expanding
-	//
-	// 	- shrinking
-	//
-	// 	- initializing
-	//
 	// example:
 	//
 	// initializing
@@ -173,21 +155,21 @@ type ListClustersResponseBodyClusters struct {
 	//
 	// rg-aek2ajbjoloa23q
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags.
+	// The tag information.
 	Tags []*ListClustersResponseBodyClustersTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
-	// The job ID.
+	// The task ID.
 	//
 	// example:
 	//
 	// i156365121663149566024
 	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
-	// The update time.
+	// The update time. The time is in ISO 8601 format.
 	//
 	// example:
 	//
-	// 1672134968
+	// 2026-01-28T20:56:32.585
 	UpdateTime *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
-	// The virtual private cloud (VPC) ID.
+	// The VPC ID.
 	//
 	// example:
 	//
@@ -365,13 +347,13 @@ type ListClustersResponseBodyClustersTags struct {
 	//
 	// example:
 	//
-	// aa_key
+	// env
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	// The tag value.
 	//
 	// example:
 	//
-	// aa_value
+	// daily
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

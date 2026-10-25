@@ -34,13 +34,13 @@ type ListClusterNodesRequest struct {
 	//
 	// i15b480fbd2fcdbc2869cd80
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// The number of entries per page. Default value: 20.
+	// The number of entries per page in a paged query. Default value: 20.
 	//
 	// example:
 	//
 	// 20
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The token that determines the start position of the query. Set this parameter to the value of the NextToken parameter that is returned from the last call.
+	// The pagination token. Set this parameter to the value of NextToken that was returned in the previous API call.
 	//
 	// example:
 	//
@@ -51,15 +51,16 @@ type ListClusterNodesRequest struct {
 	// example:
 	//
 	// ng-ec3c96ff0aa4c60d
-	NodeGroupId     *string   `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	// The list of node states.
 	OperatingStates []*string `json:"OperatingStates,omitempty" xml:"OperatingStates,omitempty" type:"Repeated"`
 	// The resource group ID.
 	//
 	// example:
 	//
-	// rg-xxkxkllss
+	// rg-ksld39333ss
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags.
+	// The tag information.
 	Tags []*ListClusterNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 }
 
@@ -148,17 +149,17 @@ func (s *ListClusterNodesRequest) Validate() error {
 }
 
 type ListClusterNodesRequestTags struct {
-	// The tag key for the node.
+	// The key of the node tag.
 	//
 	// example:
 	//
-	// aa_key
+	// my_key
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The tag value for the node.
+	// The value of the node tag.
 	//
 	// example:
 	//
-	// aa_value
+	// my_value
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

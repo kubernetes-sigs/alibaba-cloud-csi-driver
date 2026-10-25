@@ -78,13 +78,13 @@ type DescribeClusterResponseBody struct {
 	ClusterType *string `json:"ClusterType,omitempty" xml:"ClusterType,omitempty"`
 	// The component information.
 	Components []*DescribeClusterResponseBodyComponents `json:"Components,omitempty" xml:"Components,omitempty" type:"Repeated"`
-	// The IP type of the computing network.
+	// The IP version of the computing network.
 	//
 	// example:
 	//
 	// IPv4
 	ComputingIpVersion *string `json:"ComputingIpVersion,omitempty" xml:"ComputingIpVersion,omitempty"`
-	// The creation time.
+	// The creation time. The time is in ISO 8601 format. Z in the example indicates UTC.
 	//
 	// example:
 	//
@@ -110,7 +110,7 @@ type DescribeClusterResponseBody struct {
 	//
 	// 2
 	NodeGroupCount *int64 `json:"NodeGroupCount,omitempty" xml:"NodeGroupCount,omitempty"`
-	// The status of Jumbo Frames for the elastic network interface (ENI).
+	// The jumbo frame setting for the network interface.
 	//
 	// example:
 	//
@@ -134,21 +134,31 @@ type DescribeClusterResponseBody struct {
 	//
 	// rg-aek2k3rqlvv6ytq
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	// The security group ID.
+	//
+	// example:
+	//
+	// sg-0jlff84q4o3s58i7fkhy
 	SecurityGroupId *string `json:"SecurityGroupId,omitempty" xml:"SecurityGroupId,omitempty"`
-	// The job ID.
+	// The task ID.
 	//
 	// example:
 	//
 	// i152609221670466904596
 	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
-	// The update time.
+	// The update time. The time is in ISO 8601 format. Z in the example indicates UTC.
 	//
 	// example:
 	//
 	// 2022-08-23T06:36:17.000Z
 	UpdateTime *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
-	VSwitchId  *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// The ID of the virtual private cloud (VPC).
+	// The vSwitch ID.
+	//
+	// example:
+	//
+	// vsw-0jlwrfecgcbflyosvo242
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The VPC ID.
 	//
 	// example:
 	//
@@ -371,12 +381,6 @@ type DescribeClusterResponseBodyComponents struct {
 	ComponentId *string `json:"ComponentId,omitempty" xml:"ComponentId,omitempty"`
 	// The component type.
 	//
-	// Valid values:
-	//
-	// 	- ARMS
-	//
-	// 	- ACKEdge
-	//
 	// example:
 	//
 	// ACKEdge
@@ -414,7 +418,7 @@ func (s *DescribeClusterResponseBodyComponents) Validate() error {
 }
 
 type DescribeClusterResponseBodyNetworks struct {
-	// The ID of the CIDR block for the cluster.
+	// The cluster CIDR block ID.
 	//
 	// example:
 	//

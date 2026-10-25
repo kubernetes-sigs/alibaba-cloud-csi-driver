@@ -14,6 +14,8 @@ type iDeleteHyperNodeRequest interface {
 }
 
 type DeleteHyperNodeRequest struct {
+	// The hyper node ID.
+	//
 	// This parameter is required.
 	//
 	// example:

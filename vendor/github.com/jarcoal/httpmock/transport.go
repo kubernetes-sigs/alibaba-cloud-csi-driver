@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 
 	"github.com/jarcoal/httpmock/internal"
 )
@@ -38,10 +39,10 @@ func methodProbablyWrong(method string) bool {
 	return !stdMethods[method] && stdMethods[strings.ToUpper(method)]
 }
 
-// ConnectionFailure is a responder that returns a connection failure.
-// This is the default responder and is called when no other matching
-// responder is found. See [RegisterNoResponder] to override this
-// default behavior.
+// ConnectionFailure is a responder that returns the error
+// [NoResponderFound]. This is the default responder and is called
+// when no other matching responder is found. See
+// [RegisterNoResponder] to override this default behavior.
 func ConnectionFailure(*http.Request) (*http.Response, error) {
 	return nil, NoResponderFound
 }
@@ -414,7 +415,7 @@ func (m *MockTransport) Responders() []string {
 
 func runCancelable(responder Responder, req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
-	if req.Cancel == nil && ctx.Done() == nil { // nolint: staticcheck
+	if req.Cancel == nil && ctx.Done() == nil { //nolint: staticcheck
 		resp, err := responder(req)
 		return resp, internal.CheckStackTracer(req, err)
 	}
@@ -432,7 +433,7 @@ func runCancelable(responder Responder, req *http.Request) (*http.Response, erro
 
 	go func() {
 		select {
-		case <-req.Cancel: // nolint: staticcheck
+		case <-req.Cancel: //nolint: staticcheck
 			resultch <- result{
 				response: nil,
 				err:      errors.New("request canceled"),
@@ -526,7 +527,7 @@ func isRegexpURL(url string) bool {
 	return strings.HasPrefix(url, regexpPrefix)
 }
 
-func (m *MockTransport) checkMethod(method string, matcher Matcher) {
+func (m *MockTransport) checkMethod(method string) {
 	if !m.DontCheckMethod && methodProbablyWrong(method) {
 		panic(fmt.Sprintf("You probably want to use method %q instead of %q? If not and so want to disable this check, set MockTransport.DontCheckMethod field to true",
 			strings.ToUpper(method),
@@ -594,7 +595,7 @@ func (m *MockTransport) checkMethod(method string, matcher Matcher) {
 // Note that [github.com/maxatome/tdhttpmock] provides powerful helpers
 // to create matchers with the help of [github.com/maxatome/go-testdeep].
 func (m *MockTransport) RegisterMatcherResponder(method, url string, matcher Matcher, responder Responder) {
-	m.checkMethod(method, matcher)
+	m.checkMethod(method)
 
 	mr := matchResponder{
 		matcher:   matcher,
@@ -707,7 +708,7 @@ found:
 		if mr.responder != nil {
 			m.regexpResponders = append(m.regexpResponders, rxResp)
 		}
-		break // nolint: staticcheck
+		break //nolint: staticcheck
 	}
 
 	mrk := matchRouteKey{
@@ -775,7 +776,7 @@ found:
 // Note that [github.com/maxatome/tdhttpmock] provides powerful helpers
 // to create matchers with the help of [github.com/maxatome/go-testdeep].
 func (m *MockTransport) RegisterRegexpMatcherResponder(method string, urlRegexp *regexp.Regexp, matcher Matcher, responder Responder) {
-	m.checkMethod(method, matcher)
+	m.checkMethod(method)
 
 	m.registerRegexpResponder(regexpResponder{
 		origRx:     regexpPrefix + urlRegexp.String(),
@@ -951,7 +952,7 @@ func sortedQuery(m url.Values) string {
 	sort.Strings(keys)
 
 	var b bytes.Buffer
-	var values []string // nolint: prealloc
+	var values []string //nolint: prealloc
 
 	for _, k := range keys {
 		// Do not alter the passed url.Values
@@ -1096,9 +1097,16 @@ var oldClientsLock sync.Mutex
 // To enable mocks for a test, simply activate at the beginning of a test:
 //
 //	func TestFetchArticles(t *testing.T) {
-//	  httpmock.Activate()
+//	  httpmock.Activate(t)
 //	  // all http requests using http.DefaultTransport will now be intercepted
 //	}
+//
+// t is optional, when present it allows to automatically call
+// [DeactivateAndReset] at the end of the test. It is strictly
+// equivalent to:
+//
+//	httpmock.Activate()
+//	t.Cleanup(httpmock.DeactivateAndReset)
 //
 // If you want all of your tests in a package to be mocked, just call
 // [Activate] from init():
@@ -1113,7 +1121,7 @@ var oldClientsLock sync.Mutex
 //	  httpmock.Activate()
 //	  os.Exit(m.Run())
 //	}
-func Activate() {
+func Activate(t ...testing.TB) {
 	if Disabled() {
 		return
 	}
@@ -1124,18 +1132,30 @@ func Activate() {
 		InitialTransport = http.DefaultTransport
 	}
 
+	if len(t) > 0 && t[0] != nil {
+		t[0].Cleanup(DeactivateAndReset)
+	}
+
 	http.DefaultTransport = DefaultTransport
 }
 
 // ActivateNonDefault starts the mock environment with a non-default
-// [*http.Client].  This emulates the [Activate] function, but allows for
-// custom clients that do not use [http.DefaultTransport].
+// [*http.Client]. This emulates the [Activate] function, but allows
+// for custom clients that do not use [http.DefaultTransport]
+// directly. To do so, it overrides the client Transport field with
+// [DefaultTransport].
 //
-// To enable mocks for a test using a custom client, activate at the
-// beginning of a test:
+// To enable mocks for a test using a custom client, like:
 //
-//	client := &http.Client{Transport: &http.Transport{TLSHandshakeTimeout: 60 * time.Second}}
+//	transport := http.DefaultTransport.(*http.Transport).Clone()
+//	transport.TLSHandshakeTimeout = 60 * time.Second
+//	client := &http.Client{Transport: transport}
+//
+// activate at the beginning of the test:
+//
 //	httpmock.ActivateNonDefault(client)
+//
+// See also [DeactivateNonDefault], [Deactivate] and [DeactivateAndReset].
 func ActivateNonDefault(client *http.Client) {
 	if Disabled() {
 		return
@@ -1148,6 +1168,100 @@ func ActivateNonDefault(client *http.Client) {
 		oldClients[client] = client.Transport
 	}
 	client.Transport = DefaultTransport
+}
+
+// DeactivateNonDefault shuts down the mock environment for
+// client. Any HTTP calls made after this will use the transport used
+// before [ActivateNonDefault] call.
+//
+// See also [Deactivate] and [DeactivateAndReset].
+func DeactivateNonDefault(client *http.Client) {
+	if Disabled() {
+		return
+	}
+
+	oldClientsLock.Lock()
+	defer oldClientsLock.Unlock()
+	if tr, ok := oldClients[client]; ok {
+		delete(oldClients, client)
+		client.Transport = tr
+	}
+}
+
+// Deactivate shuts down the mock environment.  Any HTTP calls made
+// after this will use a live transport.
+//
+// Usually you'll call it in a [testing.T.Cleanup] right after
+// activating the mock environment:
+//
+//	func TestFetchArticles(t *testing.T) {
+//	  httpmock.Activate()
+//	  t.Cleanup(httpmock.Deactivate)
+//
+//	  // when this test ends, the mock environment will close
+//	}
+//
+// Note that registered mocks and corresponding counters are not
+// removed. The next time [Activate] will be called they will be
+// active again. Use [DeactivateAndReset] to also remove registered
+// mocks & counters.
+//
+// It also restores all clients Transport field previously overridden
+// by [ActivateNonDefault]. Unlike globally registered mocks, these
+// clients won't be mocked anymore the next time [Activate] will be
+// called.
+//
+// See also [Reset] and [DeactivateAndReset].
+func Deactivate() {
+	if Disabled() {
+		return
+	}
+
+	if InitialTransport != nil {
+		http.DefaultTransport = InitialTransport
+	}
+
+	// reset the custom clients to use their original RoundTripper
+	oldClientsLock.Lock()
+	defer oldClientsLock.Unlock()
+	for oldClient, oldTransport := range oldClients {
+		oldClient.Transport = oldTransport
+		delete(oldClients, oldClient)
+	}
+}
+
+// Reset removes any registered mocks and returns the mock
+// environment to its initial state. It zeroes call counters too.
+//
+// See also [DeactivateAndReset].
+func Reset() {
+	DefaultTransport.Reset()
+}
+
+// DeactivateAndReset is just a convenience method for calling
+// [Deactivate] and then [Reset].
+//
+// Often called at the end of the test like in:
+//
+//	func TestFetchArticles(t *testing.T) {
+//	  httpmock.Activate()
+//	  t.Cleanup(httpmock.DeactivateAndReset)
+//
+//	  // when this test ends, the mock environment will close
+//	}
+//
+// you may prefer the simpler:
+//
+//	func TestFetchArticles(t *testing.T) {
+//	  httpmock.Activate(t)
+//
+//	  // when this test ends, the mock environment will close
+//	}
+//
+// See [Activate].
+func DeactivateAndReset() {
+	Deactivate()
+	Reset()
 }
 
 // GetCallCountInfo gets the info on all the calls httpmock has caught
@@ -1174,67 +1288,14 @@ func GetCallCountInfo() map[string]int {
 }
 
 // GetTotalCallCount gets the total number of calls httpmock has taken
-// since it was activated or reset.
+// since it was first activated or last reset.
 func GetTotalCallCount() int {
 	return DefaultTransport.GetTotalCallCount()
-}
-
-// Deactivate shuts down the mock environment.  Any HTTP calls made
-// after this will use a live transport.
-//
-// Usually you'll call it in a defer right after activating the mock
-// environment:
-//
-//	func TestFetchArticles(t *testing.T) {
-//	  httpmock.Activate()
-//	  defer httpmock.Deactivate()
-//
-//	  // when this test ends, the mock environment will close
-//	}
-//
-// Since go 1.14 you can also use [*testing.T.Cleanup] method as in:
-//
-//	func TestFetchArticles(t *testing.T) {
-//	  httpmock.Activate()
-//	  t.Cleanup(httpmock.Deactivate)
-//
-//	  // when this test ends, the mock environment will close
-//	}
-//
-// useful in test helpers to save your callers from calling defer themselves.
-func Deactivate() {
-	if Disabled() {
-		return
-	}
-	http.DefaultTransport = InitialTransport
-
-	// reset the custom clients to use their original RoundTripper
-	oldClientsLock.Lock()
-	defer oldClientsLock.Unlock()
-	for oldClient, oldTransport := range oldClients {
-		oldClient.Transport = oldTransport
-		delete(oldClients, oldClient)
-	}
-}
-
-// Reset removes any registered mocks and returns the mock
-// environment to its initial state. It zeroes call counters too.
-func Reset() {
-	DefaultTransport.Reset()
 }
 
 // ZeroCallCounters zeroes call counters without touching registered responders.
 func ZeroCallCounters() {
 	DefaultTransport.ZeroCallCounters()
-}
-
-// DeactivateAndReset is just a convenience method for calling
-// [Deactivate] and then [Reset].
-//
-// Happy deferring!
-func DeactivateAndReset() {
-	Deactivate()
-	Reset()
 }
 
 // RegisterMatcherResponder adds a new responder, associated with a given
@@ -1310,8 +1371,8 @@ func DeactivateAndReset() {
 //
 // If method is a lower-cased version of CONNECT, DELETE, GET, HEAD,
 // OPTIONS, POST, PUT or TRACE, a panics occurs to notice the possible
-// mistake. This panic can be disabled by setting m.DontCheckMethod to
-// true prior to this call.
+// mistake. This panic can be disabled by setting
+// [DefaultTransport].DontCheckMethod to true prior to this call.
 //
 // See also [RegisterResponder] if a matcher is not needed.
 //
@@ -1422,8 +1483,8 @@ func RegisterResponder(method, url string, responder Responder) {
 //
 // If method is a lower-cased version of CONNECT, DELETE, GET, HEAD,
 // OPTIONS, POST, PUT or TRACE, a panics occurs to notice the possible
-// mistake. This panic can be disabled by setting m.DontCheckMethod to
-// true prior to this call.
+// mistake. This panic can be disabled by setting
+// [DefaultTransport].DontCheckMethod to true prior to this call.
 //
 // See [RegisterRegexpResponder] if a matcher is not needed.
 //
@@ -1458,7 +1519,7 @@ func RegisterRegexpMatcherResponder(method string, urlRegexp *regexp.Regexp, mat
 // If method is a lower-cased version of CONNECT, DELETE, GET, HEAD,
 // OPTIONS, POST, PUT or TRACE, a panics occurs to notice the possible
 // mistake. This panic can be disabled by setting
-// DefaultTransport.DontCheckMethod to true prior to this call.
+// [DefaultTransport].DontCheckMethod to true prior to this call.
 func RegisterRegexpResponder(method string, urlRegexp *regexp.Regexp, responder Responder) {
 	DefaultTransport.RegisterRegexpResponder(method, urlRegexp, responder)
 }
@@ -1504,8 +1565,8 @@ func RegisterRegexpResponder(method string, urlRegexp *regexp.Regexp, responder 
 //
 // If method is a lower-cased version of CONNECT, DELETE, GET, HEAD,
 // OPTIONS, POST, PUT or TRACE, a panics occurs to notice the possible
-// mistake. This panic can be disabled by setting m.DontCheckMethod to
-// true prior to this call.
+// mistake. This panic can be disabled by setting
+// [DefaultTransport].DontCheckMethod to true prior to this call.
 //
 // See also [RegisterResponderWithQuery] if a matcher is not needed.
 //
@@ -1592,7 +1653,7 @@ func RegisterMatcherResponderWithQuery(method, path string, query any, matcher M
 // If method is a lower-cased version of CONNECT, DELETE, GET, HEAD,
 // OPTIONS, POST, PUT or TRACE, a panics occurs to notice the possible
 // mistake. This panic can be disabled by setting
-// DefaultTransport.DontCheckMethod to true prior to this call.
+// [DefaultTransport].DontCheckMethod to true prior to this call.
 func RegisterResponderWithQuery(method, path string, query any, responder Responder) {
 	RegisterMatcherResponderWithQuery(method, path, query, Matcher{}, responder)
 }

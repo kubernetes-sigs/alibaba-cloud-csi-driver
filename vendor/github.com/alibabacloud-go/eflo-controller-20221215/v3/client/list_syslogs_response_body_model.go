@@ -18,7 +18,10 @@ type iListSyslogsResponseBody interface {
 }
 
 type ListSyslogsResponseBody struct {
+	// The paginated list of log objects.
 	Logs []*ListSyslogsResponseBodyLogs `json:"Logs,omitempty" xml:"Logs,omitempty" type:"Repeated"`
+	// The NextToken for the next page. Include this value in the request to retrieve the next page of results.
+	//
 	// example:
 	//
 	// 563d42ae0b17572449ec8c97f7f66069
@@ -80,74 +83,110 @@ func (s *ListSyslogsResponseBody) Validate() error {
 }
 
 type ListSyslogsResponseBodyLogs struct {
+	// The cluster ID.
+	//
 	// example:
 	//
 	// i119583961673208491760
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
+	// The security domain of the client.
+	//
 	// example:
 	//
 	// ALIYUN_PUBLIC
 	Domain *string `json:"Domain,omitempty" xml:"Domain,omitempty"`
+	// The Linux syslog standard field.
+	//
 	// example:
 	//
 	// kern
 	Facility *string `json:"Facility,omitempty" xml:"Facility,omitempty"`
+	// The hostname of the client.
+	//
 	// example:
 	//
 	// damo-m53kr8kd-0008
 	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
+	// The IP address of the client.
+	//
 	// example:
 	//
 	// 114.55.254.44
 	Ip *string `json:"Ip,omitempty" xml:"Ip,omitempty"`
+	// The syslog content.
+	//
 	// example:
 	//
 	// bond4: failed to get link speed/duplex for eth8
 	Msg *string `json:"Msg,omitempty" xml:"Msg,omitempty"`
+	// The node ID.
+	//
 	// example:
 	//
 	// e01-cn-9lb36u4s601
 	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	// The Linux syslog standard field.
+	//
 	// example:
 	//
 	// warning
 	Severity *string `json:"Severity,omitempty" xml:"Severity,omitempty"`
+	// The unique identifier of the machine.
+	//
 	// example:
 	//
 	// 21A401332
 	Sn *string `json:"Sn,omitempty" xml:"Sn,omitempty"`
+	// The hostname of the syslog server.
+	//
 	// example:
 	//
 	// damo-m53kr8kd-0008
 	Source *string `json:"Source,omitempty" xml:"Source,omitempty"`
+	// The Linux syslog standard field.
+	//
 	// example:
 	//
 	// kernel
 	Syslogtag *string `json:"Syslogtag,omitempty" xml:"Syslogtag,omitempty"`
+	// The tag for the hostname.
+	//
 	// example:
 	//
 	// damo-m53kr8kd-0008
 	TagHostname *string `json:"TagHostname,omitempty" xml:"TagHostname,omitempty"`
+	// The tag for the pack ID.
+	//
 	// example:
 	//
 	// D990314D3C25D7E8-1080
 	TagPackId *string `json:"TagPackId,omitempty" xml:"TagPackId,omitempty"`
+	// The tag for the path.
+	//
 	// example:
 	//
 	// /var/log/kern
 	TagPath *string `json:"TagPath,omitempty" xml:"TagPath,omitempty"`
+	// The tag for the receive time. Specify a UNIX timestamp in seconds.
+	//
 	// example:
 	//
 	// 1687363348
 	TagReceiveTime *string `json:"TagReceiveTime,omitempty" xml:"TagReceiveTime,omitempty"`
+	// The tag for the user-defined ID.
+	//
 	// example:
 	//
 	// application_b
 	TagUserDefinedId *string `json:"TagUserDefinedId,omitempty" xml:"TagUserDefinedId,omitempty"`
+	// The time in UNIX timestamp format.
+	//
 	// example:
 	//
 	// 1687363346
 	Time *string `json:"Time,omitempty" xml:"Time,omitempty"`
+	// The topic, which is logserver or log2sls. Both are syslog servers. logserver collects logs over TCP, and log2sls collects logs over UDP.
+	//
 	// example:
 	//
 	// logserver

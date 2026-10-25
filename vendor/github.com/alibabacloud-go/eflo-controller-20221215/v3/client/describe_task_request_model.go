@@ -14,7 +14,7 @@ type iDescribeTaskRequest interface {
 }
 
 type DescribeTaskRequest struct {
-	// The task ID.
+	// The node ID.
 	//
 	// This parameter is required.
 	//

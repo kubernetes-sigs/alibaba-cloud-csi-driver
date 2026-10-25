@@ -97,6 +97,7 @@ type SDKError struct {
 	Stack              *string
 	errMsg             *string
 	Description        *string
+	Detail             *string
 	AccessDeniedDetail map[string]interface{}
 }
 
@@ -205,6 +206,9 @@ func NewSDKError(obj map[string]interface{}) *SDKError {
 	if obj["description"] != nil {
 		err.Description = String(obj["description"].(string))
 	}
+	if obj["detail"] != nil {
+		err.Detail = String(obj["detail"].(string))
+	}
 	if detail := obj["accessDeniedDetail"]; detail != nil {
 		r := reflect.ValueOf(detail)
 		if r.Kind().String() == "map" {
@@ -261,11 +265,20 @@ func (err *SDKError) SetErrMsg(msg string) {
 	err.errMsg = String(msg)
 }
 
+func (err *SDKError) GetDetail() *string {
+	return err.Detail
+}
+
 func (err *SDKError) Error() string {
 	if err.errMsg == nil {
-		str := fmt.Sprintf("SDKError:\n   StatusCode: %d\n   Code: %s\n   Message: %s\n   Data: %s\n",
-			IntValue(err.StatusCode), StringValue(err.Code), StringValue(err.Message), StringValue(err.Data))
-		err.SetErrMsg(str)
+		var b strings.Builder
+		fmt.Fprintf(&b, "SDKError:\n   StatusCode: %d\n   Code: %s\n   Message: %s\n",
+			IntValue(err.StatusCode), StringValue(err.Code), StringValue(err.Message))
+		if d := strings.TrimSpace(StringValue(err.Detail)); d != "" {
+			fmt.Fprintf(&b, "   Detail: %s\n", d)
+		}
+		fmt.Fprintf(&b, "   Data: %s\n", StringValue(err.Data))
+		err.SetErrMsg(b.String())
 	}
 	return StringValue(err.errMsg)
 }

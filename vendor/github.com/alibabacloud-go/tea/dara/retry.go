@@ -120,7 +120,8 @@ func NewExponentialBackoffPolicy(option map[string]interface{}) *ExponentialBack
 }
 
 func (e *ExponentialBackoffPolicy) GetDelayTime(ctx *RetryPolicyContext) int {
-	randomTime := int(math.Pow(2, float64(ctx.RetriesAttempted)*float64(e.Period)))
+	// period * 2^retries (align with C# / standard exponential backoff)
+	randomTime := int(float64(e.Period) * math.Pow(2, float64(ctx.RetriesAttempted)))
 	if randomTime > e.Cap {
 		return e.Cap
 	}
@@ -152,7 +153,8 @@ func NewEqualJitterBackoffPolicy(option map[string]interface{}) *EqualJitterBack
 }
 
 func (e *EqualJitterBackoffPolicy) GetDelayTime(ctx *RetryPolicyContext) int {
-	ceil := int64(math.Min(float64(e.Cap), float64(math.Pow(2, float64(ctx.RetriesAttempted)*float64(e.Period)))))
+	// period * 2^retries (aligned with C# EqualJitterBackoffPolicy)
+	ceil := int64(math.Min(float64(e.Cap), math.Pow(2, float64(ctx.RetriesAttempted))*float64(e.Period)))
 	randNum := rand.Int63n(ceil/2 + 1)
 	return int(ceil/2 + randNum)
 }
@@ -181,7 +183,8 @@ func NewFullJitterBackoffPolicy(option map[string]interface{}) *FullJitterBackof
 }
 
 func (f *FullJitterBackoffPolicy) GetDelayTime(ctx *RetryPolicyContext) int {
-	ceil := int64(math.Min(float64(f.Cap), float64(math.Pow(2, float64(ctx.RetriesAttempted)*float64(f.Period)))))
+	// period * 2^retries (aligned with C# FullJitterBackoffPolicy)
+	ceil := int64(math.Min(float64(f.Cap), math.Pow(2, float64(ctx.RetriesAttempted))*float64(f.Period)))
 	return int(rand.Int63n(ceil))
 }
 

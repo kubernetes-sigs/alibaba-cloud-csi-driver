@@ -309,6 +309,24 @@ func (provider *CLIProfileCredentialsProvider) GetProviderName() string {
 	return "cli_profile"
 }
 
+// findSourceOAuthProfile 递归查找 OAuth source profile
+func (conf *configuration) findSourceOAuthProfile(profileName string) (*profile, error) {
+	profile, err := conf.getProfile(profileName)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get profile with name '%s' from cli credentials file: %v", profileName, err)
+	}
+
+	if profile.Mode == "OAuth" {
+		return profile, nil
+	}
+
+	if profile.SourceProfile != "" {
+		return conf.findSourceOAuthProfile(profile.SourceProfile)
+	}
+
+	return nil, fmt.Errorf("unable to get OAuth profile with name '%s' from cli credentials file", profileName)
+}
+
 // updateOAuthTokens 更新OAuth令牌并写回配置文件
 func (provider *CLIProfileCredentialsProvider) updateOAuthTokens(refreshToken, accessToken, accessKey, secret, securityToken string, accessTokenExpire, stsExpire int64) error {
 	provider.fileMutex.Lock()
@@ -321,19 +339,28 @@ func (provider *CLIProfileCredentialsProvider) updateOAuthTokens(refreshToken, a
 	}
 
 	profileName := provider.profileName
-	profile, err := conf.getProfile(profileName)
-	if err != nil {
-		return fmt.Errorf("failed to get profile %s: %v", profileName, err)
+	if profileName == "" {
+		profileName = conf.Current
+	}
+	if profileName == "" {
+		return fmt.Errorf("unable to get profile to update")
 	}
 
-	// update
-	profile.OauthRefreshToken = refreshToken
-	profile.OauthAccessToken = accessToken
-	profile.OauthAccessTokenExpire = accessTokenExpire
-	profile.AccessKeyID = accessKey
-	profile.AccessKeySecret = secret
-	profile.SecurityToken = securityToken
-	profile.StsExpire = stsExpire
+	// 递归查找真正的 OAuth source profile
+	sourceProfile, err := conf.findSourceOAuthProfile(profileName)
+	if err != nil {
+		return fmt.Errorf("failed to find OAuth source profile: %v", err)
+	}
+
+	// update OAuth tokens
+	sourceProfile.OauthRefreshToken = refreshToken
+	sourceProfile.OauthAccessToken = accessToken
+	sourceProfile.OauthAccessTokenExpire = accessTokenExpire
+	// update STS credentials
+	sourceProfile.AccessKeyID = accessKey
+	sourceProfile.AccessKeySecret = secret
+	sourceProfile.SecurityToken = securityToken
+	sourceProfile.StsExpire = stsExpire
 
 	// write back with file lock
 	return provider.writeConfigurationToFileWithLock(cfgPath, conf)

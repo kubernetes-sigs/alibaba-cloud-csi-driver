@@ -14,7 +14,7 @@ type iDescribeDiagnosticResultRequest interface {
 }
 
 type DescribeDiagnosticResultRequest struct {
-	// The diagnostic task ID.
+	// The diagnostic ID.
 	//
 	// example:
 	//

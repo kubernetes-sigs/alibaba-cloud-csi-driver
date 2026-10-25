@@ -16,13 +16,13 @@ type iCreateVscResponseBody interface {
 }
 
 type CreateVscResponseBody struct {
-	// The request ID.
+	// The ID of the request.
 	//
 	// example:
 	//
 	// 887FA855-89F4-5DB3-B305-C5879EC480E6
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The VSC ID.
+	// The ID of the VSC that is created.
 	//
 	// example:
 	//

@@ -32,25 +32,25 @@ type ListFreeNodesRequest struct {
 	//
 	// A1
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
-	// The instance type.
+	// The machine type.
 	//
 	// example:
 	//
 	// mock-machine-type2
 	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
-	// The number of entries per page. Default value: 20.
+	// The number of entries per page for a paged query. Default value: 20.
 	//
 	// example:
 	//
 	// 20
 	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	// The token that determines the start position of the query. Set this parameter to the value of the NextToken parameter that is returned from the last call.
+	// The pagination token. Set this parameter to the value of NextToken that is returned from the previous API call.
 	//
 	// example:
 	//
 	// a3f2224a5ec7224116c4f5246120abe4
 	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// The types of the returned nodes that are not used.
+	// The type of unused nodes to return.
 	OperatingStates []*string `json:"OperatingStates,omitempty" xml:"OperatingStates,omitempty" type:"Repeated"`
 	// The resource group ID.
 	//
@@ -58,7 +58,7 @@ type ListFreeNodesRequest struct {
 	//
 	// rg-acfmxno4vh5muoq
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	// The tags.
+	// The tag information.
 	Tags []*ListFreeNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 }
 
@@ -151,13 +151,13 @@ type ListFreeNodesRequestTags struct {
 	//
 	// example:
 	//
-	// key_aa
+	// my_key
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
 	// The tag value.
 	//
 	// example:
 	//
-	// value_aa
+	// 129
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 

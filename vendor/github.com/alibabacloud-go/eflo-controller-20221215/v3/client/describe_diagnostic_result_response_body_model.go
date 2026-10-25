@@ -36,13 +36,13 @@ type DescribeDiagnosticResultResponseBody struct {
 	//
 	// i118913031696573280136
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// The creation time.
+	// The time when the device was created. The time is in ISO 8601 format.
 	//
 	// example:
 	//
 	// 2024-06-15T10:17:56
 	CreatedTime *string `json:"CreatedTime,omitempty" xml:"CreatedTime,omitempty"`
-	// The diagnostic task ID.
+	// The diagnostic ID.
 	//
 	// example:
 	//
@@ -56,19 +56,19 @@ type DescribeDiagnosticResultResponseBody struct {
 	//
 	// Fault
 	DiagnosticState *string `json:"DiagnosticState,omitempty" xml:"DiagnosticState,omitempty"`
-	// The type of the diagnostic task.
+	// The diagnostic type.
 	//
 	// example:
 	//
 	// CheckByAiJobLogs
 	DiagnosticType *string `json:"DiagnosticType,omitempty" xml:"DiagnosticType,omitempty"`
-	// The end time of the instance exception. The time format with time zone based on the ISO8601 standard. The format is yyyy-MM-ddTHH:mm:ss +0800.
+	// The time when the node exception ended. The time is in ISO 8601 format with a time zone, in the yyyy-MM-ddTHH:mm:ss+0800 format.
 	//
 	// example:
 	//
 	// 2024-06-11T10:00:30
 	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	// The node IDs.
+	// The list of node IDs.
 	NodeIds []*string `json:"NodeIds,omitempty" xml:"NodeIds,omitempty" type:"Repeated"`
 	// The request ID.
 	//

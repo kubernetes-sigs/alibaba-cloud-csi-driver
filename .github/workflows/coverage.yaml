@@ -17,7 +17,7 @@ jobs:
         with:
           fetch-depth: 0
           filter: blob:none
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: 'go.mod'
 
@@ -47,4 +47,4 @@ jobs:
 
       - name: Report coverage
         if: steps.changed.outputs.skip != 'true' || github.event_name == 'push'
-        uses: k1LoW/octocov-action@b3b6ee60482a667950f87553abf1df63217235d9 # v1.5.1
+        uses: k1LoW/octocov-action@a167dc0dee441b7ffc45e1b862ab55ec0d87f278 # v1.5.2
