@@ -111,7 +111,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 		if server == "" || filesystemId == "" {
 			return nil, status.Error(codes.InvalidArgument, "invalid nas server")
 		}
-		filesystemType = getFilesystemTypeFromAPIOrServer(filesystemId, server, cs.nasClient)
+		filesystemType = getFilesystemTypeFromAPIOrServer(ctx, filesystemId, server, cs.nasClient)
 		// set volumeContext
 		if protocol := parameters["mountProtocol"]; protocol != "" {
 			volumeContext["mountProtocol"] = protocol
@@ -197,7 +197,7 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 	} else {
 		server := attributes["server"]
 		filesystemId = getNASIDFromMapOrServer(attributes, server)
-		filesystemType := getFilesystemTypeFromAPIOrServer(filesystemId, server, cs.nasClient)
+		filesystemType := getFilesystemTypeFromAPIOrServer(ctx, filesystemId, server, cs.nasClient)
 		if filesystemType == cloud.FilesystemTypeStandard {
 			var err error
 			recycleBinEnabled, err = cs.isRecycleBinEnabled(ctx, filesystemId)

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	sdk "github.com/alibabacloud-go/nas-20170626/v4/client"
 	oldcred "github.com/aliyun/credentials-go/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,12 +28,11 @@ func (c *blockedDeleteCredential) GetCredential() (*oldcred.CredentialModel, err
 
 func TestDeleteAccesspointDoesNotSendAfterCredentialRefreshExceedsDeadline(t *testing.T) {
 	var hits atomic.Int32
-	client := newTimeoutWireNasClient(t, func(w http.ResponseWriter, r *http.Request) {
+	client, real := newTimeoutWireNasClientWithSDK(t, func(w http.ResponseWriter, r *http.Request) {
 		hits.Add(1)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"RequestId":"unexpected-late-delete"}`))
 	})
-	real := client.client.(*sdk.Client)
 	credential := &blockedDeleteCredential{
 		Credential: real.Credential,
 		started:    make(chan struct{}),

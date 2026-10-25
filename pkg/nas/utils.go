@@ -518,8 +518,8 @@ func getCPFSIDFromMapOrServer(params map[string]string, server string) string {
 	}
 }
 
-func getFilesystemTypeFromAPIOrServer(filesystemID, server string, client interfaces.NasClientV2Interface) string {
-	fs, err := client.DescribeFileSystems(context.TODO(), filesystemID)
+func getFilesystemTypeFromAPIOrServer(ctx context.Context, filesystemID, server string, client interfaces.NasClientV2Interface) string {
+	fs, err := client.DescribeFileSystems(ctx, filesystemID)
 	if err != nil {
 		klog.ErrorS(err, "DescribeFileSystems failed")
 	}

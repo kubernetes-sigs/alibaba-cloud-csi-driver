@@ -12,6 +12,7 @@ import (
 	openapiutil "github.com/alibabacloud-go/darabonba-openapi/v2/utils"
 	nas20170626 "github.com/alibabacloud-go/nas-20170626/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
@@ -288,7 +289,7 @@ func TestListAccessPointsWireContract(t *testing.T) {
 			region: "cn-hangzhou",
 			// A throttled Wait would only add noise and a >250ms "throttled NAS request" log line.
 			limiter: rate.NewLimiter(rate.Limit(1000), 1000),
-			client:  sdkClient,
+			client:  wrap.NAS(sdkClient),
 		}
 
 		resp, err := client.ListAccesspoints(t.Context(), spaceFilterRequest(wireAgenticSpaceID))
