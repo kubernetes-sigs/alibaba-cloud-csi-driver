@@ -755,6 +755,21 @@ func TestParseOptionsMountOptionsCannotSetControlFields(t *testing.T) {
 	assert.Empty(t, opts.CredentialRefreshHookKey)
 }
 
+func TestParseOptionsMountOptionsCaseInsensitiveInfra(t *testing.T) {
+	for _, key := range []string{
+		"credentialDir", "CredentialDir", "CREDENTIALDIR",
+		"SandboxId", "SANDBOXID",
+		"jwtauth_endpoint", "JWTAUTH_ENDPOINT", "Jwtauth_Endpoint",
+		"jwtauth_token_file", "jwtauth_cred_provider", "jwtauth_ca_file",
+	} {
+		t.Run(key, func(t *testing.T) {
+			opts, err := parseOptions(mountFlagsReq(key + "=x"))
+			require.NoError(t, err)
+			assert.Empty(t, opts.MountOptions, "%s must be dropped regardless of case", key)
+		})
+	}
+}
+
 // The agent-identity settings are refused on stronger grounds than the rest of the
 // control fields, and the consequence is only visible past makeMountOptions: three
 // of them are emitted there ahead of the entries left in MountOptions, and

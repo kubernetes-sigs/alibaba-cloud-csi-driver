@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -40,6 +41,11 @@ type Opts struct {
 func (o Opts) Validate() error {
 	if o.SandboxId == "" {
 		return fmt.Errorf("sandboxId is required")
+	}
+	// The sandbox id names a token file under the token directory, so keep it
+	// to a single path element.
+	if strings.ContainsAny(o.SandboxId, `/\`) || strings.Contains(o.SandboxId, "..") {
+		return fmt.Errorf("sandboxId %q must be a single path element", o.SandboxId)
 	}
 	if o.CredProvider == "" {
 		return fmt.Errorf("credential provider name is required")

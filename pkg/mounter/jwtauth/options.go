@@ -1,6 +1,8 @@
 package jwtauth
 
 import (
+	"strings"
+
 	"golang.org/x/sys/unix"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
@@ -41,6 +43,25 @@ var InfraOptionKeys = map[string]struct{}{
 	OptTokenFile:               {},
 	OptCredProvider:            {},
 	OptCAFile:                  {},
+}
+
+// infraOptionNames is InfraOptionKeys folded to lower case, for callers that
+// compare option names case-insensitively. Volume parameter names are matched
+// that way elsewhere, so a key differing only in case is still recognised as
+// the infrastructure option it names.
+var infraOptionNames = func() map[string]struct{} {
+	names := make(map[string]struct{}, len(InfraOptionKeys))
+	for key := range InfraOptionKeys {
+		names[strings.ToLower(key)] = struct{}{}
+	}
+	return names
+}()
+
+// IsInfraOptionName reports whether name, compared case-insensitively, is one
+// of the infrastructure-only options in InfraOptionKeys.
+func IsInfraOptionName(name string) bool {
+	_, ok := infraOptionNames[strings.ToLower(name)]
+	return ok
 }
 
 // IsAgentIdentity reports whether the given authType selects the

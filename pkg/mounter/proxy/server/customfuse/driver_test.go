@@ -1,6 +1,7 @@
 package customfuse
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -545,6 +546,43 @@ func TestExtendedMount(t *testing.T) {
 		assert.Contains(t, err.Error(), "mount timeout after")
 		assert.Less(t, elapsed, 5*time.Second, "the attempt must stop at the deadline it was given")
 	})
+}
+
+func TestExtendedMountPassesStdinToChild(t *testing.T) {
+	cred := "ak-secret\nsk-secret\ntok-secret\n2099-01-01T00:00:00Z\n"
+	outFile := filepath.Join(t.TempDir(), "stdin.txt")
+	envFile := filepath.Join(t.TempDir(), "env.txt")
+	argvFile := filepath.Join(t.TempDir(), "argv.txt")
+
+	m := newTestMounter(t, false, func(string) *exec.Cmd {
+		return exec.Command("sh", "-c", fmt.Sprintf(
+			`cat > %s; printenv > %s; printf '%%s\n' "$@" > %s; sleep 30`,
+			outFile, envFile, argvFile))
+	})
+	op := &mounter.MountOperation{
+		Target: t.TempDir(),
+		Stdin:  bytes.NewReader([]byte(cred)),
+	}
+
+	require.NoError(t, m.ExtendedMount(context.Background(), op))
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(outFile)
+		return err == nil
+	}, 5*time.Second, 10*time.Millisecond)
+
+	got, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+	assert.Equal(t, cred, string(got), "stdin must reach the child unchanged")
+
+	env, err := os.ReadFile(envFile)
+	require.NoError(t, err)
+	assert.NotContains(t, string(env), "ak-secret", "credential must not be in the child's environment")
+	assert.NotContains(t, string(env), "tok-secret")
+
+	argv, err := os.ReadFile(argvFile)
+	require.NoError(t, err)
+	assert.NotContains(t, string(argv), "sk-secret", "credential must not be in the child's arguments")
 }
 
 // The examples all fork a preparation subprocess before exec'ing the client, to

@@ -3,6 +3,7 @@ package jwtauth
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
@@ -89,4 +90,30 @@ func TestInfraOptionKeysExcludesAuthType(t *testing.T) {
 		_, ok := InfraOptionKeys[key]
 		assert.True(t, ok, "%s must be stripped before the mount", key)
 	}
+}
+
+func TestIsInfraOptionNameCaseInsensitive(t *testing.T) {
+	for _, key := range []string{OptSandboxId, OptEndpoint, OptTokenFile} {
+		assert.True(t, IsInfraOptionName(key), "%s should be recognised", key)
+		assert.True(t, IsInfraOptionName(strings.ToUpper(key)), "upper-case %s should be recognised", key)
+		assert.True(t, IsInfraOptionName(strings.ToLower(key)), "lower-case %s should be recognised", key)
+	}
+	assert.False(t, IsInfraOptionName("bucket"), "bucket is not an infra option")
+	assert.False(t, IsInfraOptionName("authType"), "authType is not infra")
+}
+
+func TestValidateRejectsSandboxIdWithPathSeparators(t *testing.T) {
+	opts := func(sid string) Opts {
+		return Opts{SandboxId: sid, CredProvider: "cp", TokenFile: "/tok", Endpoint: "https://e"}
+	}
+	for _, bad := range []string{"../x", "a/b", `a\b`, "a..b"} {
+		t.Run(bad, func(t *testing.T) {
+			err := opts(bad).Validate()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "single path element")
+		})
+	}
+	t.Run("valid", func(t *testing.T) {
+		assert.NoError(t, opts("sandbox-1").Validate())
+	})
 }

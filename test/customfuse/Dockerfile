@@ -31,6 +31,7 @@ RUN yum install -y util-linux && yum clean all
 COPY --link --from=builder /out/csi-mount-proxy-server /usr/local/bin/
 COPY --link --from=builder /out/csi-mount-proxy-client /usr/local/bin/
 COPY test/customfuse/mock-entrypoint.sh /entrypoint.sh
+COPY test/customfuse/mock-refresh-hook.sh /refresh-hook.sh
 COPY test/oss/ossutils-linux /usr/local/bin/ossutil
-RUN chmod +x /entrypoint.sh /usr/local/bin/ossutil
+RUN chmod +x /entrypoint.sh /refresh-hook.sh /usr/local/bin/ossutil
 ENTRYPOINT ["csi-mount-proxy-server", "--driver=customfuse"]

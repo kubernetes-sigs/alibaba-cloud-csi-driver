@@ -128,10 +128,10 @@ on a human reading logs:
 ```
 CSITEST_ENV source=mock://cfmock-static     one line per variable the driver should set
 CSITEST_ENVKEY <name>                       every variable present, names only
-CSITEST_CREDFILE AccessKeyId                files under $credentialDir, names only
+CSITEST_CREDLINE AccessKeyId                credential fields read from stdin, names only
 CSITEST_MOUNTED /run/fuse.customfuse/…      the tmpfs is up
 CSITEST_OSSPROBE initial=ok prefix=sub/     the delivered credential was tried against the bucket
-CSITEST_CREDROTATED n=1 at=18:24:12Z        what is on disk was replaced
+CSITEST_CREDROTATED n=1 at=18:24:12Z        the refresh hook delivered a new credential
 CSITEST_OSSPROBE rotated1=ok prefix=sub/    and the replacement was tried too — n pairs the two
 ```
 

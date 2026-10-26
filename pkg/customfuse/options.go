@@ -70,7 +70,7 @@ type fuseOptions struct {
 	// The default (empty string) passes Kubernetes Secret entries directly as
 	// environment variables to the FUSE entrypoint. "agent-identity" exchanges
 	// a sandbox token for a scoped STS credential in mount-proxy and delivers
-	// it to the entrypoint as files, refreshed for the mount lifetime.
+	// it to the entrypoint on stdin, refreshed for the mount lifetime.
 	// Planned future value: "rrsa".
 	AuthType string
 	// SandboxId identifies the sandbox whose token is exchanged for a scoped
@@ -83,10 +83,9 @@ type fuseOptions struct {
 	// run after each credential rotation, projected as
 	// /etc/fuse-config/refresh-hook.sh. Only needed to override a hook, or to
 	// supply one without building an image: a hook shipped in the image at
-	// /refresh-hook.sh is picked up on its own. A client that re-reads the
-	// credential files needs no hook at all; one whose credential lives elsewhere
-	// once it has started must be told a rotation happened, and the hook is where
-	// that is expressed. Only meaningful when AuthType is "agent-identity".
+	// /refresh-hook.sh is picked up on its own. The hook is how a rotation
+	// reaches a running client, which has no other way to learn of one. Only
+	// meaningful when AuthType is "agent-identity".
 	CredentialRefreshHookKey string
 	// Capacity is the volume quota passed as $capacity to the entrypoint.
 	// A plain integer (e.g. "100") or a Kubernetes Quantity (e.g. "100Gi") is
@@ -219,11 +218,11 @@ func applyMountOptions(opts *fuseOptions) error {
 		case "mountpoint":
 			klog.Warningf("mountOptions %s is ignored: mountpoint is the path the driver tells the client to mount on, not a volume parameter", key)
 		case "fusetype", "entrypointconfig", "entrypointkey", "dnspolicy", "serviceaccountname", "authtype",
-			"credentialrefreshhookkey":
+			"credentialdir", "credentialrefreshhookkey":
 			klog.Warningf("mountOptions %s is ignored: set %s in volumeAttributes instead", key, key)
 		default:
-			if _, infra := jwtauth.InfraOptionKeys[key]; infra {
-				klog.Warningf("mountOptions %s is ignored: infrastructure key, set in volumeAttributes instead", key)
+			if jwtauth.IsInfraOptionName(name) {
+				klog.Warningf("mountOptions %s is ignored: it configures the credential exchange, which is not set per mount option", key)
 				continue
 			}
 			unrecognized = append(unrecognized, entry)
