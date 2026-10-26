@@ -25,22 +25,19 @@ type Driver interface {
 // because the csi_mount_proxy nftables rule drops mount-broker traffic (dport
 // 12049) from any process in cgroup != 0.
 //
-// Routing is by ownership, not by fstype: a driver returns owned=true only if it
-// actually mounted this target (tracked at mount time). This avoids relying on
-// the kernel fstype, which for alinas AccessPoint mounts is reported as "nfs"
-// rather than "alinas". When owned=false, the target was not mounted by this
-// driver and the caller should try another driver or fall back to local unmount.
+// Requests with Fstype are routed to that driver even after a broker restart.
+// Without it, routing uses tracked ownership. Neither path uses kernel fstype,
+// which may differ from the type originally supplied to Mount.
 type Unmounter interface {
-	// Unmount unmounts target if this driver owns it. It returns owned=false
-	// (with nil err) when the driver has no record of target, so the dispatcher
-	// can try other drivers / signal the client to unmount locally.
-	Unmount(target string) (owned bool, err error)
+	// Unmount returns owned=false if Fstype is empty and the driver has no
+	// record of Target, allowing the dispatcher to try another driver.
+	Unmount(req *proxy.UnmountRequest) (owned bool, err error)
 }
 
 // Refresher is an optional interface a Driver may implement to install a rotated
 // cloud credential on one of its mounts.
 //
-// Unlike Unmount, this is routed by the fstype the client mounted with rather than
+// This is routed by the fstype the client mounted with rather than
 // by what this process remembers mounting: a refresh needs nothing but the mount
 // point, and requiring a memory of the mount would make every rotation fail for
 // the rest of a mount's life once mount-proxy-server restarted.
@@ -67,20 +64,30 @@ func handleMountRequest(ctx context.Context, req *proxy.MountRequest, fuseFd int
 	return h.Mount(ctx, req, fuseFd)
 }
 
-// handleUnmountRequest routes an unmount to whichever registered driver owns the
-// target (tracked at mount time). It does not use fstype. If no driver owns the
-// target, it returns an error whose message is proxy.ErrTargetNotManaged, which
-// the client detects to fall back to a local unmount.
+// handleUnmountRequest routes by the requested driver, or by tracked ownership
+// when Fstype is empty. Unhandled requests return proxy.ErrTargetNotManaged.
 func handleUnmountRequest(_ context.Context, req *proxy.UnmountRequest) error {
 	if req.Target == "" {
 		return fmt.Errorf("empty unmount target")
+	}
+	if req.Fstype != "" {
+		d := fstypeToDriver[req.Fstype]
+		u, ok := d.(Unmounter)
+		if !ok {
+			return fmt.Errorf("%s: %s", proxy.ErrTargetNotManaged, req.Target)
+		}
+		_, err := u.Unmount(req)
+		if err != nil {
+			return fmt.Errorf("driver %q unmount %q: %w", d.Name(), req.Target, err)
+		}
+		return nil
 	}
 	for _, d := range nameToDriver {
 		u, ok := d.(Unmounter)
 		if !ok {
 			continue
 		}
-		owned, err := u.Unmount(req.Target)
+		owned, err := u.Unmount(req)
 		if err != nil {
 			return fmt.Errorf("driver %q unmount %q: %w", d.Name(), req.Target, err)
 		}

@@ -106,14 +106,12 @@ type MountRequest struct {
 // broker (tcp 12049) is not blocked by the csi_mount_proxy nftables rule (which
 // drops dport 12049 from cgroup != 0).
 //
-// Unlike MountRequest, it carries NO fstype: routing is decided by which driver
-// actually owns the target (tracked at mount time), not by the kernel fstype.
-// This avoids the alinas-vs-nfs mismatch (alinas AccessPoint mounts are recorded
-// as fstype "nfs" in the kernel mount table, so fstype-based routing would miss
-// them). If no driver owns the target, the broker returns ErrTargetNotManaged
-// and the caller falls back to a local unmount.
+// Fstype optionally selects the driver used at mount time, allowing unmount
+// after a broker restart. It is not inferred from the kernel mount table.
+// Without Fstype, routing uses the driver's in-memory record of target.
 type UnmountRequest struct {
 	Target string `json:"target,omitempty"`
+	Fstype string `json:"fstype,omitempty"`
 }
 
 // RefreshRequest asks mount-proxy-server to install a rotated cloud credential on

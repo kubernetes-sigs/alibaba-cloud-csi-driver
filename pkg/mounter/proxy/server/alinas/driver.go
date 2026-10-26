@@ -62,22 +62,22 @@ func (h *Driver) Fstypes() []string {
 
 var _ server.Unmounter = (*Driver)(nil)
 
-// Unmount implements server.Unmounter. It unmounts target only if this driver
-// mounted it (tracked in h.targets at mount time), returning owned=false when it
-// has no record of target so the dispatcher can fall back appropriately.
+// Unmount implements server.Unmounter. Without Fstype, it requires a record in
+// h.targets and returns owned=false when none exists. With Fstype, the dispatcher
+// has explicitly selected this driver, so no record is required after a restart.
 //
-// Routing by ownership (not by kernel fstype) is required: alinas AccessPoint
+// Neither path infers the driver from the kernel fstype: alinas AccessPoint
 // mounts are performed with fstype "alinas" but appear as "nfs" in the kernel
-// mount table, so any fstype-based decision would fail to route their unmounts
-// through the broker and the umount.nfs RPC to tcp 12049 would be dropped by the
-// csi_mount_proxy nftables rule (cgroup != 0), blocking ~3s.
-func (h *Driver) Unmount(target string) (owned bool, err error) {
-	if _, ok := h.targets.Load(target); !ok {
-		return false, nil
+// mount table.
+func (h *Driver) Unmount(req *proxy.UnmountRequest) (owned bool, err error) {
+	if req.Fstype == "" {
+		if _, ok := h.targets.Load(req.Target); !ok {
+			return false, nil
+		}
 	}
 	// h.Mounter is the extendedMounter, whose Unmount also deletes the target
 	// from h.targets and stops the jwtauth refresher on success.
-	if err := h.Mounter.Unmount(target); err != nil {
+	if err := h.Mounter.Unmount(req.Target); err != nil {
 		return true, err
 	}
 	return true, nil
@@ -225,7 +225,7 @@ func (h *Driver) Terminate() {
 	h.targets.Range(func(key, _ any) bool {
 		target := key.(string)
 		klog.InfoS("Unmounting NAS mount point on exit", "target", target)
-		if _, err := h.Unmount(target); err != nil {
+		if _, err := h.Unmount(&proxy.UnmountRequest{Target: target}); err != nil {
 			klog.ErrorS(err, "Failed to unmount NAS mount point", "target", target)
 		}
 		return true
@@ -375,11 +375,33 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 }
 
 func (m *extendedMounter) Unmount(target string) error {
-	err := m.Interface.Unmount(target)
-	if err == nil {
-		m.driver.targets.Delete(target)
-		// The mount is gone; stop any jwtauth credential refresher serving it.
-		jwtauth.DefaultManager.StopByTarget(target)
+	mounts, err := m.List()
+	if err != nil {
+		return fmt.Errorf("list mounts before unmounting %q: %w", target, err)
 	}
-	return err
+	var fstype string
+	for i := len(mounts) - 1; i >= 0; i-- {
+		if mounts[i].Path == target {
+			fstype = mounts[i].Type
+			break
+		}
+	}
+	switch fstype {
+	// These are the umount helper suffixes shipped by aliyun-alinas-utils;
+	// all three wrappers invoke mount.alinas -u <target> -o efc.
+	case "fuse.aliyun-alinas-efc", "alifuse.aliyun-alinas-efc", "alifuse.aliyun-alinas-eac":
+		// Invoke the helper directly: a proxy restart can lose /run/mount/utab.
+		out, err := exec.Command("mount.alinas", "-u", target, "-o", "efc").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("EFC unmount %q: %w: %s", target, err, strings.TrimSpace(string(out)))
+		}
+	default:
+		if err := m.Interface.Unmount(target); err != nil {
+			return err
+		}
+	}
+	m.driver.targets.Delete(target)
+	// The mount is gone; stop any jwtauth credential refresher serving it.
+	jwtauth.DefaultManager.StopByTarget(target)
+	return nil
 }

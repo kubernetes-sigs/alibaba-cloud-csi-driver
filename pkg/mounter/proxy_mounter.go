@@ -118,13 +118,14 @@ func (m *ProxyMounter) Refresh(ctx context.Context, op *RefreshOperation) error 
 // umount.nfs issued from a container cgroup would have its RPC to the broker
 // silently dropped (~3s timeout per attempt).
 //
-// The broker decides ownership by target (tracked at mount time), not by fstype.
-// If the broker has no record of target (proxy.ErrTargetNotManaged) or predates
-// the unmount RPC ("invalid method"), ExtendedUnmount returns
-// ErrTargetNotManagedByBroker so the caller can fall back to a local unmount.
-func (m *ProxyMounter) ExtendedUnmount(ctx context.Context, target string) error {
+// fstype selects the driver used at mount time, independently of the broker's
+// in-memory target map. An empty fstype retains routing by tracked ownership.
+// An unowned target with empty fstype, an unavailable driver, or an old broker
+// without the RPC returns ErrTargetNotManagedByBroker; the caller decides
+// whether local fallback is safe.
+func (m *ProxyMounter) ExtendedUnmount(ctx context.Context, target, fstype string) error {
 	dclient := client.NewClient(m.socketPath)
-	resp, err := dclient.Unmount(ctx, &proxy.UnmountRequest{Target: target})
+	resp, err := dclient.Unmount(ctx, &proxy.UnmountRequest{Target: target, Fstype: fstype})
 	if err != nil {
 		return fmt.Errorf("call mounter daemon: %w", err)
 	}
@@ -132,9 +133,10 @@ func (m *ProxyMounter) ExtendedUnmount(ctx context.Context, target string) error
 		// Old mount-proxy-server that predates the unmount RPC replies
 		// proxy.ErrInvalidMethod; brokers that do not own the target reply
 		// proxy.ErrTargetNotManaged. In both cases there is nothing for the
-		// broker to unmount, so let the caller fall back to a local unmount.
-		if strings.Contains(err.Error(), proxy.ErrInvalidMethod) ||
-			strings.Contains(err.Error(), proxy.ErrTargetNotManaged) {
+		// broker to unmount, so let the caller decide whether to fall back.
+		// Match dispatcher errors only, not these words inside a helper failure.
+		if err.Error() == proxy.ErrInvalidMethod || err.Error() == proxy.ErrTargetNotManaged ||
+			strings.HasPrefix(err.Error(), proxy.ErrTargetNotManaged+": ") {
 			return ErrTargetNotManagedByBroker
 		}
 		return fmt.Errorf("failed to unmount via mount broker: %w", err)

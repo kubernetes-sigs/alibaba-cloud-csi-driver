@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,20 +21,21 @@ type fakeUnmountDriver struct {
 }
 
 func (d *fakeUnmountDriver) Name() string                                          { return d.name }
-func (d *fakeUnmountDriver) Fstypes() []string                                     { return nil }
+func (d *fakeUnmountDriver) Fstypes() []string                                     { return []string{d.name} }
 func (d *fakeUnmountDriver) Init()                                                 {}
 func (d *fakeUnmountDriver) Terminate()                                            {}
 func (d *fakeUnmountDriver) Mount(context.Context, *proxy.MountRequest, int) error { return nil }
 func (d *fakeUnmountDriver) ApplyOptionDefaults(o []string) []string               { return o }
 
-func (d *fakeUnmountDriver) Unmount(target string) (bool, error) {
+func (d *fakeUnmountDriver) Unmount(req *proxy.UnmountRequest) (bool, error) {
+	owned := req.Fstype != "" || d.owns[req.Target]
 	if d.err != nil {
-		return d.owns[target], d.err
+		return owned, d.err
 	}
-	if !d.owns[target] {
+	if !owned {
 		return false, nil
 	}
-	d.unmounted = append(d.unmounted, target)
+	d.unmounted = append(d.unmounted, req.Target)
 	return true, nil
 }
 
@@ -56,8 +58,12 @@ func TestHandleUnmount_RoutesToOwningDriver(t *testing.T) {
 	d := &fakeUnmountDriver{name: "fake-owner", owns: map[string]bool{"/mnt/x": true}}
 	withRegisteredDriver(t, d)
 
-	err := handleUnmountRequest(context.Background(), &proxy.UnmountRequest{Target: "/mnt/x"})
-	require.NoError(t, err)
+	// Old clients send only target, without the new fstype field.
+	resp := handle(context.Background(), &rawRequest{
+		Header: proxy.Header{Method: proxy.Unmount},
+		Body:   json.RawMessage(`{"target":"/mnt/x"}`),
+	}, 0)
+	require.Empty(t, resp.Error)
 	assert.Equal(t, []string{"/mnt/x"}, d.unmounted)
 }
 
@@ -68,6 +74,37 @@ func TestHandleUnmount_NotOwned_ReturnsSentinel(t *testing.T) {
 	err := handleUnmountRequest(context.Background(), &proxy.UnmountRequest{Target: "/mnt/unknown"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), proxy.ErrTargetNotManaged)
+	assert.Empty(t, d.unmounted)
+}
+
+func TestHandleUnmount_ExplicitFstypeAfterRestart(t *testing.T) {
+	d := &fakeUnmountDriver{name: "alinas"} // no remembered targets
+	other := &fakeUnmountDriver{name: "other", owns: map[string]bool{"/mnt/x": true}}
+	withRegisteredFstype(t, d, "alinas")
+	withRegisteredDriver(t, other)
+
+	pm := mounter.NewProxyMounter(newTestServer(t), nil)
+	err := pm.(mounter.ProxyUnmounter).ExtendedUnmount(t.Context(), "/mnt/x", "alinas")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/mnt/x"}, d.unmounted)
+	assert.Empty(t, other.unmounted, "an explicit driver must not fall back to another owner")
+}
+
+func TestHandleUnmount_UnknownFstypeDoesNotFallBack(t *testing.T) {
+	d := &fakeUnmountDriver{name: "alinas", owns: map[string]bool{"/mnt/x": true}}
+	withRegisteredDriver(t, d)
+
+	err := handleUnmountRequest(context.Background(), &proxy.UnmountRequest{Target: "/mnt/x", Fstype: "unknown"})
+	require.ErrorContains(t, err, proxy.ErrTargetNotManaged)
+	assert.Empty(t, d.unmounted)
+}
+
+func TestHandleUnmount_RegisteredButDisabledDriver(t *testing.T) {
+	d := &fakeUnmountDriver{name: "alinas"}
+	withRegisteredDriver(t, d) // not configured by Init
+
+	err := handleUnmountRequest(t.Context(), &proxy.UnmountRequest{Target: "/mnt/x", Fstype: "alinas"})
+	require.ErrorContains(t, err, proxy.ErrTargetNotManaged)
 	assert.Empty(t, d.unmounted)
 }
 

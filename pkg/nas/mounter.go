@@ -111,7 +111,7 @@ func (m *NasMounter) unmount(target string, local func() error) error {
 		return local()
 	}
 	logger := klog.Background().WithValues("target", target)
-	err := pu.ExtendedUnmount(context.Background(), target)
+	err := pu.ExtendedUnmount(context.Background(), target, "")
 	switch {
 	case err == nil:
 		logger.Info("unmounted successfully via mount broker")
