@@ -122,7 +122,6 @@ func expiresIn(d time.Duration) *STSToken {
 	}
 }
 
-// fakeSink records the AccessKeyID of each applied credential.
 type fakeSink struct {
 	mu      sync.Mutex
 	applied []string
@@ -275,7 +274,7 @@ func TestRefreshLoopRetriesFailedFetch(t *testing.T) {
 	})
 }
 
-func TestRefreshLoopContinuesOnApplyError(t *testing.T) {
+func TestRefreshLoopRetriesApplyError(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r, sink, mock := newMockRefresher(t)
 		sink.err = assert.AnError
@@ -283,13 +282,11 @@ func TestRefreshLoopContinuesOnApplyError(t *testing.T) {
 		var times []time.Duration
 		mock.RegisterResponder(http.MethodPost, testEndpoint, recordTimes(start, &times, stsResponder(time.Hour)))
 
-		runLoopFor(t, r, expiresIn(time.Hour), 40*time.Minute+2*minSleep+minSleep/2)
+		// Apply fails, so the loop retries with backoff. Only one fetch
+		// happens because the credential was already obtained.
+		runLoopFor(t, r, expiresIn(time.Hour), 40*time.Minute+maxRetryBackoff+1*time.Second)
 
-		// The rejected credential does not replace the initial one, which is
-		// now inside the margin, so the loop keeps retrying every minSleep.
-		assert.Equal(t, []time.Duration{
-			40 * time.Minute, 40*time.Minute + minSleep, 40*time.Minute + 2*minSleep,
-		}, times)
+		assert.Len(t, times, 1, "Apply retry must not re-fetch")
 		assert.Empty(t, sink.appliedIDs())
 	})
 }

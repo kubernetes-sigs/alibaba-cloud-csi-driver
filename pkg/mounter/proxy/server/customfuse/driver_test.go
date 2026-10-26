@@ -338,6 +338,25 @@ func TestEnvNamesNeverCarriesValues(t *testing.T) {
 		envNames([]string{"mountpoint=/mnt/vol", "accessKeySecret=hunter2"}))
 }
 
+// Terminate calls jwtauth.StopAll unconditionally, but a driver serving only
+// Secret-passthrough volumes has never registered a refresher. Stopping nothing
+// must be a no-op rather than an error or a wait.
+func TestTerminateWithoutAnyCredentialRefresher(t *testing.T) {
+	driver := NewDriver()
+
+	done := make(chan struct{})
+	go func() {
+		driver.Terminate()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Terminate blocked with no refreshers registered")
+	}
+}
+
 func envSliceToMap(envs []string) map[string]string {
 	sort.Strings(envs)
 	m := make(map[string]string, len(envs))

@@ -84,8 +84,6 @@ func refreshAlinasCredential(
 	mountPoint string,
 	cred *jwtauth.STSToken,
 ) error {
-	// SECURITY: this JSON is the credential; never log it. The CLI prefers it here
-	// precisely so it stays out of argv.
 	stdin, err := json.Marshal(map[string]string{
 		"ak":    cred.AccessKeyID,
 		"sk":    cred.AccessKeySecret,
