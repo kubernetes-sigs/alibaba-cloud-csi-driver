@@ -67,3 +67,53 @@ func GetTokenRefreshMargin() time.Duration {
 	}
 	return margin
 }
+
+const (
+	ActorUIDKey       = "csi.alibabacloud.com/actor.uid"
+	ActorNameKey      = "csi.alibabacloud.com/actor.name"
+	ActorNamespaceKey = "csi.alibabacloud.com/actor.namespace"
+	PodUIDKey         = "csi.storage.k8s.io/pod.uid"
+	PodNameKey        = "csi.storage.k8s.io/pod.name"
+	PodNamespaceKey   = "csi.storage.k8s.io/pod.namespace"
+)
+
+// HasActorIdentity reports whether any of the Actor identity keys
+// (UID, name, namespace) are present in the volume context.
+func HasActorIdentity(values map[string]string) bool {
+	for _, key := range []string{ActorUIDKey, ActorNameKey, ActorNamespaceKey} {
+		if _, present := values[key]; present {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateActorIdentity requires all three Actor identity keys to be
+// present when any one is set, so partial identity is rejected.
+func ValidateActorIdentity(values map[string]string) error {
+	if !HasActorIdentity(values) {
+		return nil
+	}
+	uid := values[ActorUIDKey]
+	if uid == "" || values[ActorNameKey] == "" || values[ActorNamespaceKey] == "" {
+		return fmt.Errorf("actor UID, name and namespace must be supplied together")
+	}
+	if uid == "." || uid == ".." {
+		return fmt.Errorf("actor UID must be a safe identifier")
+	}
+	for _, r := range uid {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			continue
+		}
+		return fmt.Errorf("actor UID must be a safe identifier")
+	}
+	return nil
+}
+
+// ActorUID reads the legacy pod.uid only when no explicit Actor identity is present.
+func ActorUID(values map[string]string) string {
+	if HasActorIdentity(values) {
+		return values[ActorUIDKey]
+	}
+	return values[PodUIDKey]
+}

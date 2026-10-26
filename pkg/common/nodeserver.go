@@ -40,7 +40,7 @@ type NodeServerWithMetricRecorder struct {
 }
 
 func (s *NodeServerWithMetricRecorder) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	substrateMode := IsSubstrateVolumeContext(req.VolumeContext)
+	substrateMode := utils.IsSubstrateVolumeContext(req.VolumeContext)
 	var pod *v1.Pod
 	if !substrateMode {
 		ctx, pod = utils.WithPodInfo(ctx, s.client, req)
@@ -145,7 +145,7 @@ func (s NodeServerWithValidator) NodeStageVolume(ctx context.Context, req *csi.N
 		return nil, status.Error(codes.InvalidArgument, "StagingTargetPath is required")
 	}
 	rootDir := utils.KubeletRootDir
-	if IsSubstrateVolumeContext(req.VolumeContext) {
+	if utils.IsSubstrateVolumeContext(req.VolumeContext) {
 		rootDir = SubstrateActorRootDir
 	}
 	if ok, err := filepathContains(rootDir, req.StagingTargetPath); err != nil || !ok {
@@ -165,7 +165,7 @@ func (s NodeServerWithValidator) NodePublishVolume(ctx context.Context, req *csi
 		return nil, status.Errorf(codes.InvalidArgument, "TargetPath is required")
 	}
 	rootDir := utils.KubeletRootDir
-	if IsSubstrateVolumeContext(req.VolumeContext) {
+	if utils.IsSubstrateVolumeContext(req.VolumeContext) {
 		rootDir = SubstrateActorRootDir
 	}
 	if ok, err := filepathContains(rootDir, req.TargetPath); err != nil || !ok {

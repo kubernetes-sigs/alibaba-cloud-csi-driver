@@ -13,6 +13,10 @@ parameters:
   authType: agent-identity
   sandboxCredProviderName: "YOUR_CREDENTIAL_PROVIDER_NAME"
   csi.alibabacloud.com/substrate-mode: "true"
+# Retain is the only valid policy here: Substrate does not support volume
+# deletion, and the bridge is a stateless forwarding layer — the actual volume
+# is defined by the Actor annotation (PV template), not by dynamic provisioning
+# through this driver. DeleteVolume is never reached in the bridge flow.
 reclaimPolicy: Retain
 allowVolumeExpansion: true
 volumeBindingMode: Immediate

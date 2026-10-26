@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/klog/v2"
 	k8smount "k8s.io/mount-utils"
@@ -254,4 +255,31 @@ func TestIsDirTmpfsFalse(t *testing.T) {
 	isTmpfs, err := IsDirTmpfs(mounter, "/some/tmpfs")
 	assert.Nil(t, err)
 	assert.False(t, isTmpfs)
+}
+
+func TestIsSubstrateVolumeContext(t *testing.T) {
+	assert.False(t, IsSubstrateVolumeContext(nil))
+	assert.False(t, IsSubstrateVolumeContext(map[string]string{}))
+	for _, value := range []string{"", "false", "TRUE", "1", " true "} {
+		assert.False(t, IsSubstrateVolumeContext(map[string]string{SubstrateModeKey: value}))
+	}
+	assert.True(t, IsSubstrateVolumeContext(map[string]string{SubstrateModeKey: "true"}))
+	assert.True(t, IsSubstrateVolumeContext(map[string]string{SubstrateModeKey: "true", "server": "x"}))
+}
+
+func TestMountOwnerUID(t *testing.T) {
+	actor := map[string]string{
+		agentidentity.ActorUIDKey: "actor-id", agentidentity.ActorNameKey: "actor-name",
+		agentidentity.ActorNamespaceKey: "actor-space", PodUIDKey: "worker-id", SubstrateModeKey: "true",
+	}
+	assert.Equal(t, "actor-id", MountOwnerUID(actor))
+
+	legacy := map[string]string{PodUIDKey: "legacy-actor", SubstrateModeKey: "true"}
+	assert.Equal(t, "legacy-actor", MountOwnerUID(legacy))
+
+	worker := map[string]string{PodUIDKey: "worker-id"}
+	assert.Equal(t, "worker-id", MountOwnerUID(worker))
+
+	incomplete := map[string]string{agentidentity.ActorNameKey: "actor-name", PodUIDKey: "worker-id", SubstrateModeKey: "true"}
+	assert.Empty(t, MountOwnerUID(incomplete))
 }

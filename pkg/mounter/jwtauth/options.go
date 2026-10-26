@@ -4,6 +4,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 // This file owns the mount-option contract of the agent-identity credential
@@ -31,7 +32,7 @@ const (
 
 	// OptSubstrateMode reuses the CSI VolumeContext key on the internal proxy wire.
 	// It is consumed here and stripped before calling the actual mount program.
-	OptSubstrateMode = "csi.alibabacloud.com/substrate-mode"
+	OptSubstrateMode = utils.SubstrateModeKey
 )
 
 // InfraOptionKeys is the set of infrastructure-only options that every
@@ -65,7 +66,7 @@ func ResolveOpts(idx map[string]string) Opts {
 		CredProvider:  idx[OptCredProvider],
 		CAFile:        idx[OptCAFile],
 		SandboxId:     idx[OptSandboxId],
-		SubstrateMode: idx[OptSubstrateMode] == "true",
+		SubstrateMode: utils.IsSubstrateVolumeContext(idx),
 	}
 	if opts.Endpoint == "" {
 		opts.Endpoint = agentidentity.GetEndpoint()

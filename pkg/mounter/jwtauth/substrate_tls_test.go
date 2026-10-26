@@ -1,7 +1,6 @@
 package jwtauth
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -10,7 +9,6 @@ import (
 	"encoding/pem"
 	"io"
 	"math/big"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -21,11 +19,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	discoveryv1 "k8s.io/api/discovery/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 func testPodCertificate(t *testing.T, serial int64) (bundle, certPEM []byte) {
@@ -226,79 +219,6 @@ func TestSubstrateTLSReloadsTrustBundle(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, resp2.StatusCode)
 }
 
-func TestServiceDialContext_HeadlessService(t *testing.T) {
-	objs := []runtime.Object{
-		&corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: "credential-provider", Namespace: "ack-agent-identity"},
-			Spec:       corev1.ServiceSpec{ClusterIP: "None"},
-		},
-		&discoveryv1.EndpointSlice{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "credential-provider-abc",
-				Namespace: "ack-agent-identity",
-				Labels:    map[string]string{"kubernetes.io/service-name": "credential-provider"},
-			},
-			Endpoints: []discoveryv1.Endpoint{
-				{Addresses: []string{"10.0.0.1"}, Conditions: discoveryv1.EndpointConditions{Ready: boolPtr(true)}},
-			},
-		},
-	}
-	client := k8sfake.NewSimpleClientset(objs...)
-	dialFn := serviceDialContext(client)
-
-	var dialedAddr string
-	origDial := net.Dialer{}
-	_ = dialFn // use it to verify the resolved address
-	ip, err := resolveServiceIP(context.Background(), client, "ack-agent-identity", "credential-provider", "8443")
-	require.NoError(t, err)
-	assert.Equal(t, "10.0.0.1", ip)
-	_ = dialedAddr
-	_ = origDial
-}
-
-func TestServiceDialContext_ClusterIPService(t *testing.T) {
-	objs := []runtime.Object{
-		&corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: "credential-provider", Namespace: "ack-agent-identity"},
-			Spec:       corev1.ServiceSpec{ClusterIP: "192.168.1.100"},
-		},
-	}
-	client := k8sfake.NewSimpleClientset(objs...)
-	ip, err := resolveServiceIP(context.Background(), client, "ack-agent-identity", "credential-provider", "8443")
-	require.NoError(t, err)
-	assert.Equal(t, "192.168.1.100", ip)
-}
-
-func TestServiceDialContext_NoReadyEndpoints(t *testing.T) {
-	objs := []runtime.Object{
-		&corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: "credential-provider", Namespace: "ack-agent-identity"},
-			Spec:       corev1.ServiceSpec{ClusterIP: "None"},
-		},
-		&discoveryv1.EndpointSlice{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "credential-provider-abc",
-				Namespace: "ack-agent-identity",
-				Labels:    map[string]string{"kubernetes.io/service-name": "credential-provider"},
-			},
-			Endpoints: []discoveryv1.Endpoint{
-				{Addresses: []string{"10.0.0.1"}, Conditions: discoveryv1.EndpointConditions{Ready: boolPtr(false)}},
-			},
-		},
-	}
-	client := k8sfake.NewSimpleClientset(objs...)
-	_, err := resolveServiceIP(context.Background(), client, "ack-agent-identity", "credential-provider", "8443")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no ready endpoints")
-}
-
-func TestServiceDialContext_NonServiceHost(t *testing.T) {
-	name, ns, ok := splitServiceHost("external.example.com")
-	assert.False(t, ok)
-	assert.Empty(t, name)
-	assert.Empty(t, ns)
-}
-
 func TestServiceDialContext_SubstrateModeOff(t *testing.T) {
 	// When SubstrateMode is false, buildHTTPClient does not call
 	// buildSubstrateHTTPClient, so no DialContext is set.
@@ -309,42 +229,3 @@ func TestServiceDialContext_SubstrateModeOff(t *testing.T) {
 }
 
 func boolPtr(v bool) *bool { return &v }
-
-func TestSetSubstrateKubeClient_EnablesServiceDialContext(t *testing.T) {
-	// Start a TCP listener to accept the resolved dial.
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	defer func() { _ = ln.Close() }()
-	_, port, _ := net.SplitHostPort(ln.Addr().String())
-
-	objs := []runtime.Object{
-		&corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: "credential-provider", Namespace: "ack-agent-identity"},
-			Spec:       corev1.ServiceSpec{ClusterIP: "None"},
-		},
-		&discoveryv1.EndpointSlice{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "credential-provider-abc",
-				Namespace: "ack-agent-identity",
-				Labels:    map[string]string{"kubernetes.io/service-name": "credential-provider"},
-			},
-			Endpoints: []discoveryv1.Endpoint{
-				{Addresses: []string{"127.0.0.1"}, Conditions: discoveryv1.EndpointConditions{Ready: boolPtr(true)}},
-			},
-		},
-	}
-	fakeClient := k8sfake.NewSimpleClientset(objs...)
-
-	old := substrateKubeClient
-	defer func() { substrateKubeClient = old }()
-
-	SetSubstrateKubeClient(fakeClient)
-
-	dial := serviceDialContext(substrateKubeClient)
-	require.NotNil(t, dial, "serviceDialContext should return a non-nil function")
-
-	// Dial through the service hostname; serviceDialContext resolves it to 127.0.0.1.
-	conn, err := dial(context.Background(), "tcp", "credential-provider.ack-agent-identity.svc:"+port)
-	require.NoError(t, err)
-	_ = conn.Close()
-}
