@@ -39,7 +39,8 @@ and a client started without one fails later and less clearly.
   fields arrive atomically.
 * The credential is renewed before it expires, for as long as the mount lives.
 * The refresh loop stops when the entrypoint exits. The driver does not write or
-  remove any files — if your scripts write credential files, cleanup is yours.
+  remove any files — if your scripts write credential files, consider cleaning
+  them up when the mount ends.
 * The driver itself never passes a credential value as a command-line argument
   or an environment variable. How your entrypoint and hook consume the stdin
   lines is up to you — some clients only accept credentials as CLI flags

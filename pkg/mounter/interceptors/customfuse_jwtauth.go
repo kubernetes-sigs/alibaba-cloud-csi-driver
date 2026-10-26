@@ -62,10 +62,13 @@ func CustomFuseJWTAuthInterceptor(ctx context.Context, op *mounter.MountOperatio
 		return fmt.Errorf("jwtauth fetch initial credential: %w", err)
 	}
 
-	// Pass the initial credential to the entrypoint via stdin. The entrypoint
-	// reads four lines (read -r ak; read -r sk; ...) and uses them however
-	// its client requires. No credential value touches the filesystem, argv
-	// or environment.
+	// Pass the initial credential to the entrypoint via stdin. The driver
+	// itself does not put a credential value in the filesystem, argv or
+	// environment; what the entrypoint does after reading stdin is the
+	// entrypoint's responsibility (see the example scripts for the suggested
+	// patterns). The entrypoint must read all four lines before handing off,
+	// otherwise the unread lines stay in the pipe and are inherited by the
+	// process it exec's into.
 	op.Stdin = bytes.NewReader(formatCredential(cred))
 	klog.V(4).InfoS("provisioned customfuse agent-identity credential via stdin", "target", op.Target)
 

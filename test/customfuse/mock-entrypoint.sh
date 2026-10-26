@@ -15,9 +15,9 @@
 #                                         redefine them, so they report what the
 #                                         mount-proxy's own environment gave them.
 #   CSITEST_ENVKEY <name>                 every variable present, names only
-#   CSITEST_CREDFILE <name>               files under $credentialDir, names only
+#   CSITEST_CREDLINE <field>              credential fields read from stdin, names only
 #   CSITEST_MOUNTED <path>                the tmpfs is up; the mount is now observable
-#   CSITEST_CREDROTATED n=<i> at=<time>   the credential on disk was replaced
+#   CSITEST_CREDROTATED n=<i> at=<time>   the refresh hook delivered a new credential
 #   CSITEST_OSSPROBE <label>=…            whether the delivered credential actually works
 #
 # Values are printed only for the known-safe variables above. Everything else is
@@ -26,34 +26,52 @@
 
 set -euo pipefail
 
+ROTATION_LOG=/tmp/csitest-rotation.log
+CRED_STATE=/tmp/csitest-cred
+
 for var in source bucket url path readOnly otherOpts extraOpts capacity fuseType authType \
-    credentialDir entrypointConfig mountpoint HOME HOSTNAME; do
+    entrypointConfig mountpoint HOME HOSTNAME; do
     printf 'CSITEST_ENV %s=%s\n' "$var" "${!var-<unset>}"
 done
 
 env | cut -d= -f1 | sort | sed 's/^/CSITEST_ENVKEY /'
 
-# For agent-identity: prove the credential landed before this ran, without
-# revealing it. The driver writes one file per field.
-if [ -n "${credentialDir:-}" ] && [ -d "$credentialDir" ]; then
-    ls -1 "$credentialDir" | sed 's/^/CSITEST_CREDFILE /'
+# For agent-identity the credential arrives on this script's stdin as four
+# lines. Read all of them: anything left unread would be inherited by the
+# process this script hands off to.
+ak=""; sk=""; token=""; expiration=""
+if [ "${authType:-}" = "agent-identity" ]; then
+    read -r ak || true
+    read -r sk || true
+    read -r token || true
+    read -r expiration || true
+
+    # Report which fields arrived, by name only — never the values.
+    [ -n "$ak" ]         && printf 'CSITEST_CREDLINE %s\n' AccessKeyId
+    [ -n "$sk" ]         && printf 'CSITEST_CREDLINE %s\n' AccessKeySecret
+    [ -n "$token" ]      && printf 'CSITEST_CREDLINE %s\n' SecurityToken
+    [ -n "$expiration" ] && printf 'CSITEST_CREDLINE %s\n' Expiration
+
+    # The refresh hook runs as a separate process and cannot print into this
+    # log, so it leaves the rotated credential here instead. 0600 because this
+    # file holds credential material.
+    umask 077
+    printf '%s\n%s\n%s\n%s\n' "$ak" "$sk" "$token" "$expiration" > "$CRED_STATE"
 fi
 
 # oss_probe reports whether the delivered credential actually works, which is the
-# one thing the files alone cannot show: a credential can arrive complete and
+# one thing the field names alone cannot show: a credential can arrive complete and
 # still be scoped to nothing usable.
 #
 # The credential goes into a 0600 config rather than onto ossutil's argv, because
 # argv is world-readable through /proc inside this container and a test image must
 # not be the thing that leaks an STS token.
-oss_probe() { # $1=label
+oss_probe() { # $1=label $2=ak $3=sk $4=token
     local cfg out rc prefix
-    for f in AccessKeyId AccessKeySecret SecurityToken; do
-        if [ ! -s "$credentialDir/$f" ]; then
-            printf 'CSITEST_OSSPROBE %s=skip:no-%s\n' "$1" "$f"
-            return
-        fi
-    done
+    if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+        printf 'CSITEST_OSSPROBE %s=skip:incomplete-credential\n' "$1"
+        return
+    fi
     if [ -z "${bucket:-}" ] || [ -z "${url:-}" ]; then
         printf 'CSITEST_OSSPROBE %s=skip:no-bucket-or-url\n' "$1"
         return
@@ -65,9 +83,9 @@ oss_probe() { # $1=label
         echo '[Credentials]'
         echo 'language=EN'
         printf 'endpoint=%s\n'        "${url#https://}"
-        printf 'accessKeyID=%s\n'     "$(cat "$credentialDir/AccessKeyId")"
-        printf 'accessKeySecret=%s\n' "$(cat "$credentialDir/AccessKeySecret")"
-        printf 'stsToken=%s\n'        "$(cat "$credentialDir/SecurityToken")"
+        printf 'accessKeyID=%s\n'     "$2"
+        printf 'accessKeySecret=%s\n' "$3"
+        printf 'stsToken=%s\n'        "$4"
     } > "$cfg"
 
     # The provider's policy conditions ListObjects on an oss:Prefix of the form
@@ -119,36 +137,24 @@ fi
 # Probed only now that the mount is up. mount-proxy waits for the target to become
 # a mount point, so anything that can stall — an unreachable endpoint above all —
 # has to run after that, or a probe failure becomes a mount failure.
-if [ -n "${credentialDir:-}" ] && [ -d "$credentialDir" ] && command -v ossutil >/dev/null 2>&1; then
-    oss_probe initial
+if [ "${authType:-}" = "agent-identity" ] && command -v ossutil >/dev/null 2>&1; then
+    oss_probe initial "$ak" "$sk" "$token"
 fi
+
+unset ak sk token
 
 # Rotation is where an agent-identity setup fails quietly: the refresh loop can
-# replace the files on schedule and still hand over a credential that no longer
-# authorises anything. Watching for a replacement and probing again is the only way
-# to tell a working rotation from a merely punctual one.
-#
-# The fingerprint covers every field, not just Expiration: a provider that caches
-# hands back a byte-identical credential until its own refresh window opens, and
-# a rotation that changes nothing is not a rotation worth reporting.
-if [ -n "${credentialDir:-}" ] && [ -s "$credentialDir/AccessKeyId" ] && command -v ossutil >/dev/null 2>&1; then
-    (
-        cred_fingerprint() {
-            cat "$credentialDir/AccessKeyId" "$credentialDir/Expiration" 2>/dev/null | tr -d '\n'
-        }
-        seen="$(cred_fingerprint)"
-        n=0
-        while sleep 15; do
-            now="$(cred_fingerprint)"
-            [ -n "$now" ] && [ "$now" != "$seen" ] || continue
-            seen="$now"
-            n=$((n + 1))
-            printf 'CSITEST_CREDROTATED n=%d at=%s\n' "$n" "$(date -u +%H:%M:%SZ)"
-            oss_probe "rotated$n"
-        done
-    ) &
+# deliver a new credential on schedule and still hand over one that no longer
+# authorises anything. The refresh hook runs as its own process, so it writes its
+# findings to $ROTATION_LOG; relaying that here is what puts them in the log the
+# test reads.
+if [ "${authType:-}" = "agent-identity" ]; then
+    : > "$ROTATION_LOG"
+    tail -F "$ROTATION_LOG" 2>/dev/null &
 fi
 
+# stdin is drained above; close it so the mount process does not inherit it.
+exec 0<&-
 # The mount lives as long as this process: mount-proxy tracks its pid and tears
 # the mount down when it exits.
 exec sleep infinity

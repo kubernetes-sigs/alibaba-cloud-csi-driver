@@ -67,6 +67,10 @@ lines: AccessKeyId, AccessKeySecret, SecurityToken, Expiration. Read them with
 
 Your entrypoint and hook both write the stdin lines to files. The SDK polls them.
 
+If you write credential files, consider mounting a `tmpfs` at the path you
+write to (e.g. `emptyDir` with `medium: Memory`), so the files do not land in
+the container's writable layer.
+
 **entrypoint.sh** (JindoFS):
 ```bash
 read -r ak; read -r sk; read -r token; read -r expiration
@@ -81,6 +85,7 @@ fs.oss.endpoint = ${url}
 aliyun.oss.provider.url = secrets:///run/creds/
 EOF
 
+exec 0<&-
 exec jindo-fuse -f -o "uri=$source" "$mountpoint"
 ```
 

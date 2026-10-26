@@ -137,9 +137,8 @@ func ossfsSecretInterceptorWithMounter(ctx context.Context, op *mounter.MountOpe
 // straddle the rename; readers are expected to verify a credential before
 // relying on it, which they need anyway for expiry and provider errors.
 //
-// Both the ossfs credential files and the customfuse credential sink rotate
-// through this, so it carries no ossfs-specific assumption and the file names in
-// getTokenKeys are a contract for more than one FUSE client.
+// The file names in getTokenKeys are a contract with the ossfs client that
+// reads them.
 func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err error) {
 	// Currently, for ossfs2, expiration is not required.
 	// But we still manage it (if offered) for the feature.

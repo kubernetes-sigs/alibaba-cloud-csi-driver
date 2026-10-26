@@ -1,6 +1,8 @@
 package jwtauth
 
 import (
+	"strings"
+
 	"golang.org/x/sys/unix"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
@@ -46,6 +48,17 @@ var InfraOptionKeys = map[string]struct{}{
 	OptCredProvider:            {},
 	OptCAFile:                  {},
 	OptSubstrateMode:           {},
+}
+
+// IsInfraOptionName reports whether name, compared case-insensitively, is one
+// of the infrastructure-only options in InfraOptionKeys.
+func IsInfraOptionName(name string) bool {
+	for key := range InfraOptionKeys {
+		if strings.EqualFold(name, key) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsAgentIdentity reports whether the given authType selects the

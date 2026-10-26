@@ -504,17 +504,23 @@ if [ "$mounted" = 1 ]; then
 
     if [ -n "$CRED_PROVIDER" ]; then
         expect authType "agent-identity"
-        cdir="$(printf '%s' "$LOG" | sed -n 's/^CSITEST_ENV credentialDir=//p' | tail -1)"
-        case "$cdir" in
-            /*) pass "\$credentialDir = $cdir" ;;
-            *)  fail "\$credentialDir = '${cdir:-<none>}', want an absolute path" ;;
-        esac
 
+        # The credential reaches the entrypoint on stdin, so the mock reports
+        # the field names it read rather than anything on disk.
         for field in AccessKeyId AccessKeySecret SecurityToken Expiration; do
-            if printf '%s' "$LOG" | grep -qx "CSITEST_CREDFILE $field"; then
-                pass "credential field $field delivered"
+            if printf '%s' "$LOG" | grep -qx "CSITEST_CREDLINE $field"; then
+                pass "credential field $field delivered on stdin"
             else
-                fail "credential field $field missing from $cdir"
+                fail "credential field $field missing from the entrypoint's stdin"
+            fi
+        done
+
+        # Nothing about the credential belongs in the environment.
+        for leaked in AccessKeyId AccessKeySecret SecurityToken credentialDir; do
+            if printf '%s' "$LOG" | grep -qx "CSITEST_ENVKEY $leaked"; then
+                fail "$leaked reached the entrypoint as an environment variable"
+            else
+                pass "$leaked absent from the entrypoint environment"
             fi
         done
 
