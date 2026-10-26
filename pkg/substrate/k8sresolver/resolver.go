@@ -106,7 +106,7 @@ func (r *k8sResolver) updateState() {
 	if r.ctx.Err() != nil {
 		return
 	}
-	ips, err := svcresolve.ResolveServiceAddresses(r.ctx, r.client, r.ns, r.svc, true)
+	ip, err := svcresolve.ResolveServiceIP(r.ctx, r.client, r.ns, r.svc, true)
 	if err != nil {
 		r.cc.ReportError(err)
 		return
@@ -115,14 +115,7 @@ func (r *k8sResolver) updateState() {
 	if targetPort == 0 {
 		targetPort = 443
 	}
-	var addrs []resolver.Address
-	for _, ip := range ips {
-		addrs = append(addrs, resolver.Address{Addr: net.JoinHostPort(ip, strconv.Itoa(targetPort))})
-	}
-	if len(addrs) == 0 {
-		r.cc.ReportError(fmt.Errorf("k8sresolver: no addresses for %s/%s", r.ns, r.svc))
-		return
-	}
+	addrs := []resolver.Address{{Addr: net.JoinHostPort(ip, strconv.Itoa(targetPort))}}
 	if err := r.cc.UpdateState(resolver.State{Addresses: addrs}); err != nil && r.ctx.Err() == nil {
 		r.cc.ReportError(err)
 	}

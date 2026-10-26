@@ -4,6 +4,7 @@
 package k8sresolver
 
 import (
+	"context"
 	"net/url"
 	"sync"
 	"testing"
@@ -115,10 +116,8 @@ func TestResolveHeadlessService(t *testing.T) {
 	_, err := b.Build(resolver.Target{URL: mustParseURL("k8s:///ate-system/api:443")}, conn, resolver.BuildOptions{})
 	require.NoError(t, err)
 	addrs := conn.waitAddresses(t)
-	require.Len(t, addrs, 2, "should skip not-ready endpoints")
-	for _, a := range addrs {
-		assert.Contains(t, "10.0.0.2:443|10.0.0.3:443", a.Addr)
-	}
+	require.Len(t, addrs, 1, "ResolveServiceIP returns a single ready endpoint")
+	assert.Contains(t, addrs[0].Addr, "10.0.0.2")
 }
 
 func TestResolveMissingService(t *testing.T) {
@@ -133,6 +132,57 @@ func TestResolveMissingService(t *testing.T) {
 	case <-time.After(500 * time.Millisecond):
 	}
 	require.Error(t, conn.lastError())
+}
+
+func TestResolveNowReResolvesAfterEndpointChange(t *testing.T) {
+	client := fake.NewSimpleClientset(
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "ate-system"},
+			Spec:       corev1.ServiceSpec{ClusterIP: "10.0.0.1"},
+		},
+	)
+	b := NewBuilder(client)
+	conn := newFakeConn()
+	r, err := b.Build(resolver.Target{URL: mustParseURL("k8s:///ate-system/api:443")}, conn, resolver.BuildOptions{})
+	require.NoError(t, err)
+	first := conn.waitAddresses(t)
+	require.Len(t, first, 1)
+	assert.Contains(t, first[0].Addr, "10.0.0.1")
+
+	_, err = client.CoreV1().Services("ate-system").Update(context.Background(),
+		&corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "ate-system"},
+			Spec:       corev1.ServiceSpec{ClusterIP: "10.0.0.99"},
+		}, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	conn.updated = make(chan struct{}, 1)
+	r.ResolveNow(resolver.ResolveNowOptions{})
+	second := conn.waitAddresses(t)
+	require.Len(t, second, 1)
+	assert.Contains(t, second[0].Addr, "10.0.0.99")
+}
+
+func TestCloseStopsResolution(t *testing.T) {
+	client := fake.NewSimpleClientset(&corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "ate-system"},
+		Spec:       corev1.ServiceSpec{ClusterIP: "10.0.0.1"},
+	})
+	b := NewBuilder(client)
+	conn := newFakeConn()
+	r, err := b.Build(resolver.Target{URL: mustParseURL("k8s:///ate-system/api:443")}, conn, resolver.BuildOptions{})
+	require.NoError(t, err)
+	_ = conn.waitAddresses(t)
+
+	r.Close()
+
+	conn.updated = make(chan struct{}, 1)
+	r.ResolveNow(resolver.ResolveNowOptions{})
+	select {
+	case <-conn.updated:
+		t.Fatal("should not update after Close")
+	case <-time.After(300 * time.Millisecond):
+	}
 }
 
 func mustParseURL(raw string) url.URL {

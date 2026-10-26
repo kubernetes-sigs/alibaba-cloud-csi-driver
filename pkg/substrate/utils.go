@@ -58,18 +58,11 @@ func resolveMount(ctx context.Context, lookup ActorLookup, id volumeIdentity, at
 	if actor.Atespace == "ate-golden" {
 		return resolvedMount{}, status.Error(codes.FailedPrecondition, "unverified golden actor")
 	}
-	// 4. Pick this template volume's request out of the Actor annotation. The entry names the
-	// driver it was generated for; routing to a backend happens later, on that name.
-	// When the annotation is absent (kubectl-ate path where ateapi creates volumes via
-	// StorageClass but sandbox-manager does not inject the annotation), synthesize a
-	// minimal request from the volume context.
-	var request *csi.NodePublishVolumeRequest
-	var driver string
-	if actor.Annotation == "" {
-		request, driver, err = synthesizePublishEntry(id, attributes)
-	} else {
-		request, driver, err = selectPublishEntry(actor.Annotation, id.VolumeName)
-	}
+	// 4. Pick this template volume's request out of the Actor annotation. The
+	// annotation is the single source of the publish request: the bridge driver
+	// holds no storage parameters of its own, so CreateVolume returns only Actor
+	// identity and the substrate marker.
+	request, driver, err := selectPublishEntry(actor.Annotation, id.VolumeName)
 	if err != nil {
 		return resolvedMount{}, err
 	}
@@ -344,20 +337,4 @@ func (n *Node) unpublishPlaceholder(source, target string) error {
 		return status.Errorf(codes.Internal, "remove placeholder storage: %v", err)
 	}
 	return nil
-}
-
-func synthesizePublishEntry(id volumeIdentity, attributes map[string]string) (*csi.NodePublishVolumeRequest, string, error) {
-	driver := NASDriverName
-	req := &csi.NodePublishVolumeRequest{
-		VolumeId:      attributes["csi.alibabacloud.com/actor.uid"],
-		VolumeContext: attributes,
-		VolumeCapability: &csi.VolumeCapability{
-			AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{}},
-			AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER},
-		},
-	}
-	if req.VolumeId == "" {
-		return nil, "", status.Error(codes.FailedPrecondition, "synthesized publish request requires actor UID in volume context")
-	}
-	return req, driver, nil
 }

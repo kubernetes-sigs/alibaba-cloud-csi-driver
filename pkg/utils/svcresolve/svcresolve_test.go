@@ -27,6 +27,16 @@ func TestResolveServiceIPClusterIP(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", ip)
 }
 
+func TestResolveServiceIPClusterIPReturnsDirectlyEvenWithLookupEndpoints(t *testing.T) {
+	client := fake.NewSimpleClientset(&corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "svc-1", Namespace: "ns-1"},
+		Spec:       corev1.ServiceSpec{ClusterIP: "10.0.0.1"},
+	})
+	ip, err := ResolveServiceIP(context.Background(), client, "ns-1", "svc-1", true)
+	require.NoError(t, err)
+	assert.Equal(t, "10.0.0.1", ip)
+}
+
 func TestResolveServiceIPHeadlessWithLookup(t *testing.T) {
 	client := fake.NewSimpleClientset(
 		&corev1.Service{
@@ -103,13 +113,13 @@ func TestResolveServiceIPHeadlessNoReadyEndpoints(t *testing.T) {
 	assert.Contains(t, err.Error(), "no ready endpoints")
 }
 
-func TestPickReadyEndpointNilReadyIncluded(t *testing.T) {
+func TestResolveServiceIPPickReadyEndpointNilReadyIncluded(t *testing.T) {
 	slices := []discoveryv1.EndpointSlice{{
 		Endpoints: []discoveryv1.Endpoint{
 			{Addresses: []string{"10.0.0.1"}, Conditions: discoveryv1.EndpointConditions{Ready: nil}},
 		},
 	}}
-	ip, err := PickReadyEndpoint(slices)
+	ip, err := pickReadyEndpoint(slices)
 	require.NoError(t, err)
 	assert.Equal(t, "10.0.0.1", ip)
 }
