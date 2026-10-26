@@ -480,7 +480,7 @@ func generateTestCA(t *testing.T) []byte {
 
 func TestBuildHTTPClientTLS(t *testing.T) {
 	t.Run("no CA skips verification instead of using the system root pool", func(t *testing.T) {
-		client, err := buildHTTPClient("")
+		client, err := buildHTTPClient(Opts{})
 		require.NoError(t, err)
 		tr := client.Transport.(*http.Transport)
 		assert.Nil(t, tr.TLSClientConfig.RootCAs, "no root pool expected (RootCAs nil)")
@@ -492,7 +492,7 @@ func TestBuildHTTPClientTLS(t *testing.T) {
 		dir := t.TempDir()
 		caPath := filepath.Join(dir, "ca.crt")
 		require.NoError(t, os.WriteFile(caPath, generateTestCA(t), 0600))
-		client, err := buildHTTPClient(caPath)
+		client, err := buildHTTPClient(Opts{CAFile: caPath})
 		require.NoError(t, err)
 		tr := client.Transport.(*http.Transport)
 		assert.NotNil(t, tr.TLSClientConfig.RootCAs)
@@ -500,7 +500,7 @@ func TestBuildHTTPClientTLS(t *testing.T) {
 	})
 
 	t.Run("missing CA file fails, no insecure fallback", func(t *testing.T) {
-		client, err := buildHTTPClient("/nonexistent/ca.crt")
+		client, err := buildHTTPClient(Opts{CAFile: "/nonexistent/ca.crt"})
 		require.Error(t, err)
 		assert.Nil(t, client)
 		assert.Contains(t, err.Error(), "read CA file")
@@ -510,7 +510,7 @@ func TestBuildHTTPClientTLS(t *testing.T) {
 		dir := t.TempDir()
 		caPath := filepath.Join(dir, "bad.crt")
 		require.NoError(t, os.WriteFile(caPath, []byte("not a pem certificate"), 0600))
-		client, err := buildHTTPClient(caPath)
+		client, err := buildHTTPClient(Opts{CAFile: caPath})
 		require.Error(t, err)
 		assert.Nil(t, client)
 		assert.Contains(t, err.Error(), "parse CA file")

@@ -15,6 +15,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"golang.org/x/sys/unix"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/jwtauth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server/alinas"
@@ -22,6 +23,8 @@ import (
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server/ossfs"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server/ossfs2"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 )
 
@@ -44,6 +47,13 @@ func main() {
 	utils.AddKlogFlags(flag.CommandLine)
 	utils.AddGoFlags(flag.CommandLine)
 	flag.Parse()
+
+	if client, err := buildSubstrateKubeClient(); err != nil {
+		klog.ErrorS(err, "Failed to build kube client for Substrate service resolution")
+	} else if client != nil {
+		jwtauth.SetSubstrateKubeClient(client)
+		klog.InfoS("Substrate service resolution enabled")
+	}
 
 	_ = os.Remove(socketPath)
 	server.SetCleanupNASMountsOnExit(cleanupNASMounts)
@@ -80,6 +90,29 @@ func main() {
 		klog.ErrorS(err, "Failed to close server")
 	}
 	server.Terminate(drivers)
+}
+
+func buildSubstrateKubeClient() (kubernetes.Interface, error) {
+	tokenFile := os.Getenv("SUBSTRATE_KUBE_TOKEN_FILE")
+	caFile := os.Getenv("SUBSTRATE_KUBE_CA_FILE")
+	if tokenFile == "" && caFile == "" {
+		return nil, nil
+	}
+	if tokenFile == "" || caFile == "" {
+		klog.Warning("Only one of SUBSTRATE_KUBE_TOKEN_FILE and SUBSTRATE_KUBE_CA_FILE is set; both are required for Substrate service resolution")
+		return nil, nil
+	}
+	host := os.Getenv("KUBERNETES_SERVICE_HOST")
+	port := os.Getenv("KUBERNETES_SERVICE_PORT")
+	if host == "" || port == "" {
+		return nil, fmt.Errorf("SUBSTRATE_KUBE_TOKEN_FILE and SUBSTRATE_KUBE_CA_FILE are set but KUBERNETES_SERVICE_HOST/PORT are missing")
+	}
+	cfg := &rest.Config{
+		Host:            "https://" + net.JoinHostPort(host, port),
+		BearerTokenFile: tokenFile,
+		TLSClientConfig: rest.TLSClientConfig{CAFile: caFile},
+	}
+	return kubernetes.NewForConfig(cfg)
 }
 
 func listen(socketPath string) (*net.UnixListener, error) {

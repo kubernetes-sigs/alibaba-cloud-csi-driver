@@ -38,7 +38,7 @@ type Refresher struct {
 }
 
 func NewRefresher(opts Opts, sink CredentialSink) (*Refresher, error) {
-	client, err := buildHTTPClient(opts.CAFile)
+	client, err := buildHTTPClient(opts)
 	if err != nil {
 		return nil, fmt.Errorf("build http client: %w", err)
 	}
@@ -51,8 +51,6 @@ func NewRefresher(opts Opts, sink CredentialSink) (*Refresher, error) {
 	}, nil
 }
 
-// FetchCredentials performs a single exchange of the jwtauth token for an STS
-// credential, without delivering it to the sink.
 func (r *Refresher) FetchCredentials(ctx context.Context) (*STSToken, error) {
 	return exchangeSTSToken(ctx, r.client, r.opts)
 }

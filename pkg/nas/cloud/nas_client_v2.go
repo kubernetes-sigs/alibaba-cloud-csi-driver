@@ -215,6 +215,14 @@ func (c *NasClientV2) GetAgenticSpace(ctx context.Context, req *sdk.GetAgenticSp
 	return c.client.GetAgenticSpaceWithContext(ctx, req, &dara.RuntimeOptions{})
 }
 
+func (c *NasClientV2) DescribeAgenticSpaces(ctx context.Context, req *sdk.DescribeAgenticSpacesRequest) (*sdk.DescribeAgenticSpacesResponse, error) {
+	logger := klog.FromContext(ctx)
+	if err := c.wait(ctx, logger); err != nil {
+		return nil, err
+	}
+	return c.client.DescribeAgenticSpacesWithContext(ctx, req, &dara.RuntimeOptions{})
+}
+
 func (c *NasClientV2) DeleteAgenticSpace(ctx context.Context, req *sdk.DeleteAgenticSpaceRequest) (*sdk.DeleteAgenticSpaceResponse, error) {
 	logger := klog.FromContext(ctx)
 	if err := c.wait(ctx, logger); err != nil {
