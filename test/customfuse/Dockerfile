@@ -12,7 +12,7 @@
 # Build from the repository root:
 #   docker build -f test/customfuse/Dockerfile -t <registry>/customfuse-mock:<tag> .
 
-FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.26.6 AS builder
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.26.10 AS builder
 WORKDIR /src
 ARG TARGETARCH
 ARG TARGETOS
