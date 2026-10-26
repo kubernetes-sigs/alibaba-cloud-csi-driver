@@ -34,7 +34,7 @@ configure_juicefs() {
         --access-key="$ak" \
         --secret-key="$sk" \
         --session-token="$token" \
-        "$source" myjfs
+        "$source" myjfs || return $?
 
     juicefs config --yes "$source" \
         --access-key="$ak" \

@@ -550,14 +550,16 @@ func TestExtendedMount(t *testing.T) {
 
 func TestExtendedMountPassesStdinToChild(t *testing.T) {
 	cred := "ak-secret\nsk-secret\ntok-secret\n2099-01-01T00:00:00Z\n"
-	outFile := filepath.Join(t.TempDir(), "stdin.txt")
-	envFile := filepath.Join(t.TempDir(), "env.txt")
-	argvFile := filepath.Join(t.TempDir(), "argv.txt")
+	dir := t.TempDir()
+	outFile := filepath.Join(dir, "stdin.txt")
+	envFile := filepath.Join(dir, "env.txt")
+	argvFile := filepath.Join(dir, "argv.txt")
+	marker := filepath.Join(dir, "done")
 
 	m := newTestMounter(t, false, func(string) *exec.Cmd {
 		return exec.Command("sh", "-c", fmt.Sprintf(
-			`cat > %s; printenv > %s; printf '%%s\n' "$@" > %s; sleep 30`,
-			outFile, envFile, argvFile))
+			`cat > %s; printenv > %s; printf '%%s\n' "$@" > %s; touch %s; sleep 30`,
+			outFile, envFile, argvFile, marker))
 	})
 	op := &mounter.MountOperation{
 		Target: t.TempDir(),
@@ -567,7 +569,7 @@ func TestExtendedMountPassesStdinToChild(t *testing.T) {
 	require.NoError(t, m.ExtendedMount(context.Background(), op))
 
 	require.Eventually(t, func() bool {
-		_, err := os.Stat(outFile)
+		_, err := os.Stat(marker)
 		return err == nil
 	}, 5*time.Second, 10*time.Millisecond)
 
