@@ -183,13 +183,16 @@ func WriteMetricsInfo(metricsPathPrefix string,
 	metricsTop string, clientName string, storageBackendName string, fsName string) (
 	mountPointPath string,
 ) {
+	if IsSubstrateVolumeContext(req.GetVolumeContext()) {
+		return ""
+	}
 	mountPointDir := req.GetVolumeId()
 	segments := strings.Split(req.TargetPath, "/")
 	if len(segments) > 1 {
 		mountPointDir = segments[len(segments)-2]
 	}
 
-	podUIDPath := metricsPathPrefix + req.VolumeContext["csi.storage.k8s.io/pod.uid"] + "/"
+	podUIDPath := metricsPathPrefix + MountOwnerUID(req.VolumeContext) + "/"
 
 	mountPointPath = podUIDPath + mountPointDir + "/"
 	if !IsFileExisting(mountPointPath) {

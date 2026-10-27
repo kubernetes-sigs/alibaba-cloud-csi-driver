@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -110,14 +109,14 @@ func TestCreateVolumeForwardsAuthAndSubstrateMode(t *testing.T) {
 				"authType":                "agent-identity",
 				"sandboxCredProviderName": "nas-rw",
 				"mountProtocol":           "alinas",
-				common.SubstrateModeKey:   "true",
+				utils.SubstrateModeKey:    "true",
 				"unrelated":               "should-not-appear",
 			},
 			wantKeys: map[string]string{
 				"authType":                "agent-identity",
 				"sandboxCredProviderName": "nas-rw",
 				"mountProtocol":           "alinas",
-				common.SubstrateModeKey:   "true",
+				utils.SubstrateModeKey:    "true",
 			},
 			wantAbsent: []string{"unrelated"},
 		},
@@ -127,7 +126,7 @@ func TestCreateVolumeForwardsAuthAndSubstrateMode(t *testing.T) {
 				"volumeAs": volumeAsKey,
 			},
 			wantKeys:   map[string]string{},
-			wantAbsent: []string{"authType", "sandboxCredProviderName", "mountProtocol", common.SubstrateModeKey},
+			wantAbsent: []string{"authType", "sandboxCredProviderName", "mountProtocol", utils.SubstrateModeKey},
 		},
 		{
 			name: "auth without substrate-mode is not forwarded",
@@ -136,7 +135,7 @@ func TestCreateVolumeForwardsAuthAndSubstrateMode(t *testing.T) {
 				"authType": "agent-identity",
 			},
 			wantKeys:   map[string]string{},
-			wantAbsent: []string{"authType", common.SubstrateModeKey},
+			wantAbsent: []string{"authType", utils.SubstrateModeKey},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

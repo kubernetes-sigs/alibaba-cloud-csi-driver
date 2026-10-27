@@ -21,10 +21,10 @@ import (
 
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/svcresolve"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/ttlcache"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
@@ -310,16 +310,9 @@ func (e *rrsaExchanger) dialContext(ctx context.Context, network, addr string) (
 	if err != nil {
 		return nil, err
 	}
-	if name, namespace, ok := splitServiceHost(host); ok {
+	if name, namespace, ok := svcresolve.SplitServiceHost(host); ok {
 		ip, err := e.clusterIPs.Get(ctx, host, func() (string, error) {
-			svc, err := e.kubeClient.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
-			if err != nil {
-				return "", fmt.Errorf("resolve Service %s/%s for rrsaEndpoint: %w", namespace, name, err)
-			}
-			if svc.Spec.ClusterIP != "" && svc.Spec.ClusterIP != "None" {
-				return svc.Spec.ClusterIP, nil
-			}
-			return e.resolveEndpointSlice(ctx, namespace, name, port)
+			return svcresolve.ResolveServiceIP(ctx, e.kubeClient, namespace, name, false)
 		})
 		if err != nil {
 			return nil, err
@@ -327,35 +320,6 @@ func (e *rrsaExchanger) dialContext(ctx context.Context, network, addr string) (
 		addr = net.JoinHostPort(ip, port)
 	}
 	return e.dial(ctx, network, addr)
-}
-
-func (e *rrsaExchanger) resolveEndpointSlice(ctx context.Context, namespace, serviceName, port string) (string, error) {
-	slices, err := e.kubeClient.DiscoveryV1().EndpointSlices(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "kubernetes.io/service-name=" + serviceName,
-	})
-	if err != nil {
-		return "", fmt.Errorf("list EndpointSlices for Service %s/%s: %w", namespace, serviceName, err)
-	}
-	for _, slice := range slices.Items {
-		for _, ep := range slice.Endpoints {
-			if ep.Conditions.Ready != nil && !*ep.Conditions.Ready {
-				continue
-			}
-			if len(ep.Addresses) > 0 {
-				return ep.Addresses[0], nil
-			}
-		}
-	}
-	return "", fmt.Errorf("no ready endpoints for headless Service %s/%s", namespace, serviceName)
-}
-
-// splitServiceHost parses <name>.<namespace>.svc[.cluster.local].
-func splitServiceHost(host string) (name, namespace string, ok bool) {
-	parts := strings.Split(host, ".")
-	if len(parts) < 3 || parts[2] != "svc" {
-		return "", "", false
-	}
-	return parts[0], parts[1], true
 }
 
 // caRecheckInterval is how long a loaded CA is trusted before its file is read

@@ -17,26 +17,6 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
-func TestIsSubstrateVolumeContext(t *testing.T) {
-	tests := []struct {
-		name string
-		ctx  map[string]string
-		want bool
-	}{
-		{"nil", nil, false},
-		{"empty", map[string]string{}, false},
-		{"missing key", map[string]string{"foo": "bar"}, false},
-		{"wrong value", map[string]string{SubstrateModeKey: "false"}, false},
-		{"true", map[string]string{SubstrateModeKey: "true"}, true},
-		{"with other keys", map[string]string{SubstrateModeKey: "true", "server": "x"}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, IsSubstrateVolumeContext(tt.ctx))
-		})
-	}
-}
-
 type fakeNodeServer struct {
 	csi.UnimplementedNodeServer
 	stageErr   error
@@ -61,7 +41,7 @@ func TestNodeStageVolumeSubstrateAcceptsActorRootPath(t *testing.T) {
 		VolumeId:          "vol-1",
 		StagingTargetPath: "/var/lib/ate/actors/uid-123/volumes/data",
 		VolumeCapability:  &csi.VolumeCapability{},
-		VolumeContext:     map[string]string{SubstrateModeKey: "true"},
+		VolumeContext:     map[string]string{utils.SubstrateModeKey: "true"},
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -77,7 +57,7 @@ func TestNodeStageVolumeSubstrateRejectsBadPath(t *testing.T) {
 		VolumeId:          "vol-1",
 		StagingTargetPath: "/tmp/evil/path",
 		VolumeCapability:  &csi.VolumeCapability{},
-		VolumeContext:     map[string]string{SubstrateModeKey: "true"},
+		VolumeContext:     map[string]string{utils.SubstrateModeKey: "true"},
 	})
 	assert.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
@@ -93,7 +73,7 @@ func TestNodeStageVolumeSubstrateRejectsParentDir(t *testing.T) {
 		VolumeId:          "vol-1",
 		StagingTargetPath: "/var/lib/ate",
 		VolumeCapability:  &csi.VolumeCapability{},
-		VolumeContext:     map[string]string{SubstrateModeKey: "true"},
+		VolumeContext:     map[string]string{utils.SubstrateModeKey: "true"},
 	})
 	assert.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
@@ -120,7 +100,7 @@ func TestNodePublishVolumeSubstrateAcceptsActorRootPath(t *testing.T) {
 		VolumeId:         "vol-1",
 		TargetPath:       "/var/lib/ate/actors/uid-123/volumes/data",
 		VolumeCapability: &csi.VolumeCapability{},
-		VolumeContext:    map[string]string{SubstrateModeKey: "true"},
+		VolumeContext:    map[string]string{utils.SubstrateModeKey: "true"},
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -136,7 +116,7 @@ func TestNodePublishVolumeSubstrateRejectsBadPath(t *testing.T) {
 		VolumeId:         "vol-1",
 		TargetPath:       "/tmp/evil/path",
 		VolumeCapability: &csi.VolumeCapability{},
-		VolumeContext:    map[string]string{SubstrateModeKey: "true"},
+		VolumeContext:    map[string]string{utils.SubstrateModeKey: "true"},
 	})
 	assert.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
@@ -152,7 +132,7 @@ func TestNodePublishVolumeSubstrateRejectsParentDir(t *testing.T) {
 		VolumeId:         "vol-1",
 		TargetPath:       "/var/lib/ate",
 		VolumeCapability: &csi.VolumeCapability{},
-		VolumeContext:    map[string]string{SubstrateModeKey: "true"},
+		VolumeContext:    map[string]string{utils.SubstrateModeKey: "true"},
 	})
 	assert.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
@@ -195,7 +175,7 @@ func TestMetricRecorderSkipsPodLookupOnlyForSubstrate(t *testing.T) {
 	server := &NodeServerWithMetricRecorder{NodeServer: &fakeNodeServer{}, client: client}
 	_, err := server.NodePublishVolume(context.Background(), &csi.NodePublishVolumeRequest{
 		VolumeContext: map[string]string{
-			SubstrateModeKey: "true", utils.PodNameKey: "actor", utils.PodNamespaceKey: "example",
+			utils.SubstrateModeKey: "true", utils.PodNameKey: "actor", utils.PodNamespaceKey: "example",
 		},
 	})
 	assert.NoError(t, err)

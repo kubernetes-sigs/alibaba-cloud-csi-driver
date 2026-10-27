@@ -8,8 +8,8 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -36,12 +36,35 @@ func (c *recordingAgenticController) ControllerExpandVolume(_ context.Context, _
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: 20 << 30}, nil
 }
 
-func TestSubstrateLegacyDeleteDoesNotReportFalseSuccess(t *testing.T) {
+func TestSubstrateSharepathDeleteSkipsWithoutPV(t *testing.T) {
 	server := newMockControllerServer()
 	response, err := server.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{VolumeId: "substrate-old-actor-data"})
+	require.NoError(t, err)
+	assert.NotNil(t, response)
+}
+
+type subpathStubController struct{ internal.MockController }
+
+func (s subpathStubController) VolumeAs() string { return "subpath" }
+
+func TestSubstrateCreateRejectsSubpath(t *testing.T) {
+	server := newMockControllerServer()
+	server.Modes["subpath"] = subpathStubController{}
+	_, err := server.CreateVolume(context.Background(), &csi.CreateVolumeRequest{
+		Name: "substrate-test-vol",
+		Parameters: map[string]string{
+			"csi.alibabacloud.com/substrate-mode": "true",
+			"volumeAs":                            "subpath",
+			"server":                              "fs-test.cn-beijing.nas.aliyuncs.com",
+		},
+		VolumeCapabilities: []*csi.VolumeCapability{{
+			AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{}},
+			AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER},
+		}},
+	})
 	require.Error(t, err)
-	assert.Equal(t, codes.FailedPrecondition, status.Code(err))
-	assert.Nil(t, response)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	assert.Contains(t, err.Error(), "subpath")
 }
 
 func TestSubstrateHandleRoutesWithoutPV(t *testing.T) {
@@ -50,7 +73,7 @@ func TestSubstrateHandleRoutesWithoutPV(t *testing.T) {
 			server := newMockControllerServer()
 			backend := &recordingAgenticController{}
 			server.Modes[agenticFsVolumeAs] = backend
-			id := "substrate-agenticfs:v1:fs-1:agentic-1"
+			id := "substrate-agenticfs:fs-1:agentic-1"
 			if operation == "delete" {
 				_, err := server.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{VolumeId: id})
 				require.NoError(t, err)
@@ -69,11 +92,10 @@ func TestSubstrateHandleRoutesWithoutPV(t *testing.T) {
 
 func TestSubstrateHandleRejectsMalformedIDs(t *testing.T) {
 	for _, id := range []string{
-		"substrate-agenticfs:v2:fs-1:agentic-1",
-		"substrate-agenticfs:v1::agentic-1",
-		"substrate-agenticfs:v1:fs-1:",
-		"substrate-agenticfs:v1:../fs:agentic-1",
-		"substrate-agenticfs:v1:fs-1:agentic-1:extra",
+		"substrate-agenticfs:",
+		"substrate-agenticfs::agentic-1",
+		"substrate-agenticfs:../fs:agentic-1",
+		"substrate-agenticfs:fs with spaces:agentic-1",
 	} {
 		t.Run(id, func(t *testing.T) {
 			server := newMockControllerServer()
@@ -91,12 +113,12 @@ func TestSubstrateCreateUsesStableBackendHandleOnlyWhenExplicit(t *testing.T) {
 	controller := newAgenticfsDirectCtrl(t, &fakeNasClientV2{})
 	for _, mode := range []string{"", "false", "true"} {
 		t.Run(mode, func(t *testing.T) {
-			req := agenticfsDirectCreateReq("substrate-test-data", 10<<30, map[string]string{common.SubstrateModeKey: mode})
+			req := agenticfsDirectCreateReq("substrate-test-data", 10<<30, map[string]string{utils.SubstrateModeKey: mode})
 			args, err := controller.getAgenticfsVolumeOptions(context.Background(), req)
 			require.NoError(t, err)
 			volume := args.volume("agentic-1", "ap-1", "server")
 			if mode == "true" {
-				assert.Equal(t, "substrate-agenticfs:v1:"+testAgenticFsDirectFilesystemID+":agentic-1", volume.VolumeId)
+				assert.Equal(t, "substrate-agenticfs:"+testAgenticFsDirectFilesystemID+":agentic-1", volume.VolumeId)
 			} else {
 				assert.Equal(t, req.Name, volume.VolumeId)
 			}
@@ -110,7 +132,7 @@ func TestSubstrateCreateDeleteReclaimsBackendWithoutPV(t *testing.T) {
 	controller := newAgenticfsDirectCtrl(t, backend)
 	server := newMockControllerServer()
 	server.Modes[agenticFsVolumeAs] = controller
-	request := agenticfsDirectCreateReq("substrate-test-data", 10<<30, map[string]string{common.SubstrateModeKey: "true"})
+	request := agenticfsDirectCreateReq("substrate-test-data", 10<<30, map[string]string{utils.SubstrateModeKey: "true"})
 	created, err := server.CreateVolume(context.Background(), request)
 	require.NoError(t, err)
 	retried, err := server.CreateVolume(context.Background(), request)
@@ -147,7 +169,7 @@ func TestSubstrateDeletePropagatesBackendFailure(t *testing.T) {
 	server := newMockControllerServer()
 	server.Modes[agenticFsVolumeAs] = newAgenticfsCtrl(t, backend)
 	_, err := server.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{
-		VolumeId: "substrate-agenticfs:v1:" + testAgenticFsFilesystemID + ":" + testAgenticFsAgenticSpaceID,
+		VolumeId: "substrate-agenticfs:" + testAgenticFsFilesystemID + ":" + testAgenticFsAgenticSpaceID,
 	})
 	require.Error(t, err)
 	assert.Equal(t, codes.Internal, status.Code(err))
@@ -162,7 +184,7 @@ func TestSubstrateDeleteAlreadyGoneIsIdempotent(t *testing.T) {
 	server := newMockControllerServer()
 	server.Modes[agenticFsVolumeAs] = newAgenticfsCtrl(t, backend)
 	_, err := server.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{
-		VolumeId: "substrate-agenticfs:v1:" + testAgenticFsFilesystemID + ":" + testAgenticFsAgenticSpaceID,
+		VolumeId: "substrate-agenticfs:" + testAgenticFsFilesystemID + ":" + testAgenticFsAgenticSpaceID,
 	})
 	require.NoError(t, err)
 	assert.Empty(t, backend.deleteAgenticSpaceReqs)

@@ -224,9 +224,27 @@ func (c *agenticfsController) accessPointsForDeletion(ctx context.Context, files
 
 	ids = accessPointDeletionOrder(knownAccesspointID, listed)
 	if len(ids) == 0 {
-		return nil, false, status.Errorf(codes.Aborted,
-			"missing accesspointId in volume attributes and agenticspace %s has no accesspoint listed yet: the listing may lag a recently created accesspoint, retrying; if it persists follow the manual cleanup procedure in examples/nas/agenticfs/README.md §4.1",
-			agenticSpaceID)
+		// Empty list is ambiguous: either the AP was already deleted (normal
+		// in a partial-retry scenario) or the listing lags a recently created
+		// AP. Disambiguate with a point-read on the space itself — this extra
+		// call only happens on the empty-list path, never on the normal path.
+		_, getErr := c.nasClient.GetAgenticSpace(ctx, &sdk.GetAgenticSpaceRequest{
+			FileSystemId:   tea.String(filesystemID),
+			AgenticSpaceId: tea.String(agenticSpaceID),
+		})
+		if isAgenticSpaceNotFoundError(getErr) {
+			logger.Info("agenticspace is gone, treating the volume as already deleted",
+				"agenticSpaceId", agenticSpaceID, "errorCode", apiErrorCode(getErr))
+			return nil, true, nil
+		}
+		if getErr != nil && !isNotFoundError(getErr) {
+			return nil, false, apiStatusError("nas:GetAgenticSpace", getErr)
+		}
+		// Space exists but has no accesspoints — the AP was already deleted
+		// (or never created). Skip AP deletion and proceed to delete the space.
+		logger.Info("agenticspace exists but has no accesspoints, skipping AP deletion",
+			"agenticSpaceId", agenticSpaceID)
+		return nil, false, nil
 	}
 	if knownAccesspointID == "" {
 		logger.Info("missing accesspointId in volume attributes, falling back to the accesspoints listed for the agenticspace",

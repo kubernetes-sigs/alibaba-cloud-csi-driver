@@ -24,15 +24,12 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/ttlcache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -172,12 +169,12 @@ func TestDialContext(t *testing.T) {
 		{
 			name:    "missing service",
 			addr:    "absent.oidc-proxy-system.svc:443",
-			errLike: "resolve Service",
+			errLike: "get Service",
 		},
 		{
-			name:    "headless service falls back to EndpointSlice",
+			name:    "headless service has no ClusterIP",
 			addr:    "headless.oidc-proxy-system.svc:443",
-			errLike: "no ready endpoints",
+			errLike: "has no ClusterIP",
 		},
 	}
 	for _, tt := range tests {
@@ -750,105 +747,6 @@ func TestRRSATransportFirstLoadFails(t *testing.T) {
 	require.NoError(t, os.WriteFile(caFile, caPEM, 0o600))
 	_, err = tr.get(t.Context())
 	assert.NoError(t, err)
-}
-
-func TestDialContextHeadlessServiceFallsBackToEndpointSlice(t *testing.T) {
-	ctx := context.Background()
-	objs := []runtime.Object{
-		&corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: "credential-provider", Namespace: "ack-agent-identity"},
-			Spec:       corev1.ServiceSpec{ClusterIP: "None", Ports: []corev1.ServicePort{{Port: 8443}}},
-		},
-		&discoveryv1.EndpointSlice{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "credential-provider-abc",
-				Namespace: "ack-agent-identity",
-				Labels:    map[string]string{"kubernetes.io/service-name": "credential-provider"},
-			},
-			Endpoints: []discoveryv1.Endpoint{
-				{Addresses: []string{"10.0.0.1"}, Conditions: discoveryv1.EndpointConditions{Ready: ptr(true)}},
-				{Addresses: []string{"10.0.0.2"}, Conditions: discoveryv1.EndpointConditions{Ready: ptr(false)}},
-			},
-		},
-	}
-	client := fake.NewSimpleClientset(objs...)
-	exchanger := &rrsaExchanger{
-		kubeClient: client,
-		clusterIPs: ttlcache.NewTTLCache[string, string](clusterIPTTL),
-		dial:       (&net.Dialer{}).DialContext,
-	}
-
-	// Headless service should resolve via EndpointSlice
-	ip, err := exchanger.clusterIPs.Get(ctx, "credential-provider.ack-agent-identity.svc", func() (string, error) {
-		svc, err := client.CoreV1().Services("ack-agent-identity").Get(ctx, "credential-provider", metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		if svc.Spec.ClusterIP != "" && svc.Spec.ClusterIP != "None" {
-			return svc.Spec.ClusterIP, nil
-		}
-		return exchanger.resolveEndpointSlice(ctx, "ack-agent-identity", "credential-provider", "8443")
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "10.0.0.1", ip, "should pick the first ready endpoint")
-}
-
-func TestDialContextClusterIPServiceUsesClusterIP(t *testing.T) {
-	ctx := context.Background()
-	objs := []runtime.Object{
-		&corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: "credential-provider", Namespace: "ack-agent-identity"},
-			Spec:       corev1.ServiceSpec{ClusterIP: "192.168.1.100", Ports: []corev1.ServicePort{{Port: 8443}}},
-		},
-	}
-	client := fake.NewSimpleClientset(objs...)
-	exchanger := &rrsaExchanger{
-		kubeClient: client,
-		clusterIPs: ttlcache.NewTTLCache[string, string](clusterIPTTL),
-		dial:       (&net.Dialer{}).DialContext,
-	}
-
-	ip, err := exchanger.clusterIPs.Get(ctx, "credential-provider.ack-agent-identity.svc", func() (string, error) {
-		svc, err := client.CoreV1().Services("ack-agent-identity").Get(ctx, "credential-provider", metav1.GetOptions{})
-		if err != nil {
-			return "", err
-		}
-		if svc.Spec.ClusterIP != "" && svc.Spec.ClusterIP != "None" {
-			return svc.Spec.ClusterIP, nil
-		}
-		return exchanger.resolveEndpointSlice(ctx, "ack-agent-identity", "credential-provider", "8443")
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "192.168.1.100", ip, "should use ClusterIP directly")
-}
-
-func TestDialContextNoReadyEndpoints(t *testing.T) {
-	ctx := context.Background()
-	objs := []runtime.Object{
-		&corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: "credential-provider", Namespace: "ack-agent-identity"},
-			Spec:       corev1.ServiceSpec{ClusterIP: "None"},
-		},
-		&discoveryv1.EndpointSlice{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "credential-provider-abc",
-				Namespace: "ack-agent-identity",
-				Labels:    map[string]string{"kubernetes.io/service-name": "credential-provider"},
-			},
-			Endpoints: []discoveryv1.Endpoint{
-				{Addresses: []string{"10.0.0.1"}, Conditions: discoveryv1.EndpointConditions{Ready: ptr(false)}},
-			},
-		},
-	}
-	client := fake.NewSimpleClientset(objs...)
-	exchanger := &rrsaExchanger{
-		kubeClient: client,
-		clusterIPs: ttlcache.NewTTLCache[string, string](clusterIPTTL),
-	}
-
-	_, err := exchanger.resolveEndpointSlice(ctx, "ack-agent-identity", "credential-provider", "8443")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no ready endpoints")
 }
 
 func ptr[T any](v T) *T { return &v }

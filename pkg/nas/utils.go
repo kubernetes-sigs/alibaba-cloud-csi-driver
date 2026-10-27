@@ -428,9 +428,15 @@ func appendJWTAuthOptions(options []string, opt *Options) []string {
 		}
 		options = append(options, fmt.Sprintf("%s=%s", k, v))
 	}
-	appendKV(jwtauth.OptAuthType, opt.AuthType)
-	appendKV(jwtauth.OptSandboxId, opt.SandboxId)
-	appendKV(jwtauth.OptSandboxCredProviderName, opt.SandboxCredProviderName)
+	// sandboxId, authType and sandboxCredProviderName select the credential
+	// exchange path in mount-proxy. Only inject them for agent-identity auth
+	// so plain NFS mounts do not receive infrastructure keys the kernel does
+	// not understand.
+	if jwtauth.IsAgentIdentity(effectiveAuthType) {
+		appendKV(jwtauth.OptAuthType, opt.AuthType)
+		appendKV(jwtauth.OptSandboxId, opt.SandboxId)
+		appendKV(jwtauth.OptSandboxCredProviderName, opt.SandboxCredProviderName)
+	}
 	if opt.SubstrateMode && jwtauth.IsAgentIdentity(effectiveAuthType) {
 		appendKV(jwtauth.OptSubstrateMode, "true")
 	}

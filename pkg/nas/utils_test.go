@@ -305,6 +305,26 @@ func TestAppendJWTAuthOptions(t *testing.T) {
 			want: []string{"tls", "authType=agent-identity", "sandboxId=sb-1", "sandboxCredProviderName=cp-1"},
 		},
 		{
+			name:    "non agent-identity: sandboxId and authType not injected",
+			options: []string{"tls"},
+			opt: &Options{
+				AuthType:                "",
+				SandboxId:               "sb-1",
+				SandboxCredProviderName: "cp-1",
+			},
+			want: []string{"tls"},
+		},
+		{
+			name:    "explicit non agent-identity authType: sandboxId not injected",
+			options: []string{"tls"},
+			opt: &Options{
+				AuthType:                "access-key",
+				SandboxId:               "sb-1",
+				SandboxCredProviderName: "cp-1",
+			},
+			want: []string{"tls"},
+		},
+		{
 			name:    "do not overwrite key already present in options",
 			options: []string{"authType=preset"},
 			opt:     &Options{AuthType: "agent-identity"},
