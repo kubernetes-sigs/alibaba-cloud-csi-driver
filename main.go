@@ -394,6 +394,10 @@ func main() {
 	csiMux := http.NewServeMux()
 	csiMux.HandleFunc("/healthz", healthHandler)
 	klog.Infof("Healthz listening on address: /healthz")
+	if serviceType&utils.Node != 0 {
+		csiMux.Handle("/readyz", newReadinessHandler(probeReadiness))
+		klog.Infof("Readiness probe listening on address: /readyz")
+	}
 	if enableMetric {
 		metricHandler := metric.NewMetricHandler(driverNames, serviceType)
 		csiMux.Handle("/metrics", metricHandler)
