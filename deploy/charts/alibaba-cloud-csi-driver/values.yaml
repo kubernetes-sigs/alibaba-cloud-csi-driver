@@ -61,6 +61,10 @@ csi:
     # means fewer AssumeRoleWithOIDC calls, which matters once you have many
     # volumes. Empty leaves the choice to the endpoint (STS defaults to 1h).
     rrsaDuration: ""
+    # CA Secret in the plugin namespace, with key ca.crt, for a non-STS
+    # tokenRequests audience. Empty uses the Kubernetes root CA already mounted
+    # with the plugin's ServiceAccount credentials, without mounting a Secret.
+    rrsaCASecretName: oidc-proxy-ca
   oss:
     enabled: true
     controller:

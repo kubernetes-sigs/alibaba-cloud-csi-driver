@@ -243,12 +243,23 @@ Configuration for a broker:
     `sts.aliyuncs.com`, so the Pod's token cannot be used with STS directly.
 * Helm: list that audience in `csi.nas.tokenRequests` instead of, or in addition
   to, `sts.aliyuncs.com`.
-* CA: create a Secret `oidc-proxy-ca` with key `ca.crt` in the csi-plugin
-  namespace. The chart mounts it, and points `NAS_RRSA_CA_FILE` at it, whenever
-  `tokenRequests` contains an audience other than `sts.aliyuncs.com`; until the
-  Secret exists, `rrsa` mounts fail naming the missing file. The CA is added to
-  the system roots, and a rotated CA takes effect within about 5 minutes of kubelet
-  updating the mounted file.
+* CA: when `tokenRequests` contains an audience other than `sts.aliyuncs.com`, `csi.nas.rrsaCASecretName` selects the CA source:
+  * A non-empty name (default: `oidc-proxy-ca`) mounts that Secret from the csi-plugin namespace, with key `ca.crt`, and points `NAS_RRSA_CA_FILE` at it. Until the Secret and key exist, `rrsa` mounts fail naming the missing file, without preventing the plugin Pod from starting.
+  * An empty string uses the Kubernetes root CA at `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`, already mounted with the plugin's ServiceAccount credentials. No CA Secret is mounted. The broker's certificate must chain to this CA and include the endpoint's DNS name.
+
+In either mode, the CA is added to the system roots, and a rotated CA takes effect within about 5 minutes of kubelet updating the mounted file. Direct-to-STS configurations with only the `sts.aliyuncs.com` audience use system roots and do not mount a CA Secret.
+
+For a broker using the Kubernetes root CA:
+
+```yaml
+csi:
+  nas:
+    tokenRequests:
+      - audience: oidc-proxy.alibabacloud.com
+    rrsaCASecretName: ""
+```
+
+For a broker using a separate CA, set `rrsaCASecretName` to the Secret's name and create it with key `ca.crt`:
 
 ```shell
 kubectl -n kube-system create secret generic oidc-proxy-ca --from-file=ca.crt=<ca.pem>
