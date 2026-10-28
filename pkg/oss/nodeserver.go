@@ -162,7 +162,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Parse options and ensure fuseType is not empty
-	opts, err := parseOptions(ctx, ns.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", true, ns.kernelSupportsRecovery, ns.metadata)
+	opts, err := parseOptions(ctx, ns.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, "", true, ns.kernelSupportsRecovery, ns.metadata)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -183,6 +183,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.InvalidArgument, "failed to determine runtime type: %v", err)
 	}
 	klog.V(4).InfoS("Determined runtime type", "runtimeType", runtimeType, "directAssigned", opts.DirectAssigned, "hasSocketPath", socketPath != "", "skipGlobalMount", ns.skipGlobalMount)
+
+	// Fold per-pod readOnly into opts.ReadOnly. RunC ignores it (shared
+	// attachPath; kubelet/CRI enforces per-pod ro at container bind).
+	opts.ReadOnly = effectiveReadOnly(opts.ReadOnly, req.GetReadonly(), runtimeType)
 
 	fusePodManager := ns.fusePodManagers[opts.FuseType]
 	if fusePodManager == nil {
