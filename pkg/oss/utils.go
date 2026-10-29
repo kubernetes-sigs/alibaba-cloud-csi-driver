@@ -159,7 +159,7 @@ func parseCredentialsFromSecret(secrets map[string]string) (ossfpm.AccessKey, os
 // in controller mode (onNode=false) because controllers don't run mounts and
 // per-node capability is not their concern.
 func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, reqName string, onNode bool, nodeKernelSupportsRecovery bool, m metadata.MetadataProvider) (*ossfpm.Options, error) {
+	reqName string, onNode bool, nodeKernelSupportsRecovery bool, m metadata.MetadataProvider) (*ossfpm.Options, error) {
 	if volOptions == nil {
 		volOptions = map[string]string{}
 	}
@@ -289,9 +289,6 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 		if opts.FuseType == "" && c.GetMount() != nil && c.GetMount().FsType != "" {
 			opts.FuseType = c.GetMount().FsType
 		}
-	}
-	if readOnly {
-		opts.ReadOnly = true
 	}
 
 	// Normalize fuseType to a canonical registered name.
@@ -776,6 +773,16 @@ const (
 	RuntimeTypeMicroVM RuntimeType = "eci"
 	RuntimeTypeUnknown RuntimeType = "unknown"
 )
+
+// effectiveReadOnly returns whether the ossfs daemon should launch read-only.
+// RunC ignores per-pod readOnly (shared attachPath would be poisoned for
+// other pods; kubelet/CRI enforces per-pod ro at the container bind instead).
+func effectiveReadOnly(accessModeRO, podReadOnly bool, runtimeType RuntimeType) bool {
+	if runtimeType == RuntimeTypeRunC {
+		return accessModeRO
+	}
+	return accessModeRO || podReadOnly
+}
 
 // runtimeTypeResult represents the result of runtime type determination
 type runtimeTypeResult struct {

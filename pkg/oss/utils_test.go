@@ -58,26 +58,26 @@ var m = &metadata.FakeProvider{
 }
 
 func mustParseOptions(t *testing.T, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, reqName string, onNode bool, provider metadata.MetadataProvider) *ossfpm.Options {
+	reqName string, onNode bool, provider metadata.MetadataProvider) *ossfpm.Options {
 	t.Helper()
 	// Default test assumption: node kernel supports recovery. Tests that need to
 	// exercise the unsupported-kernel fallback path must call parseOptions directly.
-	opts, err := parseOptions(context.Background(), nil, volOptions, secrets, volCaps, readOnly, reqName, onNode, true, provider)
+	opts, err := parseOptions(context.Background(), nil, volOptions, secrets, volCaps, reqName, onNode, true, provider)
 	require.NoError(t, err)
 	return opts
 }
 
 func mustParseOptionsWithCNFS(t *testing.T, getter cnfsv1beta1.CNFSGetter, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, reqName string, onNode bool, provider metadata.MetadataProvider) *ossfpm.Options {
+	reqName string, onNode bool, provider metadata.MetadataProvider) *ossfpm.Options {
 	t.Helper()
-	opts, err := parseOptions(context.Background(), getter, volOptions, secrets, volCaps, readOnly, reqName, onNode, true, provider)
+	opts, err := parseOptions(context.Background(), getter, volOptions, secrets, volCaps, reqName, onNode, true, provider)
 	require.NoError(t, err)
 	return opts
 }
 
 func parseOptionsWithCNFSError(getter cnfsv1beta1.CNFSGetter, volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, reqName string, onNode bool, provider metadata.MetadataProvider) (*ossfpm.Options, error) {
-	return parseOptions(context.Background(), getter, volOptions, secrets, volCaps, readOnly, reqName, onNode, true, provider)
+	reqName string, onNode bool, provider metadata.MetadataProvider) (*ossfpm.Options, error) {
+	return parseOptions(context.Background(), getter, volOptions, secrets, volCaps, reqName, onNode, true, provider)
 }
 
 func TestParseCredentialsFromSecret(t *testing.T) {
@@ -296,7 +296,7 @@ func TestParseOptions_credentialsCompatibility(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotOptions := mustParseOptions(t, tt.options,
 				tt.secrets, []*csi.VolumeCapability{},
-				false, "", false, m)
+				"", false, m)
 			assert.Equal(t, tt.akID, gotOptions.AkID)
 			assert.Equal(t, tt.akSecret, gotOptions.AkSecret)
 		})
@@ -340,7 +340,7 @@ func Test_parseOptions(t *testing.T) {
 		MetricsTop:    "20",
 	}
 	gotOptions = mustParseOptions(t, testCVReq.GetParameters(),
-		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "volume-id", false, m)
+		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), "volume-id", false, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// test STS.Token in secret
@@ -367,7 +367,7 @@ func Test_parseOptions(t *testing.T) {
 		FuseType:      "ossfs",
 		UseSharedPath: true,
 	}
-	gotOptions = mustParseOptions(t, options, Secrets, nil, false, "volume-id", false, m)
+	gotOptions = mustParseOptions(t, options, Secrets, nil, "volume-id", false, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// ControllerPublishVolume
@@ -405,7 +405,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	gotOptions = mustParseOptions(t, testCPVReq.GetVolumeContext(),
 		testCPVReq.GetSecrets(), []*csi.VolumeCapability{testCPVReq.GetVolumeCapability()},
-		testCPVReq.Readonly, "", false, m)
+		"", false, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// NodePublishVolume
@@ -437,12 +437,12 @@ func Test_parseOptions(t *testing.T) {
 		AuthType:      "rrsa",
 		FuseType:      "ossfs2",
 		Path:          "/",
-		ReadOnly:      true,
+		ReadOnly:      false, // per-pod readOnly deferred to effectiveReadOnly in NodePublishVolume
 		UseSharedPath: false,
 	}
 	gotOptions = mustParseOptions(t, testNPReq.GetVolumeContext(),
 		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
-		testNPReq.Readonly, "", true, m)
+		"", true, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// test authtype
@@ -451,7 +451,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	t.Setenv("ACCESS_KEY_ID", "test-akid")
 	t.Setenv("ACCESS_KEY_SECRET", "test-aksecret")
-	gotOptions = mustParseOptions(t, options, nil, nil, true, "", true, m)
+	gotOptions = mustParseOptions(t, options, nil, nil, "", true, m)
 	expectedOptions = &ossfpm.Options{
 		AccessKey: ossfpm.AccessKey{
 			AkID:     "test-akid",
@@ -460,7 +460,7 @@ func Test_parseOptions(t *testing.T) {
 		FuseType:      "ossfs",
 		Path:          "/",
 		UseSharedPath: true,
-		ReadOnly:      true,
+		ReadOnly:      false,
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 	}
 	assert.Equal(t, expectedOptions, gotOptions)
@@ -470,13 +470,13 @@ func Test_parseOptions(t *testing.T) {
 		"roleName": "test-rolename",
 		"url":      "oss-cn-beijing.aliyuncs.com",
 	}
-	gotOptions = mustParseOptions(t, options, nil, nil, true, "", true, m)
+	gotOptions = mustParseOptions(t, options, nil, nil, "", true, m)
 	expectedOptions = &ossfpm.Options{
 		AuthType:      ossfpm.AuthTypeSTS,
 		FuseType:      "ossfs",
 		Path:          "/",
 		UseSharedPath: true,
-		ReadOnly:      true,
+		ReadOnly:      false,
 		RoleName:      "test-rolename",
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 	}
@@ -487,13 +487,13 @@ func Test_parseOptions(t *testing.T) {
 		"authType": "sts",
 		"url":      "oss-cn-beijing.aliyuncs.com",
 	}
-	gotOptions = mustParseOptions(t, options, nil, nil, true, "", true, m)
+	gotOptions = mustParseOptions(t, options, nil, nil, "", true, m)
 	expectedOptions = &ossfpm.Options{
 		AuthType:      ossfpm.AuthTypeSTS,
 		FuseType:      "ossfs",
 		Path:          "/",
 		UseSharedPath: true,
-		ReadOnly:      true,
+		ReadOnly:      false,
 		RoleName:      "worker-role",
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 	}
@@ -505,7 +505,7 @@ func Test_parseOptions(t *testing.T) {
 		"region":     "cn-shanghai",
 		"sigVersion": "v4",
 	}
-	gotOptions = mustParseOptions(t, options, nil, nil, false, "", true, m)
+	gotOptions = mustParseOptions(t, options, nil, nil, "", true, m)
 	expectedOptions = &ossfpm.Options{
 		AccessKey: ossfpm.AccessKey{
 			AkID:     "test-akid",
@@ -780,7 +780,7 @@ func Test_parseOptions_agenticBucket(t *testing.T) {
 		"bucketSpace":   "my-space-xxx-bs-apsr",
 		"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
 		"authType":      "agent-identity",
-	}, nil, nil, false, "", false, m)
+	}, nil, nil, "", false, m)
 
 	assert.Equal(t, "my-agentic-xxx-ab-apsr", opts.AgenticBucket)
 	assert.Equal(t, "my-space-xxx-bs-apsr", opts.BucketSpace)
@@ -793,7 +793,7 @@ func Test_parseOptions_agenticBucket(t *testing.T) {
 		"bucketSpace":   "my-bs",
 		"bucket":        "my-bucket",
 		"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
-	}, nil, nil, false, "", false, true, m)
+	}, nil, nil, "", false, true, m)
 	require.NoError(t, err) // parseOptions itself should succeed
 	err = resolveAgenticBucketOptions(opts2, m)
 	assert.ErrorContains(t, err, "mutually exclusive")
@@ -802,7 +802,7 @@ func Test_parseOptions_agenticBucket(t *testing.T) {
 	opts3, err := parseOptions(context.Background(), nil, map[string]string{
 		"agenticBucket": "my-ab",
 		"url":           "oss-cn-hangzhou-internal.aliyuncs.com",
-	}, nil, nil, false, "", false, true, m)
+	}, nil, nil, "", false, true, m)
 	require.NoError(t, err)
 	err = resolveAgenticBucketOptions(opts3, m)
 	assert.ErrorContains(t, err, "bucketSpace or bucketSpacePrefix is required")
@@ -821,7 +821,7 @@ func Test_resolveAgenticBucketOptions_prefix(t *testing.T) {
 		"bucketSpacePrefix": "sandbox-a",
 		"url":               "oss-cn-hangzhou-internal.aliyuncs.com",
 		"authType":          "agent-identity",
-	}, nil, nil, false, "", false, prefixMeta)
+	}, nil, nil, "", false, prefixMeta)
 	require.NoError(t, resolveAgenticBucketOptions(opts, prefixMeta))
 
 	assert.Equal(t, "sandbox-a-1301557714835034-cn-hangzhou-bs-apsr", opts.BucketSpace)
@@ -835,7 +835,7 @@ func Test_resolveAgenticBucketOptions_prefix(t *testing.T) {
 		"agenticBucket":     "my-ab",
 		"bucketSpacePrefix": "sandbox-a",
 		"url":               "oss-cn-hangzhou-internal.aliyuncs.com",
-	}, nil, nil, false, "", false, true, noAccountMeta)
+	}, nil, nil, "", false, true, noAccountMeta)
 	require.NoError(t, err)
 	err = resolveAgenticBucketOptions(opts2, noAccountMeta)
 	assert.ErrorContains(t, err, "accountId unavailable")
@@ -881,7 +881,7 @@ func Test_parseOptions_fuseTypeNormalization(t *testing.T) {
 				}}
 			}
 
-			opts, err := parseOptions(context.Background(), nil, volOpts, nil, volCaps, false, "", false, true, m)
+			opts, err := parseOptions(context.Background(), nil, volOpts, nil, volCaps, "", false, true, m)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -1559,7 +1559,7 @@ func Test_parseOptions_CNFSPriorityAndURLNormalization(t *testing.T) {
 			"containernetworkfilesystem": "cnfs-demo",
 			"bucket":                     "req-bucket",
 			"url":                        "oss-cn-beijing.aliyuncs.com",
-		}, nil, nil, false, "", false, m)
+		}, nil, nil, "", false, m)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "bucket conflict for CNFS")
 	})
@@ -1569,7 +1569,7 @@ func Test_parseOptions_CNFSPriorityAndURLNormalization(t *testing.T) {
 			"containernetworkfilesystem": "cnfs-demo",
 			"bucket":                     "cnfs-bucket",
 			"url":                        "custom-endpoint.example.com",
-		}, nil, nil, false, "", false, m)
+		}, nil, nil, "", false, m)
 		assert.Equal(t, "cnfs-bucket", opts.Bucket)
 		assert.Equal(t, "https://custom-endpoint.example.com", opts.URL)
 	})
@@ -1577,7 +1577,7 @@ func Test_parseOptions_CNFSPriorityAndURLNormalization(t *testing.T) {
 	t.Run("when request url empty use cnfs endpoint then normalize protocol", func(t *testing.T) {
 		opts := mustParseOptionsWithCNFS(t, getter, map[string]string{
 			"containernetworkfilesystem": "cnfs-demo",
-		}, nil, nil, false, "", false, m)
+		}, nil, nil, "", false, m)
 		assert.Equal(t, "cnfs-bucket", opts.Bucket)
 		assert.Equal(t, "http://oss-cn-beijing-internal.aliyuncs.com", opts.URL)
 	})
@@ -2068,7 +2068,7 @@ func TestParseOptions_DirectAssigned(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeMeta := metadata.NewMetadata()
 			t.Setenv("DEFAULT_RUNTIME_CLASS", tt.default_runtime_class)
-			opt := mustParseOptions(t, tt.volOptions, nil, nil, false, "", false, fakeMeta)
+			opt := mustParseOptions(t, tt.volOptions, nil, nil, "", false, fakeMeta)
 			assert.Equal(t, tt.wantDirectAssigned, opt.DirectAssigned)
 		})
 	}
@@ -2577,7 +2577,7 @@ func TestParseOptions_SandboxCredProviderName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := mustParseOptions(t, tt.volOptions, nil, nil, false, "", false, m)
+			opts := mustParseOptions(t, tt.volOptions, nil, nil, "", false, m)
 			if len(tt.wantCredAny) > 0 {
 				assert.Contains(t, tt.wantCredAny, opts.SandboxCredProviderName)
 			} else {
@@ -2641,7 +2641,7 @@ func TestParseOptions_FeatureGate_FdPassingAndRecovery(t *testing.T) {
 			featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableOssfs2Recovery, tt.enableRecovery)
 			featuregatetesting.SetFeatureGateDuringTest(t, features.FunctionalMutableFeatureGate, features.EnableFUSEFdPassing, tt.enableFdPass)
 
-			result := mustParseOptions(t, baseOpts, baseSecrets, nil, false, "vol-1", true, m)
+			result := mustParseOptions(t, baseOpts, baseSecrets, nil, "vol-1", true, m)
 			assert.Equal(t, tt.wantRecovery, result.Recovery)
 			assert.Equal(t, tt.wantFdPassing, result.FdPassing)
 		})
@@ -2663,7 +2663,7 @@ func TestParseOptions_FeatureGate_OssfsBypass(t *testing.T) {
 		AkSecret: "test-aksecret",
 	}
 
-	result := mustParseOptions(t, opts, secrets, nil, false, "vol-1", true, m)
+	result := mustParseOptions(t, opts, secrets, nil, "vol-1", true, m)
 	assert.False(t, result.Recovery)
 	assert.False(t, result.FdPassing)
 }

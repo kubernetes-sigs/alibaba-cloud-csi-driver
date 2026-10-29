@@ -165,7 +165,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// parse options
 	nodeName := req.NodeId
 	// ensure fuseType is not empty
-	opts, err := parseOptions(ctx, cs.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), "", false, false, cs.metadata)
+	opts, err := parseOptions(ctx, cs.cnfsGetter, req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, "", false, false, cs.metadata)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
