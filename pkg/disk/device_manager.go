@@ -31,9 +31,6 @@ type DeviceManager struct {
 	// This is usually /sys.
 	SysfsPath string
 
-	// Disable read serial from sysfs
-	DisableSerial bool
-
 	// Support sole already formatted disk partition
 	EnableDiskPartition bool
 }
@@ -59,13 +56,6 @@ func (m *DeviceManager) ListBlocks() (sets.Set[string], error) {
 }
 
 func (m *DeviceManager) GetDeviceSerial(blockName string) (string, error) {
-	if m.DisableSerial {
-		return "", nil // Assume no serial
-	}
-	return m.getDeviceSerial(blockName)
-}
-
-func (m *DeviceManager) getDeviceSerial(blockName string) (string, error) {
 	sysBlock := m.SysfsPath + "/block"
 	serialPath := fmt.Sprintf("%s/%s/serial", sysBlock, blockName)
 	// NVMe block device is a namespace (e.g. nvme0n1). It does not have a serial file.
@@ -91,7 +81,7 @@ func (m *DeviceManager) getDeviceByScanSysfsSerial(serial string) (string, error
 		return "", fmt.Errorf("read dir %q failed: %w", sysBlock, err)
 	}
 	for _, block := range allBlocks {
-		got, err := m.getDeviceSerial(block.Name())
+		got, err := m.GetDeviceSerial(block.Name())
 		if err != nil {
 			klog.Errorf("Read serial for %s failed: %v", block.Name(), err)
 			continue
@@ -325,24 +315,21 @@ func (m *DeviceManager) getDeviceFallback(serial string) (string, error) {
 		errs = append(errs, err)
 	}
 
-	// this is danger in Bdf mode
-	if !m.DisableSerial {
-		// We need this branch on old Linux kernel, which has a race condition.
-		// The serial file is created after the uevent has been sent.
-		// So link in /dev/disk/by-id/ may not be created by udev.
-		// This was fixed in Linux 4.20 @ commit e982c4d0a29b1d61fbe7716a8dcf8984936d6730
-		// https://lore.kernel.org/linux-block/20180928061723.13180-1-hare@suse.de/
-		//
-		// The downside:
-		// 1. Read serial from sysfs is relatively slow. Kernel will send request to storage backend.
-		// 2. Race on our side: we return path like /dev/vdb, but this file can be another disk when mounting.
-		name, err := m.getDeviceByScanSysfsSerial(serial)
-		if err == nil {
-			klog.Infof("GetDevice: Use the serial to find device, serial: %s, device: %s", serial, name)
-			return filepath.Join(m.DevicePath, name), nil
-		}
-		errs = append(errs, fmt.Errorf("find by serial: %w", err))
+	// We need this branch on old Linux kernel, which has a race condition.
+	// The serial file is created after the uevent has been sent.
+	// So link in /dev/disk/by-id/ may not be created by udev.
+	// This was fixed in Linux 4.20 @ commit e982c4d0a29b1d61fbe7716a8dcf8984936d6730
+	// https://lore.kernel.org/linux-block/20180928061723.13180-1-hare@suse.de/
+	//
+	// The downside:
+	// 1. Read serial from sysfs is relatively slow. Kernel will send request to storage backend.
+	// 2. Race on our side: we return path like /dev/vdb, but this file can be another disk when mounting.
+	name, err := m.getDeviceByScanSysfsSerial(serial)
+	if err == nil {
+		klog.Infof("GetDevice: Use the serial to find device, serial: %s, device: %s", serial, name)
+		return filepath.Join(m.DevicePath, name), nil
 	}
+	errs = append(errs, fmt.Errorf("find by serial: %w", err))
 	return "", utilerrors.NewAggregate(errs)
 }
 

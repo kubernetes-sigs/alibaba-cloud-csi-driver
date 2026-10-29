@@ -74,8 +74,6 @@ type GlobalConfig struct {
 	ClientSet            *kubernetes.Clientset
 	ClusterID            string
 	ControllerService    bool
-	BdfHealthCheck       bool
-	CheckBDFHotPlugin    bool
 	SnapClient           *snapClientset.Clientset
 	WaitBeforeAttach     bool
 	AddonVMFatalEvents   []string
@@ -183,7 +181,6 @@ func GlobalConfigSet(m metadata.MetadataProvider, csiCfg utils.Config) {
 		ClientSet:          kubeClient,
 		SnapClient:         snapClient,
 		ClusterID:          os.Getenv("CLUSTER_ID"),
-		BdfHealthCheck:     csiCfg.GetBool("bdf-health-check", "BDF_HEALTH_CHECK", true),
 		WaitBeforeAttach:   csiCfg.GetBool("wait-before-attach", "WAIT_BEFORE_ATTACH", false),
 		AddonVMFatalEvents: fatalEvents,
 		SnapshotBeforeDelete: features.FunctionalMutableFeatureGate.Enabled(features.EnableDeleteAutoSnapshots) ||

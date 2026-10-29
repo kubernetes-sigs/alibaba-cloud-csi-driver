@@ -21,7 +21,7 @@ ARG OSSFS_IMAGE_TAG=v1.91.12.ack.2-5cf3371
 ARG OSSFS2_IMAGE_TAG=v2.0.9.ack.3-a1f29fc
 LABEL defaultOssfsImageTag="${OSSFS_IMAGE_TAG}" defaultOssfs2ImageTag="${OSSFS2_IMAGE_TAG}"
 
-RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace util-linux nc telnet tar cpio && \
+RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs iputils strace util-linux nc telnet tar cpio && \
     yum clean all
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
 
