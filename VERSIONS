@@ -36,4 +36,4 @@ ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs
 ALINAS_UTILS_VERSION=2.6-0.20261020204835.cb10e3.generic
 
 # EFC version (used in Dockerfile for yum install)
-EFC_VERSION=2.6-20261023175522.d9b226.93c790a.release
+EFC_VERSION=2.6-20261030142122.daf6d5.e03fed7.release
