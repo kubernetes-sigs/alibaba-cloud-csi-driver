@@ -12,19 +12,27 @@
           labelSelector:
             matchLabels: {podcert.ate.dev/canarying: live}
           path: trust-bundle.pem
-{{- end }}
       - clusterTrustBundle:
           signerName: podidentity.podcert.ate.dev/identity
           labelSelector:
             matchLabels: {podcert.ate.dev/canarying: live}
           path: client-trust-bundle.pem
-- name: substrate-identity
-  projected:
-    sources:
+          optional: true
       - podCertificate:
           signerName: podidentity.podcert.ate.dev/identity
           keyType: ECDSAP256
           credentialBundlePath: credential-bundle.pem
+{{- else }}
+      - clusterTrustBundle:
+          signerName: podidentity.podcert.ate.dev/identity
+          labelSelector:
+            matchLabels: {podcert.ate.dev/canarying: live}
+          path: client-trust-bundle.pem
+      - podCertificate:
+          signerName: podidentity.podcert.ate.dev/identity
+          keyType: ECDSAP256
+          credentialBundlePath: credential-bundle.pem
+{{- end }}
 {{- if .node }}
 - name: substrate-api-token
   projected:

@@ -193,7 +193,7 @@ spec:
               mountPath: /csi/substrate.csi.alibabacloud.com
             - name: substrate-actors
               mountPath: {{ clean $.Values.substrate.actorRoot }}
-              mountPropagation: Bidirectional
+              mountPropagation: "Bidirectional"
 {{- end }}
             - name: kubelet-dir
               # keep the trailing slash to be compatible with old ACK installations

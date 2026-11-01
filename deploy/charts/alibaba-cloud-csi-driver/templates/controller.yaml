@@ -209,13 +209,17 @@ spec:
             {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
             - {name: nas-grpc, containerPort: 8443}
             {{- end }}
+            - {name: admin, containerPort: 9901}
           readinessProbe:
-            tcpSocket: {port: bridge-grpc}
+            httpGet: {path: /ready, port: admin}
           resources:
             requests: {cpu: 50m, memory: 64Mi}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: "1", memory: 256Mi}
           volumeMounts:
             - {name: substrate-provisioner-dir, mountPath: /csi/substrate.csi.alibabacloud.com}
             {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
@@ -224,7 +228,6 @@ spec:
             - {name: substrate-envoy-config, mountPath: /etc/envoy, readOnly: true}
             - {name: substrate-serving, mountPath: /run/servicedns.podcert.ate.dev, readOnly: true}
             - {name: substrate-trust-bundle, mountPath: /run/podidentity.podcert.ate.dev, readOnly: true}
-            - {name: substrate-identity, mountPath: /run/podidentity.podcert.ate.dev/identity, readOnly: true}
 {{- end }}
 {{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled }}
         - name: external-disk-provisioner
