@@ -175,7 +175,7 @@ func TestFirstPublishUsesAnnotationChangedAfterCreate(t *testing.T) {
 	changed.VolumeContext["path"] = "/another-tenant"
 	annotation = annotationFixture(t, changed)
 	nas := &recordingNAS{}
-	node := NewNode(NodeOptions{ActorRoot: DefaultActorRoot, StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil), Lookup: lookup, Backends: nasBackends(nas)})
+	node := NewNode(NodeOptions{Root: DefaultRoot, StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil), Lookup: lookup, Backends: nasBackends(nas)})
 	context := created.Volume.VolumeContext
 	context[PodUIDKey] = "worker-pod-uid"
 	_, err = node.NodePublishVolume(t.Context(), &csi.NodePublishVolumeRequest{VolumeId: testID, TargetPath: testTarget, VolumeContext: context})
@@ -199,7 +199,7 @@ func TestCreateSucceedsBeforePublishConfigurationIsAvailable(t *testing.T) {
 			require.NoError(t, err)
 			calls := 0
 			nas := &recordingNAS{}
-			node := NewNode(NodeOptions{ActorRoot: DefaultActorRoot, StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil), Backends: nasBackends(nas), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
+			node := NewNode(NodeOptions{Root: DefaultRoot, StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil), Backends: nasBackends(nas), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
 				calls++
 				return ActorInfo{UID: testUID, Name: "actor", Atespace: "storage-test", Annotation: tc.annotation}, tc.lookupErr
 			}})

@@ -145,8 +145,8 @@ func (s NodeServerWithValidator) NodeStageVolume(ctx context.Context, req *csi.N
 		return nil, status.Error(codes.InvalidArgument, "StagingTargetPath is required")
 	}
 	rootDir := utils.KubeletRootDir
-	if utils.IsSubstrateVolumeContext(req.VolumeContext) {
-		rootDir = SubstrateActorRootDir
+	if utils.IsSubstrateVolumeContext(req.VolumeContext) && utils.SubstrateRootDir != "" {
+		rootDir = utils.SubstrateRootDir
 	}
 	if ok, err := filepathContains(rootDir, req.StagingTargetPath); err != nil || !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "Staging path %q is not a subpath of %s", req.StagingTargetPath, rootDir)
@@ -165,8 +165,8 @@ func (s NodeServerWithValidator) NodePublishVolume(ctx context.Context, req *csi
 		return nil, status.Errorf(codes.InvalidArgument, "TargetPath is required")
 	}
 	rootDir := utils.KubeletRootDir
-	if utils.IsSubstrateVolumeContext(req.VolumeContext) {
-		rootDir = SubstrateActorRootDir
+	if utils.IsSubstrateVolumeContext(req.VolumeContext) && utils.SubstrateRootDir != "" {
+		rootDir = utils.SubstrateRootDir
 	}
 	if ok, err := filepathContains(rootDir, req.TargetPath); err != nil || !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "Target path %q is not a subpath of %s", req.TargetPath, rootDir)

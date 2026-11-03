@@ -36,7 +36,7 @@ const (
 	NASDriverName             = "nasplugin.csi.alibabacloud.com"
 	PublishRequestsAnnotation = "ate.dev/csi-volume-publish-requests"
 	PodUIDKey                 = agentidentity.PodUIDKey
-	DefaultActorRoot          = "/var/lib/ate/actors"
+	DefaultRoot               = "/var/lib/ate"
 )
 
 type publishEntry struct {
@@ -51,9 +51,9 @@ type publishEntry struct {
 type ActorLookup func(context.Context, ActorReference) (ActorInfo, error)
 
 type NodeOptions struct {
-	NodeID    string
-	ActorRoot string
-	Lookup    ActorLookup
+	NodeID string
+	Root   string
+	Lookup ActorLookup
 	// Backends maps a CSI driver name to the backend that forwards mounts for
 	// it. The bridge routes a stored publish request to the backend named by
 	// that request's driver, so supporting another driver is a registration, not
@@ -257,16 +257,16 @@ type volumeIdentity struct {
 // target instead of the VolumeId: Substrate has not stabilized its logical
 // volume naming, so only its host directory layout is treated as a contract.
 func (n *Node) identity(target string) (volumeIdentity, error) {
-	root := filepath.Clean(n.opts.ActorRoot)
-	if !filepath.IsAbs(n.opts.ActorRoot) || root == "/" {
-		return volumeIdentity{}, status.Error(codes.FailedPrecondition, "an absolute actor root is required")
+	root := filepath.Clean(n.opts.Root)
+	if !filepath.IsAbs(n.opts.Root) || root == "/" {
+		return volumeIdentity{}, status.Error(codes.FailedPrecondition, "an absolute substrate root is required")
 	}
 	if !filepath.IsAbs(target) || filepath.Clean(target) != target {
 		return volumeIdentity{}, status.Error(codes.InvalidArgument, "target must be a clean absolute path")
 	}
-	rel, ok := strings.CutPrefix(target, root+"/")
+	rel, ok := strings.CutPrefix(target, filepath.Join(root, "actors")+"/")
 	if !ok {
-		return volumeIdentity{}, status.Error(codes.InvalidArgument, "target must be inside the actor root")
+		return volumeIdentity{}, status.Error(codes.InvalidArgument, "target must be inside the actors directory")
 	}
 	segments := strings.Split(rel, "/")
 	if len(segments) < 2 {

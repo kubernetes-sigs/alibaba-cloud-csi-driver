@@ -13,6 +13,12 @@ import (
 // KubeletRootDir kubelet root dir;
 var KubeletRootDir = "/var/lib/kubelet"
 
+// SubstrateRootDir is the host directory under which atelet creates
+// per-actor volume mount points and staging directories. The bridge driver
+// derives its actors directory from this (root + "/actors"), and the node
+// server validator checks stage/publish paths against it.
+var SubstrateRootDir = "/var/lib/ate"
+
 // MountPathWithTLS tls mount path;
 var MountPathWithTLS = "/tls"
 

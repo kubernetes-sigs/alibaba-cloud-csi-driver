@@ -47,7 +47,7 @@ func TestGoldenPlaceholderRealMountThroughGRPC(t *testing.T) {
 		}
 		return ActorInfo{UID: testUID, Atespace: "ate-golden", Name: "template-uid", TemplateUID: "template-uid", Golden: true}, nil
 	}
-	node := NewNode(NodeOptions{ActorRoot: root, StateDir: state, Lookup: lookup, Mounter: mount.NewWithoutSystemd("")})
+	node := NewNode(NodeOptions{Root: root, StateDir: state, Lookup: lookup, Mounter: mount.NewWithoutSystemd("")})
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	server := grpc.NewServer()
@@ -98,7 +98,7 @@ func TestGoldenRealMountIgnoresOuterReadonlyAndStaysWritable(t *testing.T) {
 	}
 	attributes := goldenMetadataFixture()
 	attributes[PodUIDKey] = "worker-pod-uid"
-	node := NewNode(NodeOptions{ActorRoot: filepath.Join(root, "actors"), StateDir: filepath.Join(root, "state"), Lookup: lookup, Mounter: mount.New("")})
+	node := NewNode(NodeOptions{Root: filepath.Join(root, "actors"), StateDir: filepath.Join(root, "state"), Lookup: lookup, Mounter: mount.New("")})
 	_, err := node.NodePublishVolume(t.Context(), &csi.NodePublishVolumeRequest{VolumeId: testID, TargetPath: target, Readonly: true, VolumeContext: attributes})
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -119,7 +119,7 @@ func TestGoldenRealStackedMountOwnership(t *testing.T) {
 			root, state := t.TempDir(), t.TempDir()
 			target := filepath.Join(root, testUID, "volumes", "data")
 			mounter := mount.NewWithoutSystemd("")
-			node := NewNode(NodeOptions{ActorRoot: root, StateDir: state, Mounter: mounter})
+			node := NewNode(NodeOptions{Root: root, StateDir: state, Mounter: mounter})
 			source, err := node.placeholderSource(target)
 			require.NoError(t, err)
 			require.NoError(t, os.MkdirAll(source, 0755))

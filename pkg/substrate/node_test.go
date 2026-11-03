@@ -120,7 +120,7 @@ func readonlyNodeFixture(t *testing.T, real *csi.NodePublishVolumeRequest) (*Nod
 	annotation := annotationFixture(t, real)
 	downstream := &recordingNAS{}
 	node := NewNode(NodeOptions{
-		ActorRoot: DefaultActorRoot, StateDir: t.TempDir(), Backends: nasBackends(downstream),
+		Root: DefaultRoot, StateDir: t.TempDir(), Backends: nasBackends(downstream),
 		Mounter: mount.NewFakeMounter(nil),
 		Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
 			return ActorInfo{UID: testUID, Atespace: "storage-test", Name: "actor", Annotation: annotation}, nil
@@ -167,7 +167,7 @@ func TestPublishPreservesRequestAndUsesActorIdentity(t *testing.T) {
 	request := publishFixture()
 	annotation := annotationFixture(t, request)
 	downstream := &recordingNAS{}
-	node := NewNode(NodeOptions{NodeID: "node", ActorRoot: "/var/lib/ate/actors", Backends: nasBackends(downstream), StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil),
+	node := NewNode(NodeOptions{NodeID: "node", Root: "/var/lib/ate", Backends: nasBackends(downstream), StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil),
 		Lookup: func(_ context.Context, ref ActorReference) (ActorInfo, error) {
 			require.Equal(t, testUID, ref.UID)
 			return ActorInfo{UID: ref.UID, Atespace: "storage-test", Name: "actor", Annotation: annotation}, nil
@@ -195,7 +195,7 @@ func TestPublishRejectsInvalidBoundary(t *testing.T) {
 		reason string
 	}{
 		{"missing actor UID", func(in, _ *csi.NodePublishVolumeRequest) { delete(in.VolumeContext, "csi.alibabacloud.com/actor.uid") }, codes.InvalidArgument, "actor UID must match the target actor directory"},
-		{"foreign target", func(in, _ *csi.NodePublishVolumeRequest) { in.TargetPath = "/etc/data" }, codes.InvalidArgument, "target must be inside the actor root"},
+		{"foreign target", func(in, _ *csi.NodePublishVolumeRequest) { in.TargetPath = "/etc/data" }, codes.InvalidArgument, "target must be inside the actors directory"},
 		{"actor directory itself", func(in, _ *csi.NodePublishVolumeRequest) { in.TargetPath = "/var/lib/ate/actors/" + testUID }, codes.InvalidArgument, "target must be an actor volume directory"},
 		{"non-clean target", func(in, _ *csi.NodePublishVolumeRequest) {
 			in.TargetPath = "/var/lib/ate/actors/" + testUID + "/volumes/data/.."
@@ -213,7 +213,7 @@ func TestPublishRejectsInvalidBoundary(t *testing.T) {
 			tc.mutate(in, real)
 			annotation := annotationFixture(t, real)
 			downstream := &recordingNAS{}
-			node := NewNode(NodeOptions{ActorRoot: "/var/lib/ate/actors", StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil), Backends: nasBackends(downstream), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
+			node := NewNode(NodeOptions{Root: "/var/lib/ate", StateDir: t.TempDir(), Mounter: mount.NewFakeMounter(nil), Backends: nasBackends(downstream), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
 				return ActorInfo{UID: testUID, Name: "actor", Atespace: "storage-test", Annotation: annotation}, nil
 			}})
 			_, err := node.NodePublishVolume(t.Context(), in)
@@ -228,13 +228,13 @@ func TestUnpublishResolvesIdentityWithoutVolumeContext(t *testing.T) {
 	downstream := &recordingNAS{}
 	annotation := annotationFixture(t, publishFixture())
 	state := t.TempDir()
-	node := NewNode(NodeOptions{ActorRoot: "/var/lib/ate/actors", Backends: nasBackends(downstream), StateDir: state, Mounter: mount.NewFakeMounter(nil), Lookup: func(_ context.Context, ref ActorReference) (ActorInfo, error) {
+	node := NewNode(NodeOptions{Root: "/var/lib/ate", Backends: nasBackends(downstream), StateDir: state, Mounter: mount.NewFakeMounter(nil), Lookup: func(_ context.Context, ref ActorReference) (ActorInfo, error) {
 		require.Equal(t, testUID, ref.UID)
 		return ActorInfo{UID: ref.UID, Name: "actor", Atespace: "storage-test", Annotation: annotation}, nil
 	}})
 	_, err := node.NodePublishVolume(t.Context(), &csi.NodePublishVolumeRequest{VolumeId: testID, TargetPath: testTarget, VolumeContext: nodeContextFixture()})
 	require.NoError(t, err)
-	restarted := NewNode(NodeOptions{ActorRoot: DefaultActorRoot, StateDir: state, Mounter: mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "server:/", Type: "nfs"}}), Backends: nasBackends(downstream)})
+	restarted := NewNode(NodeOptions{Root: DefaultRoot, StateDir: state, Mounter: mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "server:/", Type: "nfs"}}), Backends: nasBackends(downstream)})
 	_, err = restarted.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{VolumeId: testID, TargetPath: testTarget})
 	require.NoError(t, err)
 	require.Equal(t, testID, downstream.unpublished.VolumeId)
@@ -244,7 +244,7 @@ func TestUnpublishResolvesIdentityWithoutVolumeContext(t *testing.T) {
 func TestUnpublishDoesNotNeedActorLookup(t *testing.T) {
 	downstream := &recordingNAS{}
 	state := t.TempDir()
-	node := NewNode(NodeOptions{ActorRoot: "/var/lib/ate/actors", Backends: nasBackends(downstream), StateDir: state, Mounter: mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "server:/", Type: "nfs"}}), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
+	node := NewNode(NodeOptions{Root: "/var/lib/ate", Backends: nasBackends(downstream), StateDir: state, Mounter: mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "server:/", Type: "nfs"}}), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
 		t.Fatal("unpublish must not call the Actor API")
 		return ActorInfo{}, status.Error(codes.Unavailable, "control plane unavailable")
 	}})
@@ -341,7 +341,7 @@ func TestPublishRejectsUseclientAndCNFS(t *testing.T) {
 	}
 }
 
-func TestPublishRejectsTargetOutsideActorRoot(t *testing.T) {
+func TestPublishRejectsTargetOutsideRoot(t *testing.T) {
 	node, _, in := readonlyNodeFixture(t, writablePublishFixture())
 	in.TargetPath = "/var/lib/ate/actors/11111111-2222-3333-4444-555555555555/volumes/data"
 	_, err := node.NodePublishVolume(t.Context(), in)
@@ -405,10 +405,10 @@ func TestPublishRejectsUnsupportedFilesystemAtTarget(t *testing.T) {
 
 func TestUnpublishRejectsUnsupportedLiveMount(t *testing.T) {
 	node := NewNode(NodeOptions{
-		ActorRoot: DefaultActorRoot,
-		StateDir:  t.TempDir(),
-		Mounter:   mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "/dev/sda1", Type: "ext4"}}),
-		Backends:  nasBackends(&recordingNAS{}),
+		Root:     DefaultRoot,
+		StateDir: t.TempDir(),
+		Mounter:  mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "/dev/sda1", Type: "ext4"}}),
+		Backends: nasBackends(&recordingNAS{}),
 	})
 	_, err := node.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{VolumeId: testID, TargetPath: testTarget})
 	require.Equal(t, codes.FailedPrecondition, status.Code(err))
@@ -417,10 +417,10 @@ func TestUnpublishRejectsUnsupportedLiveMount(t *testing.T) {
 
 func TestUnpublishSucceedsWhenNothingMounted(t *testing.T) {
 	node := NewNode(NodeOptions{
-		ActorRoot: DefaultActorRoot,
-		StateDir:  t.TempDir(),
-		Mounter:   mount.NewFakeMounter(nil),
-		Backends:  nasBackends(&recordingNAS{}),
+		Root:     DefaultRoot,
+		StateDir: t.TempDir(),
+		Mounter:  mount.NewFakeMounter(nil),
+		Backends: nasBackends(&recordingNAS{}),
 	})
 	_, err := node.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{VolumeId: testID, TargetPath: testTarget})
 	require.NoError(t, err)
@@ -429,7 +429,7 @@ func TestUnpublishSucceedsWhenNothingMounted(t *testing.T) {
 func TestUnpublishRetriesLiveMountWhenNASFails(t *testing.T) {
 	state := t.TempDir()
 	nas := &recordingNAS{err: status.Error(codes.Unavailable, "daemon unavailable")}
-	node := NewNode(NodeOptions{ActorRoot: DefaultActorRoot, StateDir: state, Mounter: mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "server:/", Type: "nfs"}}), Backends: nasBackends(nas), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
+	node := NewNode(NodeOptions{Root: DefaultRoot, StateDir: state, Mounter: mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "server:/", Type: "nfs"}}), Backends: nasBackends(nas), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
 		t.Fatal("unpublish must not query actor")
 		return ActorInfo{}, nil
 	}})
@@ -443,9 +443,9 @@ func TestUnpublishRetriesLiveMountWhenNASFails(t *testing.T) {
 
 func TestForeignFilesystemIsNotRemoved(t *testing.T) {
 	root := t.TempDir()
-	target := filepath.Join(root, testUID, "volumes", "data")
+	target := filepath.Join(root, "actors", testUID, "volumes", "data")
 	mounter := mount.NewFakeMounter([]mount.MountPoint{{Device: "unknown", Path: target, Type: "tmpfs"}})
-	node := NewNode(NodeOptions{ActorRoot: root, StateDir: t.TempDir(), Mounter: mounter, Backends: nasBackends(&recordingNAS{})})
+	node := NewNode(NodeOptions{Root: root, StateDir: t.TempDir(), Mounter: mounter, Backends: nasBackends(&recordingNAS{})})
 	_, err := node.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{VolumeId: testID, TargetPath: target})
 	require.Equal(t, codes.FailedPrecondition, status.Code(err))
 	require.Len(t, mounter.MountPoints, 1)
@@ -462,7 +462,7 @@ func TestStatelessPublishDoesNotWriteBindingFiles(t *testing.T) {
 
 func TestStatelessUnpublishUsesLiveNASAndLogicalLockKey(t *testing.T) {
 	nas := &recordingNAS{}
-	node := NewNode(NodeOptions{ActorRoot: DefaultActorRoot, Backends: nasBackends(nas), Mounter: mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "server:/", Type: "nfs"}}), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
+	node := NewNode(NodeOptions{Root: DefaultRoot, Backends: nasBackends(nas), Mounter: mount.NewFakeMounter([]mount.MountPoint{{Path: testTarget, Device: "server:/", Type: "nfs"}}), Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
 		t.Fatal("unpublish must not query actor")
 		return ActorInfo{}, nil
 	}})
@@ -478,7 +478,7 @@ func TestStatelessUnpublishUsesLiveNASAndLogicalLockKey(t *testing.T) {
 }
 
 func TestStatelessUnpublishWithoutMountNeedsNoBackendOrState(t *testing.T) {
-	node := NewNode(NodeOptions{ActorRoot: DefaultActorRoot, Mounter: mount.NewFakeMounter(nil)})
+	node := NewNode(NodeOptions{Root: DefaultRoot, Mounter: mount.NewFakeMounter(nil)})
 	for range 2 {
 		_, err := node.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{VolumeId: testID, TargetPath: testTarget})
 		require.NoError(t, err)
@@ -486,7 +486,7 @@ func TestStatelessUnpublishWithoutMountNeedsNoBackendOrState(t *testing.T) {
 }
 
 func TestIdentityReadsVolumeIdentityFromTheTarget(t *testing.T) {
-	node := NewNode(NodeOptions{ActorRoot: DefaultActorRoot})
+	node := NewNode(NodeOptions{Root: DefaultRoot})
 	for _, tc := range []struct {
 		name    string
 		target  string
@@ -506,7 +506,7 @@ func TestIdentityReadsVolumeIdentityFromTheTarget(t *testing.T) {
 			require.Equal(t, tc.want, id)
 		})
 	}
-	_, err := NewNode(NodeOptions{ActorRoot: "relative/actor/root"}).identity(testTarget)
+	_, err := NewNode(NodeOptions{Root: "relative/root"}).identity(testTarget)
 	require.Equal(t, codes.FailedPrecondition, status.Code(err))
 }
 

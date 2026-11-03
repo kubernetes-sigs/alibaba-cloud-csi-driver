@@ -32,9 +32,9 @@ func (f *fakeNodeServer) NodePublishVolume(_ context.Context, _ *csi.NodePublish
 }
 
 func TestNodeStageVolumeSubstrateAcceptsActorRootPath(t *testing.T) {
-	old := SubstrateActorRootDir
-	SubstrateActorRootDir = "/var/lib/ate/actors"
-	defer func() { SubstrateActorRootDir = old }()
+	old := utils.SubstrateRootDir
+	utils.SubstrateRootDir = "/var/lib/ate"
+	defer func() { utils.SubstrateRootDir = old }()
 
 	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
 	resp, err := validator.NodeStageVolume(context.Background(), &csi.NodeStageVolumeRequest{
@@ -48,9 +48,9 @@ func TestNodeStageVolumeSubstrateAcceptsActorRootPath(t *testing.T) {
 }
 
 func TestNodeStageVolumeSubstrateRejectsBadPath(t *testing.T) {
-	old := SubstrateActorRootDir
-	SubstrateActorRootDir = "/var/lib/ate/actors"
-	defer func() { SubstrateActorRootDir = old }()
+	old := utils.SubstrateRootDir
+	utils.SubstrateRootDir = "/var/lib/ate"
+	defer func() { utils.SubstrateRootDir = old }()
 
 	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
 	_, err := validator.NodeStageVolume(context.Background(), &csi.NodeStageVolumeRequest{
@@ -64,14 +64,14 @@ func TestNodeStageVolumeSubstrateRejectsBadPath(t *testing.T) {
 }
 
 func TestNodeStageVolumeSubstrateRejectsParentDir(t *testing.T) {
-	old := SubstrateActorRootDir
-	SubstrateActorRootDir = "/var/lib/ate/actors"
-	defer func() { SubstrateActorRootDir = old }()
+	old := utils.SubstrateRootDir
+	utils.SubstrateRootDir = "/var/lib/ate"
+	defer func() { utils.SubstrateRootDir = old }()
 
 	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
 	_, err := validator.NodeStageVolume(context.Background(), &csi.NodeStageVolumeRequest{
 		VolumeId:          "vol-1",
-		StagingTargetPath: "/var/lib/ate",
+		StagingTargetPath: "/var/lib",
 		VolumeCapability:  &csi.VolumeCapability{},
 		VolumeContext:     map[string]string{utils.SubstrateModeKey: "true"},
 	})
@@ -91,9 +91,9 @@ func TestNodeStageVolumeNonSubstrateRejectsBadPath(t *testing.T) {
 }
 
 func TestNodePublishVolumeSubstrateAcceptsActorRootPath(t *testing.T) {
-	old := SubstrateActorRootDir
-	SubstrateActorRootDir = "/var/lib/ate/actors"
-	defer func() { SubstrateActorRootDir = old }()
+	old := utils.SubstrateRootDir
+	utils.SubstrateRootDir = "/var/lib/ate"
+	defer func() { utils.SubstrateRootDir = old }()
 
 	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
 	resp, err := validator.NodePublishVolume(context.Background(), &csi.NodePublishVolumeRequest{
@@ -107,9 +107,9 @@ func TestNodePublishVolumeSubstrateAcceptsActorRootPath(t *testing.T) {
 }
 
 func TestNodePublishVolumeSubstrateRejectsBadPath(t *testing.T) {
-	old := SubstrateActorRootDir
-	SubstrateActorRootDir = "/var/lib/ate/actors"
-	defer func() { SubstrateActorRootDir = old }()
+	old := utils.SubstrateRootDir
+	utils.SubstrateRootDir = "/var/lib/ate"
+	defer func() { utils.SubstrateRootDir = old }()
 
 	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
 	_, err := validator.NodePublishVolume(context.Background(), &csi.NodePublishVolumeRequest{
@@ -123,14 +123,14 @@ func TestNodePublishVolumeSubstrateRejectsBadPath(t *testing.T) {
 }
 
 func TestNodePublishVolumeSubstrateRejectsParentDir(t *testing.T) {
-	old := SubstrateActorRootDir
-	SubstrateActorRootDir = "/var/lib/ate/actors"
-	defer func() { SubstrateActorRootDir = old }()
+	old := utils.SubstrateRootDir
+	utils.SubstrateRootDir = "/var/lib/ate"
+	defer func() { utils.SubstrateRootDir = old }()
 
 	validator := NodeServerWithValidator{NodeServer: &fakeNodeServer{}}
 	_, err := validator.NodePublishVolume(context.Background(), &csi.NodePublishVolumeRequest{
 		VolumeId:         "vol-1",
-		TargetPath:       "/var/lib/ate",
+		TargetPath:       "/var/lib",
 		VolumeCapability: &csi.VolumeCapability{},
 		VolumeContext:    map[string]string{utils.SubstrateModeKey: "true"},
 	})
