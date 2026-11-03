@@ -30,6 +30,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	fpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager"
 	ossfpm "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/fuse_pod_manager/oss"
 
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -275,7 +276,24 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions = fusePodManager.AddDefaultMountOptions(mountOptions, nil)
+			// MicroVM needs an explicit log destination for ossfs2. OssCmdMounter
+			// execs it with systemd-run --scope and getArgs passes no -f, so
+			// nothing collects the daemon's stdout and the log_dir=/dev/stdout
+			// default just discards the logs. RunC/RunD go through mount-proxy,
+			// which does pass -f into a container that captures stdout, so they
+			// keep that default.
+			//
+			// ossfs 1.x needs no equivalent: it has no log_dir option at all and
+			// daemonizing without -f sends it to syslog on its own. ossfs2 does
+			// not -- without -f it writes to a fixed file path -- hence the
+			// explicit override here.
+			//
+			// log_dir=syslog needs ossfs2 >= v2.0.9, and VERSIONS does not pin the
+			// binary that runs here: MicroVM execs /usr/local/bin/ossfs2 from the
+			// ECI sandbox guest image, whereas OSSFS2_IMAGE_TAG only drives the
+			// fuse pod image and the mount-proxy RPM used by RunC/RunD.
+			// TODO: confirm the ECI guest image ships ossfs2 >= v2.0.9.
+			mountOptions = fusePodManager.AddDefaultMountOptions(mountOptions, &fpm.MountOptionDefaults{LogDir: "syslog"})
 			// only for MicroVM
 			mountOptions, err = ossfpm.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
 			if err != nil {
