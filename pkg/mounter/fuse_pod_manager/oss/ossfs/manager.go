@@ -373,8 +373,14 @@ const (
 	KeyListObjectsV2 = "listobjectsv2"
 )
 
-func (f *fuseOssfs) AddDefaultMountOptions(options []string, _ []string) []string {
+func (f *fuseOssfs) AddDefaultMountOptions(options []string, _ *fpm.MountOptionDefaults) []string {
 
+	// DEFAULT_OSSFS_OPTIONS is a private-cloud knob whose value is neither owned
+	// nor validated here. It is set by the helm chart (plugin.yaml), unlike the
+	// ossfs2 equivalent. Semantics are append, not merge: entries go in verbatim,
+	// so a key already present in options (otherOpts / PV mountOptions) ends up
+	// duplicated and ossfs's own parsing picks the winner. Indexing happens after
+	// this append, so an env-supplied key does suppress the built-in defaults.
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS_OPTIONS")
 	if defaultOSSFSOptions != "" {
 		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
