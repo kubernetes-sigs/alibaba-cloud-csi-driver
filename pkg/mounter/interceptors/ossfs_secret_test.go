@@ -1485,3 +1485,124 @@ func TestRotatePasswdFile(t *testing.T) {
 			"final content should be either initial or one of the written contents, got: %s", string(finalContent))
 	})
 }
+
+// fakeCmdMounter is a stand-in for OssCmdMounter in the NewForMounter chain.
+type fakeCmdMounter struct {
+	mountutils.Interface
+	called      bool
+	capturedOps []string
+}
+
+func (f *fakeCmdMounter) ExtendedMount(_ context.Context, op *mounter.MountOperation) error {
+	f.called = true
+	f.capturedOps = op.Options
+	return nil
+}
+
+func assertTokenFilesContent(t *testing.T, stsDir, wantAK, wantSK, wantToken string) {
+	t.Helper()
+	for _, key := range []string{mounterutils.KeyAccessKeyId, mounterutils.KeyAccessKeySecret, mounterutils.KeySecurityToken} {
+		assert.FileExists(t, filepath.Join(stsDir, key))
+	}
+	ak, _ := os.ReadFile(filepath.Join(stsDir, mounterutils.KeyAccessKeyId))
+	sk, _ := os.ReadFile(filepath.Join(stsDir, mounterutils.KeyAccessKeySecret))
+	tok, _ := os.ReadFile(filepath.Join(stsDir, mounterutils.KeySecurityToken))
+	assert.Equal(t, wantAK, string(ak), "AccessKeyId file content mismatch")
+	assert.Equal(t, wantSK, string(sk), "AccessKeySecret file content mismatch")
+	assert.Equal(t, wantToken, string(tok), "SecurityToken file content mismatch")
+}
+
+// TestNewForMounterChain_RepublishRotatesTokenFiles verifies the full
+// NewForMounter → chainInterceptors → OssfsSecretInterceptor chain that the
+// MicroVM cmd-mounter path exercises:
+//
+//  1. First mount (target not mounted): the interceptor writes token files to
+//     disk, appends passwd_file=<stsDir> to op.Options, and calls the handler
+//     (the fake cmd mounter).
+//  2. Republish (target already mounted): the interceptor rotates the token
+//     files on disk with the new secret contents, returns ErrSkipMount — which
+//     chainInterceptors converts to nil — and the handler is NOT called.
+//
+// This closes the gap between the unit test for needRotateToken (which only
+// checks the boolean) and the interceptor unit test (which calls
+// ossfsSecretInterceptorWithMounter directly, bypassing the NewForMounter
+// chain).  The chain conversion of ErrSkipMount → nil is the behaviour the
+// cmd-mounter path in pkg/oss/nodeserver.go relies on for republish.
+func TestNewForMounterChain_RepublishRotatesTokenFiles(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "target")
+	require.NoError(t, os.MkdirAll(target, 0o755))
+
+	// Credential files are written under /tmp/<hash(target)>/.
+	hashDir := mounterutils.GetPasswdHashDir(target)
+	t.Cleanup(func() { removeAllIgnoreNotExist(hashDir) })
+
+	stsDir := filepath.Join(hashDir, mounterutils.GetPasswdFileName(mounterutils.OssFsType), "sts")
+
+	// --- Phase 1: first mount (target not mounted) ---
+	fakeMnt := mountutils.NewFakeMounter(nil)
+
+	cmd := &fakeCmdMounter{Interface: mountutils.NewWithoutSystemd("")}
+
+	interceptor := mounter.MountInterceptor(func(ctx context.Context, op *mounter.MountOperation, h mounter.MountHandler) error {
+		return ossfsSecretInterceptorWithMounter(ctx, op, h, mounterutils.OssFsType, fakeMnt)
+	})
+
+	workflow := mounter.NewForMounter(cmd, interceptor)
+
+	secrets := map[string]string{
+		mounterutils.KeyAccessKeyId:     "ak-v1",
+		mounterutils.KeyAccessKeySecret: "sk-v1",
+		mounterutils.KeySecurityToken:   "token-v1",
+		mounterutils.KeyExpiration:      "2025-12-31T23:59:59Z",
+	}
+
+	err := workflow.ExtendedMount(context.Background(), &mounter.MountOperation{
+		Target:  target,
+		FsType:  mounterutils.OssFsType,
+		Secrets: secrets,
+	})
+	require.NoError(t, err)
+	require.True(t, cmd.called, "handler (cmd mounter) must be called on first mount")
+
+	// The interceptor must append passwd_file=<stsDir> so ossfs reads the
+	// token directory that was just written.
+	hasPasswdOpt := false
+	for _, o := range cmd.capturedOps {
+		if o == "passwd_file="+stsDir {
+			hasPasswdOpt = true
+			break
+		}
+	}
+	assert.True(t, hasPasswdOpt, "passwd_file option not found in captured options: %v", cmd.capturedOps)
+
+	assertTokenFilesContent(t, stsDir, "ak-v1", "sk-v1", "token-v1")
+
+	// --- Phase 2: republish (target already mounted, token changed) ---
+	evalTarget, err := filepath.EvalSymlinks(target)
+	require.NoError(t, err)
+	fakeMnt = mountutils.NewFakeMounter([]mountutils.MountPoint{
+		{Device: "ossfs", Path: evalTarget, Type: "fuse.ossfs"},
+	})
+
+	cmd = &fakeCmdMounter{Interface: mountutils.NewWithoutSystemd("")}
+	interceptor = mounter.MountInterceptor(func(ctx context.Context, op *mounter.MountOperation, h mounter.MountHandler) error {
+		return ossfsSecretInterceptorWithMounter(ctx, op, h, mounterutils.OssFsType, fakeMnt)
+	})
+	workflow = mounter.NewForMounter(cmd, interceptor)
+
+	secrets[mounterutils.KeyAccessKeyId] = "ak-v2"
+	secrets[mounterutils.KeyAccessKeySecret] = "sk-v2"
+	secrets[mounterutils.KeySecurityToken] = "token-v2"
+
+	err = workflow.ExtendedMount(context.Background(), &mounter.MountOperation{
+		Target:  target,
+		FsType:  mounterutils.OssFsType,
+		Secrets: secrets,
+	})
+	require.NoError(t, err, "ErrSkipMount should be converted to nil by chainInterceptors")
+	require.False(t, cmd.called, "handler (cmd mounter) must NOT be called on republish")
+
+	// Files on disk should contain v2 content — the rotation happened before
+	// the skip-mount check, via prepareCredentialFiles → rotateTokenFiles.
+	assertTokenFilesContent(t, stsDir, "ak-v2", "sk-v2", "token-v2")
+}
