@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Minimal projection of the Agentic Substrate control-plane API, extracted
-// mechanically from pkg/proto/ateapipb/ateapi.proto of the deployed Substrate
-// integration (revision abe771016ae50264d6018885a910fdbbd7a4f0de). Only the
-// RPCs below and the message closure they need are kept; messages appear in
-// their source order, and message, RPC, field names and field numbers are
-// verbatim from that revision, apart from the go_package option and the
-// omitted fields marked reserved below. Do not extend this file by hand:
-// refresh it by re-extracting from a new revision instead. See SOURCE.md for
-// provenance, the annotations exception and the refresh procedure.
+// Minimal projection of the Substrate control-plane API. Only the RPCs below
+// and the message closure they need are kept; messages appear in source order,
+// and message, RPC, field names and field numbers are verbatim from the
+// Substrate v1.0 API, apart from the go_package option and omitted fields
+// marked reserved. Do not extend this file by hand: refresh it by
+// re-extracting from a new revision instead. See SOURCE.md for provenance,
+// the annotations exception and the refresh procedure.
 
 syntax = "proto3";
 
-package ateapi;
+package substrate.ateapi.v1;
 
 option go_package = "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/substrate/internal/ateapipb";
 
@@ -69,7 +67,7 @@ message ResourceMetadata {
 
   // version, create_time and update_time are not read by this bridge and are
   // omitted from this projection; see SOURCE.md.
-  reserved 4, 5, 6;
+  reserved 4, 5, 6, 7;
 
   // annotations stores opaque caller-provided key-value metadata. Actor updates
   // replace the entire map; omitting it clears existing annotations.
@@ -77,7 +75,7 @@ message ResourceMetadata {
   // +k8s:optional
   // +k8s:mapType=atomic
   // +k8s:mutable
-  map<string, string> annotations = 7;
+  map<string, string> annotations = 8;
 }
 
 message Actor {
@@ -91,11 +89,11 @@ message Actor {
   // +k8s:required
   // +k8s:subfield(atespace)=+k8s:required
   // +k8s:mutable
-  ObjectRef actor_template = 4;
+  ObjectRef actor_template = 2;
 
   // worker_selector, source_tag and status are not read by this bridge and are
   // omitted from this projection; see SOURCE.md.
-  reserved 5, 6, 7;
+  reserved 3, 4, 5;
 }
 
 // ObjectRef references a Substrate resource by its (atespace, name) identity.
@@ -125,9 +123,9 @@ message ActorTemplate {
   ResourceMetadata metadata = 1;
 
   // worker_selector, containers, volumes, snapshots_config, sandbox_config,
-  // resources and status are not read by this bridge and are omitted from this
-  // projection; see SOURCE.md.
-  reserved 2, 3, 4, 5, 6, 7, 8;
+  // resources, status and golden_egress_policy are not read by this bridge
+  // and are omitted from this projection; see SOURCE.md.
+  reserved 2, 3, 4, 5, 6, 7, 9;
 }
 
 message GetActorTemplateRequest {

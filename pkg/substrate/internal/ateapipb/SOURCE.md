@@ -1,10 +1,9 @@
 # Substrate API projection
 
 The `.proto`, generated Go messages and generated gRPC client/server in this
-directory are a minimal projection of `pkg/proto/ateapipb` from the deployed
-Substrate integration, extracted at source revision
-`abe771016ae50264d6018885a910fdbbd7a4f0de`. They are not a verbatim copy of
-that package.
+directory are a minimal projection of `api/ateapi/v1` from the Substrate
+v1.0 API. The proto package name is `substrate.ateapi.v1`. They are not a
+verbatim copy of that package.
 
 The bridge performs two read-only lookups: `Control.GetActor` and
 `Control.GetActorTemplate`. The projection keeps those RPCs and the message
