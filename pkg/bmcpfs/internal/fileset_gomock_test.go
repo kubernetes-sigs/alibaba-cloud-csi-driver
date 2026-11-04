@@ -19,6 +19,7 @@ package internal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	nasclient "github.com/alibabacloud-go/nas-20170626/v4/client"
@@ -86,6 +87,41 @@ func TestCPFSFileSetManager_DeleteFileSet_WithGoMock(t *testing.T) {
 
 	err := manager.DeleteFileSet(context.Background(), fsID, fileSetID)
 	require.NoError(t, err)
+}
+
+func TestCPFSFileSetManager_DeleteFileSet_FileSystemNotFoundWithGoMock(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockNas := NewGoMockNasClient(ctrl)
+	manager := NewCPFSFileSetManager(mockNas)
+
+	mockNas.EXPECT().
+		DeleteFileset(gomock.Any()).
+		Return(nil, &tea.SDKError{Code: tea.String(ErrCodeFileSystemNotFound)})
+
+	err := manager.DeleteFileSet(context.Background(), "fs-gone", "fset-1")
+	require.Error(t, err)
+	assert.True(t, IsFileSystemNotFoundError(err), "wrapped error must stay detectable: %v", err)
+}
+
+func TestIsFileSystemNotFoundError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "nil", err: nil, want: false},
+		{name: "matching code", err: &tea.SDKError{Code: tea.String(ErrCodeFileSystemNotFound)}, want: true},
+		{name: "wrapped matching code", err: fmt.Errorf("delete failed: %w", &tea.SDKError{Code: tea.String(ErrCodeFileSystemNotFound)}), want: true},
+		{name: "other code", err: &tea.SDKError{Code: tea.String("InvalidFilesetId.NotFound")}, want: false},
+		{name: "plain error", err: errors.New("boom"), want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsFileSystemNotFoundError(tt.err))
+		})
+	}
 }
 
 func TestCPFSFileSetManager_DescribeFilesetByFsetID_ErrorWithGoMock(t *testing.T) {

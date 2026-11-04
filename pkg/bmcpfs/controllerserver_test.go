@@ -26,6 +26,7 @@ import (
 	"errors"
 
 	nasclient "github.com/alibabacloud-go/nas-20170626/v4/client"
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs/internal"
@@ -393,6 +394,26 @@ func TestControllerServer_DeleteVolume(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A DeleteVolume against a filesystem that no longer exists must succeed: the
+// fileset is gone with the filesystem, so the delete is idempotent.
+func TestControllerServer_DeleteVolume_FileSystemNotFound(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockNas := internal.NewGoMockNasClient(ctrl)
+	mockNas.EXPECT().
+		DeleteFileset(gomock.Any()).
+		Return(nil, &tea.SDKError{
+			Code:    tea.String(internal.ErrCodeFileSystemNotFound),
+			Message: tea.String("The specified FileSystem does not exist."),
+		})
+
+	cs := &controllerServer{filesetManager: internal.NewCPFSFileSetManager(mockNas)}
+	resp, err := cs.DeleteVolume(context.Background(), &csi.DeleteVolumeRequest{VolumeId: "fs-gone+fset-1"})
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
 }
 
 func TestControllerServer_ControllerGetCapabilities(t *testing.T) {
