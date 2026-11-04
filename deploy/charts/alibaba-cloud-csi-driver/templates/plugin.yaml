@@ -103,7 +103,7 @@ spec:
             - --run-node-service=true
 {{- if $nodePool.enableSubstrate }}
             {{- include "substrate.apiArgs" $ | nindent 12 }}
-            - --substrate-actor-root={{ clean $.Values.substrate.actorRoot }}
+            - --substrate-root={{ clean $.Values.substrate.root }}
             - --substrate-state-dir=/csi/substrate.csi.alibabacloud.com/substrate-state
 {{- end }}
 {{- if $nodePool.deploy.labeler.enabled }}
@@ -192,8 +192,11 @@ spec:
             - name: substrate-plugin-dir
               mountPath: /csi/substrate.csi.alibabacloud.com
             - name: substrate-actors
-              mountPath: {{ clean $.Values.substrate.actorRoot }}
-              mountPropagation: Bidirectional
+              mountPath: {{ clean (printf "%s/actors" $.Values.substrate.root) }}
+              mountPropagation: "Bidirectional"
+            - name: substrate-staging
+              mountPath: {{ clean (printf "%s/staging" $.Values.substrate.root) }}
+              mountPropagation: "Bidirectional"
 {{- end }}
             - name: kubelet-dir
               # keep the trailing slash to be compatible with old ACK installations
@@ -388,7 +391,11 @@ spec:
             type: DirectoryOrCreate
         - name: substrate-actors
           hostPath:
-            path: {{ clean $.Values.substrate.actorRoot }}
+            path: {{ clean (printf "%s/actors" $.Values.substrate.root) }}
+            type: DirectoryOrCreate
+        - name: substrate-staging
+          hostPath:
+            path: {{ clean (printf "%s/staging" $.Values.substrate.root) }}
             type: DirectoryOrCreate
 {{- end }}
 {{- if $nodePool.csi.oss.enabled }}

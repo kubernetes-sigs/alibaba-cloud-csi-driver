@@ -304,13 +304,13 @@ func TestSubstrateEnabledWiresControllerNodeAndTrust(t *testing.T) {
 }
 
 func TestSubstrateCustomPaths(t *testing.T) {
-	resources := renderChart(t, "--set", "enableSubstrate=true", "--set", "deploy.kubeletRootDir=/custom/kubelet", "--set", "substrate.actorRoot=/custom/actors")
+	resources := renderChart(t, "--set", "enableSubstrate=true", "--set", "deploy.kubeletRootDir=/custom/kubelet", "--set", "substrate.root=/custom/substrate")
 	var daemon appsv1.DaemonSetSpec
 	if err := json.Unmarshal(findResource(t, resources, "DaemonSet", "csi-plugin").Spec, &daemon); err != nil {
 		t.Fatal(err)
 	}
 	driver := container(t, daemon.Template.Spec, "csi-plugin")
-	if !strings.Contains(strings.Join(driver.Args, " "), "--substrate-actor-root=/custom/actors") {
+	if !strings.Contains(strings.Join(driver.Args, " "), "--substrate-root=/custom/substrate") {
 		t.Fatal("actor root override not forwarded")
 	}
 	config := findResource(t, resources, "CSIDriverConfig", "substrate.csi.alibabacloud.com")
@@ -323,7 +323,7 @@ func TestSubstrateRejectsUnsafeActorRoot(t *testing.T) {
 	if _, err := exec.LookPath("helm"); err != nil {
 		t.Skip("helm is required")
 	}
-	cmd := exec.CommandContext(t.Context(), "helm", "template", "test", ".", "--set", "enableSubstrate=true", "--set", "substrate.actorRoot=/")
+	cmd := exec.CommandContext(t.Context(), "helm", "template", "test", ".", "--set", "enableSubstrate=true", "--set", "substrate.root=/")
 	cmd.Env = append(os.Environ(), "KUBECONFIG=/dev/null")
 	if err := cmd.Run(); err == nil {
 		t.Fatal("root filesystem must not be an actor root")

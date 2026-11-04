@@ -127,7 +127,7 @@ var (
 	substrateCA              = flag.String("substrate-api-ca-file", "", "CA bundle verifying the Substrate control API")
 	substrateToken           = flag.String("substrate-api-token-file", "/var/run/secrets/kubernetes.io/serviceaccount/token", "projected bearer token for the Substrate control API")
 	substrateServerName      = flag.String("substrate-api-server-name", "", "TLS server name override for the Substrate control API")
-	substrateActorRoot       = flag.String("substrate-actor-root", substrate.DefaultActorRoot, "host directory containing Substrate actor volumes")
+	substrateRoot            = flag.String("substrate-root", substrate.DefaultRoot, "host directory containing Substrate actor volumes and staging")
 	substrateStateDir        = flag.String("substrate-state-dir", "/csi/substrate-state", "persistent node-local golden placeholder source directory")
 )
 
@@ -148,6 +148,7 @@ func setupFlags() {
 	logsapi.AddFlags(c, flag.CommandLine)
 	logs.InitLogs()
 	flag.Parse()
+	utils.SubstrateRootDir = *substrateRoot
 	if err := logsapi.ValidateAndApply(c, fg); err != nil {
 		klog.ErrorS(err, "LoggingConfiguration is invalid")
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
@@ -325,7 +326,7 @@ func main() {
 					if bridgeNodeID == "" {
 						bridgeNodeID = os.Getenv("KUBE_NODE_NAME")
 					}
-					driver.NodeServer = substrate.NewNode(substrate.NodeOptions{NodeID: bridgeNodeID, ActorRoot: *substrateActorRoot, Lookup: actors.Lookup, Backends: map[string]substrate.Backend{substrate.NASDriverName: substrate.NASBackend(nasServers.NodeServer)}, StateDir: *substrateStateDir, Mounter: mountutils.NewWithoutSystemd("")})
+					driver.NodeServer = substrate.NewNode(substrate.NodeOptions{NodeID: bridgeNodeID, Root: *substrateRoot, Lookup: actors.Lookup, Backends: map[string]substrate.Backend{substrate.NASDriverName: substrate.NASBackend(nasServers.NodeServer)}, StateDir: *substrateStateDir, Mounter: mountutils.NewWithoutSystemd("")})
 				}
 			case TypePluginNAS:
 				driver = nasServers

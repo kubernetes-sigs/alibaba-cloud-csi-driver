@@ -55,7 +55,7 @@
 {{- end -}}
 
 {{- define "substrate.validate" -}}
-{{- if or (not (hasPrefix "/" .Values.substrate.actorRoot)) (eq (clean .Values.substrate.actorRoot) "/") -}}
-{{- fail "substrate.actorRoot must be an absolute dedicated directory, not /" -}}
+{{- if or (not (hasPrefix "/" .Values.substrate.root)) (eq (clean .Values.substrate.root) "/") -}}
+{{- fail "substrate.root must be an absolute dedicated directory, not /" -}}
 {{- end -}}
 {{- end -}}

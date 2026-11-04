@@ -4,7 +4,7 @@ substrate:
   apiEndpoint: k8s:///ate-system/api:443
   apiServerName: api.ate-system.svc
   apiAudience: api.ate-system.svc
-  actorRoot: /var/lib/ate/actors
+  root: /var/lib/ate
   createDriverConfig: true
   storageClass:
     create: true
