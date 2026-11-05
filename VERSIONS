@@ -30,7 +30,7 @@ OSSFS2_FAILOVER_IMAGE_TAG=v2.0.8.ack.1.failover-1fd839a
 # - build/mount-proxy/Dockerfile (ALINAS_UTILS_VERSION, EFC_VERSION, ALINAS_RPM_BASE_URL ARG defaults)
 
 # Base URL for ALINAS/EFC RPM packages (includes version path)
-ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/efc-release/2.6
+ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.6
 
 # ALINAS Utils version (used in Dockerfile for yum install)
 ALINAS_UTILS_VERSION=2.6-0.20261103204456.3d3441.generic
