@@ -13,9 +13,9 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{ .Values.substrate.storageClass.name }}
-  provisioner: substrate.csi.alibabacloud.com
-  reclaimPolicy: Retain
-  volumeBindingMode: Immediate
+provisioner: substrate.csi.alibabacloud.com
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
 {{- end }}
 {{- $endpoints := list }}
 {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}

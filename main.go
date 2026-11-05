@@ -326,7 +326,7 @@ func main() {
 					if bridgeNodeID == "" {
 						bridgeNodeID = os.Getenv("KUBE_NODE_NAME")
 					}
-					driver.NodeServer = substrate.NewNode(substrate.NodeOptions{NodeID: bridgeNodeID, Root: *substrateRoot, Lookup: actors.Lookup, Backends: map[string]substrate.Backend{substrate.NASDriverName: substrate.NASBackend(nasServers.NodeServer)}, StateDir: *substrateStateDir, Mounter: mountutils.NewWithoutSystemd("")})
+					driver.NodeServer = substrate.NewNode(substrate.NodeOptions{NodeID: bridgeNodeID, Root: *substrateRoot, Lookup: actors.Lookup, TemplateLookup: actors.LookupTemplate, Backends: map[string]substrate.Backend{substrate.NASDriverName: substrate.NASBackend(nasServers.NodeServer)}, StateDir: *substrateStateDir, Mounter: mountutils.NewWithoutSystemd("")})
 				}
 			case TypePluginNAS:
 				driver = nasServers

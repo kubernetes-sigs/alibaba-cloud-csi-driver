@@ -21,6 +21,9 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/substrate/internal/ateapipb"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -158,7 +161,7 @@ func TestGoldenPlaceholderIgnoresOuterReadonlyAndStaysWritable(t *testing.T) {
 	lookups := 0
 	lookup := func(context.Context, ActorReference) (ActorInfo, error) {
 		lookups++
-		return ActorInfo{UID: testUID, Atespace: "ate-golden", Name: "template-uid", TemplateUID: "template-uid", Golden: true}, nil
+		return ActorInfo{UID: testUID, Atespace: "storage-test", Name: "template-uid"}, nil
 	}
 	node := NewNode(NodeOptions{Root: root, StateDir: t.TempDir(), Lookup: lookup, Mounter: mounter})
 	attributes := goldenMetadataFixture()
@@ -166,14 +169,14 @@ func TestGoldenPlaceholderIgnoresOuterReadonlyAndStaysWritable(t *testing.T) {
 	in := &csi.NodePublishVolumeRequest{VolumeId: testID, TargetPath: target, Readonly: true, VolumeContext: attributes}
 	_, err = node.NodePublishVolume(t.Context(), in)
 	require.NoError(t, err)
-	require.Equal(t, 1, lookups)
+	require.Equal(t, 0, lookups)
 	require.Len(t, mounter.MountPoints, 1)
 	require.Equal(t, []string{"bind"}, mounter.MountPoints[0].Opts)
 	in.Readonly = false
 	node = NewNode(node.opts)
 	_, err = node.NodePublishVolume(t.Context(), in)
 	require.NoError(t, err)
-	require.Equal(t, 2, lookups)
+	require.Equal(t, 0, lookups)
 	require.Len(t, mounter.MountPoints, 1)
 	_, err = node.NodeUnpublishVolume(t.Context(), &csi.NodeUnpublishVolumeRequest{VolumeId: testID, TargetPath: target})
 	require.NoError(t, err)
@@ -207,7 +210,7 @@ func TestGoldenPlaceholderLifecycleWithoutNAS(t *testing.T) {
 			mounter := mount.NewFakeMounter(nil)
 			nas := &recordingNAS{err: errors.New("golden must not call NAS")}
 			lookup := func(context.Context, ActorReference) (ActorInfo, error) {
-				return ActorInfo{UID: testUID, Atespace: "ate-golden", Name: "template-uid", TemplateUID: "template-uid", Golden: true}, nil
+				return ActorInfo{UID: testUID, Atespace: "storage-test", Name: "template-uid"}, nil
 			}
 			attributes := goldenMetadataFixture()
 			node := NewNode(NodeOptions{Root: root, StateDir: state, Mounter: mounter, Backends: nasBackends(nas), Lookup: lookup})
@@ -251,7 +254,7 @@ func TestUnpublishPlaceholderRemovesSource(t *testing.T) {
 			target := filepath.Join(root, "actors", testUID, "volumes", "data")
 			mounter := mount.NewFakeMounter(nil)
 			node := NewNode(NodeOptions{Root: root, StateDir: t.TempDir(), Mounter: mounter, Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
-				return ActorInfo{UID: testUID, Name: "template-uid", Atespace: "ate-golden", TemplateUID: "template-uid", Golden: true}, nil
+				return ActorInfo{UID: testUID, Atespace: "storage-test", Name: "template-uid"}, nil
 			}})
 			source, err := node.placeholderSource(target)
 			require.NoError(t, err)
@@ -281,7 +284,7 @@ func TestGoldenPlaceholderInspectionErrors(t *testing.T) {
 				target := filepath.Join(root, "actors", testUID, "volumes", "data")
 				mounter := mount.NewFakeMounter([]mount.MountPoint{{Device: "/dev/backing", Path: target, Type: "ext4"}})
 				node := NewNode(NodeOptions{Root: root, StateDir: t.TempDir(), Mounter: mounter, Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
-					return ActorInfo{UID: testUID, Name: "template-uid", Atespace: "ate-golden", TemplateUID: "template-uid", Golden: true}, nil
+					return ActorInfo{UID: testUID, Atespace: "storage-test", Name: "template-uid"}, nil
 				}})
 				source, err := node.placeholderSource(target)
 				require.NoError(t, err)
@@ -344,7 +347,7 @@ func TestGoldenDoesNotClaimItsSourceHiddenByAnotherMount(t *testing.T) {
 			target := filepath.Join(root, "actors", testUID, "volumes", "data")
 			mounter := mount.NewFakeMounter(nil)
 			node := NewNode(NodeOptions{Root: root, StateDir: t.TempDir(), Mounter: mounter, Lookup: func(context.Context, ActorReference) (ActorInfo, error) {
-				return ActorInfo{UID: testUID, Name: "template-uid", Atespace: "ate-golden", TemplateUID: "template-uid", Golden: true}, nil
+				return ActorInfo{UID: testUID, Atespace: "storage-test", Name: "template-uid"}, nil
 			}})
 			source, err := node.placeholderSource(target)
 			require.NoError(t, err)
@@ -368,6 +371,111 @@ func TestGoldenDoesNotClaimItsSourceHiddenByAnotherMount(t *testing.T) {
 			data, err := os.ReadFile(filepath.Join(source, "retain"))
 			require.NoError(t, err)
 			require.Equal(t, "source data", string(data))
+		})
+	}
+}
+
+func TestLookupActorGoldenDetectionMatrix(t *testing.T) {
+	const templateUID = "template-uid"
+	actorName := templateUID
+
+	cases := []struct {
+		name           string
+		goldenKey      string // "", "true", "false"
+		goldenKeySet   bool
+		annotation     string
+		templateUID    string // returned by templateLookup
+		wantGolden     bool
+		wantTemplateCt int
+	}{
+		{"marker=true", "true", true, "", "", true, 0},
+		{"marker=false with annotation", "false", true, "[]", "", false, 0},
+		{"marker=false without annotation", "false", true, "", "", false, 0},
+		{"marker absent, annotation present", "", false, "[]", "", false, 0},
+		{"marker absent, no annotation, template matches", "", false, "", templateUID, true, 1},
+		{"marker absent, no annotation, template mismatch", "", false, "", "other-uid", false, 1},
+		{"marker absent, no annotation, no templateLookup", "", false, "", "", false, 0},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			templateCalls := 0
+			lookup := func(_ context.Context, _ ActorReference) (ActorInfo, error) {
+				info := ActorInfo{UID: testUID, Name: actorName, Atespace: "storage-test", Annotation: tc.annotation}
+				if info.Annotation == "" {
+					info.TemplateRef = &ateapipb.ObjectRef{Atespace: "storage-test", Name: "template"}
+				}
+				return info, nil
+			}
+			var templateLookup TemplateLookup
+			if tc.wantTemplateCt > 0 {
+				templateLookup = func(_ context.Context, _ *ateapipb.ObjectRef) (string, error) {
+					templateCalls++
+					return tc.templateUID, nil
+				}
+			}
+
+			attributes := map[string]string{
+				agentidentity.ActorUIDKey:       testUID,
+				agentidentity.ActorNameKey:      actorName,
+				agentidentity.ActorNamespaceKey: "storage-test",
+			}
+			if tc.goldenKeySet {
+				attributes[agentidentity.ActorGoldenKey] = tc.goldenKey
+			}
+
+			id := volumeIdentity{ActorUID: testUID, VolumeName: "data"}
+			info, err := lookupActor(context.Background(), lookup, templateLookup, id, attributes)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantGolden, info.Golden, "Golden mismatch")
+			assert.Equal(t, tc.wantTemplateCt, templateCalls, "GetActorTemplate call count")
+		})
+	}
+}
+
+func TestLookupActorTemplateErrorPreservesCode(t *testing.T) {
+	lookup := func(_ context.Context, _ ActorReference) (ActorInfo, error) {
+		return ActorInfo{UID: testUID, Name: "template-uid", Atespace: "storage-test", TemplateRef: &ateapipb.ObjectRef{Atespace: "storage-test", Name: "template"}}, nil
+	}
+	templateLookup := func(_ context.Context, _ *ateapipb.ObjectRef) (string, error) {
+		return "", status.Error(codes.Unavailable, "GetActorTemplate unavailable")
+	}
+	attributes := map[string]string{
+		agentidentity.ActorUIDKey:       testUID,
+		agentidentity.ActorNameKey:      "template-uid",
+		agentidentity.ActorNamespaceKey: "storage-test",
+	}
+	id := volumeIdentity{ActorUID: testUID, VolumeName: "data"}
+	_, err := lookupActor(context.Background(), lookup, templateLookup, id, attributes)
+	require.Error(t, err)
+	assert.Equal(t, codes.Unavailable, status.Code(err))
+}
+
+func TestLookupActorRejectsUIDMismatch(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		goldenKey string
+		set       bool
+	}{
+		{"marker=false", "false", true},
+		{"marker absent", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			lookup := func(_ context.Context, _ ActorReference) (ActorInfo, error) {
+				return ActorInfo{UID: "different-uid", Name: "actor", Atespace: "storage-test", Annotation: "[]"}, nil
+			}
+			attributes := map[string]string{
+				agentidentity.ActorUIDKey:       testUID,
+				agentidentity.ActorNameKey:      "actor",
+				agentidentity.ActorNamespaceKey: "storage-test",
+			}
+			if tc.set {
+				attributes[agentidentity.ActorGoldenKey] = tc.goldenKey
+			}
+			id := volumeIdentity{ActorUID: testUID, VolumeName: "data"}
+			_, err := lookupActor(context.Background(), lookup, nil, id, attributes)
+			require.Error(t, err)
+			assert.Equal(t, codes.PermissionDenied, status.Code(err))
 		})
 	}
 }
