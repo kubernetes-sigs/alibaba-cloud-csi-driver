@@ -575,7 +575,7 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 	tests := []struct {
 		name        string
 		options     []string
-		mountFlags  []string
+		defaults    *fpm.MountOptionDefaults
 		config      *fpm.FuseContainerConfig
 		defaultOpts string
 		want        []string
@@ -628,18 +628,30 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 			want: []string{"log_level=info", "log_dir=/dev/stdout"},
 		},
 		{
-			// ossfs2 ignores mountFlags entirely (logs a warning); they MUST NOT appear in the result.
-			name:       "non-empty mountFlags are ignored",
-			options:    []string{"others"},
-			mountFlags: []string{"flag1", "flag2=value", "log_level=debug"},
-			want:       []string{"others", "log_level=info", "log_dir=/dev/stdout", "use_metrics=true"},
+			// MicroVM asks for syslog because its daemon is a bare node process
+			// with no container stdout to collect.
+			name:     "defaults.LogDir replaces the built-in log_dir",
+			options:  []string{"others"},
+			defaults: &fpm.MountOptionDefaults{LogDir: "syslog"},
+			want:     []string{"others", "log_level=info", "log_dir=syslog", "use_metrics=true"},
 		},
 		{
-			// Even mountFlags-only call must not leak any flag into the result.
-			name:       "mountFlags only, options nil",
-			options:    nil,
-			mountFlags: []string{"flag1", "log_level=debug"},
-			want:       []string{"log_level=info", "log_dir=/dev/stdout", "use_metrics=true"},
+			name:     "explicit log_dir outranks defaults.LogDir",
+			options:  []string{"log_dir=/tmp/ossfs2"},
+			defaults: &fpm.MountOptionDefaults{LogDir: "syslog"},
+			want:     []string{"log_dir=/tmp/ossfs2", "log_level=info", "use_metrics=true"},
+		},
+		{
+			name:        "env log_dir outranks defaults.LogDir",
+			defaultOpts: "log_dir=/tmp/ossfs2",
+			defaults:    &fpm.MountOptionDefaults{LogDir: "syslog"},
+			want:        []string{"log_dir=/tmp/ossfs2", "log_level=info", "use_metrics=true"},
+		},
+		{
+			name:     "empty defaults.LogDir keeps the built-in log_dir",
+			options:  []string{"others"},
+			defaults: &fpm.MountOptionDefaults{},
+			want:     []string{"others", "log_level=info", "log_dir=/dev/stdout", "use_metrics=true"},
 		},
 	}
 	for _, tt := range tests {
@@ -651,7 +663,7 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 			if tt.config != nil {
 				fakeOssfs.config = *tt.config
 			}
-			got := fakeOssfs.AddDefaultMountOptions(tt.options, tt.mountFlags)
+			got := fakeOssfs.AddDefaultMountOptions(tt.options, tt.defaults)
 			assert.Equal(t, tt.want, got)
 		})
 	}

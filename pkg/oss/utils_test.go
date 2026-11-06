@@ -2879,7 +2879,7 @@ func TestMountOptionsPipeline_Regression(t *testing.T) {
 
 			options, flags, err := makeMountOptionsAndFlags(opt, tt.fpm, fakeMeta, cap)
 			require.NoError(t, err)
-			options = tt.fpm.AddDefaultMountOptions(options, flags)
+			options = tt.fpm.AddDefaultMountOptions(options, nil)
 
 			t.Logf("options: %v", options)
 			t.Logf("flags: %v", flags)
