@@ -214,6 +214,7 @@ Pick based on **where you want the configuration to live**:
 | [3-standard](3-standard/) | PV mountOptions | Edit PV | Not tied to OSS field names — entrypoint defines its own env var schema, so it adapts to any FUSE client without reshaping the PV around `otherOpts` |
 | [4-configmap](4-configmap/) | ConfigMap | Edit ConfigMap | Solidify complex format/mount configs (cache policy, block size, trash retention, etc.) into a reusable template — adding a new instance is just a PV with `source`/`bucket`/`url` pointing to the ConfigMap |
 | [5-agent-identity](5-agent-identity/) | Sandbox identity, scripts in the image | Rebuild image | Self-built FUSE client on an **ACS sandbox** with no credential in the cluster: mount-proxy exchanges the sandbox token for a scoped STS credential, delivers it via stdin, and rotates it before expiry. Also **how to adapt a client to rotation** — JindoFS / JuiceFS / s3fs, one per behaviour a client can have |
+| [6-non-oss-backend](6-non-oss-backend/) | Sandbox identity, non-OSS backend | Rebuild image | **Non-OSS FUSE** with agent-identity: uses [agent-memory-fuse](https://help.aliyun.com/en/tablestore/memory-storage-service-sub-product-test/file-memory-1) as an example. Demonstrates that the driver accepts arbitrary volume attributes without requiring `bucket` or `url`. For fixed credentials, see Demo 2 |
 
 Demo 5 is for the **ACS sandbox** scenario rather than the DaemonSet one used by
 demos 1–4. It assumes the sandbox itself is already set up — see
