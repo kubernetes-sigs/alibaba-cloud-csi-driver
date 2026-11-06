@@ -58,8 +58,8 @@ ARG OSSFS2_RPM_URL
 ADD --link ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_FAILOVER_VERSION}_centos8.0_${OSSFS_ARCH}.rpm} /ossfs2.rpm
 
 FROM rpm AS alinas-rpm
-ARG ALINAS_UTILS_VERSION=2.6-0.20261020204835.cb10e3.generic
-ARG EFC_VERSION=2.6-20261023175522.d9b226.93c790a.release
+ARG ALINAS_UTILS_VERSION=2.6-0.20261103204456.3d3441.generic
+ARG EFC_VERSION=2.6-20261105161442.8829c8.release
 ARG ALINAS_RPM_BASE_URL=https://aliyun-alinas-eac-cn-beijing.oss-cn-beijing.aliyuncs.com/efc-release/2.6
 ADD --link ${ALINAS_RPM_BASE_URL}/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.${RPM_ARCH}.rpm /alinas-utils.rpm
 ADD --link ${ALINAS_RPM_BASE_URL}/alinas-efc-${EFC_VERSION}.${RPM_ARCH}.rpm /efc.rpm
