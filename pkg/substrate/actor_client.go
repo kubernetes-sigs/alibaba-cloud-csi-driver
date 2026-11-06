@@ -58,7 +58,7 @@ type ActorInfo struct {
 	Name        string
 	Annotation  string
 	Golden      bool
-	TemplateUID string
+	TemplateRef *ateapipb.ObjectRef
 }
 
 func NewActorClient(opts ActorClientOptions) (*ActorClient, error) {
@@ -111,25 +111,26 @@ func (c *ActorClient) Lookup(ctx context.Context, ref ActorReference) (ActorInfo
 	if meta.GetAtespace() != ref.Atespace || meta.GetName() != ref.Name {
 		return ActorInfo{}, status.Error(codes.PermissionDenied, "actor lookup returned a different reference")
 	}
-	info := ActorInfo{UID: meta.GetUid(), Atespace: meta.Atespace, Name: meta.Name, Annotation: meta.GetAnnotations()[PublishRequestsAnnotation]}
-	if info.Atespace != "ate-golden" {
-		return info, nil
-	}
-	templateRef := response.GetActorTemplate()
-	if templateRef.GetAtespace() == "" || templateRef.GetName() == "" {
-		return ActorInfo{}, status.Error(codes.FailedPrecondition, "golden actor lacks a template reference")
-	}
-	template, err := c.control.GetActorTemplate(ctx, &ateapipb.GetActorTemplateRequest{ActorTemplate: templateRef})
-	if err != nil {
-		return ActorInfo{}, err
-	}
-	templateMeta := template.GetMetadata()
-	if templateMeta.GetAtespace() != templateRef.Atespace || templateMeta.GetName() != templateRef.Name || templateMeta.GetUid() == "" || templateMeta.GetUid() != info.Name {
-		return ActorInfo{}, status.Error(codes.FailedPrecondition, "golden actor does not match its template UID")
-	}
-	info.Golden = true
-	info.TemplateUID = templateMeta.Uid
+	info := ActorInfo{UID: meta.GetUid(), Atespace: meta.Atespace, Name: meta.Name, Annotation: meta.GetAnnotations()[PublishRequestsAnnotation], TemplateRef: response.GetActorTemplate()}
 	return info, nil
+}
+
+// LookupTemplate resolves a template reference and returns the template UID.
+func (c *ActorClient) LookupTemplate(ctx context.Context, ref *ateapipb.ObjectRef) (string, error) {
+	if ref == nil || ref.GetAtespace() == "" || ref.GetName() == "" {
+		return "", nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, actorLookupTimeout)
+	defer cancel()
+	template, err := c.control.GetActorTemplate(ctx, &ateapipb.GetActorTemplateRequest{ActorTemplate: ref})
+	if err != nil {
+		return "", err
+	}
+	meta := template.GetMetadata()
+	if meta.GetAtespace() != ref.GetAtespace() || meta.GetName() != ref.GetName() || meta.GetUid() == "" {
+		return "", status.Error(codes.FailedPrecondition, "GetActorTemplate returned a different identity")
+	}
+	return meta.GetUid(), nil
 }
 
 func (c *ActorClient) Close() error { return c.conn.Close() }

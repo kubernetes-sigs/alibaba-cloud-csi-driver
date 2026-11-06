@@ -17,12 +17,29 @@ provisioner: substrate.csi.alibabacloud.com
 reclaimPolicy: Retain
 volumeBindingMode: Immediate
 {{- end }}
-{{- if .Values.controller.enabled }}
 {{- $endpoints := list }}
 {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
 {{- $endpoints = append $endpoints (dict "name" "nas" "driver" "nasplugin.csi.alibabacloud.com" "config" "substrate-nas" "port" 443 "target" 8443) }}
 {{- end }}
 {{- $endpoints = append $endpoints (dict "name" "bridge" "driver" "substrate.csi.alibabacloud.com" "config" "substrate-csi-bridge" "port" 444 "target" 8444) }}
+{{- if .Values.substrate.createDriverConfig }}
+{{- range $endpoint := $endpoints }}
+---
+apiVersion: ate.dev/v1
+kind: CSIDriverConfig
+metadata:
+  name: {{ $endpoint.driver }}
+spec:
+  driverName: {{ $endpoint.driver }}
+  controllerEndpoint: dns:///csi-provisioner.{{ $.Release.Namespace }}.svc:{{ $endpoint.port }}
+  nodeSocketOverride: unix://{{ clean $.Values.deploy.kubeletRootDir }}/csi-plugins/{{ $endpoint.driver }}/csi.sock
+  tls:
+    enabled: true
+    usePodIdentity: true
+    serverName: csi-provisioner.{{ $.Release.Namespace }}.svc
+{{- end }}
+{{- end }}
+{{- if .Values.controller.enabled }}
 ---
 apiVersion: v1
 kind: Service
@@ -38,23 +55,6 @@ spec:
       port: {{ $endpoint.port }}
       targetPort: {{ $endpoint.target }}
     {{- end }}
-{{- if .Values.substrate.createDriverConfig }}
-{{- range $endpoint := $endpoints }}
----
-apiVersion: ate.dev/v1alpha1
-kind: CSIDriverConfig
-metadata:
-  name: {{ $endpoint.driver }}
-spec:
-  driverName: {{ $endpoint.driver }}
-  controllerEndpoint: dns:///csi-provisioner.{{ $.Release.Namespace }}.svc:{{ $endpoint.port }}
-  nodeSocketOverride: unix://{{ clean $.Values.deploy.kubeletRootDir }}/csi-plugins/{{ $endpoint.driver }}/csi.sock
-  tls:
-    enabled: true
-    usePodIdentity: true
-    serverName: csi-provisioner.{{ $.Release.Namespace }}.svc
-{{- end }}
-{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
