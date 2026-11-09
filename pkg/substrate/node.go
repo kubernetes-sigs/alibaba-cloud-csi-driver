@@ -24,6 +24,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/substrate/internal/ateapipb"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -45,15 +46,22 @@ type publishEntry struct {
 	Request    json.RawMessage `json:"request"`
 }
 
-// ActorLookup returns the resolved Actor's metadata. Golden requires a verified
-// ate-golden Actor whose name equals TemplateUID. Node rechecks these invariants
-// at the boundary so alternative lookup implementations follow the same contract.
+// ActorLookup returns the resolved Actor's metadata and template ref. It does
+// not perform golden detection; that is the caller's responsibility.
 type ActorLookup func(context.Context, ActorReference) (ActorInfo, error)
+
+// TemplateLookup resolves a template reference to its UID. Used only in the
+// fallback path when the actor.golden marker is absent from the volume context.
+type TemplateLookup func(ctx context.Context, ref *ateapipb.ObjectRef) (uid string, err error)
 
 type NodeOptions struct {
 	NodeID string
 	Root   string
 	Lookup ActorLookup
+	// TemplateLookup resolves a template ref to its UID for golden detection
+	// on servers that predate the actor.golden marker. Optional; when nil,
+	// the fallback path cannot detect golden and relies on the annotation.
+	TemplateLookup TemplateLookup
 	// Backends maps a CSI driver name to the backend that forwards mounts for
 	// it. The bridge routes a stored publish request to the backend named by
 	// that request's driver, so supporting another driver is a registration, not
@@ -90,7 +98,7 @@ func (n *Node) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolume
 	}
 	defer n.locks.Release(req.TargetPath)
 	// 4. The Actor API decides what this volume really is, and which request describes it.
-	resolved, err := resolveMount(ctx, n.opts.Lookup, id, req.VolumeContext)
+	resolved, err := resolveMount(ctx, n.opts.Lookup, n.opts.TemplateLookup, id, req.VolumeContext)
 	if err != nil {
 		return nil, err
 	}

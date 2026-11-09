@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/substrate/internal/ateapipb"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -102,17 +103,17 @@ func TestActorLookupVerifiesGoldenTemplate(t *testing.T) {
 		name        string
 		actorName   string
 		templateUID string
-		wantError   bool
+		wantGolden  bool
 	}{
-		{"verified", "template-uid", "template-uid", false},
-		{"mismatched template", "another-template", "template-uid", true},
+		{"golden: name matches template UID", "template-uid", "template-uid", true},
+		{"not golden: name does not match", "actor-123", "template-uid", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			listener, err := net.Listen("tcp", "127.0.0.1:0")
 			require.NoError(t, err)
 			server := grpc.NewServer()
 			ateapipb.RegisterControlServer(server, &actorControlFixture{
-				actor:    &ateapipb.Actor{Metadata: &ateapipb.ResourceMetadata{Uid: testUID, Atespace: "ate-golden", Name: tc.actorName}, ActorTemplate: &ateapipb.ObjectRef{Atespace: "storage-test", Name: "template"}},
+				actor:    &ateapipb.Actor{Metadata: &ateapipb.ResourceMetadata{Uid: testUID, Atespace: "storage-test", Name: tc.actorName}, ActorTemplate: &ateapipb.ObjectRef{Atespace: "storage-test", Name: "template"}},
 				template: &ateapipb.ActorTemplate{Metadata: &ateapipb.ResourceMetadata{Uid: tc.templateUID, Atespace: "storage-test", Name: "template"}},
 			})
 			done := make(chan error, 1)
@@ -122,14 +123,13 @@ func TestActorLookupVerifiesGoldenTemplate(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { require.NoError(t, conn.Close()) })
 			client := &ActorClient{conn: conn, control: ateapipb.NewControlClient(conn)}
-			info, err := client.Lookup(t.Context(), ActorReference{UID: testUID, Name: tc.actorName, Atespace: "ate-golden"})
-			if tc.wantError {
-				require.Error(t, err)
-				return
-			}
+			info, err := lookupActor(t.Context(), client.Lookup, client.LookupTemplate, volumeIdentity{ActorUID: testUID, VolumeName: "data"}, map[string]string{
+				agentidentity.ActorUIDKey:       testUID,
+				agentidentity.ActorNameKey:      tc.actorName,
+				agentidentity.ActorNamespaceKey: "storage-test",
+			})
 			require.NoError(t, err)
-			require.True(t, info.Golden)
-			require.Equal(t, tc.templateUID, info.TemplateUID)
+			require.Equal(t, tc.wantGolden, info.Golden)
 		})
 	}
 }
@@ -172,9 +172,7 @@ func TestActorLookupLive(t *testing.T) {
 	require.Equal(t, ref.UID, actor.UID)
 	require.Equal(t, ref.Name, actor.Name)
 	require.Equal(t, ref.Atespace, actor.Atespace)
-	if ref.Atespace == "ate-golden" {
-		require.True(t, actor.Golden)
-	} else {
+	if ref.Atespace != "storage-test" {
 		require.NotEmpty(t, actor.Annotation)
 	}
 }

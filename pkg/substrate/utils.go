@@ -40,23 +40,16 @@ type resolvedMount struct {
 // resolveMount asks the Actor API what the volume actually is and returns the publish
 // request that describes it. The identity read off the mount target is the question; the
 // Actor API is the only authority on the answer.
-func resolveMount(ctx context.Context, lookup ActorLookup, id volumeIdentity, attributes map[string]string) (resolvedMount, error) {
+func resolveMount(ctx context.Context, lookup ActorLookup, templateLookup TemplateLookup, id volumeIdentity, attributes map[string]string) (resolvedMount, error) {
 	// 1. Find the Actor that owns the actor directory in the target.
-	actor, err := lookupActor(ctx, lookup, id, attributes)
+	actor, err := lookupActor(ctx, lookup, templateLookup, id, attributes)
 	if err != nil {
 		return resolvedMount{}, err
 	}
 	resolved := resolvedMount{Actor: actor}
 	// 2. A Golden Actor is building its image, so it has no backend request to select yet.
 	if actor.Golden {
-		if actor.Atespace != "ate-golden" || actor.TemplateUID == "" || actor.Name != actor.TemplateUID {
-			return resolvedMount{}, status.Error(codes.FailedPrecondition, "golden actor association is invalid")
-		}
 		return resolved, nil
-	}
-	// 3. An Actor in the golden atespace that is not golden itself is not verified.
-	if actor.Atespace == "ate-golden" {
-		return resolvedMount{}, status.Error(codes.FailedPrecondition, "unverified golden actor")
 	}
 	// 4. Pick this template volume's request out of the Actor annotation. The
 	// annotation is the single source of the publish request: the bridge driver
@@ -76,22 +69,51 @@ func resolveMount(ctx context.Context, lookup ActorLookup, id volumeIdentity, at
 	return resolved, nil
 }
 
-func lookupActor(ctx context.Context, lookup ActorLookup, id volumeIdentity, attributes map[string]string) (ActorInfo, error) {
+func lookupActor(ctx context.Context, lookup ActorLookup, templateLookup TemplateLookup, id volumeIdentity, attributes map[string]string) (ActorInfo, error) {
 	if lookup == nil {
 		return ActorInfo{}, status.Error(codes.FailedPrecondition, "actor lookup must be configured")
 	}
-	ref := ActorReference{UID: id.ActorUID, Name: attributes[agentidentity.ActorNameKey], Atespace: attributes[agentidentity.ActorNamespaceKey]}
-	if ref.Name == "" || ref.Atespace == "" {
+	name := attributes[agentidentity.ActorNameKey]
+	atespace := attributes[agentidentity.ActorNamespaceKey]
+	if name == "" || atespace == "" {
 		return ActorInfo{}, status.Error(codes.InvalidArgument, "actor name and namespace are required")
 	}
-	actor, err := lookup(ctx, ref)
+	ref := ActorReference{UID: id.ActorUID, Name: name, Atespace: atespace}
+	// v1.0+ servers state the golden fact in the volume context.
+	if val, ok := attributes[agentidentity.ActorGoldenKey]; ok {
+		if val == "true" {
+			return ActorInfo{UID: id.ActorUID, Name: name, Atespace: atespace, Golden: true}, nil
+		}
+		info, err := lookup(ctx, ref)
+		if err != nil {
+			return ActorInfo{}, err
+		}
+		if info.UID != id.ActorUID {
+			return ActorInfo{}, status.Error(codes.PermissionDenied, "actor lookup returned a different identity")
+		}
+		info.Golden = false
+		return info, nil
+	}
+	// Fallback: old server without the marker.
+	info, err := lookup(ctx, ref)
 	if err != nil {
 		return ActorInfo{}, err
 	}
-	if actor.UID != id.ActorUID {
+	if info.UID != id.ActorUID {
 		return ActorInfo{}, status.Error(codes.PermissionDenied, "actor lookup returned a different identity")
 	}
-	return actor, nil
+	if info.Annotation != "" || info.TemplateRef == nil || templateLookup == nil {
+		return info, nil
+	}
+	// Annotation absent and template ref present: resolve it to detect golden.
+	uid, err := templateLookup(ctx, info.TemplateRef)
+	if err != nil {
+		return ActorInfo{}, status.Errorf(status.Code(err), "cannot determine if actor is golden: GetActorTemplate failed: %v", err)
+	}
+	if uid != "" && uid == info.Name {
+		info.Golden = true
+	}
+	return info, nil
 }
 
 // selectPublishEntry decodes the Actor annotation and returns the entry of one template volume,

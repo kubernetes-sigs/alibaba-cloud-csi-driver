@@ -45,7 +45,7 @@ func TestGoldenPlaceholderRealMountThroughGRPC(t *testing.T) {
 		if unavailable.Load() {
 			return ActorInfo{}, status.Error(codes.Unavailable, "Actor API unavailable")
 		}
-		return ActorInfo{UID: testUID, Atespace: "ate-golden", Name: "template-uid", TemplateUID: "template-uid", Golden: true}, nil
+		return ActorInfo{UID: testUID, Atespace: "storage-test", Name: "template-uid"}, nil
 	}
 	node := NewNode(NodeOptions{Root: root, StateDir: state, Lookup: lookup, Mounter: mount.NewWithoutSystemd("")})
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -94,7 +94,7 @@ func TestGoldenRealMountIgnoresOuterReadonlyAndStaysWritable(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "actors", testUID, "volumes", "data")
 	lookup := func(context.Context, ActorReference) (ActorInfo, error) {
-		return ActorInfo{UID: testUID, Atespace: "ate-golden", Name: "template-uid", TemplateUID: "template-uid", Golden: true}, nil
+		return ActorInfo{UID: testUID, Atespace: "storage-test", Name: "template-uid"}, nil
 	}
 	attributes := goldenMetadataFixture()
 	attributes[PodUIDKey] = "worker-pod-uid"

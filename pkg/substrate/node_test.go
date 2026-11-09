@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils/agentidentity"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -145,7 +146,8 @@ func actorMetadataFixture() map[string]string {
 func goldenMetadataFixture() map[string]string {
 	attributes := actorMetadataFixture()
 	attributes["csi.alibabacloud.com/actor.name"] = "template-uid"
-	attributes["csi.alibabacloud.com/actor.namespace"] = "ate-golden"
+	attributes["csi.alibabacloud.com/actor.namespace"] = "storage-test"
+	attributes[agentidentity.ActorGoldenKey] = "true"
 	return attributes
 }
 

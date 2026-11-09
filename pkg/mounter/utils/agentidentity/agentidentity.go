@@ -72,9 +72,14 @@ const (
 	ActorUIDKey       = "csi.alibabacloud.com/actor.uid"
 	ActorNameKey      = "csi.alibabacloud.com/actor.name"
 	ActorNamespaceKey = "csi.alibabacloud.com/actor.namespace"
-	PodUIDKey         = "csi.storage.k8s.io/pod.uid"
-	PodNameKey        = "csi.storage.k8s.io/pod.name"
-	PodNamespaceKey   = "csi.storage.k8s.io/pod.namespace"
+	// ActorGoldenKey states whether the Actor is a golden build Actor.
+	// Set to "true" or "false" by the API on every volume; a missing key
+	// means the server predates the marker and the bridge falls back to
+	// resolving the template ref.
+	ActorGoldenKey  = "csi.alibabacloud.com/actor.golden"
+	PodUIDKey       = "csi.storage.k8s.io/pod.uid"
+	PodNameKey      = "csi.storage.k8s.io/pod.name"
+	PodNamespaceKey = "csi.storage.k8s.io/pod.namespace"
 )
 
 // HasActorIdentity reports whether any of the Actor identity keys
