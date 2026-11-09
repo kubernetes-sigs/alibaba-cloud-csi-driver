@@ -19,8 +19,32 @@ limitations under the License.
 package nas
 
 import (
+	"errors"
 	"testing"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+func TestSetDirQuotaStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want codes.Code
+	}{
+		{"quotaCountLimitIsFailedPrecondition", aliErr(quotaSettingCountLimitExceededCode), codes.FailedPrecondition},
+		{"otherCloudCodeStaysInternal", aliErr("Throttling.User"), codes.Internal},
+		{"plainErrorStaysInternal", errors.New("boom"), codes.Internal},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := setDirQuotaStatus(tt.err)
+			if status.Code(got) != tt.want {
+				t.Errorf("setDirQuotaStatus() code = %v, want %v", status.Code(got), tt.want)
+			}
+		})
+	}
+}
 
 func Test_rrMuxServerSelector_SelectNfsServer(t *testing.T) {
 	s := &rrMuxServerSelector{

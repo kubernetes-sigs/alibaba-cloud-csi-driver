@@ -47,6 +47,10 @@ import (
 const (
 	subpathArchiveFinalizer  = "csi.alibabacloud.com/nas-subpath-archive"
 	subpathDeletionFinalizer = "csi.alibabacloud.com/nas-subpath-deletion"
+
+	// quotaSettingCountLimitExceededCode is returned by SetDirQuota when the
+	// filesystem already holds its maximum number of directory-quota settings.
+	quotaSettingCountLimitExceededCode = "OperationDenied.QuotaSettingCountLimitExceeded"
 )
 
 type subpathController struct {
@@ -71,6 +75,17 @@ func newSubpathController(config *internal.ControllerConfig) (internal.Controlle
 
 func (cs *subpathController) VolumeAs() string {
 	return "subpath"
+}
+
+// setDirQuotaStatus maps a SetDirQuota failure to a gRPC status. Exceeding the
+// filesystem's directory-quota count is a state that no retry can change, so it
+// is reported as FailedPrecondition; every other failure stays retryable Internal.
+func setDirQuotaStatus(err error) error {
+	code := codes.Internal
+	if apiErrorCode(err) == quotaSettingCountLimitExceededCode {
+		code = codes.FailedPrecondition
+	}
+	return status.Errorf(code, "nas:SetDirQuota failed: %v", err)
 }
 
 func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
@@ -169,7 +184,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 			QuotaType:    new("Enforcement"),
 			UserType:     new("AllUsers"),
 		}); err != nil {
-			return nil, status.Errorf(codes.Internal, "nas:SetDirQuota failed: %v", err)
+			return nil, setDirQuotaStatus(err)
 		}
 	}
 
@@ -298,7 +313,7 @@ func (cs *subpathController) ControllerExpandVolume(ctx context.Context, req *cs
 			QuotaType:    new("Enforcement"),
 			UserType:     new("AllUsers"),
 		}); err != nil {
-			return nil, status.Errorf(codes.Internal, "nas:SetDirQuota failed: %v", err)
+			return nil, setDirQuotaStatus(err)
 		}
 		return &csi.ControllerExpandVolumeResponse{CapacityBytes: quota << 30}, nil
 	}
