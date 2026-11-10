@@ -380,17 +380,19 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 const (
 	KeyLogLevel = "log_level"
 	KeyLogDir   = "log_dir"
+
+	// defaultLogDir sends ossfs2 logs to the container's stdout, where the
+	// runtime collects them. Callers whose daemon is not a container override
+	// this via MountOptionDefaults.LogDir.
+	defaultLogDir = "/dev/stdout"
 )
 
-func (f *fuseOssfs) AddDefaultMountOptions(options []string, mountFlags []string) []string {
-	// For ossfs2, mountFlags are NOT passed to the daemon.
-	// They are only used for FUSE kernel mount in fd-passing mode.
-	if len(mountFlags) > 0 {
-		klog.Warningf("NodePublishVolume: ossfs2 does not support mountOptions/mountFlags; " +
-			"FUSE mount parameters in mountFlags are used for the kernel mount only. " +
-			"Configure ossfs2 daemon options via volumeAttributes.otherOpts instead.")
-	}
-
+func (f *fuseOssfs) AddDefaultMountOptions(options []string, defaults *fpm.MountOptionDefaults) []string {
+	// DEFAULT_OSSFS2_OPTIONS is a private-cloud knob whose value is neither owned
+	// nor validated here. Semantics are append, not merge: entries go in verbatim,
+	// so a key already present in options (otherOpts / PV mountOptions) ends up
+	// duplicated and ossfs2's own parsing picks the winner. Indexing happens after
+	// this append, so an env-supplied key does suppress the built-in defaults.
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS2_OPTIONS")
 	if defaultOSSFSOptions != "" {
 		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
@@ -413,7 +415,11 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string, mountFlags []string
 
 	// set default log dir
 	if _, ok := tm[KeyLogDir]; !ok {
-		options = append(options, "log_dir=/dev/stdout")
+		logDir := defaultLogDir
+		if defaults != nil && defaults.LogDir != "" {
+			logDir = defaults.LogDir
+		}
+		options = append(options, fmt.Sprintf("%s=%s", KeyLogDir, logDir))
 	}
 
 	// set use_metrics to enabled monitoring by default
