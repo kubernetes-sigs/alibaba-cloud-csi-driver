@@ -37,7 +37,7 @@ import (
 // action. VSC clients use the new tea SDK, so we classify with V2Classifier.
 // Delays mirror pkg/disk's defaults.
 func newVscThrottler() *throttle.Throttler {
-	return throttle.NewThrottler(clock.RealClock{}, 1*time.Second, 10*time.Second, throttle.V2Classifier)
+	return throttle.NewThrottler(1*time.Second, 10*time.Second, throttle.V2Classifier)
 }
 
 // vscDialect captures backend-specific values for VSC type/status enums
