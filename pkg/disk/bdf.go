@@ -3,76 +3,22 @@
 package disk
 
 import (
-	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
-	"time"
+	"sync/atomic"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
-
-const (
-	// VfBar0Sz value
-	VfBar0Sz = 0x1000
-	// DevIDOffsetInBar0 value
-	DevIDOffsetInBar0 = 0x100
-	// MaxVfNum value
-	MaxVfNum = 256
-	// BlkIDSz value
-	BlkIDSz = 20
-
-	// Note: /sys is automatically mounted read-write for privileged pod. So we don't need to manually mount it under /host/sys
-	iohubSriovAction = "/sys/bus/pci/drivers/iohub_sriov/"
-	virtioPciAction  = "/sys/bus/pci/drivers/virtio-pci/"
-
-	iohubSrviovDriver = "iohub_sriov"
-	virtioPciDriver   = "virtio-pci"
-
-	// Vfhp Reconcile period
-	VfhpReconcilePeriod = 600
-)
-
-// BdfAttachInfo type
-type BdfAttachInfo struct {
-	Depend             bool   `json:"depend"`
-	LastAttachedNodeID string `json:"last_attached_node_id"`
-}
-
-// FindLines parse lines
-func FindLines(reader io.Reader, keyword string) []string {
-	var matched []string
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, keyword) {
-			matched = append(matched, line)
-		}
-	}
-	return matched
-}
-
-// IsNoSuchDeviceErr and device error
-func IsNoSuchDeviceErr(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(strings.ToLower(err.Error()), "no such device")
-}
 
 func IsNoSuchFileErr(err error) bool {
 	if err == nil {
@@ -81,357 +27,54 @@ func IsNoSuchFileErr(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "no such file or directory")
 }
 
-// IohubSriovBind io hub bind
-func IohubSriovBind(bdf string) error {
-	return os.WriteFile(iohubSriovAction+"bind", []byte(bdf), 0600)
-}
-
-// IohubSriovUnbind io hub unbind
-func IohubSriovUnbind(bdf string) error {
-	return os.WriteFile(iohubSriovAction+"unbind", []byte(bdf), 0600)
-}
-
-// VirtioPciBind pci bind
-func VirtioPciBind(bdf string) error {
-	return os.WriteFile(virtioPciAction+"bind", []byte(bdf), 0600)
-}
-
-// VirtioPciUnbind pci unbind
-func VirtioPciUnbind(bdf string) error {
-	return os.WriteFile(virtioPciAction+"unbind", []byte(bdf), 0600)
-}
-
-// ExecCheckOutput check output
-func ExecCheckOutput(cmd string, args ...string) (io.Reader, error) {
-	c := exec.Command(cmd, args...)
-	stdout := bytes.NewBuffer(nil)
-	stderr := bytes.NewBuffer(nil)
-	c.Stdout = stdout
-	c.Stderr = stderr
-	if err := c.Run(); err != nil {
-		return nil, errors.Errorf("cmd: %s, stdout: %s, stderr: %s, err: %v",
-			cmd, stdout, stderr, err)
-	}
-
-	return stdout, nil
-}
-
-func findBdf(diskID string) (bdf string, err error) {
-	var (
-		domain   int
-		bus      int
-		dev      int
-		function int
-		bar0     uint64
-
-		blkIds      = make([]byte, BlkIDSz)
-		blkIDSuffix string
-	)
-
-	if _, err := fmt.Sscanf(diskID, "d-%s", &blkIDSuffix); err != nil {
-		return "", err
-	}
-	copy(blkIds, blkIDSuffix)
-
-	output, err := ExecCheckOutput("lspci", "-D")
-	if err != nil {
-		return "", err
-	}
-	// 0000:a1:00.0 SCSI storage controller: Red Hat, Inc Virtio block device
-	matched := FindLines(output, "Virtio block device")
-	if len(matched) == 0 {
-		return "", nil
-	}
-
-	if _, err = fmt.Sscanf(matched[0], "%s SCSI storage controller", &bdf); err != nil {
-		return "", err
-	}
-	if _, err = fmt.Sscanf(bdf, "%04x:%02x:%02x.%d", &domain, &bus, &dev, &function); err != nil {
-		return "", errors.Wrapf(err, "bdf format")
-	}
-
-	// 找bar0地址
-	bdf = fmt.Sprintf("%02x:%02x.%d", bus+1, dev, function)
-	output, err = ExecCheckOutput("lspci", "-s", bdf, "-vvvv")
-	if err != nil {
-		return "", err
-	}
-	//    Region 0: Memory at 00000000ed501000 (64-bit, prefetchable)
-	matched = FindLines(output, "\t\tRegion 0: Memory at")
-	// 非bdf机型是匹配不到这个信息的
-	if len(matched) == 0 {
-		return "", nil
-	}
-	if _, err = fmt.Sscanf(matched[len(matched)-1], "\t\tRegion 0: Memory at %x", &bar0); err != nil {
-		return "", err
-	}
-
-	pgsize := syscall.Getpagesize()
-	base := bar0 & (^(uint64(pgsize - 1)))
-	offset := int(base & uint64(pgsize-1))
-
-	fd, err := os.Open("/dev/mem")
-	if err != nil {
-		return "", err
-	}
-	defer fd.Close()
-	mmdata, err := syscall.Mmap(int(fd.Fd()), int64(base), MBSIZE, syscall.PROT_READ, syscall.MAP_SHARED)
-	if err != nil {
-		return "", errors.Wrapf(err, "Mmap")
-	}
-	defer syscall.Munmap(mmdata)
-
-	bdf = ""
-	for i := range MaxVfNum {
-		pos := offset + i*VfBar0Sz + DevIDOffsetInBar0
-		devIds := make([]byte, BlkIDSz)
-		for i := range 5 {
-			start := 4 * i
-			copy(devIds[start:start+4], mmdata[pos+start:pos+start+4])
+var isVFInstance = sync.OnceValue(func() bool {
+	if s, ok := os.LookupEnv("IS_BDF"); ok {
+		vf, err := strconv.ParseBool(s)
+		if err != nil {
+			klog.Fatalf("parse IS_BDF=%s: %v", s, err)
 		}
-		if bytes.Equal(devIds, blkIds) {
-			bdf = fmt.Sprintf("%04x:%02x:%02x.%d", domain, bus+1, dev+(i+1)/8, function+(i+1)%8)
-			break
-		}
+		return vf
 	}
+	vf, err := hasSRIOVStorageController(sysfsPCIDevices)
+	if err != nil {
+		klog.Fatalf("detect SR-IOV storage controller: %v", err)
+	}
+	klog.Infof("disks are attached as SR-IOV VFs: %v", vf)
+	return vf
+})
 
-	return bdf, nil
+// IsVFInstance reports whether disks are attached as SR-IOV VFs of an iohub storage controller (ECS bare metal).
+// iohub-vfhp-helper on the node binds them to drivers.
+func IsVFInstance() bool {
+	return isVFInstance()
 }
 
-func unbindBdfDisk(diskID string) (err error) {
-	bdf, err := findBdf(diskID)
-	if err != nil {
-		klog.Errorf("unbindBdfDisk: Disk %s bdf not found with error: %v", diskID, err)
-		return errors.Wrapf(err, "findBdf, diskId=%s", diskID)
-	}
-	if bdf == "" {
-		klog.Infof("unbindBdfDisk: Disk %s bdf not found, skip", diskID)
+var vfHotplugSupported atomic.Bool
+
+// checkVFHotplug returns an error if disks are attached as VFs, but iohub-vfhp-helper cannot hot plug them.
+func checkVFHotplug() error {
+	if !IsVFInstance() || vfHotplugSupported.Load() {
 		return nil
 	}
-	klog.Infof("unbindBdfDisk: Disk %s bdf is %s", diskID, bdf)
-
-	if err := VirtioPciUnbind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
-		klog.Errorf("unbindBdfDisk: Disk %s bdf %s VirtioPciUnbind with error: %v", diskID, bdf, err)
-		return errors.Wrapf(err, "VirtioPciUnbind, bdf=%s", bdf)
+	// Takes about 12s, watching a heartbeat counter of the backend.
+	out, err := utils.CommandOnNode("iohub-vfhp-helper", "-s").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("disks are attached as SR-IOV VFs, but VF hotplug is not supported (iohub-vfhp-helper -s: %w): %s", err, bytes.TrimSpace(out))
 	}
-
-	if err := IohubSriovBind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
-		klog.Errorf("unbindBdfDisk: Disk %s bdf %s IohubSriovBind with error: %v", diskID, bdf, err)
-		return errors.Wrapf(err, "IohubSriovBind, bdf=%s", bdf)
-	}
-	klog.Infof("unbindBdfDisk: Disk %s(%s) successfully", diskID, bdf)
-
-	if err = clearBdfInfo(diskID, bdf); err != nil {
-		klog.Errorf("unbindBdfDisk: Disk %s bdf %s clearBdfInfo with error: %v", diskID, bdf, err)
-		return err
-	}
+	vfHotplugSupported.Store(true)
 	return nil
 }
 
-func bindBdfDisk(diskID string) (bdf string, err error) {
-	bdf, err = findBdf(diskID)
-	if err != nil {
-		klog.Errorf("bindBdfDisk: Disk %s bdf not found with error: %v", diskID, err)
-		return "", errors.Wrapf(err, "findBdf, diskId=%s", diskID)
-	}
-	if bdf == "" {
-		klog.Infof("bindBdfDisk: Disk %s bdf not found, skip", diskID)
-		return "", nil
-	}
-	klog.Infof("bindBdfDisk: Disk %s bdf is %s", diskID, bdf)
-
-	data, err := os.Readlink("/sys/bus/pci/devices/" + bdf + "/driver")
-	if err != nil {
-		klog.Errorf("bindBdfDisk: Disk %s bdf %s Readlink with error: %v", diskID, bdf, err)
-		return bdf, errors.Wrapf(err, "read disk driver, diskId=%s, bdf=%s", diskID, bdf)
-	}
-	driver := filepath.Base(data)
-	klog.Infof("bindBdfDisk: Disk %s bdf %s, kernel driver in use: %s", diskID, bdf, driver)
-	switch driver {
-	case iohubSrviovDriver:
-		if err = IohubSriovUnbind(bdf); err != nil {
-			klog.Errorf("bindBdfDisk: Disk %s bdf %s IohubSriovUnbind with error: %v", diskID, bdf, err)
-			return bdf, errors.Wrapf(err, "IohubSriovUnbind, bdf=%s", bdf)
-		}
-	case virtioPciDriver:
-		klog.Infof("bindBdfDisk: Disk %s(%s) already bound virtio-pci", diskID, bdf)
-		if err = storeBdfInfo(diskID, bdf); err != nil {
-			klog.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo with error: %v", diskID, bdf, err)
-			return bdf, err
-		}
-		return bdf, nil
-	}
-	if err = VirtioPciBind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
-		klog.Errorf("bindBdfDisk: Disk %s bdf %s VirtioPciBind with error: %v", diskID, bdf, err)
-		return bdf, errors.Wrapf(err, "VirtioPciBind, bdf=%s", bdf)
-	}
-	klog.Infof("bindBdfDisk: Disk %s(%s) successfully", diskID, bdf)
-
-	if err = storeBdfInfo(diskID, bdf); err != nil {
-		klog.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo at end with error: %v", diskID, bdf, err)
-		return bdf, err
-	}
-	return bdf, nil
-}
-
-func storeBdfInfo(diskID, bdf string) (err error) {
-	info := BdfAttachInfo{
-		Depend:             bdf != "",
-		LastAttachedNodeID: GlobalConfigVar.NodeID,
-	}
-	infoBytes, _ := json.Marshal(info)
-
-	// Step 2: create & attach tag
-	addTagsRequest := ecs.CreateAddTagsRequest()
-	tmpTag := ecs.AddTagsTag{Key: DiskBdfTagKey, Value: string(infoBytes)}
-	addTagsRequest.Tag = &[]ecs.AddTagsTag{tmpTag}
-	addTagsRequest.ResourceType = "disk"
-	addTagsRequest.ResourceId = diskID
-	addTagsRequest.RegionId = GlobalConfigVar.Region
-	ecsClient := GlobalConfigVar.EcsClient
-	_, err = ecsClient.AddTags(addTagsRequest)
-	if err != nil {
-		klog.Warningf("storeBdfInfo: AddTags error: %s, %s", diskID, err.Error())
-		return
-	}
-	klog.Info("Storing bdf information successfully")
-	return nil
-}
-
-func clearBdfInfo(diskID, bdf string) (err error) {
-
-	klog.Infof("clearBdfInfo: bdf: %s", bdf)
-	ecsClient := GlobalConfigVar.EcsClient
-
-	bdfInfoString := ""
-	if bdf == "" {
-		diskInfo := getDisks([]string{diskID}, ecsClient)
-		if len(diskInfo) != 1 {
-			klog.Warningf("clearBdfInfo: cannot get disk: %s", diskID)
-			return err
-		}
-		bdfTagExist := false
-		for _, tag := range diskInfo[0].Tags.Tag {
-			if tag.TagKey == DiskBdfTagKey {
-				bdfInfoString = tag.Value
-				bdfTagExist = true
-				break
-			}
-		}
-		if !bdfTagExist {
-			return nil
-		}
-	}
-
-	if bdfInfoString == "" {
-		info := BdfAttachInfo{
-			Depend:             bdf != "",
-			LastAttachedNodeID: GlobalConfigVar.NodeID,
-		}
-		infoBytes, _ := json.Marshal(info)
-		bdfInfoString = string(infoBytes)
-	}
-
-	removeTagsRequest := ecs.CreateRemoveTagsRequest()
-	tmpTag := ecs.RemoveTagsTag{Key: DiskBdfTagKey, Value: bdfInfoString}
-	removeTagsRequest.Tag = &[]ecs.RemoveTagsTag{tmpTag}
-	removeTagsRequest.ResourceType = "disk"
-	removeTagsRequest.ResourceId = diskID
-	removeTagsRequest.RegionId = GlobalConfigVar.Region
-	_, err = ecsClient.RemoveTags(removeTagsRequest)
-	if err != nil {
-		klog.Warningf("storeBdfInfo: Remove error: %s, %s", diskID, err.Error())
-		return err
-	}
-
-	klog.Infof("Deleting bdf information successfully for Disk: %s", diskID)
-	return nil
-}
-
-var vfOnce = new(sync.Once)
-
-// isVF means ecsClient running in VF mode
-// the instance is VF Node and iohub-vfhp-helper notworking
-var isVF = false
-
-// is VFInstance means instance is VF Node;
-var isVFInstance = false
-
-// IsVFNode returns whether the current node is vf
-func IsVFNode() bool {
-	vfOnce.Do(func() {
-		is_bdf_str, ok := os.LookupEnv("IS_BDF")
-		if ok {
-			is_bdf, err := strconv.ParseBool(is_bdf_str)
-			if err != nil {
-				klog.Fatalf("[IsVFNode] parse IS_BDF=%s: %v", is_bdf_str, err)
-			}
-			isVF = is_bdf
-			isVFInstance = is_bdf
-		} else {
-			output, err := ExecCheckOutput("lspci", "-D")
-			if err != nil {
-				klog.Fatalf("[IsVFNode] lspci -D: %v", err)
-			}
-			// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001 or SCSI storage controller: Alibaba (China) Co., Ltd.
-			matched := FindLines(output, "storage controller")
-			if len(matched) == 0 {
-				klog.Errorf("[IsVFNode] not found storage controller")
-				return
-			}
-			for _, line := range matched {
-				// 1ded: is alibaba cloud
-				if !strings.Contains(line, "1ded:") && !strings.Contains(line, "Alibaba") {
-					continue
-				}
-				bdf := strings.SplitN(line, " ", 2)[0]
-				if !strings.HasSuffix(bdf, ".0") {
-					continue
-				}
-				output, err = ExecCheckOutput("lspci", "-s", bdf, "-v")
-				if err != nil {
-					klog.Errorf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
-					return
-				}
-				// Capabilities: [110] Single Root I/O Virtualization (SR-IOV)
-				matched = FindLines(output, "Single Root I/O Virtualization")
-				if len(matched) > 0 {
-					isVF = true
-					isVFInstance = true
-					klog.Infof("[IsVFNode] change isVF to true isVF: %v", isVF)
-					break
-				}
-			}
-		}
-		klog.Infof("[IsVFNode] isVF: %v", isVF)
-		checkVfhpOnline()
-	})
-	return isVF
-}
-
-func checkVfhpOnlineReconcile() {
-	for {
-		vfRecord := isVF
-		checkVfhpOnline()
-		if vfRecord != isVF {
-			klog.Infof("checkVfhpOnlineReconcile: Node iohub-vfhp-helper is changed, isVF flag from %t to %t", vfRecord, isVF)
-		}
-		time.Sleep(time.Duration(VfhpReconcilePeriod) * time.Second)
-	}
-}
-
-func checkVfhpOnline() {
-	err := utils.CommandOnNode("iohub-vfhp-helper", "-s").Run()
-	if err == nil {
-		isVF = false
-		return
-	}
-	klog.Infof("checkVfhpOnline: check node vfhp helper cmd exec err: %+v", err)
-}
-
-// IsVFInstance check node is vf or not
-func IsVFInstance() bool {
-	return isVFInstance
+// removeBdfTag removes the tag with which ECS refuses to detach the disk.
+// We no longer add it since iohub-vfhp-helper is required, but disks may still carry it from old versions.
+func removeBdfTag(diskID string) error {
+	req := ecs.CreateUntagResourcesRequest()
+	req.RegionId = GlobalConfigVar.Region
+	req.ResourceType = "disk"
+	req.ResourceId = &[]string{diskID}
+	req.TagKey = &[]string{DiskBdfTagKey}
+	_, err := GlobalConfigVar.EcsClient.UntagResources(req)
+	return err
 }
 
 type MachineType int

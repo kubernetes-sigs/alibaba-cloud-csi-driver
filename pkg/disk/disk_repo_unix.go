@@ -76,62 +76,29 @@ func (ad *diskRepo) possibleDisks(before sets.Set[string]) ([]string, error) {
 
 func (ad *diskRepo) findDevice(ctx context.Context, diskID, serial string, before sets.Set[string]) (string, error) {
 	logger := klog.FromContext(ctx)
-	var bdf, device string
-	var err error
-	for {
-		if serial != "" {
-			device, err = ad.dev.WaitRootBlock(ctx, serial)
-			if err == nil {
-				logger.V(2).Info("found disk by serial", "serial", serial, "device", device)
-				break
-			}
-			err = fmt.Errorf("disk attached but not found by serial %s: %w", serial, err)
-		} else if before != nil {
-			var disks []string
-			disks, err = ad.possibleDisks(before)
-			if err != nil {
-				return "", fmt.Errorf("failed to find disk without serial: %v", err)
-			}
-			if len(disks) == 1 {
-				device = disks[0]
-				err := ad.devMap.Add(diskID, device)
-				if err != nil {
-					return "", fmt.Errorf("failed to populate devMap: %v", err)
-				}
-				logger.V(2).Info("found device by diff", "device", device)
-				break
-			} else {
-				// device count is not expected, should retry (later by detaching and attaching again)
-				err = fmt.Errorf("disk attached, but got %d devices, will retry later", len(disks))
-			}
-		}
-
-		if !IsVFNode() {
-			return "", err
-		}
-		if bdf != "" {
-			// second attempt after bindBdfDisk
-			var errBDF error
-			device, errBDF = GetDeviceByBdf(bdf, true)
-			if errBDF != nil {
-				return "", fmt.Errorf("%v. failed to find by BDF: %v", err, errBDF)
-			}
-			logger.V(2).Info("found device by BDF", "BDF", bdf, "device", device)
-			break
-		}
-		// On VF node, try bind driver
-		bdf, err = bindBdfDisk(diskID)
+	if serial != "" {
+		device, err := ad.dev.WaitRootBlock(ctx, serial)
 		if err != nil {
-			if err := unbindBdfDisk(diskID); err != nil {
-				return "", fmt.Errorf("NodeStageVolume: failed to detach bdf: %v", err)
-			}
-			return "", fmt.Errorf("NodeStageVolume: failed to attach bdf: %v", err)
+			return "", fmt.Errorf("disk attached but not found by serial %s: %w", serial, err)
 		}
-		if bdf == "" {
-			// avoid infinite loop
-			return "", fmt.Errorf("BDF not found")
-		}
-		// continue and retry finding device
+		logger.V(2).Info("found disk by serial", "serial", serial, "device", device)
+		return device, nil
 	}
+	if before == nil {
+		return "", nil
+	}
+	disks, err := ad.possibleDisks(before)
+	if err != nil {
+		return "", fmt.Errorf("failed to find disk without serial: %v", err)
+	}
+	if len(disks) != 1 {
+		// device count is not expected, should retry (later by detaching and attaching again)
+		return "", fmt.Errorf("disk attached, but got %d devices, will retry later", len(disks))
+	}
+	device := disks[0]
+	if err := ad.devMap.Add(diskID, device); err != nil {
+		return "", fmt.Errorf("failed to populate devMap: %v", err)
+	}
+	logger.V(2).Info("found device by diff", "device", device)
 	return device, nil
 }
