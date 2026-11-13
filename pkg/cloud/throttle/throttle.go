@@ -6,13 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
 	alierrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/clock"
 )
 
 // Class categorizes an error returned by an OpenAPI call for throttling purposes.
@@ -23,7 +22,7 @@ const (
 	// cannot tell whether we are being throttled. Throttle state is left untouched.
 	ClassUnknown Class = iota
 	// ClassOK means the call was a recognized outcome that is not throttling
-	// (success or a non-throttling cloud error). Any active throttling is cleared.
+	// (success or a non-throttling cloud error). It allows admission to grow.
 	ClassOK
 	// ClassThrottling means the cloud responded with a throttling error, so we
 	// should back off and retry.
@@ -102,112 +101,151 @@ func (t throttlingError) Unwrap() error {
 	return t.err
 }
 
-type throttlingContext struct {
-	probing chan struct{}
+const (
+	recoveryWindow = 16
+	maxWindow      = 512
+)
 
-	lastThrottling time.Time
-	retryDelay     time.Duration
+type admission struct {
+	generation uint64
+	probe      bool
 }
 
 type Throttler struct {
 	initDelay time.Duration
 	maxDelay  time.Duration
+	classify  Classifier
 
-	clk      clock.Clock
-	classify Classifier
+	mu         sync.Mutex
+	backoff    bool
+	generation uint64
+	window     int
+	inFlight   int
+	ready      chan struct{}
 
-	current atomic.Pointer[throttlingContext]
+	retryDelay  time.Duration
+	nextProbeAt time.Time
+	probeOwned  bool
 }
 
-func NewThrottler(clk clock.Clock, initDelay, maxDelay time.Duration, classify Classifier) *Throttler {
+func NewThrottler(initDelay, maxDelay time.Duration, classify Classifier) *Throttler {
 	return &Throttler{
 		initDelay: initDelay,
 		maxDelay:  maxDelay,
-		clk:       clk,
 		classify:  classify,
+		window:    maxWindow,
+		ready:     make(chan struct{}, 1),
 	}
 }
 
-// Throttle will call f and retry after delay when Throttling error code is returned.
-// If one Throttling error is observed, all subsequent requests will be delayed.
-// A random delayed request will be used to probe whether the throttling has ended.
-// If a non-Throttling response is returned, all delayed requests will be sent out immediately.
-//
-// This works with Alibaba Cloud OpenAPI, which usually enforce a quota every minute.
-// If we use up the quota in the first 10s, we will get Throttling error code in the following 50s.
+// Throttle calls f, retrying throttling errors with exponential backoff and a
+// single probe. An accepted probe resumes admission with 16 concurrent calls;
+// each accepted completion grows the window by one, up to 512. This limits
+// recovery bursts without imposing a fixed request rate on minute-based quotas.
 func (t *Throttler) Throttle(ctx context.Context, f func() error) error {
-	logger := klog.FromContext(ctx)
-	start := t.clk.Now()
 	for {
-		if ctx.Err() != nil {
-			return ctx.Err()
+		ticket, err := t.acquire(ctx)
+		if err != nil {
+			return err
 		}
-		tCtx := t.current.Load()
-		if tCtx != nil {
-			logger.V(3).Info("OpenAPI throttling in effect")
-			select {
-			case <-ctx.Done():
-				return throttlingError{ctx.Err()}
-			case _, ok := <-tCtx.probing:
-				if ok {
-					// Currently throttling, we will probe if the throttling has ended.
-					// Be sure to write or close tCtx.probing to notify others.
-					select {
-					case <-ctx.Done():
-						tCtx.probing <- struct{}{}
-						return throttlingError{ctx.Err()}
-					case <-t.clk.After(tCtx.retryDelay - t.clk.Since(tCtx.lastThrottling)):
-					}
-					logger.V(2).Info("OpenAPI throttling, probing", "retry", tCtx.retryDelay)
-				} else {
-					logger.V(2).Info("OpenAPI no longer throttle", "delay", t.clk.Since(start))
-					tCtx = nil
-				}
-			}
+		if ticket.probe {
+			klog.FromContext(ctx).V(2).Info("OpenAPI throttling, probing")
 		}
 
-		err := f()
-
+		err = f()
 		class, requestID := t.classify(err)
-		switch class {
-		case ClassUnknown:
-			// We are not sure what's wrong, don't change state.
-			if tCtx != nil {
-				// Initiate the next probe immediately.
-				tCtx.probing <- struct{}{}
-			}
+		t.complete(ctx, ticket, class, requestID)
+		if class != ClassThrottling {
 			return err
-		case ClassOK:
-			if tCtx != nil {
-				logger.V(1).Info("OpenAPI throttling ended")
-				close(tCtx.probing)
-				t.current.CompareAndSwap(tCtx, nil)
+		}
+	}
+}
+
+func (t *Throttler) acquire(ctx context.Context) (admission, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	// Pass the notification on after admission or cancellation, not failed checks.
+	defer t.notifyLocked()
+	for {
+		if err := ctx.Err(); err != nil {
+			if t.backoff {
+				return admission{}, throttlingError{err}
 			}
-			return err
+			return admission{}, err
+		}
+		if !t.backoff && t.inFlight < t.window {
+			t.inFlight++
+			return admission{generation: t.generation}, nil
+		}
+		if t.backoff && !t.probeOwned && t.inFlight < maxWindow {
+			t.probeOwned = true
+			delay := time.Until(t.nextProbeAt)
+			if delay > 0 {
+				t.mu.Unlock()
+				select {
+				case <-ctx.Done():
+				case <-time.After(delay):
+				}
+				t.mu.Lock()
+			}
+			if err := ctx.Err(); err != nil {
+				t.probeOwned = false
+				return admission{}, throttlingError{err}
+			}
+			t.inFlight++
+			return admission{generation: t.generation, probe: true}, nil
 		}
 
-		// Throttling detected
-		if tCtx == nil {
-			tCtx = &throttlingContext{
-				lastThrottling: t.clk.Now(),
-				retryDelay:     t.initDelay,
-				probing:        make(chan struct{}, 1),
-			}
-			tCtx.probing <- struct{}{}
-			if t.current.CompareAndSwap(nil, tCtx) {
-				logger.V(1).Info("OpenAPI throttling detected", "requestID", requestID)
-			} else {
-				logger.V(3).Info("already throttling", "requestID", requestID)
-			}
-		} else {
-			tCtx.lastThrottling = t.clk.Now()
-			tCtx.retryDelay *= 2
-			if tCtx.retryDelay > t.maxDelay {
-				tCtx.retryDelay = t.maxDelay
-			}
-			tCtx.probing <- struct{}{}
-			logger.V(2).Info("still throttling", "retry", tCtx.retryDelay, "requestID", requestID)
+		t.mu.Unlock()
+		select {
+		case <-ctx.Done():
+		case <-t.ready:
 		}
+		t.mu.Lock()
+	}
+}
+
+func (t *Throttler) complete(ctx context.Context, ticket admission, class Class, requestID string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	defer t.notifyLocked()
+	t.inFlight--
+	// Older calls still occupy slots, but cannot undo a newer backoff.
+	if ticket.generation != t.generation {
+		return
+	}
+	if ticket.probe {
+		t.probeOwned = false
+	}
+	logger := klog.FromContext(ctx)
+	switch class {
+	case ClassOK:
+		if ticket.probe {
+			t.backoff = false
+			t.window = recoveryWindow
+			logger.V(1).Info("OpenAPI throttling ended, resuming admission", "window", t.window)
+		} else if t.window < maxWindow {
+			t.window++
+		}
+	case ClassThrottling:
+		if !t.backoff {
+			t.backoff = true
+			t.generation++
+			t.retryDelay = t.initDelay
+			logger.V(1).Info("OpenAPI throttling detected", "requestID", requestID)
+		} else {
+			t.retryDelay = min(t.retryDelay*2, t.maxDelay)
+			logger.V(2).Info("still throttling", "retry", t.retryDelay, "requestID", requestID)
+		}
+		t.nextProbeAt = time.Now().Add(t.retryDelay)
+	}
+}
+
+func (t *Throttler) notifyLocked() {
+	// Notifications are hints, not permits; admission is checked under mu.
+	select {
+	case t.ready <- struct{}{}:
+	default:
 	}
 }
 
