@@ -3,6 +3,8 @@ package throttle
 import (
 	"context"
 	"errors"
+	"fmt"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -441,4 +443,33 @@ func testThrottlingStressSync(t *testing.T) {
 	assert.True(t, allHasReq(120))
 	cancel()
 	time.Sleep(time.Millisecond * 20) // wait for all workers to finish current requests
+}
+
+func BenchmarkAdmission(b *testing.B) {
+	for _, window := range []int{16, 512} {
+		b.Run(fmt.Sprintf("window=%d", window), func(b *testing.B) {
+			for _, parallelism := range []int{1, 128} {
+				b.Run(fmt.Sprintf("parallelism=%d", parallelism), func(b *testing.B) {
+					// Keep the window fixed to isolate notification overhead.
+					throttler := NewThrottler(time.Second, 8*time.Second, func(error) (Class, string) {
+						return ClassUnknown, ""
+					})
+					throttler.window = window
+					b.SetParallelism(parallelism)
+					ctx := b.Context()
+					b.RunParallel(func(pb *testing.PB) {
+						for pb.Next() {
+							if err := throttler.Throttle(ctx, func() error {
+								runtime.Gosched()
+								return nil
+							}); err != nil {
+								b.Error(err)
+								return
+							}
+						}
+					})
+				})
+			}
+		})
+	}
 }
