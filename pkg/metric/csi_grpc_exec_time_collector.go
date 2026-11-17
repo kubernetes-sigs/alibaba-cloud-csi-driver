@@ -1,8 +1,11 @@
 package metric
 
 import (
+	"context"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -10,6 +13,11 @@ const (
 	CsiGrpcExecTimeLabelMethod   = "method"
 	CsiGrpcExecTimeLabelType     = "type"
 	CsiGrpcExecTimeLabelCode     = "code"
+
+	execCountName     = "execution_count"
+	execCountHelp     = "CSI grpc execution count."
+	execTimeTotalName = "execution_time_total"
+	execTimeTotalHelp = "CSI grpc execution time in total."
 )
 
 var csiGrpcExecTimeLabels = []string{
@@ -25,15 +33,21 @@ var CsiGrpcExecTimeCollector = csiGrpcExecTimeCollector{
 	ExecCountMetric: prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: csiNamespace,
 		Subsystem: grpcSubsystem,
-		Name:      "execution_count",
-		Help:      "CSI grpc execution count.",
+		Name:      execCountName,
+		Help:      execCountHelp,
 	}, csiGrpcExecTimeLabels),
 	ExecTimeTotalMetric: prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: csiNamespace,
 		Subsystem: grpcSubsystem,
-		Name:      "execution_time_total",
-		Help:      "CSI grpc execution time in total.",
+		Name:      execTimeTotalName,
+		Help:      execTimeTotalHelp,
 	}, csiGrpcExecTimeLabels),
+}
+
+func (c *csiGrpcExecTimeCollector) Get(ctx context.Context, pvcs sets.Set[string]) ([]*Metric, error) {
+	metrics := extractMetricsFromMetricVec(prometheus.BuildFQName(csiNamespace, grpcSubsystem, execCountName), execCountHelp, c.ExecCountMetric, prometheus.CounterValue)
+	metrics = append(metrics, extractMetricsFromMetricVec(prometheus.BuildFQName(csiNamespace, grpcSubsystem, execTimeTotalName), execTimeTotalHelp, c.ExecTimeTotalMetric, prometheus.CounterValue)...)
+	return metrics, nil
 }
 
 func (c *csiGrpcExecTimeCollector) Collect(ch chan<- prometheus.Metric) {

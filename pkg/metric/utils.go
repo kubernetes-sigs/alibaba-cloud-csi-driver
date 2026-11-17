@@ -11,11 +11,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	apicorev1 "k8s.io/api/core/v1"
 	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
@@ -23,7 +22,16 @@ import (
 var vfOnce = new(sync.Once)
 var isVF = false
 
-const containerNetworkFileSystem = "containerNetworkFileSystem"
+// newK8sClient returns nil when no kubeconfig is available, e.g. in csi-agent,
+// so collectors can fall back to kubelet vol_data.json for PVC info.
+func newK8sClient() (kubernetes.Interface, error) {
+	config, err := options.GetRestConfig()
+	if err != nil {
+		klog.ErrorS(err, "Failed to get rest config, will read PVC info from vol_data.json")
+		return nil, nil
+	}
+	return kubernetes.NewForConfig(config)
+}
 
 func readFirstLines(path string) ([]string, error) {
 	file, err := os.Open(path)
@@ -56,8 +64,11 @@ func readAllContent(path string) (string, error) {
 	return result, nil
 }
 
-func getDiskPvcByPvName(ctx context.Context, clientSet *kubernetes.Clientset, pvName string) (*apicorev1.ObjectReference, error) {
-	pv, err := clientSet.CoreV1().PersistentVolumes().Get(ctx, pvName, apismetav1.GetOptions{})
+func getDiskPvcByPvName(ctx context.Context, client kubernetes.Interface, pvName, volDataPath string) (*apicorev1.ObjectReference, error) {
+	if client == nil {
+		return getPvcByVolData(volDataPath)
+	}
+	pv, err := client.CoreV1().PersistentVolumes().Get(ctx, pvName, apismetav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -67,26 +78,37 @@ func getDiskPvcByPvName(ctx context.Context, clientSet *kubernetes.Clientset, pv
 	return nil, errors.New("pvName:" + pv.Name + " status is not bound.")
 }
 
-func getNasPvcByPvName(ctx context.Context, clientSet *kubernetes.Clientset, cnfsClient dynamic.Interface, pvName string) (string, string, string, error) {
-	pv, err := clientSet.CoreV1().PersistentVolumes().Get(ctx, pvName, apismetav1.GetOptions{})
+func getPvcByVolData(volDataPath string) (*apicorev1.ObjectReference, error) {
+	volDataMap, err := utils.ReadJSONFile(volDataPath)
 	if err != nil {
-		return "", "", "", err
+		return nil, err
 	}
-	if pv.Spec.CSI != nil {
-		if val, ok := pv.Spec.CSI.VolumeAttributes["server"]; ok {
-			if pv.Status.Phase == apicorev1.VolumeBound {
-				return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, val, nil
-			}
-		} else if value, ok := pv.Spec.CSI.VolumeAttributes[containerNetworkFileSystem]; ok {
-			cnfs, err := v1beta1.GetCnfsObject(ctx, cnfsClient, value)
-			if err != nil {
-				klog.Errorf("Get cnfs %s server is failed, err:%s", value, err)
-				return "", "", "", err
-			}
-			return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, cnfs.Status.FsAttributes.Server, nil
+	ref := &apicorev1.ObjectReference{
+		Namespace: volDataMap["csi.alibabacloud.com/pvc-namespace"],
+		Name:      volDataMap["csi.alibabacloud.com/pvc-name"],
+	}
+	if ref.Name == "" {
+		return nil, fmt.Errorf("no PVC info in %s", volDataPath)
+	}
+	return ref, nil
+}
+
+func getNasPvcByPvName(ctx context.Context, client kubernetes.Interface, pvName, volDataPath string) (string, string, error) {
+	if client == nil {
+		pvc, err := getPvcByVolData(volDataPath)
+		if err != nil {
+			return "", "", err
 		}
+		return pvc.Namespace, pvc.Name, nil
 	}
-	return "", "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
+	pv, err := client.CoreV1().PersistentVolumes().Get(ctx, pvName, apismetav1.GetOptions{})
+	if err != nil {
+		return "", "", err
+	}
+	if pv.Spec.CSI != nil && pv.Status.Phase == apicorev1.VolumeBound && pv.Spec.ClaimRef != nil {
+		return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, nil
+	}
+	return "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
 }
 
 var ErrUnexpectedVolumeType = errors.New("VolumeType is not the expected type")

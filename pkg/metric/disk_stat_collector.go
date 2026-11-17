@@ -25,7 +25,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
@@ -34,12 +33,8 @@ var (
 	diskStatConstLabels = prometheus.Labels{"type": diskStorageName}
 )
 
-func diskMetricDesc(name, help string) *prometheus.Desc {
-	return prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, name),
-		help,
-		diskStatLabelNames, diskStatConstLabels,
-	)
+func diskMetricDesc(name, help string) *MetaDesc {
+	return NewMetaDesc(nodeNamespace, volumeSubsystem, name, help, diskStatLabelNames, diskStatConstLabels)
 }
 
 // stats from /proc/diskstats
@@ -59,9 +54,9 @@ var (
 )
 
 type capDescs struct {
-	Available *prometheus.Desc
-	Total     *prometheus.Desc
-	Used      *prometheus.Desc
+	Available *MetaDesc
+	Total     *MetaDesc
+	Used      *MetaDesc
 }
 
 var capStatDescs = map[csi.VolumeUsage_Unit]capDescs{
@@ -91,7 +86,7 @@ type diskStatCollector struct {
 	lastPvDiskInfoMap            map[string]diskInfo
 	lastPvStatsMap               atomic.Pointer[map[uint64]*blockdevice.Diskstats]
 	diskStats                    *ProcDiskStats
-	clientSet                    *kubernetes.Clientset
+	client                       kubernetes.Interface
 	recorder                     record.EventRecorder
 	mounter                      mount.Interface
 	nodeName                     string
@@ -122,12 +117,7 @@ func getDiskCapacityThreshold() float64 {
 // NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
 	recorder := utils.NewEventRecorder(utils.EventComponentNode)
-	config, err := options.GetRestConfig()
-	if err != nil {
-		return nil, err
-	}
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	client, err := newK8sClient()
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +132,7 @@ func NewDiskStatCollector() (Collector, error) {
 	return &diskStatCollector{
 		lastPvDiskInfoMap:            make(map[string]diskInfo, 0),
 		diskStats:                    diskStats,
-		clientSet:                    clientset,
+		client:                       client,
 		milliSecondsLatencyThreshold: getDiskLatencyThreshold(),
 		capacityPercentageThreshold:  getDiskCapacityThreshold(),
 		recorder:                     recorder,
@@ -151,17 +141,16 @@ func NewDiskStatCollector() (Collector, error) {
 	}, nil
 }
 
-func (p *diskStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
-	//startTime := time.Now()
+func (p *diskStatCollector) Get(ctx context.Context, pvcs sets.Set[string]) ([]*Metric, error) {
 	volJSONPaths, err := findVolJSON(podsRootPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	p.updateMap(ctx, &p.lastPvDiskInfoMap, volJSONPaths, diskDriverName)
 
 	diskStats, err := p.diskStats.GetStats()
 	if err != nil {
-		return fmt.Errorf("couldn't get diskstats: %s", err)
+		return nil, fmt.Errorf("couldn't get diskstats: %s", err)
 	}
 	deviceNameStatsMap := make(map[uint64]*blockdevice.Diskstats, len(diskStats))
 	for i, s := range diskStats {
@@ -180,9 +169,10 @@ func (p *diskStatCollector) Update(ctx context.Context, pvcs sets.Set[string], c
 		lastStatsMap = *m
 	}
 
+	var metrics []*Metric
 	for pvName, info := range p.lastPvDiskInfoMap {
 		if err := ctx.Err(); err != nil {
-			return err
+			return metrics, err
 		}
 		if pvcs != nil && !pvcs.Has(info.PVCRef.Name) {
 			continue
@@ -193,7 +183,7 @@ func (p *diskStatCollector) Update(ctx context.Context, pvcs sets.Set[string], c
 		}
 		devPath := "/dev/" + stats.DeviceName
 		labels := []string{info.PVCRef.Namespace, info.PVCRef.Name, devPath}
-		p.sendDiskStats(&stats.IOStats, labels, ch)
+		metrics = append(metrics, p.getDiskStatMetrics(&stats.IOStats, labels...)...)
 		if lastStats, ok := lastStatsMap[info.Dev]; ok {
 			p.latencyEventAlert(&stats.IOStats, &lastStats.IOStats, info.PVCRef)
 		}
@@ -202,17 +192,15 @@ func (p *diskStatCollector) Update(ctx context.Context, pvcs sets.Set[string], c
 				pvName, p.nodeName, info.DiskID, devPath)
 		}
 
-		capStats, err := getDiskCapacityMetric(info.DiskID)
+		capStats, err := getDiskCapacityStats(info.DiskID)
 		if err != nil {
 			klog.ErrorS(err, "Get disk capacity failed", "disk", info.DiskID)
 			continue
 		}
-		p.sendCapStats(capStats, labels, ch)
+		metrics = append(metrics, p.getDiskCapacityMetrics(capStats, labels)...)
 		p.capacityEventAlert(capStats, info.PVCRef)
 	}
-	//elapsedTime := time.Since(startTime)
-	//logrus.Info("DiskStat spent time:", elapsedTime)
-	return nil
+	return metrics, nil
 }
 
 func (p *diskStatCollector) latencyEventAlert(stat, lastStat *blockdevice.IOStats, ref *v1.ObjectReference) {
@@ -250,28 +238,30 @@ func (p *diskStatCollector) capacityEventAlert(usage []*csi.VolumeUsage, ref *v1
 	}
 }
 
-func (p *diskStatCollector) sendDiskStats(stats *blockdevice.IOStats, labels []string, ch chan<- prometheus.Metric) {
-	ch <- prometheus.MustNewConstMetric(diskReadsCompletedDesc, prometheus.CounterValue, float64(stats.ReadIOs), labels...)
-	ch <- prometheus.MustNewConstMetric(diskReadsMergeDesc, prometheus.CounterValue, float64(stats.ReadMerges), labels...)
-	ch <- prometheus.MustNewConstMetric(diskReadBytesDesc, prometheus.CounterValue, float64(stats.ReadSectors)*diskSectorSize, labels...)
-	ch <- prometheus.MustNewConstMetric(diskReadTimeMilliSecondsDesc, prometheus.CounterValue, float64(stats.ReadTicks), labels...)
-
-	ch <- prometheus.MustNewConstMetric(diskWritesCompletedDesc, prometheus.CounterValue, float64(stats.WriteIOs), labels...)
-	ch <- prometheus.MustNewConstMetric(diskWriteMergeDesc, prometheus.CounterValue, float64(stats.WriteMerges), labels...)
-	ch <- prometheus.MustNewConstMetric(diskWrittenBytesDesc, prometheus.CounterValue, float64(stats.WriteSectors)*diskSectorSize, labels...)
-	ch <- prometheus.MustNewConstMetric(diskWriteTimeMilliSecondsDesc, prometheus.CounterValue, float64(stats.WriteTicks), labels...)
-
-	ch <- prometheus.MustNewConstMetric(diskIONowDesc, prometheus.GaugeValue, float64(stats.IOsInProgress), labels...)
-	ch <- prometheus.MustNewConstMetric(diskIOTimeSecondsDesc, prometheus.CounterValue, float64(stats.IOsTotalTicks)/1000, labels...)
+func (p *diskStatCollector) getDiskStatMetrics(stats *blockdevice.IOStats, labelValues ...string) []*Metric {
+	return []*Metric{
+		MustNewMetric(diskReadsCompletedDesc, float64(stats.ReadIOs), prometheus.CounterValue, labelValues...),
+		MustNewMetric(diskReadsMergeDesc, float64(stats.ReadMerges), prometheus.CounterValue, labelValues...),
+		MustNewMetric(diskReadBytesDesc, float64(stats.ReadSectors)*diskSectorSize, prometheus.CounterValue, labelValues...),
+		MustNewMetric(diskReadTimeMilliSecondsDesc, float64(stats.ReadTicks), prometheus.CounterValue, labelValues...),
+		MustNewMetric(diskWritesCompletedDesc, float64(stats.WriteIOs), prometheus.CounterValue, labelValues...),
+		MustNewMetric(diskWriteMergeDesc, float64(stats.WriteMerges), prometheus.CounterValue, labelValues...),
+		MustNewMetric(diskWrittenBytesDesc, float64(stats.WriteSectors)*diskSectorSize, prometheus.CounterValue, labelValues...),
+		MustNewMetric(diskWriteTimeMilliSecondsDesc, float64(stats.WriteTicks), prometheus.CounterValue, labelValues...),
+		MustNewMetric(diskIONowDesc, float64(stats.IOsInProgress), prometheus.GaugeValue, labelValues...),
+		MustNewMetric(diskIOTimeSecondsDesc, float64(stats.IOsTotalTicks)/1000, prometheus.CounterValue, labelValues...),
+	}
 }
 
-func (p *diskStatCollector) sendCapStats(stats []*csi.VolumeUsage, labels []string, ch chan<- prometheus.Metric) {
+func (p *diskStatCollector) getDiskCapacityMetrics(stats []*csi.VolumeUsage, labelValues []string) (metrics []*Metric) {
 	for _, stat := range stats {
 		descs := capStatDescs[stat.Unit]
-		ch <- prometheus.MustNewConstMetric(descs.Available, prometheus.GaugeValue, float64(stat.Available), labels...)
-		ch <- prometheus.MustNewConstMetric(descs.Total, prometheus.GaugeValue, float64(stat.Total), labels...)
-		ch <- prometheus.MustNewConstMetric(descs.Used, prometheus.GaugeValue, float64(stat.Used), labels...)
+		metrics = append(metrics,
+			MustNewMetric(descs.Available, float64(stat.Available), prometheus.GaugeValue, labelValues...),
+			MustNewMetric(descs.Total, float64(stat.Total), prometheus.GaugeValue, labelValues...),
+			MustNewMetric(descs.Used, float64(stat.Used), prometheus.GaugeValue, labelValues...))
 	}
+	return metrics
 }
 
 func (p *diskStatCollector) updateMap(ctx context.Context, lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, driverName string) {
@@ -327,7 +317,7 @@ func (p *diskStatCollector) updateDiskInfoMap(ctx context.Context, thisPvDiskInf
 		lastInfo, ok := (*lastPvDiskInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcRef, err := getDiskPvcByPvName(ctx, p.clientSet, pv)
+			pvcRef, err := getDiskPvcByPvName(ctx, p.client, pv, thisInfo.VolDataPath)
 			if err != nil {
 				continue
 			}
@@ -349,7 +339,7 @@ func (p *diskStatCollector) updateDiskInfoMap(ctx context.Context, thisPvDiskInf
 	}
 }
 
-func getDiskCapacityMetric(diskID string) ([]*csi.VolumeUsage, error) {
+func getDiskCapacityStats(diskID string) ([]*csi.VolumeUsage, error) {
 	globalMountPath := getGlobalMountPathByDiskID(diskID)
 	response, err := utils.GetMetrics(globalMountPath)
 	if err != nil {

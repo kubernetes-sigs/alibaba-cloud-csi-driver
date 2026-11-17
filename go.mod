@@ -28,6 +28,7 @@ require (
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.25.0
+	github.com/prometheus/client_model v0.6.3
 	github.com/prometheus/common v0.72.1
 	github.com/prometheus/procfs v0.22.0
 	github.com/sirupsen/logrus v1.9.4
@@ -92,7 +93,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect

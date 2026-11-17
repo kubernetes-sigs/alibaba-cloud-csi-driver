@@ -10,6 +10,11 @@ import (
 const (
 	VolumeStatsCollectorName = "volume_stats"
 	VolumeStatsLabelType     = "type"
+
+	attachmentCountName     = "attachment_count"
+	attachmentCountHelp     = "Volume attachment count."
+	attachmentTimeTotalName = "attachment_time_total"
+	attachmentTimeTotalHelp = "Volume attachment time in total."
 )
 
 var volumeStatLabels = []string{VolumeStatsLabelType}
@@ -27,14 +32,14 @@ var VolumeStatCollector = volumeStatCollector{
 	AttachmentCountMetric: prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: nodeNamespace,
 		Subsystem: volumeSubsystem,
-		Name:      "attachment_count",
-		Help:      "Volume attachment count.",
+		Name:      attachmentCountName,
+		Help:      attachmentCountHelp,
 	}, volumeStatLabels),
 	AttachmentTimeTotalMetric: prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: nodeNamespace,
 		Subsystem: volumeSubsystem,
-		Name:      "attachment_time_total",
-		Help:      "Volume attachment time in total.",
+		Name:      attachmentTimeTotalName,
+		Help:      attachmentTimeTotalHelp,
 	}, volumeStatLabels),
 }
 
@@ -46,8 +51,8 @@ func GetVolumeStatCollector() (Collector, error) {
 	return &VolumeStatCollector, nil
 }
 
-func (c *volumeStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
-	c.AttachmentCountMetric.Collect(ch)
-	c.AttachmentTimeTotalMetric.Collect(ch)
-	return nil
+func (c *volumeStatCollector) Get(ctx context.Context, pvcs sets.Set[string]) ([]*Metric, error) {
+	metrics := extractMetricsFromMetricVec(prometheus.BuildFQName(nodeNamespace, volumeSubsystem, attachmentCountName), attachmentCountHelp, c.AttachmentCountMetric, prometheus.CounterValue)
+	metrics = append(metrics, extractMetricsFromMetricVec(prometheus.BuildFQName(nodeNamespace, volumeSubsystem, attachmentTimeTotalName), attachmentTimeTotalHelp, c.AttachmentTimeTotalMetric, prometheus.CounterValue)...)
+	return metrics, nil
 }

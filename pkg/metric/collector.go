@@ -39,8 +39,8 @@ func registerCollector(collector string, factory collectorFactoryFunc, relatedDr
 
 // Collector is the interface a collector has to implement.
 type Collector interface {
-	// Get new metrics and expose them via prometheus registry.
-	Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error
+	// Get collects current samples; the caller decides how to expose them.
+	Get(ctx context.Context, pvcs sets.Set[string]) ([]*Metric, error)
 }
 
 // CSICollector implements the prometheus.Collector interface.
@@ -99,7 +99,7 @@ func (csi *CSICollector) execute(name string, c Collector, ch chan<- prometheus.
 		}
 	}()
 	begin := time.Now()
-	err := c.Update(csi.ctx, csi.pvcs, ch)
+	metrics, err := c.Get(csi.ctx, csi.pvcs)
 	duration := time.Since(begin)
 	var success float64
 	if err != nil {
@@ -112,6 +112,7 @@ func (csi *CSICollector) execute(name string, c Collector, ch chan<- prometheus.
 	} else {
 		success = 1
 	}
+	sendMetrics(ch, metrics)
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, duration.Seconds(), name)
 	ch <- prometheus.MustNewConstMetric(scrapeSuccessDesc, prometheus.GaugeValue, success, name)
 }
