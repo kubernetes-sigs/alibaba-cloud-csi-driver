@@ -1,9 +1,11 @@
 package metric
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -83,6 +85,30 @@ func NewMetricHandler(driverNames []string, serviceType utils.ServiceType) *Hand
 		collectors:  registeredCollectors(driverNames, serviceType),
 		inFlightSem: make(chan struct{}, maxRequestsInFlight),
 	}
+}
+
+// GetMetrics returns current samples from all collectors for programmatic
+// consumers, e.g. an agent exposing volume metrics without a Prometheus scrape.
+func (h *Handler) GetMetrics(ctx context.Context, pvcs sets.Set[string]) []*Metric {
+	var metrics []*Metric
+	for name, c := range h.collectors {
+		metrics = append(metrics, collectSafely(ctx, name, c, pvcs)...)
+	}
+	metrics = append(metrics, collectSafely(ctx, CsiGrpcExecTimeCollectorName, &CsiGrpcExecTimeCollector, pvcs)...)
+	return metrics
+}
+
+func collectSafely(ctx context.Context, name string, c Collector, pvcs sets.Set[string]) (metrics []*Metric) {
+	defer func() {
+		if err := recover(); err != nil {
+			klog.Errorf("Collector panic occurred: %v. stacktrace: %s", err, string(debug.Stack()))
+		}
+	}()
+	metrics, err := c.Get(ctx, pvcs)
+	if err != nil && !IsNoDataError(err) {
+		klog.ErrorS(err, "Collector failed", "name", name)
+	}
+	return metrics
 }
 
 type logger struct {

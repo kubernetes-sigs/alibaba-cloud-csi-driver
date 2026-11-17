@@ -58,14 +58,14 @@ var (
 )
 
 type typedFactorDesc struct {
-	desc      *prometheus.Desc
+	*MetaDesc
 	valueType prometheus.ValueType
 	factor    float64
 }
 
-func (d *typedFactorDesc) mustNewConstMetric(value float64, labels ...string) prometheus.Metric {
+func (d *typedFactorDesc) mustNewMetric(value float64, labelValues ...string) *Metric {
 	if d.factor != 0 {
 		value *= d.factor
 	}
-	return prometheus.MustNewConstMetric(d.desc, d.valueType, value, labels...)
+	return MustNewMetric(d.MetaDesc, value, d.valueType, labelValues...)
 }

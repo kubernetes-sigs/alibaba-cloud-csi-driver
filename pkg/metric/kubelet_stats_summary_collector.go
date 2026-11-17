@@ -22,16 +22,16 @@ const (
 )
 
 type fsStatsMetric struct {
-	desc     *prometheus.Desc
+	desc     *MetaDesc
 	getValue func(*statsapi.FsStats) *float64
 }
 
-func (m *fsStatsMetric) Metric(fsStats *statsapi.FsStats, labels ...string) prometheus.Metric {
+func (m *fsStatsMetric) Metric(fsStats *statsapi.FsStats, labels ...string) *Metric {
 	value := m.getValue(fsStats)
 	if value == nil {
 		return nil
 	}
-	return prometheus.MustNewConstMetric(m.desc, prometheus.GaugeValue, *value, labels...)
+	return MustNewMetric(m.desc, *value, prometheus.GaugeValue, labels...)
 }
 
 func uint64ToFloat64(value *uint64) *float64 {
@@ -45,27 +45,27 @@ func uint64ToFloat64(value *uint64) *float64 {
 func generateFsStatsDescs(namespace, subsystem string, labels []string) []*fsStatsMetric {
 	return []*fsStatsMetric{
 		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "inodes_free"), "Number of available Inodes", labels, nil),
+			desc:     NewMetaDesc(namespace, subsystem, "inodes_free", "Number of available Inodes", labels, nil),
 			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.InodesFree) },
 		},
 		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "inodes_total"), "Total number of Inodes", labels, nil),
+			desc:     NewMetaDesc(namespace, subsystem, "inodes_total", "Total number of Inodes", labels, nil),
 			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.Inodes) },
 		},
 		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "inodes_used"), "Number of used Inodes", labels, nil),
+			desc:     NewMetaDesc(namespace, subsystem, "inodes_used", "Number of used Inodes", labels, nil),
 			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.InodesUsed) },
 		},
 		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "limit_bytes"), "Number of bytes that can be consumed by the container on this filesystem", labels, nil),
+			desc:     NewMetaDesc(namespace, subsystem, "limit_bytes", "Number of bytes that can be consumed by the container on this filesystem", labels, nil),
 			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.CapacityBytes) },
 		},
 		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "usage_bytes"), "Number of bytes that are consumed by the container on this filesystem", labels, nil),
+			desc:     NewMetaDesc(namespace, subsystem, "usage_bytes", "Number of bytes that are consumed by the container on this filesystem", labels, nil),
 			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.UsedBytes) },
 		},
 		{
-			desc:     prometheus.NewDesc(prometheus.BuildFQName(namespace, subsystem, "available_bytes"), "Number of bytes that not consumed", labels, nil),
+			desc:     NewMetaDesc(namespace, subsystem, "available_bytes", "Number of bytes that not consumed", labels, nil),
 			getValue: func(fs *statsapi.FsStats) *float64 { return uint64ToFloat64(fs.AvailableBytes) },
 		},
 	}
@@ -84,30 +84,31 @@ type kubeletStatsSummaryCollector struct {
 	client *http.Client
 }
 
-func (c *kubeletStatsSummaryCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
+func (c *kubeletStatsSummaryCollector) Get(ctx context.Context, pvcs sets.Set[string]) ([]*Metric, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, kubeletStatsSummaryUrl, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to get kubelet stats summary: %d: %q", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("failed to get kubelet stats summary: %d: %q", resp.StatusCode, string(body))
 	}
 	var summary statsapi.Summary
 	if err := json.NewDecoder(resp.Body).Decode(&summary); err != nil {
-		return err
+		return nil, err
 	}
+	var metrics []*Metric
 	for _, pod := range summary.Pods {
 		if pod.EphemeralStorage != nil {
 			for _, m := range ephemeralStorageMetrics {
 				metric := m.Metric(pod.EphemeralStorage, pod.PodRef.Namespace, pod.PodRef.Name, pod.PodRef.UID)
 				if metric != nil {
-					ch <- metric
+					metrics = append(metrics, metric)
 				}
 			}
 		}
@@ -117,13 +118,13 @@ func (c *kubeletStatsSummaryCollector) Update(ctx context.Context, pvcs sets.Set
 				for _, m := range rootfsMetrics {
 					metric := m.Metric(container.Rootfs, pod.PodRef.Namespace, pod.PodRef.Name, pod.PodRef.UID, container.Name)
 					if metric != nil {
-						ch <- metric
+						metrics = append(metrics, metric)
 					}
 				}
 			}
 		}
 	}
-	return nil
+	return metrics, nil
 }
 
 func NewKubeletStatsSummaryCollector() (Collector, error) {

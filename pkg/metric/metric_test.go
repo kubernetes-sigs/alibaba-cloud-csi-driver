@@ -1,12 +1,16 @@
 package metric
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func TestHandler_ServeHTTP(t *testing.T) {
@@ -57,4 +61,39 @@ func TestHandler_ServeHTTP_ConcurrencyLimit(t *testing.T) {
 
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Limit of concurrent requests reached")
+}
+
+type stubCollector struct {
+	metrics   []*Metric
+	err       error
+	willPanic bool
+}
+
+func (s *stubCollector) Get(ctx context.Context, pvcs sets.Set[string]) ([]*Metric, error) {
+	if s.willPanic {
+		panic("stub panic")
+	}
+	return s.metrics, s.err
+}
+
+func TestHandler_GetMetrics(t *testing.T) {
+	desc := NewMetaDesc("test", "", "sample", "help", nil, nil)
+	handler := &Handler{
+		collectors: map[string]Collector{
+			"ok":    &stubCollector{metrics: []*Metric{MustNewMetric(desc, 1, prometheus.GaugeValue)}},
+			"err":   &stubCollector{err: errors.New("stub error")},
+			"panic": &stubCollector{willPanic: true},
+		},
+	}
+
+	metrics := handler.GetMetrics(context.Background(), nil)
+
+	var found bool
+	for _, m := range metrics {
+		if m.FQName == "test_sample" {
+			found = true
+			assert.Equal(t, 1.0, m.Value)
+		}
+	}
+	assert.True(t, found, "sample from healthy collector should be present despite failing peers")
 }
