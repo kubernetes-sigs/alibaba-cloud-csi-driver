@@ -507,14 +507,13 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 
 func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) error {
 	if err := ad.detach(fsId, vscId); err != nil {
-		sdkErr := new(tea.SDKError)
-		if errors.As(err, &sdkErr) {
-			errCode := tea.StringValue(sdkErr.Code)
-			// attached by legacy inner api, ignore it
-			if errCode == "Resource.Check.Fail" || errCode == "InvalidFileSystem.NotFound" {
-				klog.InfoS("Ignore detaching error", "error", err)
-				return nil
-			}
+		// Ignore detach failures when the volume was attached by the legacy inner
+		// API, or when the filesystem is already gone (nothing left to detach).
+		var sdkErr *tea.SDKError
+		if IsFileSystemNotFoundError(err) ||
+			(errors.As(err, &sdkErr) && tea.StringValue(sdkErr.Code) == ErrCodeResourceCheckFail) {
+			klog.InfoS("Ignore detaching error", "error", err)
+			return nil
 		}
 		return err
 	}

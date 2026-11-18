@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	nasclient "github.com/alibabacloud-go/nas-20170626/v4/client"
+	"github.com/alibabacloud-go/tea/tea"
 	"k8s.io/klog/v2"
 )
 
@@ -46,6 +47,19 @@ type cpfsFileSetManager struct {
 
 // ErrFilesetNotFound signals that the requested fileset does not exist.
 var ErrFilesetNotFound = errors.New("fileset not found")
+
+// ErrCodeFileSystemNotFound is the NAS OpenAPI code returned when the target filesystem does not exist.
+const ErrCodeFileSystemNotFound = "InvalidFileSystem.NotFound"
+
+// ErrCodeResourceCheckFail is returned when detaching a volume that was attached
+// by the legacy inner API, so the standard detach check does not apply.
+const ErrCodeResourceCheckFail = "Resource.Check.Fail"
+
+// IsFileSystemNotFoundError reports whether err is the NAS "filesystem does not exist" API error.
+func IsFileSystemNotFoundError(err error) bool {
+	var sdkErr *tea.SDKError
+	return errors.As(err, &sdkErr) && tea.StringValue(sdkErr.Code) == ErrCodeFileSystemNotFound
+}
 
 // NewCPFSFileSetManager creates a new CPFS fileset manager
 func NewCPFSFileSetManager(client NasClient) CPFSFileSetManager {
@@ -89,7 +103,7 @@ func (m *cpfsFileSetManager) DeleteFileSet(ctx context.Context, fsID, fileSetID 
 
 	response, err := m.client.DeleteFileset(request)
 	if err != nil {
-		return fmt.Errorf("delete fileset %s/%s failed: %v", fsID, fileSetID, err)
+		return fmt.Errorf("delete fileset %s/%s failed: %w", fsID, fileSetID, err)
 	}
 
 	if response == nil || response.Body == nil {
