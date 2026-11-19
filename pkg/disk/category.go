@@ -14,6 +14,8 @@ const (
 	DiskESSDAuto  Category = "cloud_auto"
 	DiskESSDEntry Category = "cloud_essd_entry"
 	DiskRegional  Category = "cloud_regional_disk_auto"
+	// Can only be created in a disk pool (storageClusterId is required).
+	DiskAgentic Category = "cloud_agentic_disk"
 
 	DiskPPerf Category = "cloud_pperf"
 	DiskSPerf Category = "cloud_sperf"
@@ -99,6 +101,10 @@ var AllCategories = map[Category]CategoryDesc{
 		InstantAccessSnapshot: true,
 		Regional:              true,
 		ForceAttach:           true,
+	},
+	DiskAgentic: {
+		InstantAccessSnapshot:   true,
+		SnapshotConsistentGroup: true,
 	},
 
 	// Only available in private cloud

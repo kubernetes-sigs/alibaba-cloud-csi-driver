@@ -61,6 +61,7 @@ func TestValidateDiskType(t *testing.T) {
 		{opts: map[string]string{"type": "a,b,c"}, result: nil},
 		{opts: map[string]string{"type": "available"}, result: []Category{"cloud_ssd", "cloud_efficiency"}},
 		{opts: map[string]string{"type": "cloud_ssd,cloud_essd"}, result: []Category{"cloud_ssd", "cloud_essd"}},
+		{opts: map[string]string{"type": "cloud_agentic_disk"}, result: []Category{DiskAgentic}},
 	}
 	for _, example := range examples {
 		actualResult, _ := validateDiskType(example.opts)
