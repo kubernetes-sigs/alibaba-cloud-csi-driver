@@ -33,6 +33,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 type actorControlFixture struct {
@@ -95,6 +96,46 @@ func TestActorLookupTLSAndTokenRotation(t *testing.T) {
 		require.Equal(t, "[]", got.Annotation)
 		require.False(t, got.Golden)
 		require.Equal(t, "Bearer "+token, <-tokens)
+	}
+}
+
+func TestActorLookupAnnotationCompatibility(t *testing.T) {
+	entry := protowire.AppendString(protowire.AppendTag(nil, 1, protowire.BytesType), PublishRequestsAnnotation)
+	entry = protowire.AppendString(protowire.AppendTag(entry, 2, protowire.BytesType), "[]")
+	legacy := protowire.AppendBytes(protowire.AppendTag(nil, 8, protowire.BytesType), entry)
+	unrelated := protowire.AppendString(protowire.AppendTag(nil, 8, protowire.BytesType), "not a protobuf map entry")
+	for _, tc := range []struct {
+		name    string
+		current map[string]string
+		unknown []byte
+		want    string
+	}{
+		{name: "legacy only", unknown: legacy, want: "[]"},
+		{name: "prefer current", current: map[string]string{PublishRequestsAnnotation: "current"}, unknown: legacy, want: "current"},
+		{name: "unrelated field 8", unknown: unrelated},
+		{name: "current and unrelated field 8", current: map[string]string{PublishRequestsAnnotation: "current"}, unknown: unrelated, want: "current"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			require.NoError(t, err)
+			server := grpc.NewServer()
+			meta := &ateapipb.ResourceMetadata{
+				Uid: testUID, Atespace: "storage-test", Name: "actor",
+				Annotations: tc.current,
+			}
+			meta.ProtoReflect().SetUnknown(tc.unknown)
+			ateapipb.RegisterControlServer(server, &actorControlFixture{actor: &ateapipb.Actor{Metadata: meta}})
+			done := make(chan error, 1)
+			go func() { done <- server.Serve(listener) }()
+			t.Cleanup(func() { server.Stop(); require.NoError(t, <-done) })
+			conn, err := grpc.NewClient(listener.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, conn.Close()) })
+			client := &ActorClient{conn: conn, control: ateapipb.NewControlClient(conn)}
+			info, err := client.Lookup(t.Context(), ActorReference{UID: testUID, Name: "actor", Atespace: "storage-test"})
+			require.NoError(t, err)
+			require.Equal(t, tc.want, info.Annotation)
+		})
 	}
 }
 
