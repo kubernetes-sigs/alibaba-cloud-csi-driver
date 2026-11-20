@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protowire"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -111,8 +112,57 @@ func (c *ActorClient) Lookup(ctx context.Context, ref ActorReference) (ActorInfo
 	if meta.GetAtespace() != ref.Atespace || meta.GetName() != ref.Name {
 		return ActorInfo{}, status.Error(codes.PermissionDenied, "actor lookup returned a different reference")
 	}
-	info := ActorInfo{UID: meta.GetUid(), Atespace: meta.Atespace, Name: meta.Name, Annotation: meta.GetAnnotations()[PublishRequestsAnnotation], TemplateRef: response.GetActorTemplate()}
+	annotation := meta.GetAnnotations()[PublishRequestsAnnotation]
+	if len(meta.GetAnnotations()) == 0 {
+		annotation = legacyPublishAnnotation(meta.ProtoReflect().GetUnknown())
+	}
+	info := ActorInfo{UID: meta.GetUid(), Atespace: meta.Atespace, Name: meta.Name, Annotation: annotation, TemplateRef: response.GetActorTemplate()}
 	return info, nil
+}
+
+// legacyPublishAnnotation reads the old annotations map without asking the
+// protobuf decoder to interpret field 8 on newer servers.
+func legacyPublishAnnotation(fields []byte) string {
+	var annotation string
+	for len(fields) > 0 {
+		number, typ, n := protowire.ConsumeField(fields)
+		if n < 0 {
+			break
+		}
+		if number == 8 && typ == protowire.BytesType {
+			_, _, tagLen := protowire.ConsumeTag(fields)
+			entry, _ := protowire.ConsumeBytes(fields[tagLen:n])
+			if value, ok := legacyPublishAnnotationEntry(entry); ok {
+				annotation = value
+			}
+		}
+		fields = fields[n:]
+	}
+	return annotation
+}
+
+func legacyPublishAnnotationEntry(entry []byte) (string, bool) {
+	var key, value string
+	for len(entry) > 0 {
+		number, typ, n := protowire.ConsumeTag(entry)
+		if n < 0 || typ != protowire.BytesType {
+			return "", false
+		}
+		field, fieldLen := protowire.ConsumeString(entry[n:])
+		if fieldLen < 0 {
+			return "", false
+		}
+		switch number {
+		case 1:
+			key = field
+		case 2:
+			value = field
+		default:
+			return "", false
+		}
+		entry = entry[n+fieldLen:]
+	}
+	return value, key == PublishRequestsAnnotation
 }
 
 // LookupTemplate resolves a template reference and returns the template UID.

@@ -75,7 +75,10 @@ message ResourceMetadata {
   // +k8s:optional
   // +k8s:mapType=atomic
   // +k8s:mutable
-  map<string, string> annotations = 8;
+  map<string, string> annotations = 10000;
+
+  // Older servers use field 8. Read it only as an unknown field.
+  reserved 8;
 }
 
 message Actor {
