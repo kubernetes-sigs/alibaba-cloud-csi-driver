@@ -67,7 +67,7 @@ message ResourceMetadata {
 
   // version, create_time and update_time are not read by this bridge and are
   // omitted from this projection; see SOURCE.md.
-  reserved 4, 5, 6, 7;
+  reserved 4, 5, 6, 7, 8;
 
   // annotations stores opaque caller-provided key-value metadata. Actor updates
   // replace the entire map; omitting it clears existing annotations.
@@ -76,9 +76,6 @@ message ResourceMetadata {
   // +k8s:mapType=atomic
   // +k8s:mutable
   map<string, string> annotations = 10000;
-
-  // Field 8 was used by older servers.
-  reserved 8;
 }
 
 message Actor {

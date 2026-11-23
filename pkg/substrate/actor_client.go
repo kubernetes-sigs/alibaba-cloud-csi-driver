@@ -111,8 +111,7 @@ func (c *ActorClient) Lookup(ctx context.Context, ref ActorReference) (ActorInfo
 	if meta.GetAtespace() != ref.Atespace || meta.GetName() != ref.Name {
 		return ActorInfo{}, status.Error(codes.PermissionDenied, "actor lookup returned a different reference")
 	}
-	annotation := meta.GetAnnotations()[PublishRequestsAnnotation]
-	info := ActorInfo{UID: meta.GetUid(), Atespace: meta.Atespace, Name: meta.Name, Annotation: annotation, TemplateRef: response.GetActorTemplate()}
+	info := ActorInfo{UID: meta.GetUid(), Atespace: meta.Atespace, Name: meta.Name, Annotation: meta.GetAnnotations()[PublishRequestsAnnotation], TemplateRef: response.GetActorTemplate()}
 	return info, nil
 }
 

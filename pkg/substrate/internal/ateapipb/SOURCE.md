@@ -13,7 +13,7 @@ closure they need - `ResourceMetadata` (atespace, name, uid, annotations),
 field numbers are verbatim from the source revision; omitted fields are marked
 `reserved` at their original numbers so a refresh cannot silently reuse them.
 The `go_package` option points at this repository because the copy is generated
-here. The bridge reads annotations from field 10000.
+here.
 
 ## Why not depend on the public Substrate module
 
