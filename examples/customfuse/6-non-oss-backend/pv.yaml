@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: agent-memory-fuse-demo
+spec:
+  accessModes: [ReadWriteMany]
+  capacity:
+    storage: 1Gi
+  csi:
+    driver: customfuseplugin.csi.alibabacloud.com
+    volumeHandle: agent-memory-fuse-demo
+    volumeAttributes:
+      fuseType: agent-memory-fuse
+      authType: agent-identity
+      sandboxCredProviderName: my-tablestore-provider
+
+      # Tablestore parameters — no bucket, no url, no source
+      endpoint: https://my-instance.cn-hangzhou.ots.aliyuncs.com
+      instance: my-instance
+      store: agent_files
+      scope: "app-001#user-001#assistant#session-001"
+      session: fuse-session-001
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: agent-memory-fuse-demo
+spec:
+  accessModes: [ReadWriteMany]
+  resources:
+    requests:
+      storage: 1Gi
+  volumeMode: Filesystem
+  volumeName: agent-memory-fuse-demo
