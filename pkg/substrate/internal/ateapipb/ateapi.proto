@@ -77,7 +77,7 @@ message ResourceMetadata {
   // +k8s:mutable
   map<string, string> annotations = 10000;
 
-  // Older servers use field 8. Read it only as an unknown field.
+  // Field 8 was used by older servers.
   reserved 8;
 }
 

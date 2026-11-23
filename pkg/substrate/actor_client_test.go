@@ -99,7 +99,7 @@ func TestActorLookupTLSAndTokenRotation(t *testing.T) {
 	}
 }
 
-func TestActorLookupAnnotationCompatibility(t *testing.T) {
+func TestActorLookupAnnotationField(t *testing.T) {
 	entry := protowire.AppendString(protowire.AppendTag(nil, 1, protowire.BytesType), PublishRequestsAnnotation)
 	entry = protowire.AppendString(protowire.AppendTag(entry, 2, protowire.BytesType), "[]")
 	legacy := protowire.AppendBytes(protowire.AppendTag(nil, 8, protowire.BytesType), entry)
@@ -110,8 +110,8 @@ func TestActorLookupAnnotationCompatibility(t *testing.T) {
 		unknown []byte
 		want    string
 	}{
-		{name: "legacy only", unknown: legacy, want: "[]"},
-		{name: "prefer current", current: map[string]string{PublishRequestsAnnotation: "current"}, unknown: legacy, want: "current"},
+		{name: "ignore legacy field 8", unknown: legacy},
+		{name: "read field 10000", current: map[string]string{PublishRequestsAnnotation: "current"}, unknown: legacy, want: "current"},
 		{name: "unrelated field 8", unknown: unrelated},
 		{name: "current and unrelated field 8", current: map[string]string{PublishRequestsAnnotation: "current"}, unknown: unrelated, want: "current"},
 	} {
