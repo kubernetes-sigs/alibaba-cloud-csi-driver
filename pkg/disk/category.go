@@ -103,6 +103,7 @@ var AllCategories = map[Category]CategoryDesc{
 		ForceAttach:           true,
 	},
 	DiskAgentic: {
+		Size:                    SizeRange{Min: 1, Max: 65536},
 		InstantAccessSnapshot:   true,
 		SnapshotConsistentGroup: true,
 	},
