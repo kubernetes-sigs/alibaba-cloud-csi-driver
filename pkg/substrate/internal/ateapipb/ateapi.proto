@@ -75,7 +75,7 @@ message ResourceMetadata {
   // +k8s:optional
   // +k8s:mapType=atomic
   // +k8s:mutable
-  map<string, string> annotations = 8;
+  map<string, string> annotations = 10000;
 }
 
 message Actor {

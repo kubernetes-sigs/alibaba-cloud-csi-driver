@@ -33,6 +33,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 type actorControlFixture struct {
@@ -96,6 +97,29 @@ func TestActorLookupTLSAndTokenRotation(t *testing.T) {
 		require.False(t, got.Golden)
 		require.Equal(t, "Bearer "+token, <-tokens)
 	}
+}
+
+func TestActorLookupAnnotationField(t *testing.T) {
+	entry := protowire.AppendString(protowire.AppendTag(nil, 1, protowire.BytesType), PublishRequestsAnnotation)
+	entry = protowire.AppendString(protowire.AppendTag(entry, 2, protowire.BytesType), "[]")
+	meta := &ateapipb.ResourceMetadata{Uid: testUID, Atespace: "storage-test", Name: "actor"}
+	meta.ProtoReflect().SetUnknown(protowire.AppendBytes(protowire.AppendTag(nil, 10000, protowire.BytesType), entry))
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	server := grpc.NewServer()
+	ateapipb.RegisterControlServer(server, &actorControlFixture{actor: &ateapipb.Actor{Metadata: meta}})
+	done := make(chan error, 1)
+	go func() { done <- server.Serve(listener) }()
+	t.Cleanup(func() { server.Stop(); require.NoError(t, <-done) })
+	conn, err := grpc.NewClient(listener.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, conn.Close()) })
+
+	client := &ActorClient{conn: conn, control: ateapipb.NewControlClient(conn)}
+	info, err := client.Lookup(t.Context(), ActorReference{UID: testUID, Name: "actor", Atespace: "storage-test"})
+	require.NoError(t, err)
+	require.Equal(t, "[]", info.Annotation)
 }
 
 func TestActorLookupVerifiesGoldenTemplate(t *testing.T) {
