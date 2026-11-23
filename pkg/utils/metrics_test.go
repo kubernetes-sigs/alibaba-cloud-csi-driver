@@ -13,6 +13,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRemovePublishedMetricsKeepsSiblingVolume(t *testing.T) {
+	prefix := t.TempDir() + "/"
+	req := &csi.NodePublishVolumeRequest{VolumeContext: map[string]string{PodUIDKey: "pod-a"}}
+	for _, volume := range []string{"first", "second"} {
+		req.VolumeId = volume
+		req.TargetPath = "/pods/pod-a/volumes/kubernetes.io~csi/" + volume + "/mount"
+		WriteMetricsInfo(prefix, req, "10", "ossfs", "oss", "bucket")
+	}
+	target := "/pods/pod-a/volumes/kubernetes.io~csi/first/mount"
+	require.NoError(t, RemovePublishedMetrics(prefix, "wrong-id", target))
+	require.FileExists(t, filepath.Join(prefix, "pod-a/first", MountPointInfoFile))
+	require.NoError(t, RemovePublishedMetrics(prefix, "first", target))
+	require.NoDirExists(t, filepath.Join(prefix, "pod-a/first"))
+	require.FileExists(t, filepath.Join(prefix, "pod-a/second", MountPointInfoFile))
+	require.FileExists(t, filepath.Join(prefix, "pod-a", PodInfoFile))
+}
+
 func TestGetFuseMetricsMountDir(t *testing.T) {
 	metricsPrefix := "/test/metrics"
 	tests := []struct {

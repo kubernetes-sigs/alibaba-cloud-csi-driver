@@ -25,7 +25,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
@@ -91,7 +90,7 @@ type diskStatCollector struct {
 	lastPvDiskInfoMap            map[string]diskInfo
 	lastPvStatsMap               atomic.Pointer[map[uint64]*blockdevice.Diskstats]
 	diskStats                    *ProcDiskStats
-	clientSet                    *kubernetes.Clientset
+	client                       kubernetes.Interface
 	recorder                     record.EventRecorder
 	mounter                      mount.Interface
 	nodeName                     string
@@ -122,12 +121,7 @@ func getDiskCapacityThreshold() float64 {
 // NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
 	recorder := utils.NewEventRecorder(utils.EventComponentNode)
-	config, err := options.GetRestConfig()
-	if err != nil {
-		return nil, err
-	}
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	client, err := newK8sClient()
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +136,7 @@ func NewDiskStatCollector() (Collector, error) {
 	return &diskStatCollector{
 		lastPvDiskInfoMap:            make(map[string]diskInfo, 0),
 		diskStats:                    diskStats,
-		clientSet:                    clientset,
+		client:                       client,
 		milliSecondsLatencyThreshold: getDiskLatencyThreshold(),
 		capacityPercentageThreshold:  getDiskCapacityThreshold(),
 		recorder:                     recorder,
@@ -327,7 +321,7 @@ func (p *diskStatCollector) updateDiskInfoMap(ctx context.Context, thisPvDiskInf
 		lastInfo, ok := (*lastPvDiskInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcRef, err := getDiskPvcByPvName(ctx, p.clientSet, pv)
+			pvcRef, err := getDiskPvcByPvName(ctx, p.client, pv, thisInfo.VolDataPath)
 			if err != nil {
 				continue
 			}

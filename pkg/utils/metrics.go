@@ -118,7 +118,40 @@ func RemoveMetrics(
 	req *csi.NodeUnstageVolumeRequest,
 ) {
 	mountPointPath := GetFuseMetricsMountDir(metricsPathPrefix, req.VolumeId)
+	removeVolumeMetrics(mountPointPath, req.VolumeId)
+}
 
+// RemovePublishedMetrics matches the identity recorded at publish time because
+// NodeUnpublishVolume does not receive the mount owner's volume context.
+func RemovePublishedMetrics(prefix, volumeID, target string) error {
+	owners, err := os.ReadDir(prefix)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, owner := range owners {
+		if !owner.IsDir() {
+			continue
+		}
+		path := filepath.Join(prefix, owner.Name(), filepath.Base(filepath.Dir(target)))
+		info, err := os.ReadFile(filepath.Join(path, MountPointInfoFile))
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		fields := strings.SplitN(string(info), " ", 5)
+		if len(fields) == 5 && fields[3] == volumeID && fields[4] == target {
+			removeVolumeMetrics(path, volumeID)
+		}
+	}
+	return nil
+}
+
+func removeVolumeMetrics(mountPointPath, volumeID string) {
 	// Arrays of metrics files to remove
 	metricsArrays := [][]string{
 		MountpointMetricsArray,
@@ -137,7 +170,7 @@ func RemoveMetrics(
 					continue
 				}
 				// File exists but cannot be removed, log error
-				klog.ErrorS(err, "Failed to remove metrics file", "file", filePath, "volumeId", req.VolumeId)
+				klog.ErrorS(err, "Failed to remove metrics file", "file", filePath, "volumeId", volumeID)
 			}
 		}
 	}
@@ -151,9 +184,9 @@ func RemoveMetrics(
 		}
 		// Directory is not empty or cannot be removed, skip silently
 		// This is expected behavior when there are other files in the directory
-		klog.ErrorS(err, "Metrics directory not removed", "path", mountPointPath, "volumeId", req.VolumeId)
+		klog.ErrorS(err, "Metrics directory not removed", "path", mountPointPath, "volumeId", volumeID)
 	} else {
-		klog.V(4).InfoS("Removed metrics directory", "path", mountPointPath, "volumeId", req.VolumeId)
+		klog.V(4).InfoS("Removed metrics directory", "path", mountPointPath, "volumeId", volumeID)
 	}
 }
 
