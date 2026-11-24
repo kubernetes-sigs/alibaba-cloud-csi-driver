@@ -734,6 +734,10 @@ func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager
 	switch {
 	case opt.FuseType == mounterutils.OssFsType:
 		mountOptions = append(mountOptions, mountFlags...)
+	case opt.FuseType == mounterutils.OssFs2Type && fdPassing && len(mountFlags) > 0:
+		// The proxy uses these flags for the CSI-side kernel mount.
+		klog.Warning("NodePublishVolume: with fd-passing, ossfs2 uses PV mountOptions " +
+			"for the kernel mount only. Configure ossfs2 daemon options via volumeAttributes.otherOpts instead.")
 	case opt.FuseType == mounterutils.OssFs2Type && !fdPassing:
 		// Without fd-passing, ossfs2 consumes PV mount options itself. PV
 		// options override otherOpts, and defaults fill the remaining keys.

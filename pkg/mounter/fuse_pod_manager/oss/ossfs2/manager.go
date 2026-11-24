@@ -382,14 +382,7 @@ const (
 	KeyLogDir   = "log_dir"
 )
 
-func (f *fuseOssfs) AddDefaultMountOptions(options []string, mountFlags []string) []string {
-	// The OSS option builder leaves mountFlags separate only for fd-passing,
-	// where the proxy uses them for the CSI-side kernel mount.
-	if len(mountFlags) > 0 {
-		klog.Warningf("NodePublishVolume: with fd-passing, ossfs2 uses PV mountOptions " +
-			"for the kernel mount only. Configure ossfs2 daemon options via volumeAttributes.otherOpts instead.")
-	}
-
+func (f *fuseOssfs) AddDefaultMountOptions(options []string, _ []string) []string {
 	// Environment defaults fill keys that the mount options did not set.
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS2_OPTIONS")
 	if defaultOSSFSOptions != "" {
