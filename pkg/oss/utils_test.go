@@ -2842,7 +2842,7 @@ func TestMountOptionsPipeline_Regression(t *testing.T) {
 			},
 		},
 		{
-			name:       "ossfs2 without fd-passing: PV options override other options and defaults",
+			name:       "ossfs2 without fd-passing: PV ro=false and log options override other options and defaults",
 			fuseType:   mounterutils.OssFs2Type,
 			fpm:        ossfs2Fpm,
 			mountFlags: []string{"log_dir=/var/log/pv", "ro=false"},
@@ -2854,6 +2854,18 @@ func TestMountOptionsPipeline_Regression(t *testing.T) {
 					"oss_endpoint=1.1.1.1", "oss_bucket=test-bucket",
 					"oss_bucket_prefix=/", "oss_region=cn-beijing", "use_metrics=true",
 				}, options)
+				assert.Empty(t, flags)
+			},
+		},
+		{
+			name:       "ossfs2 without fd-passing: PV ro=true overrides otherOpts ro=false",
+			fuseType:   mounterutils.OssFs2Type,
+			fpm:        ossfs2Fpm,
+			mountFlags: []string{"ro=true"},
+			otherOpts:  "-o ro=false",
+			check: func(t *testing.T, options []string, flags []string) {
+				assert.Contains(t, options, "ro=true")
+				assert.NotContains(t, options, "ro=false")
 				assert.Empty(t, flags)
 			},
 		},
