@@ -750,6 +750,11 @@ func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager
 		return nil, nil, err
 	}
 	mountOptions = mounterutils.MergeMountOptions(mountOptions, ops)
+	mountOptions = fpm.AddDefaultMountOptions(mountOptions, mountFlags)
+	if opt.FuseType == mounterutils.OssFs2Type && !fdPassing {
+		// Drop duplicate keys after environment defaults have been appended.
+		mountOptions = mounterutils.MergeMountOptions(nil, mountOptions)
+	}
 	return
 }
 

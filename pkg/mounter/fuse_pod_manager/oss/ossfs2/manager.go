@@ -383,10 +383,9 @@ const (
 )
 
 func (f *fuseOssfs) AddDefaultMountOptions(options []string, _ []string) []string {
-	// Environment defaults fill keys that the mount options did not set.
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS2_OPTIONS")
 	if defaultOSSFSOptions != "" {
-		options = mounterutils.MergeMountOptions(options, strings.Split(defaultOSSFSOptions, ","))
+		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
 	}
 
 	tm := mounterutils.IndexMountOptions(options)

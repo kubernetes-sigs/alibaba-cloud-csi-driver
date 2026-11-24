@@ -1804,6 +1804,9 @@ func TestMakeMountOptionsAndFlags(t *testing.T) {
 		"use_sse=kmsid",
 		"sigv4",
 		"region=cn-beijing",
+		"dbglevel=warn",
+		"use_metrics",
+		"listobjectsv2",
 	}
 	wantFlags := []string{"ro"}
 	gotOptions, gotFlags, err := makeMountOptionsAndFlags(opt, ossfsFpm, fakeMeta, cap, false)
@@ -1831,6 +1834,9 @@ func TestMakeMountOptionsAndFlags(t *testing.T) {
 		"oss_bucket=aliyun",
 		"oss_bucket_prefix=/path",
 		"oss_region=cn-beijing",
+		"log_level=info",
+		"log_dir=/dev/stdout",
+		"use_metrics=true",
 	}
 	// With fd-passing, the proxy client uses these flags for the kernel mount.
 	wantFlags2 := []string{"ro"}
@@ -2837,6 +2843,7 @@ func TestMountOptionsPipeline_Regression(t *testing.T) {
 				assert.NotContains(t, options, "nodev")
 				assert.NotContains(t, options, "nosuid")
 				assert.Contains(t, options, "log_level=debug")
+				assert.Contains(t, options, "log_level=warn")
 				assert.Contains(t, options, "log_dir=/var/log/env")
 				assert.Equal(t, []string{"nodev", "nosuid"}, flags)
 			},
@@ -2909,7 +2916,6 @@ func TestMountOptionsPipeline_Regression(t *testing.T) {
 
 			options, flags, err := makeMountOptionsAndFlags(opt, tt.fpm, fakeMeta, cap, tt.fdPassing)
 			require.NoError(t, err)
-			options = tt.fpm.AddDefaultMountOptions(options, flags)
 
 			t.Logf("options: %v", options)
 			t.Logf("flags: %v", flags)
