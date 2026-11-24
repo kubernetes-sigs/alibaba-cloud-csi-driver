@@ -741,13 +741,7 @@ func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager
 	case opt.FuseType == mounterutils.OssFs2Type && !fdPassing:
 		// Without fd-passing, ossfs2 consumes PV mount options itself. PV
 		// options override otherOpts, and defaults fill the remaining keys.
-		// For a read-only request, seed the base with ro=true so MergeMountOptions
-		// skips any conflicting ro value before building the daemon arguments.
-		var options []string
-		if opt.ReadOnly {
-			options = append(options, "ro=true")
-		}
-		options = mounterutils.MergeMountOptions(options, mountFlags)
+		options := mounterutils.MergeMountOptions(nil, mountFlags)
 		mountOptions = mounterutils.MergeMountOptions(options, mountOptions)
 		mountFlags = nil
 	}

@@ -2846,11 +2846,11 @@ func TestMountOptionsPipeline_Regression(t *testing.T) {
 			fuseType:   mounterutils.OssFs2Type,
 			fpm:        ossfs2Fpm,
 			mountFlags: []string{"log_dir=/var/log/pv", "ro=false"},
-			otherOpts:  "-o log_dir=/var/log/other,log_level=debug",
+			otherOpts:  "-o log_dir=/var/log/other,log_level=debug,ro=true",
 			readOnly:   true,
 			check: func(t *testing.T, options []string, flags []string) {
 				assert.Equal(t, []string{
-					"ro=true", "log_dir=/var/log/pv", "log_level=debug",
+					"log_dir=/var/log/pv", "ro=false", "log_level=debug",
 					"oss_endpoint=1.1.1.1", "oss_bucket=test-bucket",
 					"oss_bucket_prefix=/", "oss_region=cn-beijing", "use_metrics=true",
 				}, options)
