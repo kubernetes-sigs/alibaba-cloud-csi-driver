@@ -729,12 +729,15 @@ func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager
 		return nil, nil, err
 	}
 
+	// ossfs 1.x keeps its historical order: otherOpts, PV flags, then
+	// generated options. ossfs2 keeps PV flags separate for fd-passing.
 	switch {
 	case opt.FuseType == mounterutils.OssFsType:
 		mountOptions = append(mountOptions, mountFlags...)
 	case opt.FuseType == mounterutils.OssFs2Type && !fdPassing:
-		// Without a separate kernel mount, ossfs2 consumes PV mount options.
-		// Resolve conflicts by key, with request-level read-only taking precedence.
+		// Without fd-passing, ossfs2 consumes PV mount options itself. PV
+		// options override otherOpts, and defaults fill the remaining keys.
+		// A read-only request requires ro=true even when either source sets ro.
 		var options []string
 		if opt.ReadOnly {
 			options = append(options, "ro=true")
