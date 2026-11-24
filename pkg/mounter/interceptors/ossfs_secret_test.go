@@ -42,6 +42,81 @@ var mockOssfsHandler = func(ctx context.Context, op *mounter.MountOperation) err
 	return nil
 }
 
+type tokenRotationMounter struct {
+	*mountutils.FakeMounter
+	mountCalls int
+}
+
+func (m *tokenRotationMounter) ExtendedMount(_ context.Context, op *mounter.MountOperation) error {
+	m.mountCalls++
+	return m.Mount(op.Source, op.Target, op.FsType, op.Options)
+}
+
+func TestNewForMounterChain_RepublishRotatesTokenFiles(t *testing.T) {
+	for _, fuseType := range []string{mounterutils.OssFsType, mounterutils.OssFs2Type} {
+		t.Run(fuseType, func(t *testing.T) {
+			ctx := context.Background()
+			target := t.TempDir()
+			hashDir := mounterutils.GetPasswdHashDir(target)
+			t.Cleanup(func() { removeAllIgnoreNotExist(hashDir) })
+			stsDir := filepath.Join(hashDir, mounterutils.GetPasswdFileName(fuseType), "sts")
+
+			mnt := &tokenRotationMounter{FakeMounter: mountutils.NewFakeMounter(nil)}
+			workflow := mounter.NewForMounter(mnt, func(ctx context.Context, op *mounter.MountOperation, handler mounter.MountHandler) error {
+				return ossfsSecretInterceptorWithMounter(ctx, op, handler, fuseType, mnt)
+			})
+
+			checkTokenFiles := func(secrets map[string]string) {
+				t.Helper()
+				for key, want := range secrets {
+					got, err := os.ReadFile(filepath.Join(stsDir, key))
+					require.NoError(t, err, "read token file %s", key)
+					assert.Equal(t, want, string(got), "token file %s", key)
+				}
+			}
+
+			first := &mounter.MountOperation{
+				Target: target,
+				FsType: fuseType,
+				Secrets: map[string]string{
+					mounterutils.KeyAccessKeyId:     "ak-v1",
+					mounterutils.KeyAccessKeySecret: "sk-v1",
+					mounterutils.KeySecurityToken:   "token-v1",
+					mounterutils.KeyExpiration:      "2030-01-01T00:00:00Z",
+				},
+			}
+			require.NoError(t, workflow.ExtendedMount(ctx, first))
+			require.Equal(t, 1, mnt.mountCalls)
+			checkTokenFiles(first.Secrets)
+			switch fuseType {
+			case mounterutils.OssFsType:
+				assert.Equal(t, []string{"passwd_file=" + stsDir}, first.Options)
+			case mounterutils.OssFs2Type:
+				assert.Equal(t, []string{
+					"oss_sts_multi_conf_ak_file=" + filepath.Join(stsDir, mounterutils.KeyAccessKeyId),
+					"oss_sts_multi_conf_sk_file=" + filepath.Join(stsDir, mounterutils.KeyAccessKeySecret),
+					"oss_sts_multi_conf_token_file=" + filepath.Join(stsDir, mounterutils.KeySecurityToken),
+				}, first.Options)
+			}
+
+			next := &mounter.MountOperation{
+				Target: target,
+				FsType: fuseType,
+				Secrets: map[string]string{
+					mounterutils.KeyAccessKeyId:     "ak-v2",
+					mounterutils.KeyAccessKeySecret: "sk-v2",
+					mounterutils.KeySecurityToken:   "token-v2",
+					mounterutils.KeyExpiration:      "2030-01-02T00:00:00Z",
+				},
+			}
+			// Republish refreshes the files and the chain treats ErrSkipMount as success.
+			require.NoError(t, workflow.ExtendedMount(ctx, next))
+			assert.Equal(t, 1, mnt.mountCalls, "republish must not call the mount handler again")
+			checkTokenFiles(next.Secrets)
+		})
+	}
+}
+
 func TestOssfsSecretInterceptor(t *testing.T) {
 	baseDir := t.TempDir()
 
