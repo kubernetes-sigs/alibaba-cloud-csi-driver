@@ -717,7 +717,7 @@ func makePodTemplateConfig(opt *ossfpm.Options) *fpm.PodTemplateConfig {
 	}
 }
 
-func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) (
+func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability, fdPassing bool) (
 	mountOptions []string, mountFlags []string, err error) {
 
 	if volumeCapability != nil && volumeCapability.GetMount() != nil {
@@ -729,10 +729,19 @@ func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager
 		return nil, nil, err
 	}
 
-	// ossfs 1.x: merge mountFlags into daemon options (otherOpts → mountFlags → generated).
-	// ossfs2/customfuse: mountFlags are returned separately for kernel mount use.
-	if opt.FuseType == mounterutils.OssFsType && len(mountFlags) > 0 {
+	switch {
+	case opt.FuseType == mounterutils.OssFsType:
 		mountOptions = append(mountOptions, mountFlags...)
+	case opt.FuseType == mounterutils.OssFs2Type && !fdPassing:
+		// Without a separate kernel mount, ossfs2 consumes PV mount options.
+		// Resolve conflicts by key, with request-level read-only taking precedence.
+		var options []string
+		if opt.ReadOnly {
+			options = append(options, "ro=true")
+		}
+		options = mounterutils.MergeMountOptions(options, mountFlags)
+		mountOptions = mounterutils.MergeMountOptions(options, mountOptions)
+		mountFlags = nil
 	}
 
 	ops, err := fpm.MakeMountOptions(opt, m)

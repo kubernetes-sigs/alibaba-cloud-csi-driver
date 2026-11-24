@@ -271,7 +271,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if err = checkOssOptions(opts, fusePodManager); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, fusePodManager, ns.metadata, req.VolumeCapability)
+			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, fusePodManager, ns.metadata, req.VolumeCapability, fdPassingEffective)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
@@ -310,7 +310,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if err = checkOssOptions(opts, fusePodManager); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, fusePodManager, ns.metadata, req.VolumeCapability)
+			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, fusePodManager, ns.metadata, req.VolumeCapability, fdPassingEffective)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}

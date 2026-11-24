@@ -1806,7 +1806,7 @@ func TestMakeMountOptionsAndFlags(t *testing.T) {
 		"region=cn-beijing",
 	}
 	wantFlags := []string{"ro"}
-	gotOptions, gotFlags, err := makeMountOptionsAndFlags(opt, ossfsFpm, fakeMeta, cap)
+	gotOptions, gotFlags, err := makeMountOptionsAndFlags(opt, ossfsFpm, fakeMeta, cap, false)
 	assert.NoError(t, err)
 	assert.Equal(t, wantOptions, gotOptions)
 	assert.Equal(t, wantFlags, gotFlags)
@@ -1832,12 +1832,9 @@ func TestMakeMountOptionsAndFlags(t *testing.T) {
 		"oss_bucket_prefix=/path",
 		"oss_region=cn-beijing",
 	}
-	// For ossfs2 the legacy code dropped MountFlags entirely (with a warning).
-	// The new contract returns them as a separate slice so the caller can
-	// route them appropriately (e.g. into FUSE kernel options via
-	// splitFuseOptions in the proxy client).
+	// With fd-passing, the proxy client uses these flags for the kernel mount.
 	wantFlags2 := []string{"ro"}
-	gotOptions2, gotFlags2, err := makeMountOptionsAndFlags(opt2, ossfs2Fpm, fakeMeta, cap)
+	gotOptions2, gotFlags2, err := makeMountOptionsAndFlags(opt2, ossfs2Fpm, fakeMeta, cap, true)
 	assert.NoError(t, err)
 	assert.Equal(t, wantOptions2, gotOptions2)
 	assert.Equal(t, wantFlags2, gotFlags2)
@@ -2754,6 +2751,7 @@ func Test_checkOssOptions_fdPassingRecoveryCapability(t *testing.T) {
 
 func TestMountOptionsPipeline_Regression(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-beijing")
+	t.Setenv("DEFAULT_OSSFS2_OPTIONS", "log_dir=/var/log/env,log_level=warn")
 	fakeMeta := metadata.NewMetadata()
 
 	ossfs1Fuse, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
@@ -2768,6 +2766,7 @@ func TestMountOptionsPipeline_Regression(t *testing.T) {
 		otherOpts  string
 		mountFlags []string
 		readOnly   bool
+		fdPassing  bool
 		check      func(t *testing.T, options []string, mountFlags []string)
 	}{
 		{
@@ -2819,6 +2818,7 @@ func TestMountOptionsPipeline_Regression(t *testing.T) {
 			fuseType:   mounterutils.OssFs2Type,
 			fpm:        ossfs2Fpm,
 			mountFlags: []string{"rw"},
+			fdPassing:  true,
 			check: func(t *testing.T, options []string, flags []string) {
 				for _, o := range options {
 					assert.NotEqual(t, "rw", o, "ossfs2 daemon options must not contain mountFlags: %v", options)
@@ -2827,16 +2827,34 @@ func TestMountOptionsPipeline_Regression(t *testing.T) {
 			},
 		},
 		{
-			name:       "ossfs2: MountFlags=[nodev,nosuid] — not in daemon options",
+			name:       "ossfs2 with fd-passing: PV flags remain separate from daemon options",
 			fuseType:   mounterutils.OssFs2Type,
 			fpm:        ossfs2Fpm,
 			mountFlags: []string{"nodev", "nosuid"},
+			fdPassing:  true,
+			otherOpts:  "-o log_level=debug",
 			check: func(t *testing.T, options []string, flags []string) {
-				for _, o := range options {
-					assert.NotEqual(t, "nodev", o, "ossfs2 must not contain nodev: %v", options)
-					assert.NotEqual(t, "nosuid", o, "ossfs2 must not contain nosuid: %v", options)
-				}
+				assert.NotContains(t, options, "nodev")
+				assert.NotContains(t, options, "nosuid")
+				assert.Contains(t, options, "log_level=debug")
+				assert.Contains(t, options, "log_dir=/var/log/env")
 				assert.Equal(t, []string{"nodev", "nosuid"}, flags)
+			},
+		},
+		{
+			name:       "ossfs2 without fd-passing: PV options override other options and defaults",
+			fuseType:   mounterutils.OssFs2Type,
+			fpm:        ossfs2Fpm,
+			mountFlags: []string{"log_dir=/var/log/pv", "ro=false"},
+			otherOpts:  "-o log_dir=/var/log/other,log_level=debug",
+			readOnly:   true,
+			check: func(t *testing.T, options []string, flags []string) {
+				assert.Equal(t, []string{
+					"ro=true", "log_dir=/var/log/pv", "log_level=debug",
+					"oss_endpoint=1.1.1.1", "oss_bucket=test-bucket",
+					"oss_bucket_prefix=/", "oss_region=cn-beijing", "use_metrics=true",
+				}, options)
+				assert.Empty(t, flags)
 			},
 		},
 		{
@@ -2877,7 +2895,7 @@ func TestMountOptionsPipeline_Regression(t *testing.T) {
 				}
 			}
 
-			options, flags, err := makeMountOptionsAndFlags(opt, tt.fpm, fakeMeta, cap)
+			options, flags, err := makeMountOptionsAndFlags(opt, tt.fpm, fakeMeta, cap, tt.fdPassing)
 			require.NoError(t, err)
 			options = tt.fpm.AddDefaultMountOptions(options, flags)
 

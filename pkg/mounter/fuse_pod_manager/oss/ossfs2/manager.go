@@ -382,18 +382,10 @@ const (
 	KeyLogDir   = "log_dir"
 )
 
-func (f *fuseOssfs) AddDefaultMountOptions(options []string, mountFlags []string) []string {
-	// For ossfs2, mountFlags are NOT passed to the daemon.
-	// They are only used for FUSE kernel mount in fd-passing mode.
-	if len(mountFlags) > 0 {
-		klog.Warningf("NodePublishVolume: ossfs2 does not support mountOptions/mountFlags; " +
-			"FUSE mount parameters in mountFlags are used for the kernel mount only. " +
-			"Configure ossfs2 daemon options via volumeAttributes.otherOpts instead.")
-	}
-
+func (f *fuseOssfs) AddDefaultMountOptions(options []string, _ []string) []string {
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS2_OPTIONS")
 	if defaultOSSFSOptions != "" {
-		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
+		options = mounterutils.MergeMountOptions(options, strings.Split(defaultOSSFSOptions, ","))
 	}
 
 	tm := mounterutils.IndexMountOptions(options)
