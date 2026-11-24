@@ -729,10 +729,9 @@ func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager
 		return nil, nil, err
 	}
 
-	// ossfs 1.x keeps its historical order: otherOpts, PV flags, then
-	// generated options. ossfs2 keeps PV flags separate for fd-passing.
 	switch {
 	case opt.FuseType == mounterutils.OssFsType:
+		// Append PV flags after otherOpts, before merging generated options below.
 		mountOptions = append(mountOptions, mountFlags...)
 	case opt.FuseType == mounterutils.OssFs2Type && fdPassing && len(mountFlags) > 0:
 		// The proxy uses these flags for the CSI-side kernel mount.
