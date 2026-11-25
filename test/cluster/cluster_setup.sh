@@ -79,7 +79,7 @@ function create-ack-cluster {
         --ext-str region="$ACK_REGION" \
         --ext-str vpc_id="$VPC_ID" \
         --ext-str cluster_name="$CASE_NAME" \
-        --ext-str os_image_alinux3="${OS_IMAGE_ALINUX3:-aliyun_3_x64_20G_container_optimized_alibase_20260625.vhd}" \
+        --ext-str os_image_alinux3="${OS_IMAGE_ALINUX3:-aliyun_3_x64_20G_container_optimized_alibase_20261105.vhd}" \
         --ext-str os_image_alinux3_arm64="${OS_IMAGE_ALINUX3_ARM64:-aliyun_3_arm64_20G_container_optimized_alibase_20260503.vhd}" \
         --ext-str os_image_containeros3="${OS_IMAGE_CONTAINEROS3:-lifsea_3_x64_5G_alibase_20260716.qcow2}" \
         --ext-code n_nodes="$N_NODES" \
