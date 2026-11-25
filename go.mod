@@ -2,6 +2,8 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
 go 1.26.0
 
+toolchain go1.27.4
+
 tool github.com/golang/mock/mockgen
 
 require (
@@ -17,7 +19,7 @@ require (
 	github.com/aliyun/credentials-go v1.4.13
 	github.com/container-storage-interface/spec v1.13.0
 	github.com/containerd/ttrpc v1.2.10
-	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/logr v1.4.4
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.7.0
@@ -96,14 +98,14 @@ require (
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	go.opentelemetry.io/otel v1.44.0 // indirect
-	go.opentelemetry.io/otel/trace v1.44.0 // indirect
+	go.opentelemetry.io/otel v1.47.0 // indirect
+	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/term v0.47.0 // indirect
