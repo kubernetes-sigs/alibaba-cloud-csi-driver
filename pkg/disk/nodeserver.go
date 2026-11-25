@@ -153,27 +153,12 @@ func parseVolumeCountEnv() (int, error) {
 
 // NewNodeServer creates node server
 func NewNodeServer(csiCfg utils.Config, ecs cloud.ECSInterface, ecsV2 cloud.ECSv2Interface, m metadata.MetadataProvider, useLabeler bool) csi.NodeServer {
-	DefaultDeviceManager.DisableSerial = IsVFNode()
 	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
 
 	// Create Directory
 	err := os.MkdirAll(RundSocketDir, os.FileMode(0755))
 	if err != nil {
 		klog.Errorf("Create Directory %s failed: %v", RundSocketDir, err)
-	}
-
-	if IsVFNode() {
-		klog.Infof("Currently node is VF model")
-	} else {
-		klog.Infof("Currently node is NOT VF model")
-	}
-
-	if GlobalConfigVar.CheckBDFHotPlugin {
-		go checkVfhpOnlineReconcile()
-	}
-
-	if IsVFNode() && GlobalConfigVar.BdfHealthCheck {
-		go BdfHealthCheck()
 	}
 
 	kataBMIOType := BDF
@@ -770,20 +755,9 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if IsVFNode() {
-		if err := unbindBdfDisk(req.VolumeId); err != nil {
-			logger.Error(err, "unbind bdf disk failed")
-			return nil, err
-		}
-	}
-	if IsVFInstance() && !IsVFNode() {
-		bdf, err := findBdf(req.VolumeId)
-		if err != nil {
-			return nil, err
-		}
-		if err := clearBdfInfo(req.VolumeId, bdf); err != nil {
-			logger.Error(err, "clear disk bdf info failed")
-			return nil, err
+	if IsVFInstance() {
+		if err := removeBdfTag(req.VolumeId); err != nil {
+			return nil, status.Errorf(codes.Internal, "remove bdf tag: %v", err)
 		}
 	}
 
@@ -879,6 +853,11 @@ func (ns *nodeServer) patchNodeInfo(ctx context.Context, m metadata.MetadataProv
 
 func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	logger := klog.FromContext(ctx)
+
+	// Fail registration, so that unsupported nodes are noticed before disks fail to attach.
+	if err := checkVFHotplug(); err != nil {
+		return nil, status.Error(codes.FailedPrecondition, err.Error())
+	}
 
 	maxVolumesNum, err := parseVolumeCountEnv()
 	if err != nil {

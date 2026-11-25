@@ -183,45 +183,6 @@ func IsDirEmpty(name string) (bool, error) {
 	return false, err
 }
 
-// GetDeviceByBdf get device name by bdf
-func GetDeviceByBdf(bdf string, enLog bool) (device string, err error) {
-	virtioPciPath := fmt.Sprintf("/sys/bus/pci/drivers/virtio-pci/%s", bdf)
-	dirs, err := os.ReadDir(virtioPciPath)
-	if err != nil {
-		return "", err
-	}
-	var virtioNumbers []string
-	for _, dir := range dirs {
-		if dir.IsDir() && strings.HasPrefix(dir.Name(), "virtio") {
-			virtioNumbers = append(virtioNumbers, dir.Name())
-		}
-	}
-	if enLog {
-		klog.Infof("Device bdf: %s, virtio numbers: %v", bdf, virtioNumbers)
-	}
-	if len(virtioNumbers) == 0 {
-		return "", fmt.Errorf("virtio device not found, bdf: %s", bdf)
-	} else if len(virtioNumbers) > 1 {
-		return "", fmt.Errorf("virtio device found multiple: %v, bdf: %s", virtioNumbers, bdf)
-	}
-
-	devices, err := filepath.Glob("/sys/block/*/device")
-	if err != nil {
-		return "", fmt.Errorf("Glob：%v", err)
-	}
-	for _, device := range devices {
-		targetPath, _ := os.Readlink(device)
-		if filepath.Base(targetPath) == virtioNumbers[0] {
-			devicePath := fmt.Sprintf("/dev/%s", filepath.Base(filepath.Dir(device)))
-			if enLog {
-				klog.Infof("Device bdf: %s, device: %s", bdf, devicePath)
-			}
-			return devicePath, nil
-		}
-	}
-	return "", fmt.Errorf("virtio device not found, bdf: %s", bdf)
-}
-
 func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 	if !utils.IsFileExisting(rootDevicePath) || !utils.IsFileExisting(subDevicePath) {
 		return fmt.Errorf("input device path does not exist: %s, %s ", rootDevicePath, subDevicePath)
