@@ -99,6 +99,8 @@ type Options struct {
 	// assume role
 	AssumeRoleArn string `json:"assumeRoleArn"`
 	ExternalId    string `json:"externalId"`
+	// DelegateAssumeRole means the effective endpoint and audience both match the chart's proxy.
+	DelegateAssumeRole bool `json:"-"`
 	// csi secret store
 	SecretProviderClass string `json:"secretProviderClass"`
 	// agent identity

@@ -1,5 +1,11 @@
 enableSubstrate: false
 
+# Default RRSA endpoint for OSS volumes. Volume attributes can override it.
+oidcProxyEndpoint: ""
+
+# Default token audience for NAS and OSS volumes with a custom RRSA endpoint.
+oidcProxyAudience: ""
+
 substrate:
   apiEndpoint: k8s:///ate-system/api:443
   apiServerName: api.ate-system.svc

@@ -267,7 +267,7 @@ func (f *fuseOssfs) buildPodSpec(c *fpm.FusePodContext, target string) (spec cor
 	spec.HostNetwork = true
 	spec.DNSPolicy = c.PodTemplateConfig.DnsPolicy
 	// When using hostNetwork, need ClusterFirstWithHostNet to resolve Kubernetes DNS
-	if spec.DNSPolicy == "" && c.AuthConfig.RRSAEndpoint != "" {
+	if spec.DNSPolicy == "" && c.AuthConfig != nil && c.AuthConfig.RRSAEndpoint != "" {
 		spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 	}
 	spec.PriorityClassName = "system-node-critical"
@@ -346,7 +346,7 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 		if o.RRSACaSecret != "" {
 			mountOptions = append(mountOptions, "rrsa_ca_file=/etc/ssl/certs/rrsa-ca/ca.crt")
 		}
-		if o.AssumeRoleArn != "" {
+		if !o.DelegateAssumeRole && o.AssumeRoleArn != "" {
 			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", o.AssumeRoleArn))
 			if o.ExternalId != "" {
 				mountOptions = append(mountOptions, fmt.Sprintf("assume_role_external_id=%s", o.ExternalId))

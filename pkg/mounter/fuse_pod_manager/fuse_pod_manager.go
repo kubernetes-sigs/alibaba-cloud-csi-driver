@@ -53,8 +53,17 @@ func fusePodNamePrefix(driverName, fuseType string) string {
 	return "csi-fuse-" + driverName + "-"
 }
 
+const (
+	FuseAssumeRoleARNAnnotation = "csi.alibabacloud.com/assume-role-arn"
+	FuseExternalIDAnnotation    = "csi.alibabacloud.com/assume-role-external-id"
+)
+
 type AuthConfig struct {
-	AuthType string
+	// ProxyAssumeRoleARN and ProxyExternalID are for the managed proxy's second
+	// STS call. They are stored on the FUSE Pod and omitted from ossfs options.
+	ProxyAssumeRoleARN string
+	ProxyExternalID    string
+	AuthType           string
 	// for RRSA
 	RrsaConfig *RrsaConfig
 	// RRSA oidc-proxy options (from PV volumeAttributes)
@@ -379,6 +388,13 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string) (*corev1.Pod
 				mountTarget += "/" + strings.TrimPrefix(c.Path, "/")
 			}
 			rawPod.Annotations[FuseMountTargetAnnoKey] = mountTarget
+		}
+
+		if c.AuthConfig != nil && c.AuthConfig.ProxyAssumeRoleARN != "" {
+			rawPod.Annotations[FuseAssumeRoleARNAnnotation] = c.AuthConfig.ProxyAssumeRoleARN
+			if c.AuthConfig.ProxyExternalID != "" {
+				rawPod.Annotations[FuseExternalIDAnnotation] = c.AuthConfig.ProxyExternalID
+			}
 		}
 
 		logger.V(2).Info("creating fuse pod", "target", target)

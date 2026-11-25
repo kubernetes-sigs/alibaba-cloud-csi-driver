@@ -1724,6 +1724,108 @@ func Test_checkOssOptions(t *testing.T) {
 	}
 }
 
+func TestRRSAProxyAudienceFlowsIntoFusePod(t *testing.T) {
+	t.Setenv("CSI_OIDC_PROXY_AUDIENCE", "chart-audience")
+	for _, fuseType := range []string{mounterutils.OssFsType, mounterutils.OssFs2Type} {
+		t.Run(fuseType, func(t *testing.T) {
+			for _, audience := range []string{"", "volume-audience"} {
+				fakeMeta := metadata.NewMetadata()
+				options, err := parseOptions(t.Context(), nil, map[string]string{
+					"authType": "rrsa", "bucket": "aliyun", "url": "1.1.1.1", "fuseType": fuseType,
+					"roleArn": "test-role", "oidcProviderArn": "test-provider",
+					"rrsaEndpoint": "https://proxy.ns.svc", "rrsaAudience": audience,
+				}, nil, nil, "", false, true, fakeMeta)
+				require.NoError(t, err)
+				mounter, err := ossfpm.GetFuseMounter(fuseType, utils.Config{}, fakeMeta)
+				require.NoError(t, err)
+				auth, err := makeAuthConfig(options, ossfpm.NewOSSFusePodManager(mounter, nil, false), fakeMeta, false)
+				require.NoError(t, err)
+				expected := audience
+				if expected == "" {
+					expected = "chart-audience"
+				}
+				assert.Equal(t, expected, auth.RRSAAudience)
+			}
+		})
+	}
+}
+
+func TestRRSAProxyRoleChainRouting(t *testing.T) {
+	const endpoint = "https://proxy.example.com"
+	const audience = "chart-audience"
+	t.Setenv("CSI_OIDC_PROXY_ENDPOINT", endpoint)
+	t.Setenv("CSI_OIDC_PROXY_AUDIENCE", audience)
+	for _, tc := range []struct {
+		name, endpoint, audience string
+		delegate                 bool
+	}{
+		{name: "inherit", delegate: true},
+		{name: "explicit defaults", endpoint: endpoint, audience: audience, delegate: true},
+		{name: "custom endpoint", endpoint: "https://custom.example.com"},
+		{name: "custom audience", audience: "custom-audience"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, fuseType := range []string{mounterutils.OssFsType, mounterutils.OssFs2Type} {
+				meta := metadata.NewMetadata()
+				opts, err := parseOptions(t.Context(), nil, map[string]string{
+					"authType": "rrsa", "bucket": "aliyun", "url": "https://oss-cn-hangzhou.aliyuncs.com", "fuseType": fuseType,
+					"roleArn": "source-role", "oidcProviderArn": "test-provider",
+					"assumeRoleArn": "target-role", "externalId": "external-id",
+					"rrsaEndpoint": tc.endpoint, "rrsaAudience": tc.audience,
+				}, nil, nil, "", false, true, meta)
+				require.NoError(t, err)
+				require.NoError(t, checkOssOptions(opts, nil))
+				mounter, err := ossfpm.GetFuseMounter(fuseType, utils.Config{}, meta)
+				require.NoError(t, err)
+				fuse := ossfpm.NewOSSFusePodManager(mounter, nil, false)
+				auth, err := makeAuthConfig(opts, fuse, meta, false)
+				require.NoError(t, err)
+				mountOptions, err := fuse.MakeMountOptions(opts, meta)
+				require.NoError(t, err)
+				if tc.delegate {
+					assert.Equal(t, "target-role", auth.ProxyAssumeRoleARN)
+					assert.Equal(t, "external-id", auth.ProxyExternalID)
+					assert.NotContains(t, mountOptions, "assume_role_arn=target-role")
+					assert.NotContains(t, mountOptions, "assume_role_external_id=external-id")
+				} else {
+					assert.Empty(t, auth.ProxyAssumeRoleARN)
+					assert.Empty(t, auth.ProxyExternalID)
+					assert.Contains(t, mountOptions, "assume_role_arn=target-role")
+					assert.Contains(t, mountOptions, "assume_role_external_id=external-id")
+				}
+			}
+		})
+	}
+}
+
+func TestRRSAEndpointValidation(t *testing.T) {
+	for _, test := range []struct {
+		endpoint string
+		valid    bool
+	}{
+		{"", true},
+		{"https://oidc-proxy.oidc-proxy-system.svc", true},
+		{"https://proxy.example.com:8443/token", true},
+		{"http://proxy.example.com", false},
+		{"https:///token", false},
+		{"proxy.example.com", false},
+		{"https://%zz", false},
+	} {
+		t.Run(test.endpoint, func(t *testing.T) {
+			options := &ossfpm.Options{
+				URL: "1.1.1.1", Bucket: "aliyun", Path: "/", FuseType: mounterutils.OssFsType,
+				AuthType: ossfpm.AuthTypeRRSA, RRSAEndpoint: test.endpoint,
+			}
+			err := checkOssOptions(options, nil)
+			if test.valid {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorIs(t, err, ParamError)
+			}
+		})
+	}
+}
+
 func TestMakeAuthConfig(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
 	ossfs, _ := ossfpm.GetFuseMounter(mounterutils.OssFsType, utils.Config{}, fakeMeta)
