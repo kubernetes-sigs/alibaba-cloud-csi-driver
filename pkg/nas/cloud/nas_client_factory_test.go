@@ -14,7 +14,7 @@ func TestNasClientFactoryDefaults(t *testing.T) {
 	assert.Equal(t, float64(defaultQps), float64(fac.limiter.Limit()), "the aggregate cap keeps NAS_LIMIT_PERSECOND's meaning")
 	al, ok := fac.actionLimiters["ListAccessPoints"]
 	require.True(t, ok, "every known action gets its own bucket")
-	assert.Equal(t, float64(defaultActionQps), al.limit, "an action starts at the published floor")
+	assert.Equal(t, float64(defaultActionQps), al.limit, "an action starts at the configured operating point")
 	assert.Equal(t, float64(20), fac.actionLimiters["CreateDir"].limit, "CreateDir has its own published quota")
 	assert.Equal(t, float64(100), fac.actionLimiters["DescribeFileSystems"].limit)
 	assert.Equal(t, float64(defaultQps), al.max, "an action may discover a quota up to the aggregate ceiling")

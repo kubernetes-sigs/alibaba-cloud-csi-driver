@@ -17,12 +17,14 @@ const (
 	// once. NAS_LIMIT_PERSECOND keeps this meaning.
 	defaultQps = 200
 	// defaultActionQps is where an action starts before it has seen the
-	// account's quota. The published table says 120 requests/60s (2 QPS) for
-	// most actions, which is the floor for an account that has not asked for
-	// more. Slow start doubles from there and stops on the first Throttling
-	// response, so the driver finds the real quota in a handful of seconds
-	// without a configured operating point.
-	defaultActionQps = 2
+	// account's quota. The published floor (120 requests/60s, 2 QPS) is too
+	// low for batch provisioning: a cold process serving 300 concurrent
+	// volumes spent ~75s ramping, against ~18s once it reached the operating
+	// point. Start at the measured operating point instead. Slow start still
+	// doubles from here and stops on the first Throttling response, so an
+	// account whose quota differs is discovered within a second, and an
+	// account below this value only wastes a few retryable requests.
+	defaultActionQps = 40
 )
 
 // actionQps holds the actions whose published quota differs from the default.
@@ -65,8 +67,8 @@ type NasClientFactory struct {
 //
 //	NAS_LIMIT_PERSECOND          aggregate ceiling (default 200)
 //	NAS_ACTION_LIMIT_PERSECOND   rate an action starts at, before it discovers
-//	                             the account quota (default 2, the published
-//	                             floor)
+//	                             the account quota (default 40, the measured
+//	                             operating point)
 //	NAS_ACTION_MAX_PERSECOND     ceiling an action may grow to (default: the
 //	                             aggregate ceiling)
 func NewNasClientFactory() *NasClientFactory {

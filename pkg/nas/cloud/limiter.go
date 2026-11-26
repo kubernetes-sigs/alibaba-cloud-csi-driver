@@ -11,9 +11,11 @@ import (
 
 const (
 	// slowStartInterval is how often the rate doubles before the first
-	// Throttling response. Starting at the published floor and doubling takes
-	// an action from 2 QPS to 64 QPS in about five seconds, so a fresh process
-	// finds the account quota before the first batch is done.
+	// Throttling response. It is deliberately longer than the OpenAPI round
+	// trip (p50 80-170ms): the first Throttling response must arrive before
+	// the next doubling, otherwise the rate overshoots the real quota and the
+	// extra calls are rejected and retried for nothing. One second stops the
+	// ramp one step past the quota on the reference account.
 	slowStartInterval = time.Second
 	// steadyIncreaseInterval is the additive-increase cadence after the first
 	// throttle. It is deliberately slower than slow start: from here on every
@@ -35,7 +37,7 @@ const (
 // (region, API, account), so each action discovers its own quota instead of
 // sharing whatever a deployment guessed:
 //
-//   - slow start: from the published floor, double the rate every
+//   - slow start: from the configured start rate, double the rate every
 //     slowStartInterval while calls succeed;
 //   - the first Throttling response ends slow start and multiplies the rate by
 //     decreaseFactor; further throttles within throttleDedupeWindow change

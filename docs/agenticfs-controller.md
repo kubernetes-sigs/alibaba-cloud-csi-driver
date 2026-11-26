@@ -134,7 +134,7 @@ one adaptive token bucket per action instead of sharing one budget:
 | Variable | Meaning | Default |
 |---|---|---|
 | `NAS_LIMIT_PERSECOND` | aggregate ceiling across all actions | 200 |
-| `NAS_ACTION_LIMIT_PERSECOND` | rate an action starts at | 2, the published floor |
+| `NAS_ACTION_LIMIT_PERSECOND` | rate an action starts at | 40, the measured operating point |
 | `NAS_ACTION_MAX_PERSECOND` | ceiling an action may grow to | the aggregate ceiling |
 
 `CreateDir` starts at 20 QPS and `DescribeFileSystems` at 100 QPS from the
@@ -142,8 +142,8 @@ published quota table. Every other action starts at the per-action rate.
 
 Each action discovers its own quota instead of being told it:
 
-- Slow start doubles the rate every second while calls succeed: from the 2 QPS
-  floor, 2 - 4 - 8 - 16 - 32 - 64 takes about five seconds.
+- Slow start doubles the rate every second while calls succeed: from the 40 QPS
+  start, 40 - 80 - 160 - 200 takes about three seconds.
 - The first `Throttling.*` response ends slow start and multiplies the rate by
   0.75. A burst of concurrent throttles counts as one event (5s window).
 - From then on the rate grows by 1 QPS every 5 seconds, so a raised account
