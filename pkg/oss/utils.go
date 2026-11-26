@@ -249,6 +249,12 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 			opts.RRSACaSecret = value
 		case "rrsaaudience":
 			opts.RRSAAudience = value
+		case "rrsadelegateassumerole":
+			delegate, err := strconv.ParseBool(value)
+			if err != nil {
+				return nil, WrapOssError(ParamError, "rrsaDelegateAssumeRole must be a boolean")
+			}
+			opts.DelegateAssumeRole = delegate
 		case "sigversion":
 			switch ossfpm.SigVersion(value) {
 			case ossfpm.SigV1, ossfpm.SigV4:
@@ -289,22 +295,6 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 	}
 
 	opts.DirectAssigned = parseDirectAssigned(runtimeClassValue, directAssignedValue)
-	if opts.AuthType == ossfpm.AuthTypeRRSA {
-		// Each PV attribute overrides its chart default independently. Only
-		// requests using an explicit or chart endpoint inherit the proxy audience.
-		proxyEndpoint := os.Getenv("CSI_OIDC_PROXY_ENDPOINT")
-		proxyAudience := os.Getenv("CSI_OIDC_PROXY_AUDIENCE")
-		if opts.RRSAEndpoint == "" {
-			opts.RRSAEndpoint = proxyEndpoint
-		}
-		if opts.RRSAEndpoint != "" && opts.RRSAAudience == "" {
-			opts.RRSAAudience = proxyAudience
-		}
-		// Only the chart's proxy owns the second STS call. A custom endpoint
-		// or audience keeps ossfs responsible for the entire RRSA flow.
-		opts.DelegateAssumeRole = proxyEndpoint != "" && proxyAudience != "" &&
-			opts.RRSAEndpoint == proxyEndpoint && opts.RRSAAudience == proxyAudience
-	}
 
 	for _, c := range volCaps {
 		opts.ReadOnly = mounterutils.ReadOnlyRequested(opts.ReadOnly, c.AccessMode.GetMode())
@@ -687,6 +677,9 @@ func resolveBucketSpacePrefix(opts *ossfpm.Options, m metadata.MetadataProvider)
 
 // Check oss options
 func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
+	if opt.DelegateAssumeRole && (opt.AuthType != ossfpm.AuthTypeRRSA || opt.RRSAEndpoint == "" || opt.AssumeRoleArn == "") {
+		return WrapOssError(ParamError, "rrsaDelegateAssumeRole requires authType=rrsa, rrsaEndpoint and assumeRoleArn")
+	}
 	if opt.AuthType == ossfpm.AuthTypeRRSA && opt.RRSAEndpoint != "" {
 		if opt.ExternalId != "" && opt.AssumeRoleArn == "" {
 			return WrapOssError(ParamError, "externalId requires assumeRoleArn")
@@ -743,8 +736,8 @@ func makeAuthConfig(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m metada
 		return nil, WrapOssError(AuthError, "%s: %v", opt.FuseType, err)
 	}
 	if opt.DelegateAssumeRole {
-		authCfg.ProxyAssumeRoleARN = opt.AssumeRoleArn
-		authCfg.ProxyExternalID = opt.ExternalId
+		authCfg.DelegatedAssumeRoleARN = opt.AssumeRoleArn
+		authCfg.DelegatedExternalID = opt.ExternalId
 	}
 	return authCfg, nil
 }

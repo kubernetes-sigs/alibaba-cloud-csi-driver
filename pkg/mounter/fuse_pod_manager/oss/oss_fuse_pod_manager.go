@@ -92,15 +92,15 @@ type Options struct {
 	RoleArn            string `json:"roleArn"`
 	OidcProviderArn    string `json:"oidcProviderArn"`
 	ServiceAccountName string `json:"serviceAccountName"`
-	// RRSA oidc-proxy options (PV volumeAttributes)
-	RRSAEndpoint string `json:"rrsaEndpoint"` // oidc-proxy service endpoint (e.g., https://oidc-proxy.ns.svc)
+	// RRSA endpoint options (PV volumeAttributes)
+	RRSAEndpoint string `json:"rrsaEndpoint"` // Endpoint used to exchange the RRSA token
 	RRSACaSecret string `json:"rrsaCaSecret"` // Secret name containing CA cert
-	RRSAAudience string `json:"rrsaAudience"` // Token audience (e.g., oidc-proxy.alibabacloud.com)
+	RRSAAudience string `json:"rrsaAudience"` // Projected token audience
 	// assume role
 	AssumeRoleArn string `json:"assumeRoleArn"`
 	ExternalId    string `json:"externalId"`
-	// DelegateAssumeRole means the effective endpoint and audience both match the chart's proxy.
-	DelegateAssumeRole bool `json:"-"`
+	// DelegateAssumeRole asks the RRSA endpoint to perform the second STS call.
+	DelegateAssumeRole bool `json:"rrsaDelegateAssumeRole"`
 	// csi secret store
 	SecretProviderClass string `json:"secretProviderClass"`
 	// agent identity

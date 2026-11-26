@@ -498,7 +498,7 @@ func (f *fuseOssfs) buildAuthSpec(c *fpm.FusePodContext, target string, spec *co
 				Value: mounterutils.GetRoleSessionName(c.VolumeId, target, c.FuseType),
 			},
 		}
-		// Support custom CA secret for RRSA endpoint (e.g., oidc-proxy)
+		// Support custom CA secret for RRSA endpoint
 		// Note: Secret must be in the same namespace as the fuse pod (ack-csi-fuse)
 		if authCfg.RRSACaSecret != "" {
 			caVolume := corev1.Volume{

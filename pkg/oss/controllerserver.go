@@ -213,7 +213,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		Recovery:          opts.Recovery,
 		AuthConfig:        authCfg,
 		PodTemplateConfig: ptCfg,
-		Bucket:            opts.Bucket,
+		Bucket:            opts.MountBucket(),
+		AgenticBucket:     opts.AgenticBucket,
 		Path:              opts.Path,
 	}, controllerPublishPath)
 	if err != nil {

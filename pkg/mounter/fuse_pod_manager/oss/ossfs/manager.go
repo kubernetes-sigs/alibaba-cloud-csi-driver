@@ -342,7 +342,7 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 			rrsaEndpoint = ep
 		}
 		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", rrsaEndpoint))
-		// Support custom CA file for RRSA endpoint (e.g., oidc-proxy)
+		// Support custom CA file for RRSA endpoint
 		if o.RRSACaSecret != "" {
 			mountOptions = append(mountOptions, "rrsa_ca_file=/etc/ssl/certs/rrsa-ca/ca.crt")
 		}
@@ -503,7 +503,7 @@ func (f *fuseOssfs) buildAuthSpec(c *fpm.FusePodContext, target string, spec *co
 				Value: mounterutils.GetRoleSessionName(c.VolumeId, target, c.FuseType),
 			},
 		}
-		// Support custom CA secret for RRSA endpoint (e.g., oidc-proxy)
+		// Support custom CA secret for RRSA endpoint
 		// rrsaCaSecret: Secret containing CA cert
 		// Note: Secret must be in the same namespace as the fuse pod (ack-csi-fuse)
 		if authCfg.RRSACaSecret != "" {

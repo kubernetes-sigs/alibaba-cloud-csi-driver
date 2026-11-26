@@ -18,6 +18,65 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+func TestRRSADNSPolicy(t *testing.T) {
+	for _, test := range []struct {
+		name, endpoint   string
+		configured, want corev1.DNSPolicy
+	}{
+		{name: "direct STS"},
+		{name: "proxy default", endpoint: "https://proxy.ns.svc", want: corev1.DNSClusterFirstWithHostNet},
+		{name: "explicit policy", endpoint: "https://proxy.ns.svc", configured: corev1.DNSDefault, want: corev1.DNSDefault},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			mounter := &fuseOssfs{}
+			spec, err := mounter.buildPodSpec(&fpm.FusePodContext{
+				AuthConfig:        &fpm.AuthConfig{RRSAEndpoint: test.endpoint},
+				PodTemplateConfig: &fpm.PodTemplateConfig{DnsPolicy: test.configured},
+			}, "/target")
+			require.NoError(t, err)
+			assert.Equal(t, test.want, spec.DNSPolicy)
+		})
+	}
+}
+
+func TestRRSACAMount(t *testing.T) {
+	for _, secret := range []string{"", "proxy-ca"} {
+		t.Run(secret, func(t *testing.T) {
+			mounter := &fuseOssfs{}
+			config := &fpm.FusePodContext{AuthConfig: &fpm.AuthConfig{
+				AuthType: ossfpm.AuthTypeRRSA, RrsaConfig: &fpm.RrsaConfig{}, RRSACaSecret: secret,
+			}}
+			var spec corev1.PodSpec
+			var container corev1.Container
+			mounter.buildAuthSpec(config, "target", &spec, &container)
+			options, err := mounter.getAuthOptions(&ossfpm.Options{
+				AuthType: ossfpm.AuthTypeRRSA, RRSAEndpoint: "https://proxy.example.com", RRSACaSecret: secret,
+			}, "")
+			if !assert.NoError(t, err) {
+				return
+			}
+			const caOption = "rrsa_ca_file=/etc/ssl/certs/rrsa-ca/ca.crt"
+			if secret == "" {
+				assert.NotContains(t, options, caOption)
+				assert.Len(t, spec.Volumes, 1)
+				assert.Len(t, container.VolumeMounts, 1)
+				return
+			}
+			assert.Contains(t, options, caOption)
+			assert.Contains(t, spec.Volumes, corev1.Volume{
+				Name: "rrsa-ca",
+				VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
+					SecretName: secret,
+					Items:      []corev1.KeyToPath{{Key: "ca.crt", Path: "ca.crt", Mode: new(int32(0644))}},
+				}},
+			})
+			assert.Contains(t, container.VolumeMounts, corev1.VolumeMount{
+				Name: "rrsa-ca", MountPath: "/etc/ssl/certs/rrsa-ca", ReadOnly: true,
+			})
+		})
+	}
+}
+
 func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 	fakeMeta := metadata.NewMetadata()
 	fakeOssfs := NewFuseOssfs(utils.Config{}, fakeMeta)

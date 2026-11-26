@@ -150,14 +150,6 @@ spec:
             - name: NAS_RRSA_DURATION
               value: {{ $nodePool.csi.nas.rrsaDuration | quote }}
 {{- end }}
-{{- with $.Values.oidcProxyEndpoint }}
-            - name: CSI_OIDC_PROXY_ENDPOINT
-              value: {{ . | quote }}
-{{- end }}
-{{- with $.Values.oidcProxyAudience }}
-            - name: CSI_OIDC_PROXY_AUDIENCE
-              value: {{ . | quote }}
-{{- end }}
 {{- if and $nodePool.csi.nas.enabled (include "nasNeedsOidcProxyCA" $nodePool.csi.nas) }}
             - name: NAS_RRSA_CA_FILE
 {{- if $nodePool.csi.nas.rrsaCASecretName }}

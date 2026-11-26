@@ -1724,8 +1724,7 @@ func Test_checkOssOptions(t *testing.T) {
 	}
 }
 
-func TestRRSAProxyAudienceFlowsIntoFusePod(t *testing.T) {
-	t.Setenv("CSI_OIDC_PROXY_AUDIENCE", "chart-audience")
+func TestRRSAAudienceFlowsIntoFusePod(t *testing.T) {
 	for _, fuseType := range []string{mounterutils.OssFsType, mounterutils.OssFs2Type} {
 		t.Run(fuseType, func(t *testing.T) {
 			for _, audience := range []string{"", "volume-audience"} {
@@ -1740,29 +1739,24 @@ func TestRRSAProxyAudienceFlowsIntoFusePod(t *testing.T) {
 				require.NoError(t, err)
 				auth, err := makeAuthConfig(options, ossfpm.NewOSSFusePodManager(mounter, nil, false), fakeMeta, false)
 				require.NoError(t, err)
-				expected := audience
-				if expected == "" {
-					expected = "chart-audience"
-				}
-				assert.Equal(t, expected, auth.RRSAAudience)
+				assert.Equal(t, audience, auth.RRSAAudience)
 			}
 		})
 	}
 }
 
-func TestRRSAProxyRoleChainRouting(t *testing.T) {
+func TestRRSARoleChainRouting(t *testing.T) {
 	const endpoint = "https://proxy.example.com"
-	const audience = "chart-audience"
-	t.Setenv("CSI_OIDC_PROXY_ENDPOINT", endpoint)
-	t.Setenv("CSI_OIDC_PROXY_AUDIENCE", audience)
+	const audience = "rrsa.example.com"
 	for _, tc := range []struct {
 		name, endpoint, audience string
 		delegate                 bool
 	}{
-		{name: "inherit", delegate: true},
-		{name: "explicit defaults", endpoint: endpoint, audience: audience, delegate: true},
-		{name: "custom endpoint", endpoint: "https://custom.example.com"},
-		{name: "custom audience", audience: "custom-audience"},
+		{name: "default STS"},
+		{name: "delegated endpoint", endpoint: endpoint, audience: audience, delegate: true},
+		{name: "endpoint only", endpoint: "https://custom.example.com"},
+		{name: "audience only", audience: audience},
+		{name: "explicit endpoint without delegation", endpoint: endpoint, audience: audience},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, fuseType := range []string{mounterutils.OssFsType, mounterutils.OssFs2Type} {
@@ -1772,9 +1766,12 @@ func TestRRSAProxyRoleChainRouting(t *testing.T) {
 					"roleArn": "source-role", "oidcProviderArn": "test-provider",
 					"assumeRoleArn": "target-role", "externalId": "external-id",
 					"rrsaEndpoint": tc.endpoint, "rrsaAudience": tc.audience,
+					"rrsaDelegateAssumeRole": strconv.FormatBool(tc.delegate),
 				}, nil, nil, "", false, true, meta)
 				require.NoError(t, err)
 				require.NoError(t, checkOssOptions(opts, nil))
+				assert.Equal(t, tc.endpoint, opts.RRSAEndpoint)
+				assert.Equal(t, tc.audience, opts.RRSAAudience)
 				mounter, err := ossfpm.GetFuseMounter(fuseType, utils.Config{}, meta)
 				require.NoError(t, err)
 				fuse := ossfpm.NewOSSFusePodManager(mounter, nil, false)
@@ -1783,18 +1780,36 @@ func TestRRSAProxyRoleChainRouting(t *testing.T) {
 				mountOptions, err := fuse.MakeMountOptions(opts, meta)
 				require.NoError(t, err)
 				if tc.delegate {
-					assert.Equal(t, "target-role", auth.ProxyAssumeRoleARN)
-					assert.Equal(t, "external-id", auth.ProxyExternalID)
+					assert.Equal(t, "target-role", auth.DelegatedAssumeRoleARN)
+					assert.Equal(t, "external-id", auth.DelegatedExternalID)
 					assert.NotContains(t, mountOptions, "assume_role_arn=target-role")
 					assert.NotContains(t, mountOptions, "assume_role_external_id=external-id")
 				} else {
-					assert.Empty(t, auth.ProxyAssumeRoleARN)
-					assert.Empty(t, auth.ProxyExternalID)
+					assert.Empty(t, auth.DelegatedAssumeRoleARN)
+					assert.Empty(t, auth.DelegatedExternalID)
 					assert.Contains(t, mountOptions, "assume_role_arn=target-role")
 					assert.Contains(t, mountOptions, "assume_role_external_id=external-id")
 				}
 			}
 		})
+	}
+}
+
+func TestRRSADelegationRequiresEndpointAndRole(t *testing.T) {
+	for _, tc := range []struct {
+		endpoint string
+		role     string
+	}{
+		{role: "target-role"},
+		{endpoint: "https://rrsa.example.com"},
+	} {
+		err := checkOssOptions(&ossfpm.Options{
+			AuthType:           ossfpm.AuthTypeRRSA,
+			DelegateAssumeRole: true,
+			RRSAEndpoint:       tc.endpoint,
+			AssumeRoleArn:      tc.role,
+		}, nil)
+		assert.ErrorContains(t, err, "rrsaDelegateAssumeRole requires")
 	}
 }
 
@@ -1804,7 +1819,7 @@ func TestRRSAEndpointValidation(t *testing.T) {
 		valid    bool
 	}{
 		{"", true},
-		{"https://oidc-proxy.oidc-proxy-system.svc", true},
+		{"https://rrsa.ns.svc", true},
 		{"https://proxy.example.com:8443/token", true},
 		{"http://proxy.example.com", false},
 		{"https:///token", false},

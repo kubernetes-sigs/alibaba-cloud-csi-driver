@@ -114,14 +114,6 @@ spec:
             readOnlyRootFilesystem: true
           env:
             {{- include "networkEnv" .Values.deploy | nindent 12 }}
-{{- with .Values.oidcProxyEndpoint }}
-            - name: CSI_OIDC_PROXY_ENDPOINT
-              value: {{ . | quote }}
-{{- end }}
-{{- with .Values.oidcProxyAudience }}
-            - name: CSI_OIDC_PROXY_AUDIENCE
-              value: {{ . | quote }}
-{{- end }}
             - name: "DEFAULT_REGISTRY"
               value: {{ include "registry" .Values | quote }}
 {{- if .Values.deploy.ack }}
