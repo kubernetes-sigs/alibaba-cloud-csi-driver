@@ -384,3 +384,50 @@ func TestListAccessPointsError(t *testing.T) {
 	_, err := client.ListAccesspoints(t.Context(), &nas.ListAccessPointsRequest{})
 	assert.Error(t, err)
 }
+
+func TestCreateDirRetriesThrottling(t *testing.T) {
+	t.Parallel()
+	calls := 0
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
+		mockNas.EXPECT().CreateDirWithContext(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(context.Context, *nas.CreateDirRequest, *dara.RuntimeOptions) (*nas.CreateDirResponse, error) {
+				calls++
+				if calls == 1 {
+					// HTTP 400/403 + Code Throttling.*: the request was rejected,
+					// so a retry cannot duplicate it.
+					return nil, &tea.SDKError{
+						Code:       new("Throttling.Api"),
+						StatusCode: new(403),
+						Message:    new("Request was denied due to api flow control."),
+					}
+				}
+				return &nas.CreateDirResponse{
+					Headers:    make(map[string]*string),
+					StatusCode: tea.Int32(201),
+					Body:       &nas.CreateDirResponseBody{RequestId: new("")},
+				}, nil
+			}).Times(2)
+	})
+	err := client.CreateDir(t.Context(), &nas.CreateDirRequest{})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, calls, "the throttled call must be retried once")
+}
+
+func TestCreateDirDoesNotRetryOtherErrors(t *testing.T) {
+	t.Parallel()
+	calls := 0
+	client := newNasClientV2ForTest(t, func(mockNas *cloud.MockNasInterface) {
+		mockNas.EXPECT().CreateDirWithContext(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(context.Context, *nas.CreateDirRequest, *dara.RuntimeOptions) (*nas.CreateDirResponse, error) {
+				calls++
+				return nil, &tea.SDKError{
+					Code:       new("InvalidParameter"),
+					StatusCode: new(400),
+					Message:    new("bad request"),
+				}
+			}).Times(1)
+	})
+	err := client.CreateDir(t.Context(), &nas.CreateDirRequest{})
+	assert.Error(t, err)
+	assert.Equal(t, 1, calls, "only throttled calls are retried")
+}
