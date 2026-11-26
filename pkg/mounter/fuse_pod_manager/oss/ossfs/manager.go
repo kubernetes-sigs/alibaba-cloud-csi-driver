@@ -343,8 +343,8 @@ func (f *fuseOssfs) getAuthOptions(o *ossfpm.Options, region string) (mountOptio
 		}
 		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", rrsaEndpoint))
 		// Support custom CA file for RRSA endpoint
-		if o.RRSACaSecret != "" {
-			mountOptions = append(mountOptions, "rrsa_ca_file=/etc/ssl/certs/rrsa-ca/ca.crt")
+		if caFile := ossfpm.RRSACAFile(o); caFile != "" {
+			mountOptions = append(mountOptions, "rrsa_ca_file="+caFile)
 		}
 		if !o.DelegateAssumeRole && o.AssumeRoleArn != "" {
 			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", o.AssumeRoleArn))

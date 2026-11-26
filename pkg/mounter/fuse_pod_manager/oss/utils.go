@@ -2,7 +2,9 @@ package oss
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -21,6 +23,20 @@ var (
 	defaultOssfs2ImageTag         = "v2.0.9.ack.3-a1f29fc"
 	defaultOssfs2FailoverImageTag = "v2.0.8.ack.1.failover-1fd839a"
 )
+
+// RRSA CA selection applies only to the token exchange endpoint.
+func RRSACAFile(o *Options) string {
+	if o.RRSACaSecret != "" {
+		return "/etc/ssl/certs/rrsa-ca/ca.crt"
+	}
+	if o.RRSAEndpoint != "" && slices.ContainsFunc(
+		strings.Split(os.Getenv("OSS_RRSA_CLUSTER_CA_ENDPOINTS"), ","),
+		func(endpoint string) bool { return strings.TrimSpace(endpoint) == o.RRSAEndpoint },
+	) {
+		return "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	}
+	return ""
+}
 
 func SetDefaultImage(fuseType string, m metadata.MetadataProvider, config *fpm.FuseContainerConfig) {
 	// An ossfs image is derived from the release registry below, so one named in the

@@ -17,6 +17,24 @@ import (
 	featuregatetesting "k8s.io/component-base/featuregate/testing"
 )
 
+func TestRRSACAFile(t *testing.T) {
+	const endpoint = "https://rrsa.kube-system.svc"
+	t.Setenv("OSS_RRSA_CLUSTER_CA_ENDPOINTS", "https://other.example.com, "+endpoint)
+	for _, tc := range []struct {
+		name, endpoint, secret, want string
+	}{
+		{name: "default STS"},
+		{name: "explicit STS", endpoint: "https://sts.aliyuncs.com"},
+		{name: "other service", endpoint: "https://other.kube-system.svc"},
+		{name: "configured service", endpoint: endpoint, want: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"},
+		{name: "explicit secret", endpoint: endpoint, secret: "custom-ca", want: "/etc/ssl/certs/rrsa-ca/ca.crt"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, RRSACAFile(&Options{RRSAEndpoint: tc.endpoint, RRSACaSecret: tc.secret}))
+		})
+	}
+}
+
 func TestSetDefaultImage(t *testing.T) {
 	tests := []struct {
 		name             string

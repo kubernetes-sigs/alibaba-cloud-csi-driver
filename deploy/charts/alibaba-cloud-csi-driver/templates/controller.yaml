@@ -114,6 +114,10 @@ spec:
             readOnlyRootFilesystem: true
           env:
             {{- include "networkEnv" .Values.deploy | nindent 12 }}
+{{- with .Values.csi.oss.rrsaClusterCAEndpoints }}
+            - name: OSS_RRSA_CLUSTER_CA_ENDPOINTS
+              value: {{ join "," . | quote }}
+{{- end }}
             - name: "DEFAULT_REGISTRY"
               value: {{ include "registry" .Values | quote }}
 {{- if .Values.deploy.ack }}
