@@ -717,7 +717,7 @@ func makePodTemplateConfig(opt *ossfpm.Options) *fpm.PodTemplateConfig {
 	}
 }
 
-func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) (
+func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability, fdPassing bool) (
 	mountOptions []string, mountFlags []string, err error) {
 
 	if volumeCapability != nil && volumeCapability.GetMount() != nil {
@@ -729,10 +729,20 @@ func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager
 		return nil, nil, err
 	}
 
-	// ossfs 1.x: merge mountFlags into daemon options (otherOpts → mountFlags → generated).
-	// ossfs2/customfuse: mountFlags are returned separately for kernel mount use.
-	if opt.FuseType == mounterutils.OssFsType && len(mountFlags) > 0 {
+	switch {
+	case opt.FuseType == mounterutils.OssFsType:
+		// Append PV flags after otherOpts, before merging generated options below.
 		mountOptions = append(mountOptions, mountFlags...)
+	case opt.FuseType == mounterutils.OssFs2Type && fdPassing && len(mountFlags) > 0:
+		// The proxy uses these flags for the CSI-side kernel mount.
+		klog.Warning("NodePublishVolume: with fd-passing, ossfs2 uses PV mountOptions " +
+			"for the kernel mount only. Configure ossfs2 daemon options via volumeAttributes.otherOpts instead.")
+	case opt.FuseType == mounterutils.OssFs2Type && !fdPassing:
+		// Without fd-passing, ossfs2 consumes PV mount options itself. PV
+		// options override otherOpts, and defaults fill the remaining keys.
+		options := mounterutils.MergeMountOptions(nil, mountFlags)
+		mountOptions = mounterutils.MergeMountOptions(options, mountOptions)
+		mountFlags = nil
 	}
 
 	ops, err := fpm.MakeMountOptions(opt, m)
@@ -740,6 +750,11 @@ func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager
 		return nil, nil, err
 	}
 	mountOptions = mounterutils.MergeMountOptions(mountOptions, ops)
+	mountOptions = fpm.AddDefaultMountOptions(mountOptions, mountFlags)
+	if opt.FuseType == mounterutils.OssFs2Type && !fdPassing {
+		// Drop duplicate keys after environment defaults have been appended.
+		mountOptions = mounterutils.MergeMountOptions(nil, mountOptions)
+	}
 	return
 }
 

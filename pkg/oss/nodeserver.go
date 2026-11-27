@@ -271,11 +271,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if err = checkOssOptions(opts, fusePodManager); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, fusePodManager, ns.metadata, req.VolumeCapability)
+			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, fusePodManager, ns.metadata, req.VolumeCapability, fdPassingEffective)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions = fusePodManager.AddDefaultMountOptions(mountOptions, mountFlags)
 			// only for MicroVM
 			mountOptions, err = ossfpm.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
 			if err != nil {
@@ -310,11 +309,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if err = checkOssOptions(opts, fusePodManager); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, fusePodManager, ns.metadata, req.VolumeCapability)
+			mountOptions, mountFlags, err = makeMountOptionsAndFlags(opts, fusePodManager, ns.metadata, req.VolumeCapability, fdPassingEffective)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
-			mountOptions = fusePodManager.AddDefaultMountOptions(mountOptions, mountFlags)
 		}
 		// needRotateToken or new mount
 		// case 2 & 3: New mounter with proxy-mounter.
