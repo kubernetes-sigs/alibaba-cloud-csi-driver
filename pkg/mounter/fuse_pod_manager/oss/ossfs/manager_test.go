@@ -937,7 +937,7 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 	tests := []struct {
 		name        string
 		options     []string
-		mountFlags  []string
+		defaults    *fpm.MountOptionDefaults
 		cfglevel    string
 		enabledMime bool
 		want        []string
@@ -998,6 +998,15 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 			options: []string{"allow_other", "others"},
 			want:    []string{"allow_other", "others", "dbglevel=warn", "use_metrics", "listobjectsv2"},
 		},
+		{
+			// ossfs 1.x has no log_dir concept, and nodeserver passes
+			// LogDir=syslog for every fuse type on MicroVM. Pin the ignore so a
+			// future implementation cannot silently redirect ossfs 1.x logging.
+			name:     "defaults.LogDir is ignored",
+			options:  []string{"others"},
+			defaults: &fpm.MountOptionDefaults{LogDir: "syslog"},
+			want:     []string{"others", "dbglevel=warn", "allow_other", "use_metrics", "listobjectsv2"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1005,7 +1014,7 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 			fakeOssfs.config.Extra = map[string]string{
 				"mime-support": fmt.Sprintf("%t", tt.enabledMime),
 			}
-			got := fakeOssfs.AddDefaultMountOptions(tt.options, tt.mountFlags)
+			got := fakeOssfs.AddDefaultMountOptions(tt.options, tt.defaults)
 			assert.Equal(t, tt.want, got)
 		})
 	}

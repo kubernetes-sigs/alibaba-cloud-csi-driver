@@ -128,13 +128,27 @@ type FusePodContext struct {
 	CredentialRefreshHookKey string
 }
 
+// MountOptionDefaults carries caller-supplied defaults for daemon mount options.
+//
+// Precedence, highest to lowest:
+//  1. user options (volumeAttributes.otherOpts, PV spec.mountOptions)
+//  2. the DEFAULT_OSSFS*_OPTIONS env, where the implementation honors it
+//  3. these defaults
+//  4. the implementation's built-in defaults
+//
+// A nil *MountOptionDefaults, or a zero field, means "use the built-in default".
+type MountOptionDefaults struct {
+	// LogDir overrides the built-in log_dir default. ossfs2 only.
+	LogDir string
+}
+
 type FuseMounterType interface {
 	Name() string
 	PodTemplateSpec(c *FusePodContext, target string) (*corev1.PodTemplateSpec, error)
 	// AddDefaultMountOptions returns the final daemon mount options.
-	// mountFlags are PV spec.mountOptions (kernel-level flags like ro, nodev).
-	// Each implementation decides how to incorporate mountFlags and defaults.
-	AddDefaultMountOptions(options []string, mountFlags []string) []string
+	// defaults supplies runtime-specific defaults; nil means built-in defaults.
+	// Each implementation decides how to incorporate them.
+	AddDefaultMountOptions(options []string, defaults *MountOptionDefaults) []string
 }
 
 type FuseContainerConfig struct {

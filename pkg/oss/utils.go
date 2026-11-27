@@ -730,9 +730,16 @@ func makeMountOptionsAndFlags(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager
 	}
 
 	// ossfs 1.x: merge mountFlags into daemon options (otherOpts → mountFlags → generated).
-	// ossfs2/customfuse: mountFlags are returned separately for kernel mount use.
-	if opt.FuseType == mounterutils.OssFsType && len(mountFlags) > 0 {
-		mountOptions = append(mountOptions, mountFlags...)
+	// ossfs2/customfuse: mountFlags are returned separately, for the kernel mount only.
+	if len(mountFlags) > 0 {
+		switch opt.FuseType {
+		case mounterutils.OssFsType:
+			mountOptions = append(mountOptions, mountFlags...)
+		case mounterutils.OssFs2Type:
+			klog.Warningf("ossfs2 does not support mountOptions/mountFlags; FUSE mount " +
+				"parameters in mountFlags are used for the kernel mount only. " +
+				"Configure ossfs2 daemon options via volumeAttributes.otherOpts instead.")
+		}
 	}
 
 	ops, err := fpm.MakeMountOptions(opt, m)
