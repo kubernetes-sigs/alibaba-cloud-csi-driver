@@ -682,6 +682,11 @@ func (ns *nodeServer) getCNFS(ctx context.Context, req *csi.NodePublishVolumeReq
 }
 
 func cnfsNeedsFallback(ctx context.Context, cnfs *v1beta1.ContainerNetworkFileSystem) bool {
+	dialer := net.Dialer{Timeout: 5 * time.Second}
+	return cnfsNeedsFallbackWithDial(ctx, cnfs, dialer.DialContext)
+}
+
+func cnfsNeedsFallbackWithDial(ctx context.Context, cnfs *v1beta1.ContainerNetworkFileSystem, dial func(context.Context, string, string) (net.Conn, error)) bool {
 	if cnfs == nil {
 		return false
 	}
@@ -690,8 +695,7 @@ func cnfsNeedsFallback(ctx context.Context, cnfs *v1beta1.ContainerNetworkFileSy
 		return true
 	case v1beta1.FallbackStrategyIfConnectFailed:
 		server := cnfs.Spec.Parameters.Server
-		dialer := net.Dialer{Timeout: 5 * time.Second}
-		conn, err := dialer.DialContext(ctx, "tcp", server+":2049")
+		conn, err := dial(ctx, "tcp", server+":2049")
 		defer func() {
 			if conn != nil {
 				conn.Close()
