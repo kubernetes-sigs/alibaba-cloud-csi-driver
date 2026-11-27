@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sync"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -42,21 +41,6 @@ func (f *fakeCNFSGetter) GetCNFS(_ context.Context, name string) (*v1beta1.Conta
 	return nil, fmt.Errorf("CNFS %s not found", name)
 }
 
-func startListeningFor(ctx context.Context, wg *sync.WaitGroup, listener net.Listener) {
-	for {
-		select {
-		case <-ctx.Done():
-			wg.Done()
-			return
-		default:
-			conn, _ := listener.Accept()
-			if conn != nil {
-				conn.Close()
-			}
-		}
-	}
-}
-
 func fakeCNFS(name, status, server, fallbackName string, fallbackStrategy v1beta1.FallbackStrategy) *v1beta1.ContainerNetworkFileSystem {
 	return &v1beta1.ContainerNetworkFileSystem{
 		ObjectMeta: metav1.ObjectMeta{
@@ -79,10 +63,10 @@ func fakeCNFS(name, status, server, fallbackName string, fallbackStrategy v1beta
 
 func TestCNFSNeedsFallback(t *testing.T) {
 	tests := []struct {
-		name     string
-		cnfs     *v1beta1.ContainerNetworkFileSystem
-		listen   bool
-		expected bool
+		name      string
+		cnfs      *v1beta1.ContainerNetworkFileSystem
+		reachable bool
+		expected  bool
 	}{
 		{
 			name:     "Nil CNFS",
@@ -100,10 +84,10 @@ func TestCNFSNeedsFallback(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "IfConnectFailed fallback strategy - server reachable",
-			cnfs:     fakeCNFS("", "", "localhost", "", v1beta1.FallbackStrategyIfConnectFailed),
-			listen:   true,
-			expected: false,
+			name:      "IfConnectFailed fallback strategy - server reachable",
+			cnfs:      fakeCNFS("", "", "localhost", "", v1beta1.FallbackStrategyIfConnectFailed),
+			reachable: true,
+			expected:  false,
 		},
 		{
 			name:     "IfConnectFailed fallback strategy - server unreachable",
@@ -124,24 +108,19 @@ func TestCNFSNeedsFallback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			if tt.listen {
-				var wg sync.WaitGroup
-				addr := "localhost:2049"
-				listener, err := net.Listen("tcp", addr)
-				require.NoError(t, err)
-
-				wg.Add(1)
-				go startListeningFor(ctx, &wg, listener)
-
-				t.Cleanup(func() {
-					cancel()
-					_ = listener.Close()
-					wg.Wait()
-				})
+			dial := func(_ context.Context, network, address string) (net.Conn, error) {
+				require.NotNil(t, tt.cnfs)
+				require.Equal(t, v1beta1.FallbackStrategyIfConnectFailed, tt.cnfs.Spec.Fallback.Strategy)
+				require.Equal(t, "tcp", network)
+				require.Equal(t, "localhost:2049", address)
+				if !tt.reachable {
+					return nil, fmt.Errorf("connection refused")
+				}
+				conn, peer := net.Pipe()
+				t.Cleanup(func() { _ = peer.Close() })
+				return conn, nil
 			}
-			actual := cnfsNeedsFallback(ctx, tt.cnfs)
+			actual := cnfsNeedsFallbackWithDial(t.Context(), tt.cnfs, dial)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
