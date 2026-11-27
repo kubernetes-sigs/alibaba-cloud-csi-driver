@@ -141,7 +141,7 @@ type nfsStatCollector struct {
 	pvInfoLock       sync.Mutex
 	lastPvNfsInfoMap map[string]nfsInfo
 	lastPvStatsMap   sync.Map
-	clientSet        *kubernetes.Clientset
+	client           kubernetes.Interface
 	crdClient        dynamic.Interface
 	mounter          mount.Interface
 }
@@ -159,20 +159,20 @@ func warnIfNfsCapacityThresholdSet() {
 // NewNfsStatCollector returns a new Collector exposing nfs stats.
 func NewNfsStatCollector() (Collector, error) {
 	warnIfNfsCapacityThresholdSet()
+	var client kubernetes.Interface
+	var crdClient dynamic.Interface
 	config, err := options.GetRestConfig()
-	if err != nil {
-		return nil, err
-	}
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
-	crdCfg := options.GetRestConfigForCRD(*config)
-	crdClient, err := dynamic.NewForConfig(crdCfg)
-	if err != nil {
-		klog.Fatalf("Failed to create crd client: %v", err)
+	if err == nil {
+		client, err = kubernetes.NewForConfig(config)
+		if err != nil {
+			return nil, err
+		}
+		crdClient, err = dynamic.NewForConfig(options.GetRestConfigForCRD(*config))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		klog.ErrorS(err, "Failed to get rest config, will read NFS labels from local files")
 	}
 
 	return &nfsStatCollector{
@@ -198,7 +198,7 @@ func NewNfsStatCollector() (Collector, error) {
 		},
 		lastPvNfsInfoMap: make(map[string]nfsInfo, 0),
 		lastPvStatsMap:   sync.Map{},
-		clientSet:        clientset,
+		client:           client,
 		crdClient:        crdClient,
 		mounter:          mount.NewWithoutSystemd(""),
 	}, nil
@@ -206,7 +206,7 @@ func NewNfsStatCollector() (Collector, error) {
 
 func (p *nfsStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
 	//startTime := time.Now()
-	pvNameStatsMap, err := getNfsStat()
+	pvNameServerMap, pvNameStatsMap, err := getNfsStat()
 	if len(pvNameStatsMap) == 0 {
 		return nil
 	}
@@ -226,7 +226,13 @@ func (p *nfsStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch
 		if err := ctx.Err(); err != nil {
 			break
 		}
-		nfsInfo := p.lastPvNfsInfoMap[pvName]
+		nfsInfo, found := p.lastPvNfsInfoMap[pvName]
+		if p.client == nil {
+			if !found {
+				continue
+			}
+			nfsInfo.ServerName = pvNameServerMap[pvName]
+		}
 
 		wg.Add(1)
 		go func(pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, serverNameArgs string, statsArgs []string) {
@@ -301,15 +307,15 @@ func (p *nfsStatCollector) updateNfsInfoMap(ctx context.Context, thisPvNfsInfoMa
 		lastInfo, ok := (*lastPvNfsInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcNamespace, pvcName, serverName, err := getNasPvcByPvName(ctx, p.clientSet, p.crdClient, pv)
+			pvcNamespace, pvcName, server, err := getNasPvcByPvName(ctx, p.client, p.crdClient, pv, thisInfo.VolDataPath)
 			if err != nil {
 				continue
 			}
 			updateInfo := nfsInfo{
 				VolDataPath:  thisInfo.VolDataPath,
 				PvcName:      pvcName,
+				ServerName:   server,
 				PvcNamespace: pvcNamespace,
-				ServerName:   serverName,
 			}
 			(*lastPvNfsInfoMap)[pv] = updateInfo
 		}
@@ -323,36 +329,49 @@ func (p *nfsStatCollector) updateNfsInfoMap(ctx context.Context, thisPvNfsInfoMa
 	}
 }
 
-func getNfsStat() (map[string][]string, error) {
+func getNfsStat() (map[string]string, map[string][]string, error) {
+	pvServerMapping := make(map[string]string, 0)
 	pvNameStatMapping := make(map[string][]string, 0)
 	mountStatsFile, err := os.Open(nfsStatsFileName)
 	if mountStatsFile == nil {
-		return nil, fmt.Errorf("File %s is not found.", nfsStatsFileName)
+		return nil, nil, fmt.Errorf("file %s not found", nfsStatsFileName)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Open file %s is error, err:%s", nfsStatsFileName, err)
+		return nil, nil, fmt.Errorf("failed to open file %s: %w", nfsStatsFileName, err)
 	}
 	defer mountStatsFile.Close()
 	mountArr, err := parseMountStats(mountStatsFile)
 	if err != nil {
-		return nil, fmt.Errorf("ParseMountStats %s is error, err:%s.", nfsStatsFileName, err)
+		return nil, nil, fmt.Errorf("failed to parse mount stats %s: %w", nfsStatsFileName, err)
 	}
 	for _, mount := range mountArr {
+		pvName := getPVName(mount)
+		server, _, _ := strings.Cut(mount.Device, ":/")
+		pvServerMapping[pvName] = server
 		nfsOperationStats := mount.Stats.operationStats()
 		for _, operation := range nfsOperationStats {
-			addNfsStat(&pvNameStatMapping, mount.Mount, operation, "READ")
+			addNfsStat(&pvNameStatMapping, pvName, operation, "READ")
 		}
 		for _, operation := range nfsOperationStats {
-			addNfsStat(&pvNameStatMapping, mount.Mount, operation, "WRITE")
+			addNfsStat(&pvNameStatMapping, pvName, operation, "WRITE")
 		}
 	}
-	return pvNameStatMapping, nil
+	return pvServerMapping, pvNameStatMapping, nil
 }
 
-func addNfsStat(pvNameStatMapping *map[string][]string, mountPath string, operationStat NFSOperationStats, keyWord string) {
+func getPVName(mount *Mount) string {
+	if mount == nil {
+		return ""
+	}
+	paths := strings.Split(mount.Mount, "/")
+	if len(paths) < 2 {
+		return ""
+	}
+	return paths[len(paths)-2]
+}
+
+func addNfsStat(pvNameStatMapping *map[string][]string, pvName string, operationStat NFSOperationStats, keyWord string) {
 	if operationStat.Operation == keyWord {
-		pathArr := strings.Split(mountPath, "/")
-		pvName := pathArr[len(pathArr)-2]
 		if len((*pvNameStatMapping)[pvName]) >= NFSMetricsCount {
 			return
 		}

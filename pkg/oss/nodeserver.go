@@ -74,8 +74,10 @@ func detectKernelRecoverySupport() bool {
 }
 
 const (
-	// metricsPathPrefix
+	// metricsPathPrefix is used when csi-plugin can reach the host mount namespace
 	metricsPathPrefix = "/host/var/run/ossfs/"
+	// agentMetricsPathPrefix is used by csi-agent inside a MicroVM guest
+	agentMetricsPathPrefix = "/var/run/ossfs/"
 
 	// LogKernelSupportsRecovery is the log message emitted at startup when the
 	// node kernel satisfies FUSE recovery prerequisites. E2E tests match on this
@@ -332,7 +334,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		var metricsPath string
 		if notMntTarget {
 			// new mounts
-			metricsPath = utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, opts.FuseType, "oss", opts.MountBucket())
+			metricsPath = utils.WriteMetricsInfo(getMetricsPathPrefixByRuntimeType(runtimeType), req, opts.MetricsTop, opts.FuseType, "oss", opts.MountBucket())
 		}
 		// fd-passing and recovery are not enabled for RunD/MicroVM:
 		// 1. Both depend on ProxyMounter (only available for RunC/RunD with proxy)
@@ -420,6 +422,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
+func getMetricsPathPrefixByRuntimeType(runtimeType RuntimeType) string {
+	if runtimeType == RuntimeTypeMicroVM {
+		return agentMetricsPathPrefix
+	}
+	return metricsPathPrefix
+}
+
 func validateNodeUnpublishVolumeRequest(m mountutils.Interface, req *csi.NodeUnpublishVolumeRequest) error {
 	valid, err := utils.ValidateMountTarget(m, req.GetTargetPath())
 	if !valid {
@@ -453,6 +462,13 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", targetPath, err)
 	}
 	klog.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", targetPath)
+	if ns.skipGlobalMount {
+		for _, prefix := range []string{agentMetricsPathPrefix, metricsPathPrefix} {
+			if err := utils.RemovePublishedMetrics(prefix, req.VolumeId, targetPath); err != nil {
+				klog.ErrorS(err, "Failed to clean published OSS metrics", "target", targetPath)
+			}
+		}
+	}
 
 	// Best-effort cleanup of overlay lower dir (FUSE mount).
 	// In RunD/Sandbox with overlay, mount-proxy-server mounted FUSE to a lower dir.
@@ -490,7 +506,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", attachPath, err)
 	}
 
-	// The metricsPath in fuse Pod will be cleaned and not allowed to update the metrics
+	// The metricsPath in fuse Pod will be cleaned and not allowed to update the metrics.
 	utils.RemoveMetrics(metricsPathPrefix, req)
 
 	// fuseUnsafe=false: legacy staging path never used fd-passing, no "daemon dead + fd held" scenario

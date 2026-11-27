@@ -701,52 +701,47 @@ var (
 	}
 )
 
-func getFuseMetricDirs() map[string]string {
-	metricsDirs := make(map[string]string)
-	for fsType, dirs := range fuseMetricDirs {
-		for _, dir := range dirs {
-			if utils.IsFileExisting(dir) {
-				metricsDirs[fsType] = dir
-				break
-			}
-		}
-	}
-	return metricsDirs
-}
-
 func (p *usFsStatCollector) Update(ctx context.Context, pvcs sets.Set[string], ch chan<- prometheus.Metric) error {
-	metricDirs := getFuseMetricDirs()
-	fsClientInfo := new(fuseInfo)
-	for _, dir := range metricDirs {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if !utils.IsFileExisting(dir) {
-			continue
-		}
-		subdirs, err := listDirectory(dir)
-		if err != nil {
-			klog.ErrorS(err, "Failed to list directory", "dir", dir)
-			continue
-		}
-
-		for _, subdir := range subdirs {
-			if err := ctx.Err(); err != nil {
+	for _, dirs := range fuseMetricDirs {
+		seen := sets.New[string]()
+		for _, dir := range dirs {
+			if err := p.collectFuseDir(ctx, dir, seen, ch); err != nil {
 				return err
 			}
-			if utils.IsFileExisting(filepath.Join(dir, subdir, utils.PodInfoFile)) {
-				// exclusive metrics case, subdir is podUid
-				p.updateExclusiveMetrics(dir, subdir, fsClientInfo, ch)
-				continue
-			}
-			// shared metrics case, subdir is sha256(pvname)
-			p.updateSharedMetrics(dir, subdir, fsClientInfo, ch)
 		}
 	}
 	return nil
 }
 
-func (p *usFsStatCollector) updateExclusiveMetrics(fuseMetricsDir, podUid string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) collectFuseDir(ctx context.Context, dir string, seen sets.Set[string], ch chan<- prometheus.Metric) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !utils.IsFileExisting(dir) {
+		return nil
+	}
+	subdirs, err := listDirectory(dir)
+	if err != nil {
+		klog.ErrorS(err, "Failed to list directory", "dir", dir)
+		return nil
+	}
+
+	for _, subdir := range subdirs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if utils.IsFileExisting(filepath.Join(dir, subdir, utils.PodInfoFile)) {
+			// exclusive metrics case, subdir is podUid
+			p.updateExclusiveMetrics(dir, subdir, seen, ch)
+			continue
+		}
+		// shared metrics case, subdir is sha256(pvname)
+		p.postVolMetrics(dir, subdir, &fuseInfo{}, seen, ch)
+	}
+	return nil
+}
+
+func (p *usFsStatCollector) updateExclusiveMetrics(fuseMetricsDir, podUid string, seen sets.Set[string], ch chan<- prometheus.Metric) {
 	//get pod info
 	podInfoArray, err := readFirstLines(filepath.Join(fuseMetricsDir, podUid, utils.PodInfoFile))
 	if err != nil {
@@ -756,6 +751,7 @@ func (p *usFsStatCollector) updateExclusiveMetrics(fuseMetricsDir, podUid string
 	if len(podInfoArray) < 4 {
 		return
 	}
+	fsClientInfo := new(fuseInfo)
 	fsClientInfo.Namespace = podInfoArray[0]
 	fsClientInfo.PodName = podInfoArray[1]
 	fsClientInfo.PodUID = podInfoArray[2]
@@ -766,18 +762,14 @@ func (p *usFsStatCollector) updateExclusiveMetrics(fuseMetricsDir, podUid string
 	}
 	// foreach volume
 	for _, volume := range volumeArray {
-		volPath := filepath.Join(fuseMetricsDir, podUid, volume)
-		p.postVolMetrics(volPath, fsClientInfo, ch)
+		if volume != utils.PodInfoFile {
+			p.postVolMetrics(fuseMetricsDir, filepath.Join(podUid, volume), fsClientInfo, seen, ch)
+		}
 	}
 }
 
-func (p *usFsStatCollector) updateSharedMetrics(fuseMetricsDir, subDir string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
-	// /var/run/fsType/sha256(pvname)
-	volPath := filepath.Join(fuseMetricsDir, subDir)
-	p.postVolMetrics(volPath, fsClientInfo, ch)
-}
-
-func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
+func (p *usFsStatCollector) postVolMetrics(dir, volume string, fsClientInfo *fuseInfo, seen sets.Set[string], ch chan<- prometheus.Metric) {
+	volPath := filepath.Join(dir, volume)
 	mountPointInfoArray, err := readFirstLines(filepath.Join(volPath, utils.MountPointInfoFile))
 	if err != nil {
 		return
@@ -791,44 +783,58 @@ func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInf
 	fsClientInfo.BucketName = mountPointInfoArray[2]
 	fsClientInfo.PvName = mountPointInfoArray[3]
 	fsClientInfo.MountPoint = mountPointInfoArray[4]
+	// Multiple prefixes may expose the same volume. Deduplicate per file so
+	// metadata left in an older directory cannot mask counters in the guest.
+	readMetric := func(name string) []string {
+		key := filepath.Join(volume, name)
+		if seen.Has(key) {
+			return nil
+		}
+		path := filepath.Join(volPath, name)
+		var values []string
+		var err error
+		if name == utils.MetricsLastFuseClientExitReason {
+			var value string
+			value, err = readAllContent(path)
+			values = []string{value}
+		} else {
+			values, err = readFirstLines(path)
+		}
+		if err != nil || len(values) == 0 {
+			return nil
+		}
+		seen.Insert(key)
+		return values
+	}
 	// foreach counter metrics
 	for _, counterType := range counterTypeArray {
-		metricsArray, err := readFirstLines(filepath.Join(volPath, counterType))
-		if err != nil {
+		metricsArray := readMetric(counterType)
+		if len(metricsArray) == 0 {
 			continue
 		}
 		p.postCounterMetrics(counterType, fsClientInfo, metricsArray, ch)
 	}
 	// foreach hot_top_file metrics
 	for _, hotSpotType := range hotSpotArray {
-		metricsArray, err := readFirstLines(filepath.Join(volPath, hotSpotType))
-		if err != nil {
+		metricsArray := readMetric(hotSpotType)
+		if len(metricsArray) == 0 {
 			continue
 		}
 		p.postHotTopFileMetrics(hotSpotType, fsClientInfo, metricsArray, ch)
 	}
 	// foreach backend counter metrics
 	for _, backendCounterType := range backendCounterTypeArray {
-		metricsArray, err := readFirstLines(filepath.Join(volPath, backendCounterType))
-		if err != nil {
+		metricsArray := readMetric(backendCounterType)
+		if len(metricsArray) == 0 {
 			continue
 		}
 		p.postBackendCounterMetrics(backendCounterType, fsClientInfo, metricsArray, ch)
 	}
 	// foreach mountpoint status related metrics
 	for _, mountPointStatus := range mountPointStatusArray {
-		var metricsArray []string
-		if mountPointStatus == utils.MetricsLastFuseClientExitReason {
-			metrics, err := readAllContent(filepath.Join(volPath, mountPointStatus))
-			if err != nil {
-				continue
-			}
-			metricsArray = []string{metrics}
-		} else {
-			metricsArray, err = readFirstLines(filepath.Join(volPath, mountPointStatus))
-			if err != nil {
-				continue
-			}
+		metricsArray := readMetric(mountPointStatus)
+		if len(metricsArray) == 0 {
+			continue
 		}
 		p.postMountPointStatusMetrics(mountPointStatus, fsClientInfo, metricsArray, ch)
 	}
