@@ -26,7 +26,7 @@ libtirpc-common 1.3.6+ds-1
 libtirpc3t64 1.3.6+ds-1
 liburcu8t64 0.15.2-2
 libuuid1 2.41.5-0+deb13u1
-libzstd1 1.5.7+dfsg-1
+libzstd1 1.5.7+dfsg-1+deb13u1
 media-types 13.0.0
 mount 2.41.5-0+deb13u1
 netbase 6.5
