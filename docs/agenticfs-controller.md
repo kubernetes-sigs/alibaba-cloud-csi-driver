@@ -125,3 +125,43 @@ When changing policy, test both the returned CSI status and whether subsequent N
 calls were prevented. In particular, never weaken ownership validation, treat a
 failed listing as empty, add compensation on creation failure, or infer space
 absence from an accesspoint error merely to make a retry succeed.
+
+## OpenAPI rate limits
+
+NAS meters the control plane per (region, action, account), so the driver keeps
+one adaptive token bucket per action instead of sharing one budget:
+
+| Variable | Meaning | Default |
+|---|---|---|
+| `NAS_LIMIT_PERSECOND` | aggregate ceiling across all actions | 200 |
+| `NAS_ACTION_LIMIT_PERSECOND` | rate an action starts at | 40, the measured operating point |
+| `NAS_ACTION_MAX_PERSECOND` | ceiling an action may grow to | the aggregate ceiling |
+
+`CreateDir` starts at 20 QPS and `DescribeFileSystems` at 100 QPS from the
+published quota table. Every other action starts at the per-action rate.
+
+Each action discovers its own quota instead of being told it:
+
+- Slow start doubles the rate every second while calls succeed: from the 40 QPS
+  start, 40 - 80 - 160 - 200 takes about three seconds.
+- The first `Throttling.*` response ends slow start and multiplies the rate by
+  0.75. A burst of concurrent throttles counts as one event (5s window).
+- From then on the rate grows by 1 QPS every 5 seconds, so a raised account
+  quota is picked up without a restart, and a quota shared with another
+  consumer is tracked without hammering it.
+
+A throttled call is retried up to five times with jittered exponential backoff,
+bounded by the request context, and the token is acquired before every attempt
+so a retry still spends the action's budget.
+
+Discovery costs one overshoot per action: at most one slow-start step beyond
+the real quota (64 QPS against a 40 QPS quota is one second's worth of rejected
+requests), after which every probe adds a single QPS. On the reference account,
+300 concurrent AgenticFS volumes at 40 QPS per write action completed in 19.0s
+with zero throttling, while an effective 200 took 149s with 100 throttling
+responses.
+
+`NAS_LIMIT_PERSECOND` used to be the only bucket. It now caps the aggregate
+only, so a deployment that set it to a small value to protect the account
+(the old 40) will keep that aggregate cap and see no per-action parallelism
+until it is raised.
