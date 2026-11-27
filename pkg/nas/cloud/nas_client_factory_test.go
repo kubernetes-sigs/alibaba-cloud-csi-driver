@@ -60,3 +60,34 @@ func TestNasClientFactoryV2(t *testing.T) {
 	actual, _ := NewNasClientFactory().V2("cn-hangzhou")
 	assert.NotNil(t, actual)
 }
+
+// The adaptive buckets are not specific to agentic volumes: subpath, accesspoint
+// and sharepath controllers call these actions through the same V2 client.
+func TestNasClientFactoryCoversNonAgenticActions(t *testing.T) {
+	t.Parallel()
+	fac := NewNasClientFactory()
+	for _, action := range []string{
+		"CreateDir", "SetDirQuota", "CancelDirQuota", "GetRecycleBinAttribute", // subpath
+		"CreateAccessPoint", "DeleteAccessPoint", "DescribeAccessPoint", // accesspoint
+		"DescribeFileSystems", // sharepath
+	} {
+		_, ok := fac.actionLimiters[action]
+		assert.True(t, ok, "%s must have its own bucket", action)
+	}
+}
+
+// Every client built by one factory passes through the same aggregate bucket,
+// so NAS_LIMIT_PERSECOND still caps the process as a whole, whatever mix of
+// volume modes it serves.
+func TestNasClientFactoryClientsShareAggregate(t *testing.T) {
+	t.Setenv("NAS_LIMIT_PERSECOND", "6")
+	fac := NewNasClientFactory()
+	a, err := fac.V2("cn-hangzhou")
+	require.NoError(t, err)
+	b, err := fac.V2("cn-shanghai")
+	require.NoError(t, err)
+	ca, cb := a.(*NasClientV2), b.(*NasClientV2)
+	assert.Same(t, fac.limiter, ca.limiter)
+	assert.Same(t, ca.limiter, cb.limiter)
+	assert.Equal(t, float64(6), float64(ca.limiter.Limit()))
+}
