@@ -3,6 +3,8 @@ package throttle
 import (
 	"context"
 	"errors"
+	"fmt"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -11,10 +13,9 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	alierrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
-	"k8s.io/utils/clock"
-	testclock "k8s.io/utils/clock/testing"
 )
 
 var ErrThrottling error = alierrors.NewServerError(400, `{"Code": "Throttling"}`, "")
@@ -64,6 +65,313 @@ func TestV2Classifier(t *testing.T) {
 	}
 }
 
+type controlledAPI struct {
+	calls   chan chan error
+	results chan error
+}
+
+func newControlledAPI(requests int) *controlledAPI {
+	return &controlledAPI{
+		calls:   make(chan chan error, requests),
+		results: make(chan error, requests),
+	}
+}
+
+func (a *controlledAPI) start(ctx context.Context, throttler *Throttler, requests int) {
+	for range requests {
+		go func() {
+			a.results <- throttler.Throttle(ctx, func() error {
+				response := make(chan error, 1)
+				a.calls <- response
+				select {
+				case err := <-response:
+					return err
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			})
+		}()
+	}
+}
+
+func (a *controlledAPI) finish(requests int, err error) {
+	for range requests {
+		(<-a.calls) <- err
+	}
+}
+
+func startRecovery(t *testing.T, requests int) *controlledAPI {
+	t.Helper()
+	throttler := NewThrottler(time.Second, 8*time.Second, V1Classifier)
+	api := newControlledAPI(requests)
+	api.start(t.Context(), throttler, 1)
+	synctest.Wait()
+	api.finish(1, ErrThrottling)
+	synctest.Wait()
+	api.start(t.Context(), throttler, requests-1)
+	synctest.Wait()
+	require.Empty(t, api.calls)
+	time.Sleep(time.Second)
+	synctest.Wait()
+	require.Len(t, api.calls, 1)
+	api.finish(1, nil)
+	synctest.Wait()
+	require.Len(t, api.calls, 16)
+	return api
+}
+
+func TestAdmissionWindowCap(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		throttler := NewThrottler(time.Second, 8*time.Second, V1Classifier)
+		api := newControlledAPI(1024)
+		api.start(t.Context(), throttler, 1024)
+		synctest.Wait()
+		require.Len(t, api.calls, 512)
+
+		api.finish(1, nil)
+		synctest.Wait()
+		assert.Len(t, api.calls, 512)
+		assert.NoError(t, <-api.results)
+	})
+}
+
+func TestRecoveryWindowGrowth(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		api := startRecovery(t, 2048)
+		for _, window := range []int{16, 32, 64, 128, 256} {
+			api.finish(window, nil)
+			synctest.Wait()
+			require.Len(t, api.calls, window*2)
+		}
+		api.finish(1, nil)
+		synctest.Wait()
+		assert.Len(t, api.calls, 512)
+	})
+}
+
+func TestRecoverySecondQuota(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		api := startRecovery(t, 1000)
+		// The probe consumes one request of the 50-request quota.
+		for range 49 {
+			api.finish(1, nil)
+			synctest.Wait()
+		}
+		require.Len(t, api.calls, 65)
+		require.Len(t, api.results, 50)
+		// Only 115 attempts (50 accepted + 65 outstanding) were issued,
+		// rather than retrying the entire backlog in this quota period.
+		api.finish(65, ErrThrottling)
+		synctest.Wait()
+		require.Empty(t, api.calls)
+	})
+}
+
+func TestRecoveryCompletionClassification(t *testing.T) {
+	tests := []struct {
+		name   string
+		err    error
+		window int
+	}{
+		{name: "accepted cloud error", err: alierrors.NewServerError(400, `{"Code":"InvalidParameter"}`, ""), window: 17},
+		{name: "unknown error", err: errors.New("network failure"), window: 16},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				api := startRecovery(t, 100)
+				assert.NoError(t, <-api.results)
+				api.finish(1, tt.err)
+				synctest.Wait()
+				assert.Len(t, api.calls, tt.window)
+				assert.Same(t, tt.err, <-api.results)
+			})
+		})
+	}
+}
+
+func TestStaleRecoveryCompletions(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		api := startRecovery(t, 100)
+		var recovery [16]chan error
+		for i := range recovery {
+			recovery[i] = <-api.calls
+		}
+
+		recovery[0] <- ErrThrottling
+		synctest.Wait()
+		recovery[1] <- nil
+		recovery[2] <- ErrThrottling
+		synctest.Wait()
+		require.Empty(t, api.calls)
+
+		// Old failures do not extend backoff, and old successes cannot end it.
+		time.Sleep(time.Second)
+		synctest.Wait()
+		require.Len(t, api.calls, 1)
+		api.finish(1, nil)
+		synctest.Wait()
+		// Thirteen old calls still occupy slots in the new window.
+		require.Len(t, api.calls, 3)
+
+		recovery[3] <- nil
+		synctest.Wait()
+		require.Len(t, api.calls, 4)
+		recovery[4] <- ErrThrottling
+		synctest.Wait()
+		assert.Len(t, api.calls, 5)
+	})
+}
+
+func TestProbeBackoffDelay(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		throttler := NewThrottler(time.Second, 8*time.Second, V1Classifier)
+		api := newControlledAPI(2)
+		api.start(t.Context(), throttler, 2)
+		synctest.Wait()
+		require.Len(t, api.calls, 2)
+		api.finish(2, ErrThrottling)
+		synctest.Wait()
+
+		for _, delay := range []time.Duration{time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 8 * time.Second} {
+			time.Sleep(delay - time.Millisecond)
+			synctest.Wait()
+			require.Empty(t, api.calls)
+			time.Sleep(time.Millisecond)
+			synctest.Wait()
+			require.Len(t, api.calls, 1)
+			api.finish(1, ErrThrottling)
+			synctest.Wait()
+		}
+	})
+}
+
+func TestUnknownErrorOnProbing(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		throttler := NewThrottler(time.Second, 8*time.Second, V1Classifier)
+		api := newControlledAPI(1)
+		api.start(t.Context(), throttler, 1)
+		synctest.Wait()
+		api.finish(1, ErrThrottling)
+		synctest.Wait()
+		time.Sleep(time.Second)
+		synctest.Wait()
+		require.Len(t, api.calls, 1)
+		errUnknown := errors.New("unknown error")
+		api.finish(1, errUnknown)
+		synctest.Wait()
+		assert.Same(t, errUnknown, <-api.results)
+
+		// An unknown response releases ownership for another immediate probe.
+		api.start(t.Context(), throttler, 1)
+		synctest.Wait()
+		require.Len(t, api.calls, 1)
+		api.finish(1, nil)
+		synctest.Wait()
+		assert.NoError(t, <-api.results)
+	})
+}
+
+func TestCanceledAdmissionHandoff(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		throttler := NewThrottler(time.Second, 8*time.Second, V1Classifier)
+		throttler.window = 1
+		ticket, err := throttler.acquire(t.Context())
+		require.NoError(t, err)
+		throttler.complete(t.Context(), ticket, ClassUnknown, "")
+		require.Len(t, throttler.ready, 1)
+
+		// A waiter receives the notification, then notices cancellation.
+		<-throttler.ready
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err = throttler.acquire(ctx)
+		assert.ErrorIs(t, err, context.Canceled)
+		assert.Len(t, throttler.ready, 1)
+	})
+}
+
+func TestStaleReadyNotification(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		throttler := NewThrottler(time.Second, 8*time.Second, V1Classifier)
+		throttler.window = 1
+		ticket, err := throttler.acquire(t.Context())
+		require.NoError(t, err)
+		require.Len(t, throttler.ready, 1)
+
+		api := newControlledAPI(1)
+		api.start(t.Context(), throttler, 1)
+		synctest.Wait()
+		require.Empty(t, api.calls)
+		require.Empty(t, throttler.ready)
+
+		throttler.complete(t.Context(), ticket, ClassUnknown, "")
+		synctest.Wait()
+		require.Len(t, api.calls, 1)
+		api.finish(1, nil)
+		synctest.Wait()
+		assert.NoError(t, <-api.results)
+	})
+}
+
+func TestCanceledProbeHandoff(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		throttler := NewThrottler(time.Second, 8*time.Second, V1Classifier)
+		ownerCtx, cancelOwner := context.WithCancel(t.Context())
+		defer cancelOwner()
+		ownerResult := make(chan error, 1)
+		go func() {
+			ownerResult <- throttler.Throttle(ownerCtx, func() error { return ErrThrottling })
+		}()
+		synctest.Wait()
+
+		api := newControlledAPI(1)
+		api.start(t.Context(), throttler, 1)
+		synctest.Wait()
+		require.Empty(t, api.calls)
+		time.Sleep(500 * time.Millisecond)
+		cancelOwner()
+		synctest.Wait()
+		assert.ErrorIs(t, <-ownerResult, context.Canceled)
+		require.Empty(t, api.calls)
+
+		// The surviving waiter inherits the original probe deadline.
+		time.Sleep(500 * time.Millisecond)
+		synctest.Wait()
+		require.Len(t, api.calls, 1)
+		api.finish(1, nil)
+		synctest.Wait()
+		assert.NoError(t, <-api.results)
+	})
+}
+
+func TestCancelAtAdmissionWindow(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		throttler := NewThrottler(time.Second, 8*time.Second, V1Classifier)
+		api := newControlledAPI(512)
+		api.start(t.Context(), throttler, 512)
+		synctest.Wait()
+		require.Len(t, api.calls, 512)
+
+		waitingCtx, cancelWaiting := context.WithCancel(t.Context())
+		result := make(chan error, 1)
+		go func() {
+			result <- throttler.Throttle(waitingCtx, func() error {
+				t.Error("canceled waiter must not call the API")
+				return nil
+			})
+		}()
+		synctest.Wait()
+		cancelWaiting()
+		synctest.Wait()
+		assert.ErrorIs(t, <-result, context.Canceled)
+
+		api.finish(1, nil)
+		synctest.Wait()
+		assert.NoError(t, throttler.Throttle(t.Context(), func() error { return nil }))
+	})
+}
+
 func TestThrottlingStress(t *testing.T) { synctest.Test(t, testThrottlingStressSync) }
 func testThrottlingStressSync(t *testing.T) {
 	logger, ctx := ktesting.NewTestContext(t)
@@ -81,7 +389,7 @@ func testThrottlingStressSync(t *testing.T) {
 			return nil
 		}
 	}
-	throttler := NewThrottler(clock.RealClock{}, 1*time.Second, 8*time.Second, V1Classifier)
+	throttler := NewThrottler(1*time.Second, 8*time.Second, V1Classifier)
 
 	for i := range reqCount {
 		go func() {
@@ -137,68 +445,31 @@ func testThrottlingStressSync(t *testing.T) {
 	time.Sleep(time.Millisecond * 20) // wait for all workers to finish current requests
 }
 
-func TestThrottleErrorPassThrough(t *testing.T) {
-	_, ctx := ktesting.NewTestContext(t)
-	clk := testclock.NewFakeClock(time.Now())
-	throttler := NewThrottler(clk, time.Second*1, time.Second*10, V1Classifier)
-
-	testErr := func(t *testing.T, expectedErr error) {
-		f := func() error {
-			return expectedErr
-		}
-		err := throttler.Throttle(ctx, f)
-		assert.Same(t, expectedErr, err)
+func BenchmarkAdmission(b *testing.B) {
+	for _, window := range []int{16, 512} {
+		b.Run(fmt.Sprintf("window=%d", window), func(b *testing.B) {
+			for _, parallelism := range []int{1, 128} {
+				b.Run(fmt.Sprintf("parallelism=%d", parallelism), func(b *testing.B) {
+					// Keep the window fixed to isolate notification overhead.
+					throttler := NewThrottler(time.Second, 8*time.Second, func(error) (Class, string) {
+						return ClassUnknown, ""
+					})
+					throttler.window = window
+					b.SetParallelism(parallelism)
+					ctx := b.Context()
+					b.RunParallel(func(pb *testing.PB) {
+						for pb.Next() {
+							if err := throttler.Throttle(ctx, func() error {
+								runtime.Gosched()
+								return nil
+							}); err != nil {
+								b.Error(err)
+								return
+							}
+						}
+					})
+				})
+			}
+		})
 	}
-
-	t.Run("unknown", func(t *testing.T) {
-		testErr(t, errors.New("unknown error"))
-	})
-	t.Run("server error", func(t *testing.T) {
-		testErr(t, alierrors.NewServerError(400, `{"Code": "Test"}`, ""))
-	})
-}
-
-func TestCancelAtDelay(t *testing.T) { synctest.Test(t, testCancelAtDelaySync) }
-func testCancelAtDelaySync(t *testing.T) {
-	throttler := NewThrottler(clock.RealClock{}, time.Second*1, time.Second*10, V1Classifier)
-
-	_, ctx := ktesting.NewTestContext(t)
-	ctxToCancel, cancel := context.WithCancel(ctx)
-	for range 2 {
-		// One should block at probing delay, another should block on reading tCtx.probing
-		go func() {
-			err := throttler.Throttle(ctxToCancel, func() error {
-				return ErrThrottling
-			})
-			assert.ErrorIs(t, err, context.Canceled)
-		}()
-	}
-	time.Sleep(time.Millisecond * 10)
-	cancel()
-
-	// Another request should still go through, canceling should not break throttler state.
-	err := throttler.Throttle(ctx, func() error { return nil })
-	assert.NoError(t, err)
-}
-
-func TestUnknownErrorOnProbing(t *testing.T) { synctest.Test(t, testUnknownErrorOnProbingSync) }
-func testUnknownErrorOnProbingSync(t *testing.T) {
-	_, ctx := ktesting.NewTestContext(t)
-	throttler := NewThrottler(clock.RealClock{}, time.Second*1, time.Second*10, V1Classifier)
-
-	errUnknown := errors.New("unknown error")
-	var errRet atomic.Pointer[error]
-	errRet.Store(&ErrThrottling)
-	go func() {
-		err := throttler.Throttle(ctx, func() error { return *errRet.Load() })
-		assert.Equal(t, err, errUnknown)
-	}()
-
-	time.Sleep(time.Millisecond * 10)
-	errRet.Store(&errUnknown)
-	time.Sleep(time.Second)
-
-	// initiate next probe immediately
-	err := throttler.Throttle(ctx, func() error { return nil })
-	assert.NoError(t, err)
 }

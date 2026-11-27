@@ -236,7 +236,7 @@ func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batch
 }
 
 func defaultThrottler() *throttle.Throttler {
-	return throttle.NewThrottler(clock.RealClock{}, 1*time.Second, 10*time.Second, throttle.V1Classifier)
+	return throttle.NewThrottler(1*time.Second, 10*time.Second, throttle.V1Classifier)
 }
 
 // parseLingjunNodeDiskTypes parses allowed disk types for Lingjun nodes from a comma-separated string.
