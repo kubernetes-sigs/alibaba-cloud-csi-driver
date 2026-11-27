@@ -67,6 +67,8 @@ csi:
     rrsaCASecretName: oidc-proxy-ca
   oss:
     enabled: true
+    # RRSA endpoints whose TLS certificates are verified with the cluster CA.
+    rrsaClusterCAEndpoints: []
     controller:
       enabled: true
   local:

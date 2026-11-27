@@ -122,6 +122,10 @@ spec:
                   apiVersion: v1
                   fieldPath: spec.nodeName
             {{- include "networkEnv" $nodePool.deploy | nindent 12 }}
+{{- with $nodePool.csi.oss.rrsaClusterCAEndpoints }}
+            - name: OSS_RRSA_CLUSTER_CA_ENDPOINTS
+              value: {{ join "," . | quote }}
+{{- end }}
 {{- if $nodePool.deploy.regionID }}
             - name: REGION_ID
               value: {{ $nodePool.deploy.regionID | quote }}

@@ -82,6 +82,24 @@ func (t testFuse) AddDefaultMountOptions(options []string, mountFlags []string) 
 }
 
 func TestCreate(t *testing.T) {
+	for _, test := range []struct {
+		name, bucket, parent, path, wantTarget string
+		auth                                   *AuthConfig
+	}{
+		{name: "non OSS"},
+		{name: "delegated role chain", bucket: "bucket", wantTarget: "oss://bucket", auth: &AuthConfig{DelegatedAssumeRoleARN: "target-role", DelegatedExternalID: "external-id"}},
+		{name: "ordinary bucket", bucket: "bucket", path: "/workspace", wantTarget: "oss://bucket/workspace"},
+		{name: "BucketSpace root", bucket: "space-bs-apsr", parent: "parent-ab-apsr", path: "/", wantTarget: "oss://space-bs-apsr"},
+		{name: "BucketSpace subpath", bucket: "space-bs-apsr", parent: "parent-ab-apsr", path: "/workspace", wantTarget: "oss://space-bs-apsr/workspace"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			testCreate(t, test.bucket, test.parent, test.path, test.wantTarget, test.auth)
+		})
+	}
+}
+
+func testCreate(t *testing.T, bucket, parent, path, wantTarget string, auth *AuthConfig) {
+	t.Helper()
 	_, ctx := ktesting.NewTestContext(t)
 	client := fake.NewSimpleClientset()
 	client.PrependReactor("create", "pods", func(action clientgotesting.Action) (bool, runtime.Object, error) {
@@ -116,13 +134,29 @@ func TestCreate(t *testing.T) {
 		}
 	}()
 
-	_, err := fpm.Create(&FusePodContext{
-		Context:   ctx,
-		Namespace: "test-fuse",
-		VolumeId:  "test-volume",
-		NodeName:  "test-node",
+	pod, err := fpm.Create(&FusePodContext{
+		Context:       ctx,
+		Namespace:     "test-fuse",
+		VolumeId:      "test-volume",
+		NodeName:      "test-node",
+		Bucket:        bucket,
+		AgenticBucket: parent,
+		Path:          path,
+		AuthConfig:    auth,
 	}, "/run/test-fuse")
 	require.NoError(t, err)
+	assert.Equal(t, wantTarget, pod.Annotations[FuseMountTargetAnnoKey])
+	if auth != nil {
+		assert.Equal(t, auth.DelegatedAssumeRoleARN, pod.Annotations[FuseAssumeRoleARNAnnotation])
+		assert.Equal(t, auth.DelegatedExternalID, pod.Annotations[FuseExternalIDAnnotation])
+	} else {
+		assert.NotContains(t, pod.Annotations, FuseAssumeRoleARNAnnotation)
+		assert.NotContains(t, pod.Annotations, FuseExternalIDAnnotation)
+	}
+	assert.Equal(t, parent, pod.Annotations[FuseAgenticBucketAnnoKey])
+	if parent == "" {
+		assert.NotContains(t, pod.Annotations, FuseAgenticBucketAnnoKey)
+	}
 }
 
 func TestDelete(t *testing.T) {

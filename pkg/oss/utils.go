@@ -21,6 +21,7 @@ package oss
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"strconv"
@@ -242,6 +243,18 @@ func parseOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, volOpt
 			opts.SandboxCredProviderName = value
 		case "region":
 			opts.Region = value
+		case "rrsaendpoint":
+			opts.RRSAEndpoint = value
+		case "rrsacasecret":
+			opts.RRSACaSecret = value
+		case "rrsaaudience":
+			opts.RRSAAudience = value
+		case "rrsadelegateassumerole":
+			delegate, err := strconv.ParseBool(value)
+			if err != nil {
+				return nil, WrapOssError(ParamError, "rrsaDelegateAssumeRole must be a boolean")
+			}
+			opts.DelegateAssumeRole = delegate
 		case "sigversion":
 			switch ossfpm.SigVersion(value) {
 			case ossfpm.SigV1, ossfpm.SigV4:
@@ -664,6 +677,19 @@ func resolveBucketSpacePrefix(opts *ossfpm.Options, m metadata.MetadataProvider)
 
 // Check oss options
 func checkOssOptions(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager) error {
+	if opt.DelegateAssumeRole && (opt.AuthType != ossfpm.AuthTypeRRSA || opt.RRSAEndpoint == "" || opt.AssumeRoleArn == "") {
+		return WrapOssError(ParamError, "rrsaDelegateAssumeRole requires authType=rrsa, rrsaEndpoint and assumeRoleArn")
+	}
+	if opt.AuthType == ossfpm.AuthTypeRRSA && opt.RRSAEndpoint != "" {
+		if opt.ExternalId != "" && opt.AssumeRoleArn == "" {
+			return WrapOssError(ParamError, "externalId requires assumeRoleArn")
+		}
+		endpoint, err := url.Parse(opt.RRSAEndpoint)
+		if err != nil || endpoint.Scheme != "https" || endpoint.Hostname() == "" {
+			return WrapOssError(ParamError, "rrsaEndpoint must be an HTTPS URL with a host")
+		}
+	}
+
 	// common: either Bucket or BucketSpace must be set
 	if opt.URL == "" || opt.MountBucket() == "" {
 		return WrapOssError(ParamError, "Url/Bucket empty")
@@ -708,6 +734,10 @@ func makeAuthConfig(opt *ossfpm.Options, fpm *ossfpm.OSSFusePodManager, m metada
 	authCfg, err := fpm.MakeAuthConfig(opt, m)
 	if err != nil {
 		return nil, WrapOssError(AuthError, "%s: %v", opt.FuseType, err)
+	}
+	if opt.DelegateAssumeRole {
+		authCfg.DelegatedAssumeRoleARN = opt.AssumeRoleArn
+		authCfg.DelegatedExternalID = opt.ExternalId
 	}
 	return authCfg, nil
 }

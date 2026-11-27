@@ -17,6 +17,44 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+func TestRRSACAMount(t *testing.T) {
+	for _, secret := range []string{"", "proxy-ca"} {
+		t.Run(secret, func(t *testing.T) {
+			mounter := &fuseOssfs{}
+			config := &fpm.FusePodContext{AuthConfig: &fpm.AuthConfig{
+				AuthType: ossfpm.AuthTypeRRSA, RrsaConfig: &fpm.RrsaConfig{}, RRSACaSecret: secret,
+			}}
+			var spec corev1.PodSpec
+			var container corev1.Container
+			mounter.buildAuthSpec(config, "target", &spec, &container)
+			options, err := mounter.getAuthOptions(&ossfpm.Options{
+				AuthType: ossfpm.AuthTypeRRSA, RRSAEndpoint: "https://proxy.example.com", RRSACaSecret: secret,
+			}, "")
+			if !assert.NoError(t, err) {
+				return
+			}
+			const caOption = "rrsa_ca_file=/etc/ssl/certs/rrsa-ca/ca.crt"
+			if secret == "" {
+				assert.Len(t, spec.Volumes, 1)
+				assert.Len(t, container.VolumeMounts, 1)
+				assert.NotContains(t, options, caOption)
+				return
+			}
+			assert.Contains(t, spec.Volumes, corev1.Volume{
+				Name: "rrsa-ca",
+				VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{
+					SecretName: secret,
+					Items:      []corev1.KeyToPath{{Key: "ca.crt", Path: "ca.crt", Mode: new(int32(0644))}},
+				}},
+			})
+			assert.Contains(t, container.VolumeMounts, corev1.VolumeMount{
+				Name: "rrsa-ca", MountPath: "/etc/ssl/certs/rrsa-ca", ReadOnly: true,
+			})
+			assert.Contains(t, options, caOption)
+		})
+	}
+}
+
 func Test_buildPodSpec_dnsPolicy(t *testing.T) {
 	nodeName := "test-node-name"
 	volumeId := "test-pv-name"

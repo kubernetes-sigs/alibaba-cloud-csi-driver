@@ -36,6 +36,8 @@ const (
 	FuseVolumeIdLabelKey      = "csi.alibabacloud.com/volume-id"
 	FuseMountPathHashLabelKey = "csi.alibabacloud.com/mount-path-hash"
 	FuseMountPathAnnoKey      = "csi.alibabacloud.com/mount-path"
+	FuseMountTargetAnnoKey    = "csi.alibabacloud.com/mount-target" // oss://bucket/path format
+	FuseAgenticBucketAnnoKey  = "csi.alibabacloud.com/agentic-bucket"
 	FuseSafeToEvictAnnoKey    = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 	ACKDrainLabelKey          = "alibabacloud.com/drain-pod"
 )
@@ -52,10 +54,23 @@ func fusePodNamePrefix(driverName, fuseType string) string {
 	return "csi-fuse-" + driverName + "-"
 }
 
+const (
+	FuseAssumeRoleARNAnnotation = "csi.alibabacloud.com/assume-role-arn"
+	FuseExternalIDAnnotation    = "csi.alibabacloud.com/assume-role-external-id"
+)
+
 type AuthConfig struct {
-	AuthType string
+	// DelegatedAssumeRoleARN and DelegatedExternalID are for the RRSA endpoint's second
+	// STS call. They are stored on the FUSE Pod and omitted from ossfs options.
+	DelegatedAssumeRoleARN string
+	DelegatedExternalID    string
+	AuthType               string
 	// for RRSA
 	RrsaConfig *RrsaConfig
+	// RRSA endpoint options (from PV volumeAttributes)
+	RRSAEndpoint string // Endpoint used to exchange the RRSA token
+	RRSACaSecret string // Secret containing CA cert
+	RRSAAudience string // Projected token audience
 	// for csi-secret-store
 	SecretProviderClassName string
 	// for AK/SK with or without token
@@ -115,6 +130,10 @@ type FusePodContext struct {
 	Recovery          bool
 	AuthConfig        *AuthConfig
 	PodTemplateConfig *PodTemplateConfig
+	// OSS mount target for session policy generation
+	Bucket        string
+	AgenticBucket string
+	Path          string
 	// EntrypointConfig is the name of a ConfigMap (in the fuse pod namespace)
 	// to mount at /etc/fuse-config/ inside the fuse container.
 	EntrypointConfig string
@@ -364,6 +383,24 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string) (*corev1.Pod
 		}
 		rawPod.Annotations[FuseMountPathAnnoKey] = target
 		rawPod.Annotations[FuseSafeToEvictAnnoKey] = "true"
+		// Add the mount-target annotation: oss://bucket/path
+		if c.Bucket != "" {
+			mountTarget := "oss://" + c.Bucket
+			if c.Path != "" && c.Path != "/" {
+				mountTarget += "/" + strings.TrimPrefix(c.Path, "/")
+			}
+			rawPod.Annotations[FuseMountTargetAnnoKey] = mountTarget
+			if c.AgenticBucket != "" {
+				rawPod.Annotations[FuseAgenticBucketAnnoKey] = c.AgenticBucket
+			}
+		}
+
+		if c.AuthConfig != nil && c.AuthConfig.DelegatedAssumeRoleARN != "" {
+			rawPod.Annotations[FuseAssumeRoleARNAnnotation] = c.AuthConfig.DelegatedAssumeRoleARN
+			if c.AuthConfig.DelegatedExternalID != "" {
+				rawPod.Annotations[FuseExternalIDAnnotation] = c.AuthConfig.DelegatedExternalID
+			}
+		}
 
 		logger.V(2).Info("creating fuse pod", "target", target)
 		createdPod, err := podClient.Create(ctx, &rawPod, metav1.CreateOptions{})
