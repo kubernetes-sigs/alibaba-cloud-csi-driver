@@ -49,10 +49,10 @@ if [[ -z "${OSSFS_IMAGE_TAG}" || -z "${OSSFS2_IMAGE_TAG}" || -z "${OSSFS2_FAILOV
     exit 1
 fi
 
-# Extract RPM versions from image tags by removing the commit hash suffix (everything after the last '-')
-# Format: v<version>-<commit_hash> -> v<version>
+# Extract RPM versions from image tags by removing their hash suffixes.
+# Regular ossfs2 tags can have more than one hash after the RPM version.
 OSSFS_RPM_VERSION=$(echo "${OSSFS_IMAGE_TAG}" | sed 's/-[^-]*$//')
-OSSFS2_RPM_VERSION=$(echo "${OSSFS2_IMAGE_TAG}" | sed 's/-[^-]*$//')
+OSSFS2_RPM_VERSION=${OSSFS2_IMAGE_TAG%%-*}
 OSSFS2_FAILOVER_RPM_VERSION=$(echo "${OSSFS2_FAILOVER_IMAGE_TAG}" | sed 's/-[^-]*$//')
 
 # Extract ALINAS and EFC versions from VERSIONS file

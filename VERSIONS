@@ -15,7 +15,7 @@
 OSSFS_IMAGE_TAG=v1.91.12.ack.2-5cf3371
 
 # OSSFS2 image tag (used in Helm values and Go code)
-# Format: v<version>-<commit_hash>
+# Format: v<version>-<commit_hash>[-<commit_hash>]
 # The RPM version (v<version>) will be extracted automatically
 OSSFS2_IMAGE_TAG=v2.0.11.ack.1-d7f1c36-e932253
 
