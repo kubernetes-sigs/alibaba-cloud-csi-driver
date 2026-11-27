@@ -48,7 +48,7 @@ ARG OSSFS_RPM_URL
 ADD --link ${OSSFS_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm} /ossfs.rpm
 
 FROM rpm AS ossfs2-rpm
-ARG OSSFS2_VERSION=v2.0.9.ack.3
+ARG OSSFS2_VERSION=v2.0.11.ack.1
 ARG OSSFS2_RPM_URL
 ADD --link ${OSSFS2_RPM_URL:-https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs2/ossfs2_${OSSFS2_VERSION}_centos8.0_${OSSFS_ARCH}.rpm} /ossfs2.rpm
 
